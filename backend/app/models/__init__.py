@@ -4,6 +4,7 @@ from app.models.image import (
     Image,
     ImageBusinessLabel,
     ImageCategory,
+    ImageEmbedding,
     ImageLevel2Category,
     ImageTag,
 )
@@ -17,6 +18,7 @@ __all__ = [
     "ImageCategory",
     "ContentTag",
     "ImageLevel2Category",
+    "ImageEmbedding",
     "AnalysisRun",
     "ImageBusinessLabel",
     "User",

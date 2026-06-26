@@ -13,8 +13,10 @@ from app.models.user import User, UserSession
 from app.services.ai_service import AiService
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
+from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_service import ImageService
+from app.services.semantic_search_clients import RerankerClient
 from app.services.search_service import SearchService
 from app.services.storage_service import LocalStorageProvider
 from app.services.tag_service import TagService
@@ -44,11 +46,12 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
         settings.max_upload_bytes,
         settings.max_image_pixels,
         settings.thumbnail_max_size,
+        embedding_index=EmbeddingIndexSync.from_settings(),
     )
 
 
 def get_image_analysis_service(db: Session = Depends(get_db)) -> ImageAnalysisService:
-    return ImageAnalysisService(db)
+    return ImageAnalysisService(db, embedding_index=EmbeddingIndexSync.from_settings())
 
 
 def get_tag_service(db: Session = Depends(get_db)) -> TagService:
@@ -64,6 +67,15 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
         meilisearch_index=settings.meilisearch_index,
         search_timeout_seconds=settings.search_timeout_seconds,
         ai_service=get_ai_service(),
+        embedding_client=EmbeddingIndexSync.from_settings().client,
+        embedding_top_n=settings.embedding_top_n,
+        reranker=RerankerClient(
+            base_url=settings.reranker_base_url,
+            api_key=settings.reranker_api_key,
+            model_name=settings.reranker_model_name,
+            timeout_seconds=settings.reranker_timeout_seconds,
+        ),
+        reranker_top_n=settings.reranker_top_n,
     )
 
 

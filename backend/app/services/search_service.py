@@ -14,6 +14,12 @@ from app.repositories.image_repository import ImageRepository
 from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import ScoredImage, SearchResponse
 from app.services.ai_service import AiService
+from app.services.embedding_index import cosine_similarity, load_vector
+from app.services.semantic_search_clients import (
+    EmbeddingClient,
+    RerankerClient,
+    SemanticSearchClientError,
+)
 from app.services.serializers import image_to_read
 
 
@@ -45,6 +51,10 @@ class SearchService:
         meilisearch_index: str = "images",
         search_timeout_seconds: float = 2.0,
         ai_service: AiService | None = None,
+        embedding_client: EmbeddingClient | None = None,
+        embedding_top_n: int = 100,
+        reranker: RerankerClient | None = None,
+        reranker_top_n: int = 50,
     ):
         self.repo = ImageRepository(db)
         self.search_backend = search_backend.strip().lower()
@@ -53,6 +63,10 @@ class SearchService:
         self.meilisearch_index = meilisearch_index
         self.search_timeout_seconds = search_timeout_seconds
         self.ai_service = ai_service
+        self.embedding_client = embedding_client
+        self.embedding_top_n = embedding_top_n
+        self.reranker = reranker
+        self.reranker_top_n = reranker_top_n
 
     def search(
         self,
@@ -69,9 +83,10 @@ class SearchService:
         if self.search_backend == "meilisearch":
             try:
                 hits = self._search_meilisearch(needle, limit)
+                hits = self._merge_hits(hits, self._search_embeddings(keyword, limit * 3))
                 return self._build_response(
                     keyword=keyword,
-                    hits=hits,
+                    hits=self._rerank_hits(keyword, hits, limit),
                     search_mode="meilisearch",
                     fallback=False,
                 )
@@ -86,9 +101,10 @@ class SearchService:
         if self.meilisearch_url:
             try:
                 hits = self._search_meilisearch(smart_keyword, limit)
+                hits = self._merge_hits(hits, self._search_embeddings(smart_keyword, limit * 3))
                 return self._build_response(
                     keyword=keyword,
-                    hits=hits,
+                    hits=self._rerank_hits(keyword, hits, limit),
                     search_mode="meilisearch",
                     fallback=False,
                     search_understanding=understanding,
@@ -118,6 +134,8 @@ class SearchService:
         search_understanding: SearchUnderstanding | None = None,
     ) -> SearchResponse:
         hits_by_id: dict[str, SearchHit] = {}
+        for hit in self._search_embeddings(keyword, max(limit * 3, self.embedding_top_n)):
+            hits_by_id[hit.image.id] = hit
         for query in self._database_queries(keyword, extra_queries or []):
             for image in self.repo.search(query.term, max(limit * 3, limit)):
                 existing = hits_by_id.get(image.id)
@@ -142,7 +160,8 @@ class SearchService:
             hits_by_id.values(),
             key=lambda hit: hit.score if hit.score is not None else 0.65,
             reverse=True,
-        )[:limit]
+        )
+        hits = self._rerank_hits(keyword, hits, limit)[:limit]
         return self._build_response(
             keyword=keyword,
             hits=hits,
@@ -201,6 +220,56 @@ class SearchService:
             for image in images
         ]
 
+    def _search_embeddings(self, keyword: str, limit: int) -> list[SearchHit]:
+        if not self.embedding_client or not self.embedding_client.configured:
+            return []
+        query = keyword.strip()
+        if not query:
+            return []
+        try:
+            query_vector = self.embedding_client.embed([query])[0]
+            rows = self.repo.list_embeddings(model_name=self.embedding_client.model_name)
+            scored = []
+            for row in rows:
+                similarity = cosine_similarity(query_vector, load_vector(row.vector_json))
+                if similarity <= 0:
+                    continue
+                scored.append((row.image_id, max(0.0, min((similarity + 1) / 2, 1.0))))
+        except (IndexError, ValueError, TypeError, SemanticSearchClientError):
+            return []
+        scored.sort(key=lambda item: item[1], reverse=True)
+        image_ids = [image_id for image_id, _score in scored[:limit]]
+        score_by_id = dict(scored[:limit])
+        return [
+            SearchHit(
+                image=image,
+                score=score_by_id.get(image.id, 0.65),
+                reasons=("Embedding 语义召回",),
+            )
+            for image in self.repo.get_many_by_ids(image_ids)
+        ]
+
+    def _merge_hits(
+        self,
+        primary: list[SearchHit],
+        secondary: list[SearchHit],
+    ) -> list[SearchHit]:
+        merged: dict[str, SearchHit] = {}
+        for hit in [*primary, *secondary]:
+            existing = merged.get(hit.image.id)
+            if existing is None:
+                merged[hit.image.id] = hit
+                continue
+            scores = [
+                score for score in (existing.score, hit.score) if score is not None
+            ]
+            merged[hit.image.id] = SearchHit(
+                image=existing.image,
+                score=max(scores) if scores else None,
+                reasons=tuple(self._unique([*existing.reasons, *hit.reasons])),
+            )
+        return list(merged.values())
+
     def _build_response(
         self,
         *,
@@ -225,6 +294,60 @@ class SearchService:
             match_summary=f"找到 {len(results)} 张与“{keyword}”相关的图片",
         )
 
+    def _rerank_hits(
+        self,
+        keyword: str,
+        hits: list[SearchHit],
+        limit: int,
+    ) -> list[SearchHit]:
+        if not self.reranker or not self.reranker.configured or len(hits) <= 1:
+            return hits
+        candidate_limit = min(max(limit, self.reranker_top_n), len(hits))
+        candidates = hits[:candidate_limit]
+        try:
+            results = self.reranker.rerank(
+                query=keyword,
+                documents=[self._rerank_document(hit.image) for hit in candidates],
+                top_n=candidate_limit,
+            )
+        except SemanticSearchClientError:
+            return hits
+        hit_by_index = {index: hit for index, hit in enumerate(candidates)}
+        reranked: list[SearchHit] = []
+        used_indexes: set[int] = set()
+        for result in results:
+            hit = hit_by_index.get(result.index)
+            if hit is None:
+                continue
+            used_indexes.add(result.index)
+            reranked.append(
+                SearchHit(
+                    image=hit.image,
+                    score=result.score,
+                    reasons=tuple(self._unique([*hit.reasons, "Reranker 语义重排"])),
+                )
+            )
+        reranked.extend(
+            hit for index, hit in enumerate(candidates) if index not in used_indexes
+        )
+        reranked.extend(hits[candidate_limit:])
+        return reranked
+
+    def _rerank_document(self, image: Image) -> str:
+        parts = [
+            f"标题：{image.title}",
+            f"语义总结：{image.image_summary}" if image.image_summary else "",
+            "隐形标签：" + "、".join(item.tag_name for item in image.content_tags),
+            "业务标签："
+            + "、".join(
+                self._business_label_name(label)
+                for label in image.business_labels
+                if label.review_status != "rejected"
+            ),
+            "人工标签：" + "、".join(link.tag.name for link in image.tag_links),
+        ]
+        return "\n".join(part for part in parts if part.strip() and not part.endswith("："))
+
     def _build_scored_image(
         self,
         image: Image,
@@ -243,7 +366,12 @@ class SearchService:
 
         title = image.title.lower()
         exact_title = bool(needle and (needle in title or title in needle))
-        summary_match = bool(image.image_summary and needle in image.image_summary.lower())
+        summary = image.image_summary.lower() if image.image_summary else ""
+        summary_match = bool(
+            needle
+            and summary
+            and (needle in summary or summary in needle)
+        )
         matched_tags = self._matching_names(needle, tag_names + content_tag_names)
         matched_categories = self._matching_names(
             needle,
@@ -262,9 +390,18 @@ class SearchService:
         if not reasons:
             reasons.append("搜索索引匹配")
 
-        score = external_score
-        if score is None:
-            score = 1.0 if exact_title else 0.8 if matched_tags else 0.65
+        score_candidates = [
+            score
+            for score in (
+                external_score,
+                1.0 if exact_title else None,
+                0.9 if summary_match else None,
+                0.86 if matched_categories else None,
+                0.8 if matched_tags else None,
+            )
+            if score is not None
+        ]
+        score = max(score_candidates) if score_candidates else 0.65
         score = max(0.0, min(score, 1.0))
 
         return ScoredImage(

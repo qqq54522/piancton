@@ -73,6 +73,7 @@ const ImageDetail = () => {
   }
 
   const manualBusinessLabels = detail.businessLabels.filter((label) => label.origin === 'manual');
+  const hasAiBusinessLabelRecords = detail.businessLabels.some((label) => label.origin === 'ai');
   const aiBusinessLabels = detail.businessLabels.filter(
     (label) => label.origin === 'ai' && label.reviewStatus !== 'rejected',
   );
@@ -407,7 +408,7 @@ const ImageDetail = () => {
                       </div>
                     ))}
                   </div>
-                ) : detail.level2Categories && detail.level2Categories.length > 0 ? (
+                ) : !hasAiBusinessLabelRecords && detail.level2Categories && detail.level2Categories.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {detail.level2Categories.map((cat: Level2Category) => (
                       <Badge

@@ -82,7 +82,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 本地开发链路使用 SQLite，后端测试、前端检查和浏览器回归已经跑通过。
 - PostgreSQL Schema、Alembic migration、Dockerfile、Nginx、Compose 和可选 Meilisearch profile 已经完成。
 - 后端支持 OpenAI-compatible 多模态模型；未配置模型时返回明确的 `503 provider_not_configured`。
-- 上传成功后可自动排队 AI 分析；分析结果写入前经过 schema、normalizer 和 taxonomy 校验。
+- 模型 Provider 已配置时，上传成功后可自动排队 AI 分析；分析结果写入前经过 schema、normalizer 和 taxonomy 校验。
 - 搜索已支持精准搜索与智能搜索手动切换；Meilisearch 是可选增强层，不是主数据源。
 - 本地继续开发不需要安装 Docker、Podman 或 PostgreSQL；服务器推荐仅安装 Docker Engine 与 Compose。
 - PostgreSQL 使用 Compose 容器，不在宿主机重复安装；Podman 不在默认支持范围内。
@@ -90,3 +90,12 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 生产部署是否完成，以根目录 README 的“服务器上线验收清单”为唯一判定标准。
 后续排查时先检查该清单，不要重复讨论已经由测试覆盖的本地代码问题。
+
+## 下一轮决策
+
+优先做能让项目进入真实使用闭环的事情：
+
+1. 服务器上线验收，确认部署、持久化、权限和备份恢复。
+2. 用真实图片和真实搜索句子做搜索质量评测。
+3. 如果上传和模型分析变慢，再把 AI 分析从 `BackgroundTasks` 升级为独立 worker。
+4. 在继续新增标签、AI 和审核功能前，逐步拆小 `ImageService` 与搜索查询职责。

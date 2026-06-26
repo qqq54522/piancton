@@ -14,6 +14,7 @@ from app.repositories.image_repository import ImageRepository
 from app.repositories.tag_repository import TagRepository
 from app.schemas.ai import ImageAnalysisResult
 from app.schemas.image import ImageDetailRead
+from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail
 from app.services.unit_of_work import UnitOfWork
@@ -26,11 +27,13 @@ class ImageAnalysisService:
         self,
         db,
         search_index: SearchIndexSync | None = None,
+        embedding_index: EmbeddingIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
         self.tags = TagRepository(db)
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
+        self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
 
     def create_analysis_run(self, image_id: str) -> AnalysisRun:
         image = self._get(image_id)
@@ -65,6 +68,23 @@ class ImageAnalysisService:
         analysis_run_id: str | None = None,
     ) -> ImageDetailRead:
         image = self._get(image_id)
+        catalog = load_taxonomy_catalog()
+        label_codes = self._secondary_label_codes(result)
+        rejected_ai_codes = {
+            label.label_code
+            for label in image.business_labels
+            if label.origin == "ai" and label.review_status == "rejected"
+        }
+        reviewed_ai_codes = {
+            label.label_code
+            for label in image.business_labels
+            if label.origin == "ai" and label.review_status in {"accepted", "rejected"}
+        }
+        manual_codes = {
+            label.label_code
+            for label in image.business_labels
+            if label.origin == "manual"
+        }
         content_tags = [
             ContentTag(
                 tag_name=item.tag.strip(),
@@ -82,22 +102,10 @@ class ImageAnalysisService:
                 confidence=item.confidence,
                 reason=item.reason,
             )
-            for item in result.secondary_labels
-            if item.label.strip()
+            for item, label_code in zip(result.secondary_labels, label_codes)
+            if item.label.strip() and label_code not in rejected_ai_codes
         ]
 
-        catalog = load_taxonomy_catalog()
-        label_codes = self._secondary_label_codes(result)
-        reviewed_ai_codes = {
-            label.label_code
-            for label in image.business_labels
-            if label.origin == "ai" and label.review_status in {"accepted", "rejected"}
-        }
-        manual_codes = {
-            label.label_code
-            for label in image.business_labels
-            if label.origin == "manual"
-        }
         business_label_inputs = []
         for item, label_code in zip(result.secondary_labels, label_codes):
             if not label_code:
@@ -149,6 +157,7 @@ class ImageAnalysisService:
             analysis_run=analysis_run,
             business_labels=business_labels,
         )
+        self.embedding_index.upsert_image(self.images, image)
         self.uow.commit()
         self._sync_index(image.id)
         return self._detail(image.id)

@@ -2,7 +2,9 @@ from sqlalchemy import select
 
 from app.models.image import ContentTag, Image, ImageBusinessLabel, ImageTag
 from app.models.tag import Tag
+from app.repositories.image_repository import ImageRepository
 from app.services.search_index import image_to_search_document
+from app.services.embedding_index import EmbeddingIndexSync, image_to_embedding_document
 from app.services.search_index_sync import SearchIndexSync
 from scripts.seed_taxonomy import backfill_manual_business_labels
 
@@ -137,6 +139,80 @@ def test_search_index_sync_upserts_and_deletes_documents(db_factory):
     assert client.documents[0]["id"] == image.id
     assert client.documents[0]["manualPrimaryLabelCode"] == "animation_explanation"
     assert client.deleted == [image.id]
+
+
+def test_embedding_index_sync_writes_image_semantic_vector(db_factory):
+    class FakeEmbeddingClient:
+        configured = True
+        model_name = "fake-embedding"
+
+        def embed(self, inputs: list[str]):
+            assert "语义总结：学生正在观看动画讲解。" in inputs[0]
+            return [[0.1, 0.2, 0.3]]
+
+    with db_factory() as db:
+        tag = Tag(
+            code="animation_explanation",
+            name="动画精讲",
+            color="#818CF8",
+            node_type="image_label",
+            assignable=True,
+            status="active",
+        )
+        image = Image(
+            title="动画课程学习页",
+            file_name="lesson-page.png",
+            storage_key="lesson-page.png",
+            thumbnail_storage_key="lesson-page-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="学生正在观看动画讲解。",
+        )
+        image.tag_links.append(ImageTag(tag=tag))
+        db.add(image)
+        db.commit()
+
+        repo = ImageRepository(db)
+        sync = EmbeddingIndexSync(FakeEmbeddingClient())
+        sync.upsert_image(repo, image)
+        db.commit()
+
+    assert image.embedding is not None
+    assert image.embedding.model_name == "fake-embedding"
+    assert image.embedding.dimension == 3
+    assert "动画课程学习页" in image.embedding.document_text
+    assert image_to_embedding_document(image) == image.embedding.document_text
+
+
+def test_embedding_document_uses_title_and_manual_tags_without_ai_summary(db_factory):
+    with db_factory() as db:
+        tag = Tag(
+            code="planning",
+            name="学习规划",
+            color="#818CF8",
+            node_type="image_label",
+            assignable=True,
+            status="active",
+        )
+        image = Image(
+            title="规划进度页",
+            file_name="planning.png",
+            storage_key="planning.png",
+            thumbnail_storage_key="planning-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+        )
+        image.tag_links.append(ImageTag(tag=tag))
+        db.add(image)
+        db.commit()
+
+        document = image_to_embedding_document(image)
+
+    assert "标题：规划进度页" in document
+    assert "人工标签：学习规划" in document
+    assert "语义总结：" not in document
 
 
 def test_seed_backfills_manual_business_labels_from_existing_image_tags(db_factory):

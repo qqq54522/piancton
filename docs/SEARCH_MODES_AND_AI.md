@@ -1,6 +1,6 @@
 # 搜索模式、大模型理解与图片语义补标
 
-状态：已接入“精准搜索 / 智能搜索”手动切换；图片上传后由后端自动排队执行 AI 语义补标；Meilisearch 作为智能搜索增强层，失败时自动回退数据库搜索。
+状态：已接入“精准搜索 / 智能搜索”手动切换；模型 Provider 已配置时，图片上传后由后端自动排队执行 AI 语义补标；Meilisearch 作为智能搜索增强层，失败时自动回退数据库搜索。
 
 ## 两种搜索模式
 
@@ -18,6 +18,7 @@
 1. 使用 `taxonomy/catalog.json` 做业务词扩展；
 2. 查数据库里的标题、摘要、人工标签、隐性内容标签、二级业务标签和 AI 理由；
 3. 标题匹配做双向判断：搜索词包含标题，或标题包含搜索词，都算标题命中。
+4. 图片摘要是重要语义匹配字段；搜索词命中摘要，或长搜索句包含整段摘要时，会作为强语义匹配进入排序。
 
 这保证了“复制一长串标题或文案”时，不会因为搜索词比真实标题更长而搜不到。
 
@@ -128,6 +129,21 @@ Meilisearch 不是主数据库，也不是唯一搜索引擎。
 
 如果 Meilisearch 可用，智能搜索优先尝试它；如果不可用，数据库搜索会兜底。这样本地和线上都不会因为搜索容器异常导致业务方搜不到图。
 
+## Embedding 与 Reranker 的位置
+
+Embedding API 用于向量召回：把用户搜索词和图片语义画像转成向量，再从已保存的图片向量中召回语义相近的候选图。图片语义画像由标题、图片摘要、隐性标签、业务标签、人工标签和分类组成。
+
+图片 AI 分析完成、标题/标签更新、AI 业务标签审核变化后，会尽力刷新该图片的 embedding。Embedding API 未配置或调用失败时，搜索会继续使用数据库 / Meilisearch 召回。
+
+Reranker API 是可选精排层：数据库或 Meilisearch 先召回候选结果，Reranker 再根据搜索词与候选图的标题、图片摘要、隐性标签、业务标签和人工标签重新排序。如果 Reranker 未配置、超时或返回异常，搜索会自动保留原排序返回结果。
+
+旧图片可用脚本补齐语义向量：
+
+```bash
+cd backend
+python -m scripts.rebuild_embeddings
+```
+
 ## 当前关键配置
 
 ```env
@@ -139,6 +155,14 @@ MODEL_API_KEY=你的 API Key
 MEILISEARCH_URL=http://meilisearch:7700
 MEILISEARCH_API_KEY=replace-with-a-search-master-key
 MEILISEARCH_INDEX=images
+
+EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1
+EMBEDDING_MODEL_NAME=Qwen/Qwen3-VL-Embedding-8B
+EMBEDDING_TOP_N=100
+
+RERANKER_BASE_URL=https://api.siliconflow.cn/v1
+RERANKER_MODEL_NAME=Qwen/Qwen3-VL-Reranker-8B
+RERANKER_TOP_N=50
 ```
 
 如果模型未配置：

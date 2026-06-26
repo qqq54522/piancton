@@ -53,6 +53,9 @@ class Image(Base):
     business_labels: Mapped[list["ImageBusinessLabel"]] = relationship(
         back_populates="image", cascade="all, delete-orphan"
     )
+    embedding: Mapped[Optional["ImageEmbedding"]] = relationship(
+        back_populates="image", cascade="all, delete-orphan", uselist=False
+    )
 
 
 class ImageTag(Base):
@@ -154,3 +157,21 @@ class ImageBusinessLabel(Base):
     image: Mapped[Image] = relationship(back_populates="business_labels")
     tag: Mapped["Tag"] = relationship()
     analysis_run: Mapped[Optional[AnalysisRun]] = relationship(back_populates="business_labels")
+
+
+class ImageEmbedding(Base):
+    __tablename__ = "image_embeddings"
+
+    image_id: Mapped[str] = mapped_column(
+        ForeignKey("images.id", ondelete="CASCADE"), primary_key=True
+    )
+    model_name: Mapped[str] = mapped_column(String(200), index=True)
+    dimension: Mapped[int] = mapped_column(Integer)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    document_text: Mapped[str] = mapped_column(Text)
+    vector_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
+
+    image: Mapped[Image] = relationship(back_populates="embedding")

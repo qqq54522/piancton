@@ -16,6 +16,7 @@ from app.models.image import (
 from app.repositories.image_repository import ImageRepository
 from app.repositories.tag_repository import TagRepository
 from app.schemas.image import ImageDetailRead, ImageListResponse, ImageRead
+from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail, image_to_read
 from app.services.storage_service import StorageProvider
@@ -52,6 +53,7 @@ class ImageService:
         max_image_pixels: int,
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
+        embedding_index: EmbeddingIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
         self.tags = TagRepository(db)
@@ -61,6 +63,7 @@ class ImageService:
         self.thumbnail_max_size = thumbnail_max_size
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
+        self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
 
     def list_images(
         self,
@@ -135,6 +138,7 @@ class ImageService:
         )
         try:
             self.images.add(image)
+            self.embedding_index.upsert_image(self.images, image)
             self.storage.finalize(staged)
             self.uow.commit()
         except Exception:
@@ -147,6 +151,7 @@ class ImageService:
     def update_title(self, image_id: str, title: str) -> ImageRead:
         image = self._get(image_id)
         image.title = title
+        self.embedding_index.upsert_image(self.images, image)
         self.images.save(image)
         self.uow.commit()
         self._sync_index(image.id)
@@ -165,6 +170,7 @@ class ImageService:
             label for label in image.business_labels if label.origin != "manual"
         ]
         image.business_labels.extend(self._manual_business_labels(tags, primary_tag_id))
+        self.embedding_index.upsert_image(self.images, image)
         self.images.save(image)
         self.uow.commit()
         self._sync_index(image.id)
@@ -185,6 +191,9 @@ class ImageService:
         label.review_status = review_status
         if review_status == "accepted":
             self._promote_ai_label_to_manual(image, label)
+        elif review_status == "rejected":
+            self._remove_rejected_ai_label_outputs(image, label)
+        self.embedding_index.upsert_image(self.images, image)
         self.images.save(image)
         self.uow.commit()
         self._sync_index(image.id)
@@ -261,6 +270,37 @@ class ImageService:
                 ),
             )
         )
+
+    def _business_label_display_name(self, label: ImageBusinessLabel) -> str:
+        if label.tag.parent:
+            return f"{label.tag.parent.name} > {label.tag.name}"
+        return label.tag.name
+
+    def _remove_rejected_ai_label_outputs(
+        self,
+        image: Image,
+        label: ImageBusinessLabel,
+    ) -> None:
+        rejected_name = self._business_label_display_name(label)
+        image.level2_categories[:] = [
+            item for item in image.level2_categories if item.category_name != rejected_name
+        ]
+        image.business_labels[:] = [
+            item
+            for item in image.business_labels
+            if not (
+                item.origin == "manual"
+                and item.tag_id == label.tag_id
+                and (item.reason or "").startswith("设计师接受 AI 建议")
+            )
+        ]
+        if not any(
+            item.origin == "manual" and item.tag_id == label.tag_id
+            for item in image.business_labels
+        ):
+            image.tag_links[:] = [
+                link for link in image.tag_links if link.tag_id != label.tag_id
+            ]
 
     def thumbnail(self, image_id: str) -> tuple[Path, Image]:
         image = self.images.get_any(image_id)

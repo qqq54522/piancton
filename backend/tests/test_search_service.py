@@ -1,14 +1,18 @@
 from app.domain.search_query_expansion import expand_search_terms
+import json
+
 from app.models.image import (
     ContentTag,
     Image,
     ImageBusinessLabel,
+    ImageEmbedding,
     ImageLevel2Category,
     ImageTag,
 )
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
 from app.schemas.ai import ExpandedSearchTag, SearchCategoryMatch, SearchUnderstanding
+from app.services.semantic_search_clients import RerankResult, SemanticSearchClientError
 from app.services.search_service import SearchHit, SearchService, SearchUnavailable
 
 
@@ -116,6 +120,34 @@ def test_precise_search_matches_when_long_query_contains_title(db_factory):
     assert "标题匹配" in response.results[0].match_reasons
 
 
+def test_database_search_treats_image_summary_as_strong_semantic_match(db_factory):
+    with db_factory() as db:
+        image = Image(
+            title="素材 A",
+            file_name="planning.png",
+            storage_key="planning.png",
+            thumbnail_storage_key="planning-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="家长正在查看孩子学习规划进度",
+        )
+        db.add(image)
+        db.commit()
+
+        response = SearchService(db).search(
+            "我想找家长正在查看孩子学习规划进度的素材",
+            12,
+            "precise",
+        )
+
+    assert len(response.results) == 1
+    assert response.results[0].image.title == "素材 A"
+    assert response.results[0].match_level == "A"
+    assert response.results[0].final_score == 0.9
+    assert "图片摘要匹配" in response.results[0].match_reasons
+
+
 def test_image_list_keyword_uses_expanded_business_terms(db_factory):
     with db_factory() as db:
         image = create_searchable_image(db)
@@ -187,6 +219,163 @@ def test_meilisearch_response_uses_external_score(db_factory, monkeypatch):
     assert response.fallback is False
     assert response.results[0].match_level == "S"
     assert response.results[0].final_score == 0.97
+
+
+def test_reranker_reorders_database_candidates(db_factory):
+    class FakeReranker:
+        configured = True
+
+        def rerank(self, *, query: str, documents: list[str], top_n: int):
+            assert query == "学习规划"
+            assert top_n == 2
+            assert "语义总结：学习规划" in documents[1]
+            return [
+                RerankResult(index=1, score=0.96),
+                RerankResult(index=0, score=0.55),
+            ]
+
+    with db_factory() as db:
+        db.add_all(
+            [
+                Image(
+                    title="学习规划标题",
+                    file_name="title.png",
+                    storage_key="title.png",
+                    thumbnail_storage_key="title-thumb.jpg",
+                    media_type="image/png",
+                    size_bytes=100,
+                    uploader="designer",
+                    image_summary="普通学习页面",
+                ),
+                Image(
+                    title="普通标题",
+                    file_name="summary.png",
+                    storage_key="summary.png",
+                    thumbnail_storage_key="summary-thumb.jpg",
+                    media_type="image/png",
+                    size_bytes=100,
+                    uploader="designer",
+                    image_summary="学习规划",
+                ),
+            ]
+        )
+        db.commit()
+        response = SearchService(db, reranker=FakeReranker()).search(
+            "学习规划",
+            2,
+            "precise",
+        )
+
+    assert [result.image.title for result in response.results] == ["普通标题", "学习规划标题"]
+    assert response.results[0].match_level == "S"
+    assert "Reranker 语义重排" in response.results[0].match_reasons
+
+
+def test_reranker_failure_keeps_original_database_order(db_factory):
+    class FailingReranker:
+        configured = True
+
+        def rerank(self, *, query: str, documents: list[str], top_n: int):
+            raise SemanticSearchClientError("temporary failure")
+
+    with db_factory() as db:
+        db.add_all(
+            [
+                Image(
+                    title="学习规划标题",
+                    file_name="title.png",
+                    storage_key="title.png",
+                    thumbnail_storage_key="title-thumb.jpg",
+                    media_type="image/png",
+                    size_bytes=100,
+                    uploader="designer",
+                    image_summary="普通学习页面",
+                ),
+                Image(
+                    title="普通标题",
+                    file_name="summary.png",
+                    storage_key="summary.png",
+                    thumbnail_storage_key="summary-thumb.jpg",
+                    media_type="image/png",
+                    size_bytes=100,
+                    uploader="designer",
+                    image_summary="学习规划",
+                ),
+            ]
+        )
+        db.commit()
+        response = SearchService(db, reranker=FailingReranker()).search(
+            "学习规划",
+            2,
+            "precise",
+        )
+
+    assert [result.image.title for result in response.results] == ["学习规划标题", "普通标题"]
+    assert all("Reranker 语义重排" not in result.match_reasons for result in response.results)
+
+
+def test_embedding_search_recalls_semantic_candidates_without_keyword_match(db_factory):
+    class FakeEmbeddingClient:
+        configured = True
+        model_name = "fake-embedding"
+
+        def embed(self, inputs: list[str]):
+            assert inputs == ["学习规划"]
+            return [[1.0, 0.0]]
+
+    with db_factory() as db:
+        closer = Image(
+            title="素材 B",
+            file_name="b.png",
+            storage_key="b.png",
+            thumbnail_storage_key="b-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="家长查看孩子进度",
+        )
+        farther = Image(
+            title="素材 C",
+            file_name="c.png",
+            storage_key="c.png",
+            thumbnail_storage_key="c-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="课程动画讲解",
+        )
+        db.add_all([closer, farther])
+        db.flush()
+        db.add_all(
+            [
+                ImageEmbedding(
+                    image=closer,
+                    model_name="fake-embedding",
+                    dimension=2,
+                    content_hash="closer",
+                    document_text="语义总结：家长查看孩子进度",
+                    vector_json=json.dumps([1.0, 0.0]),
+                ),
+                ImageEmbedding(
+                    image=farther,
+                    model_name="fake-embedding",
+                    dimension=2,
+                    content_hash="farther",
+                    document_text="语义总结：课程动画讲解",
+                    vector_json=json.dumps([0.0, 1.0]),
+                ),
+            ]
+        )
+        db.commit()
+        response = SearchService(db, embedding_client=FakeEmbeddingClient()).search(
+            "学习规划",
+            2,
+            "precise",
+        )
+
+    assert [result.image.title for result in response.results] == ["素材 B"]
+    assert response.results[0].match_level == "S"
+    assert "Embedding 语义召回" in response.results[0].match_reasons
 
 
 def test_smart_search_attempts_meilisearch_with_ai_expansion(db_factory, monkeypatch):

@@ -13,6 +13,7 @@ from app.models.image import (
     Image,
     ImageBusinessLabel,
     ImageCategory,
+    ImageEmbedding,
     ImageLevel2Category,
     ImageTag,
 )
@@ -24,6 +25,7 @@ IMAGE_LOAD_OPTIONS = (
     selectinload(Image.content_tags),
     selectinload(Image.level2_categories),
     selectinload(Image.business_labels).selectinload(ImageBusinessLabel.tag).selectinload(Tag.parent),
+    selectinload(Image.embedding),
     selectinload(Image.analysis_runs),
 )
 
@@ -68,6 +70,9 @@ class ImageRepository:
                         Image.title.ilike(pattern),
                         literal(keyword).ilike(literal("%") + Image.title + literal("%")),
                         Image.image_summary.ilike(pattern),
+                        literal(keyword).ilike(
+                            literal("%") + Image.image_summary + literal("%")
+                        ),
                         manual_tag.name.ilike(pattern),
                         ContentTag.tag_name.ilike(pattern),
                         ImageLevel2Category.category_name.ilike(pattern),
@@ -149,6 +154,7 @@ class ImageRepository:
                     Image.title.ilike(pattern),
                     literal(keyword).ilike(literal("%") + Image.title + literal("%")),
                     Image.image_summary.ilike(pattern),
+                    literal(keyword).ilike(literal("%") + Image.image_summary + literal("%")),
                     Tag.name.ilike(pattern),
                     ContentTag.tag_name.ilike(pattern),
                     ImageLevel2Category.category_name.ilike(pattern),
@@ -172,6 +178,40 @@ class ImageRepository:
         )
         images_by_id = {image.id: image for image in self.db.scalars(stmt).all()}
         return [images_by_id[image_id] for image_id in image_ids if image_id in images_by_id]
+
+    def list_embeddings(self, *, model_name: str | None = None) -> list[ImageEmbedding]:
+        stmt = (
+            select(ImageEmbedding)
+            .join(Image, Image.id == ImageEmbedding.image_id)
+            .where(Image.deleted_at.is_(None))
+        )
+        if model_name:
+            stmt = stmt.where(ImageEmbedding.model_name == model_name)
+        return list(self.db.scalars(stmt).all())
+
+    def upsert_embedding(
+        self,
+        image: Image,
+        *,
+        model_name: str,
+        dimension: int,
+        content_hash: str,
+        document_text: str,
+        vector_json: str,
+        updated_at: datetime,
+    ) -> ImageEmbedding:
+        embedding = image.embedding
+        if embedding is None:
+            embedding = ImageEmbedding(image=image)
+        embedding.model_name = model_name
+        embedding.dimension = dimension
+        embedding.content_hash = content_hash
+        embedding.document_text = document_text
+        embedding.vector_json = vector_json
+        embedding.updated_at = updated_at
+        self.db.add(embedding)
+        self.db.flush()
+        return embedding
 
     def get_business_label(self, image_id: str, label_id: str) -> Optional[ImageBusinessLabel]:
         return self.db.scalar(

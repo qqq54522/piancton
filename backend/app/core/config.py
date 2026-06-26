@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     meilisearch_api_key: str = ""
     meilisearch_index: str = "images"
     search_timeout_seconds: float = 2.0
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+    embedding_model_name: str = ""
+    embedding_timeout_seconds: float = 10.0
+    embedding_top_n: int = 100
+    reranker_base_url: str = ""
+    reranker_api_key: str = ""
+    reranker_model_name: str = ""
+    reranker_timeout_seconds: float = 5.0
+    reranker_top_n: int = 50
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

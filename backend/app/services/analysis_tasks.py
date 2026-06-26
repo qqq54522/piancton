@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.ai.contracts import ModelProvider
 from app.core.config import get_settings
 from app.services.ai_service import AiService
+from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_service import ImageService
 from app.services.storage_service import LocalStorageProvider
@@ -32,7 +33,7 @@ def run_image_analysis_task(
         settings.max_image_pixels,
         settings.thumbnail_max_size,
     )
-    analysis = ImageAnalysisService(db)
+    analysis = ImageAnalysisService(db, embedding_index=EmbeddingIndexSync.from_settings())
     try:
         analysis.mark_running(image_id, analysis_run_id)
         path, _image = images.content(image_id)

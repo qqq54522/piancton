@@ -321,9 +321,30 @@ def test_ai_analysis_is_persisted_to_image_detail(client, db_factory):
         item for item in rejected.json()["businessLabels"] if item["id"] == ai_label["id"]
     )
     assert rejected_label["reviewStatus"] == "rejected"
+    assert not [
+        item
+        for item in rejected.json()["businessLabels"]
+        if item["origin"] == "manual" and item["labelCode"] == "animation_explanation"
+    ]
+    assert not rejected.json()["level2Categories"]
+    assert not any(tag["name"] == "动画精讲" for tag in rejected.json()["tags"])
+
+    rerun_after_reject = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
+    assert rerun_after_reject.status_code == 200
+    detail_after_reject_rerun = client.get(f"/api/images/{image['id']}").json()
+    assert not detail_after_reject_rerun["level2Categories"]
+    ai_animation_labels_after_reject = [
+        item
+        for item in detail_after_reject_rerun["businessLabels"]
+        if item["origin"] == "ai" and item["labelCode"] == "animation_explanation"
+    ]
+    assert len(ai_animation_labels_after_reject) == 1
+    assert ai_animation_labels_after_reject[0]["reviewStatus"] == "rejected"
 
     manual_label = next(
-        item for item in rejected.json()["businessLabels"] if item["origin"] == "manual"
+        item
+        for item in detail_after_reject_rerun["businessLabels"]
+        if item["origin"] == "manual"
     )
     manual_review = client.patch(
         f"/api/images/{image['id']}/business-labels/{manual_label['id']}",

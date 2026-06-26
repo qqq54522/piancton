@@ -12,7 +12,7 @@
 - 本地持久化图片卷，可替换 Storage Provider
 - AI Provider 稳定接口；未配置时明确返回 `503 provider_not_configured`
 - 已支持 OpenAI-compatible 多模态模型接入，API Key 只放后端环境变量
-- 上传成功后自动执行完整 AI 分析；生成 18–22 个中文隐形内容标签
+- 模型 Provider 已配置时，上传成功后自动排队 AI 分析；生成 18–22 个中文隐形内容标签
 - AI 自动匹配只使用封闭的 16 个业务标签，不修改人工标签树
 - React、TanStack Query、OpenAPI TypeScript 类型和管理员页面
 - 登录失败限流、结构化 request ID、安全响应头和操作审计
@@ -176,16 +176,15 @@ docker compose exec backend python -m scripts.rebuild_search_index
 
 架构与边界规则见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
-## 标签与 AI 搜索规划
+## 当前文档与优化记录
 
-标签体系和 AI 搜索已经进入第一轮非破坏性改造阶段。后续迁移、切换和继续优化以以下文档为准：
+项目文档只保留当前可执行信息，以及用于追踪未来计划和已完成改造的优化记录：
 
-- [标签系统审计与重构基线](docs/TAG_SYSTEM_AUDIT.md)
-- [AI 图片打标与混合检索架构](docs/AI_SEARCH_ARCHITECTURE.md)
-- [搜索引擎选型决策](docs/adr/0001-search-engine.md)
-- [标签、AI 与搜索改造实施规划](docs/IMPLEMENTATION_ROADMAP.md)
-- [搜索词扩展与标签词库维护说明](docs/SEARCH_QUERY_EXPANSION.md)
+- [架构与边界规则](docs/ARCHITECTURE.md)
 - [搜索模式、大模型理解与图片语义补标](docs/SEARCH_MODES_AND_AI.md)
+- [服务器部署验收清单](docs/SERVER_DEPLOYMENT_CHECKLIST.md)
+- [搜索引擎选型决策](docs/adr/0001-search-engine.md)
+- [项目优化记录与后续计划](docs/OPTIMIZATION_PLAN.md)
 
 第一轮已实施目录治理、稳定业务编码、人工/AI 标签来源拆分、旧图人工标签回填、
 分析批次记录、数据库确定性搜索词扩展、精准/智能搜索手动切换、搜索意图理解接入、

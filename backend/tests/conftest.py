@@ -35,6 +35,12 @@ def client(db_factory, tmp_path: Path, monkeypatch):
 
     dependencies.settings.storage_dir = tmp_path / "images"
     dependencies.settings.storage_dir.mkdir()
+    dependencies.settings.embedding_base_url = ""
+    dependencies.settings.embedding_api_key = ""
+    dependencies.settings.embedding_model_name = ""
+    dependencies.settings.reranker_base_url = ""
+    dependencies.settings.reranker_api_key = ""
+    dependencies.settings.reranker_model_name = ""
 
     def override_db():
         with db_factory() as db:
