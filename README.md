@@ -187,6 +187,7 @@ docker compose exec backend python -m scripts.rebuild_search_index
 
 项目文档只保留当前可执行信息，以及用于追踪未来计划和已完成改造的优化记录：
 
+- [后续开发核心护栏](docs/DEVELOPMENT_GUARDRAILS.md)
 - [架构与边界规则](docs/ARCHITECTURE.md)
 - [搜索模式、大模型理解与图片语义补标](docs/SEARCH_MODES_AND_AI.md)
 - [项目改造与意图识别施工入口](docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md)
