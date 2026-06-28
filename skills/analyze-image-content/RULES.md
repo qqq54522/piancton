@@ -9,7 +9,7 @@ Required output:
 ```json
 {
   "image_type": "function | scene_emotion | scene_functional",
-  "image_summary": "一段简洁、客观的中文总结",
+  "image_summary": "一段简洁、客观的中文总结，覆盖主体、界面/功能、业务卖点和排除边界",
   "content_tags": [
     {
       "tag": "简洁中文标签",
@@ -17,9 +17,19 @@ Required output:
       "dimension": "人物|场景|物体|动作|情绪|文字|视觉风格|颜色|产品功能|业务卖点|其他"
     }
   ],
-  "secondary_labels": [],
-  "recommended_search_words": ["string"],
-  "negative_tags": ["string"]
+  "secondary_labels": [
+    {
+      "label_code": "closed_catalog_code",
+      "system": "封闭目录中的一级体系",
+      "label": "封闭目录中的二级标签",
+      "confidence": 0.0,
+      "evidence_level": "A | B | C",
+      "role": "primary | secondary",
+      "reason": "说明为什么适合该标签，以及为什么不是相邻易混标签"
+    }
+  ],
+  "recommended_search_words": ["短词", "功能词", "家长/用户真实痛点短语"],
+  "negative_tags": ["容易误判但本图不支持的相邻概念"]
 }
 ```
 
@@ -29,7 +39,15 @@ Rules:
 - Return 18 to 22 unique content tags, approximately 20 in total.
 - Cover multiple useful dimensions instead of repeating near-synonyms.
 - All summaries, content tags, recommended words, and reasons must use Chinese.
-- Summary should mention subjects, action, interface clues, setting, and mood.
-- Recommended words should help later retrieval and contain 5 to 10 concise Chinese phrases.
-- Negative tags record plausible but unsupported concepts.
+- `image_summary` must be searchable, not decorative. It must clearly mention:
+  - visual subject, such as child, parent, teacher, learning page, report page, or question page;
+  - interface/function, such as拍题、分步讲解、错题本、学情报告、AI答疑、课程规划;
+  - business selling point, such as不只给答案、讲清思路、同步校内、减少家长辅导压力;
+  - exclusion boundary, such as不是纯答案页、不是普通题库、未出现真人老师、未体现规划服务.
+- `recommended_search_words` should help later retrieval and contain 5 to 10 unique Chinese phrases:
+  - include short words, such as拍题、错题、报告;
+  - include functional words, such as分步讲解、错因分析、学习规划;
+  - include at least one real parent/user pain-point phrase, such as孩子拍题只抄答案考试不会、家长不知道孩子学没学.
+- `negative_tags` must record likely false-positive adjacent concepts that should not be used to recall this image, such as普通答案页、真人督学、纯题库、课程购买页.
 - Secondary labels are filled according to the separate closed catalog.
+- `secondary_labels.reason` must be useful for designer review: explain positive evidence and explicitly say why similar labels do not apply.

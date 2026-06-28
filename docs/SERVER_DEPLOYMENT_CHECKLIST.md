@@ -10,12 +10,16 @@
 - 部署日期：
 - 操作人：
 - 应用域名：
+- CORS_ORIGINS：
 - Git revision：
 - Alembic revision：
 
 ## 服务状态
 
 - [ ] Docker Engine 与 Compose 已安装
+- [ ] `.env` 已替换默认 PostgreSQL 密码
+- [ ] `CORS_ORIGINS` 已设置为最终 HTTPS 域名
+- [ ] `SESSION_COOKIE_SECURE=true`
 - [ ] `postgres` 健康
 - [ ] `backend` 健康
 - [ ] `web` 健康

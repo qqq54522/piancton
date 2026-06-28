@@ -15,6 +15,14 @@ ruff check app tests
 pyright
 ```
 
+根目录也提供统一检查与打包入口：
+
+```bash
+make check
+make docker-build
+make docker-up
+```
+
 `seed_taxonomy` 除了同步六大体系目录，也会把旧的 `image_tags` 关系回填为
 `image_business_labels` 中的人工主/附加业务标签。标准体系根节点等不可打标标签
 不会被回填。
@@ -74,3 +82,7 @@ python -m scripts.rebuild_search_index
 `verify_search_index` 使用临时 Meilisearch 索引验证真实索引写入和
 SearchService 查询；`--dry-run` 只打印前几条搜索文档，不访问 Meilisearch。
 正式验证和重建需要先配置 `MEILISEARCH_URL`。
+
+Docker 默认不会配置 `MEILISEARCH_URL`，因此没有启用搜索 profile 时，上传和编辑
+不会反复尝试同步一个不存在的搜索容器。启用 profile 时必须显式配置
+`MEILISEARCH_URL=http://meilisearch:7700` 和匹配的 `MEILISEARCH_API_KEY`。

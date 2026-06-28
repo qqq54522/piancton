@@ -20,7 +20,10 @@ class StaticProvider:
 def payload(*, tag_count: int = 20, secondary_labels=None):
     return {
         "image_type": "function",
-        "image_summary": "一张展示动画讲解数学知识点的学习界面。",
+        "image_summary": (
+            "孩子在学习界面观看动画讲解数学知识点，突出同步校内讲清思路，"
+            "不是只展示答案的普通题库页面。"
+        ),
         "content_tags": [
             {
                 "tag": f"内容标签{index}",
@@ -38,11 +41,20 @@ def payload(*, tag_count: int = 20, secondary_labels=None):
                 "confidence": 0.92,
                 "evidence_level": "A",
                 "role": "primary",
-                "reason": "画面直接展示动画课程和知识讲解。",
+                "reason": (
+                    "画面直接展示动画课程和知识讲解，适合动画精讲，"
+                    "不是课后小测或普通答案页。"
+                ),
             }
         ],
-        "recommended_search_words": ["动画讲解", "数学知识点"],
-        "negative_tags": [],
+        "recommended_search_words": [
+            "动画讲解",
+            "数学知识点",
+            "同步校内",
+            "讲清思路",
+            "孩子听不懂老师讲课",
+        ],
+        "negative_tags": ["课后小测", "普通答案页"],
     }
 
 
@@ -79,6 +91,74 @@ def test_image_analysis_rejects_unknown_closed_secondary_label():
         ).analyze_image(Path("unused.png"))
 
     assert exc_info.value.code == "unknown_secondary_labels"
+
+
+def test_image_analysis_requires_search_words_with_long_pain_phrase():
+    invalid = payload()
+    invalid["recommended_search_words"] = [
+        "动画讲解",
+        "知识点",
+        "同步校内",
+        "讲解",
+        "课堂",
+    ]
+
+    with pytest.raises(AppError) as exc_info:
+        AiService(StaticProvider(invalid)).analyze_image(Path("unused.png"))
+
+    assert exc_info.value.code == "model_response_invalid"
+    assert "真实痛点长短语" in exc_info.value.message
+
+
+def test_image_analysis_requires_negative_tags():
+    invalid = payload()
+    invalid["negative_tags"] = []
+
+    with pytest.raises(AppError) as exc_info:
+        AiService(StaticProvider(invalid)).analyze_image(Path("unused.png"))
+
+    assert exc_info.value.code == "model_response_invalid"
+    assert exc_info.value.details == {"negativeTagCount": 0}
+
+
+def test_image_analysis_requires_secondary_label_reason_boundary():
+    invalid_label = [
+        {
+            "system": "同步校内体系",
+            "label": "动画精讲",
+            "confidence": 0.9,
+            "evidence_level": "A",
+            "role": "primary",
+            "reason": "图片适合动画讲解知识点。",
+        }
+    ]
+
+    with pytest.raises(AppError) as exc_info:
+        AiService(
+            StaticProvider(payload(secondary_labels=invalid_label))
+        ).analyze_image(Path("unused.png"))
+
+    assert exc_info.value.code == "model_response_invalid"
+    assert exc_info.value.details == {"secondaryLabels": ["同步校内体系 > 动画精讲"]}
+
+
+def test_image_analysis_rejects_generated_secondary_label_reason():
+    invalid_label = [
+        {
+            "label_code": "animation_explanation",
+            "confidence": 0.9,
+            "evidence_level": "A",
+            "role": "primary",
+        }
+    ]
+
+    with pytest.raises(AppError) as exc_info:
+        AiService(
+            StaticProvider(payload(secondary_labels=invalid_label))
+        ).analyze_image(Path("unused.png"))
+
+    assert exc_info.value.code == "model_response_invalid"
+    assert exc_info.value.details == {"secondaryLabels": ["同步校内体系 > 动画精讲"]}
 
 
 def test_search_intent_normalizes_catalog_codes_to_chinese_names():

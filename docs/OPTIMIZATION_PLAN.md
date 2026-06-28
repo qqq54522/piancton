@@ -1,8 +1,8 @@
 # 项目优化文档：架构收口、标签系统与 AI 搜索闭环
 
-版本：2026-06-24  
-适用阶段：本地版已跑通，准备进入稳定优化与后续线上部署规划阶段  
-文档类型：改造指南 + 架构约束 + 变更记录  
+版本：2026-06-28
+适用阶段：本地版已跑通，准备进入稳定优化与后续线上部署规划阶段
+文档类型：改造指南 + 架构约束 + 变更记录
 核心目标：在不推倒重来的前提下，把现有项目从“功能可用”收口成“边界清晰、逻辑闭环、后续可扩展”的图片标签与智能检索系统。
 
 这份文档不是一次性的想法记录，而是后续项目改造的施工准则。任何一轮优化都应该先看本文档，再动代码；每一轮完成后，也要把“改了什么、没改什么、验证了什么、遗留了什么”补回本文档或对应的变更记录中。
@@ -803,10 +803,10 @@ client/src/features/images/components/SearchModeSwitch.tsx
 
 ```text
 docs/ARCHITECTURE.md
-docs/PROJECT_HANDOVER.md
 docs/SEARCH_MODES_AND_AI.md
-docs/AI_SEARCH_ARCHITECTURE.md
-docs/TAG_SYSTEM_AUDIT.md
+docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md
+docs/SEARCH_BUSINESS_INTENT_MAP.md
+docs/TAGGING_SYSTEM_IMPROVEMENT_PLAN.md
 ```
 
 ---
@@ -1097,8 +1097,7 @@ docs/TAG_SYSTEM_AUDIT.md
 实际改动：
 
 - 更新 `docs/ARCHITECTURE.md`，明确 OpenAI-compatible Provider、Meilisearch 派生索引、AI 输出校验和标签来源流转。
-- 更新 `docs/PROJECT_HANDOVER.md` 中容易误导的“真实模型未接入”旧表述。
-- 更新 `docs/TAG_SYSTEM_AUDIT.md` 和 `docs/AI_SEARCH_ARCHITECTURE.md` 的当前状态说明。
+- 更新当时仍在仓库中的交接、标签审计和 AI 搜索架构文档，修正过期状态说明；这些旧文档后续已归档删除。
 - 修正本文档中 AI 标签来源口径：以 `origin=manual/ai` 和 `review_status=pending/accepted/rejected` 为真实字段。
 - 修正本文档中搜索模式口径：当前是精准搜索、智能搜索和后端 `configured` 默认模式；混合搜索保留为第三轮目标。
 - 补强 `backend/tests/test_architecture.py`，新增 Repository 不提交事务、路由层不依赖 Repository/SQLAlchemy、应用代码不直接建表/删表、外部搜索不进入 Repository、AI 服务必须调用 normalizer 等护栏。
@@ -1175,6 +1174,434 @@ docs/TAG_SYSTEM_AUDIT.md
 下一步：
 
 - 继续第二轮时，优先拆 `ImageLifecycleService` 或 `ImageTaggingService`，一次只拆一个方向。
+
+---
+
+### 2026-06-28：阶段一 - 服务边界收口
+
+改造目标：
+
+- 按 `docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md` 的阶段一要求，继续拆薄 `ImageService`。
+- 先把删除、恢复、永久删除和标签审核状态流转收进独立服务。
+- 保持图片上传、列表、详情、标签更新、AI 建议审核、回收站和永久删除 API 行为不变。
+
+实际改动：
+
+- 新增 `backend/app/services/image_lifecycle_service.py`。
+- 新增 `backend/app/services/image_tagging_service.py`。
+- `ImageLifecycleService` 接管图片删除、回收站列表、恢复和永久删除。
+- `ImageTaggingService` 接管人工标签更新、人工业务标签生成、AI 建议接受/拒绝流转。
+- `ImageService` 移除生命周期方法、标签更新方法、AI 建议审核方法和对应私有辅助逻辑。
+- 图片路由改为按职责注入 `ImageLifecycleService`、`ImageTaggingService` 或 `ImageService`。
+- 依赖注入新增 `get_image_lifecycle_service` 和 `get_image_tagging_service`。
+- 架构测试新增约束，防止 `ImageService` 重新持有生命周期和标签审核工作流。
+
+明确没有改动：
+
+- 没有改动数据库 schema 和 Alembic migration。
+- 没有改动前端页面、交互和 API 路径。
+- 没有改动搜索召回、排序、业务意图词库或 Meilisearch 查询。
+- 没有新增二级标签，也没有把业务话术写入 `SearchService`。
+- 没有批量重跑旧图 AI 分析。
+
+验证结果：
+
+- 后端测试：`./.venv/bin/python -m pytest`，57 passed。
+- 阶段一相关测试：`./.venv/bin/python -m pytest tests/test_architecture.py tests/test_security_and_images.py`，29 passed。
+- 前端检查：`npm run typecheck`，通过。
+- Ruff 限定检查：本轮触碰的 Python 文件 `All checks passed!`。
+- 手工业务验证：由现有接口测试覆盖上传、AI 建议接受/拒绝、删除、恢复、永久删除和审计日志主流程。
+- Docker 状态：施工前基线为 backend、web、postgres、meilisearch healthy；本轮未重建容器。
+
+风险与遗留：
+
+- `ImageService.upload` 仍会调用 `ImageTaggingService` 的标签校验和人工业务标签生成，等后续拆 `ImageUploadService` 时可以进一步收口。
+- `SearchService` 仍然较重，阶段二再拆 query expansion、ranking 和 semantic profile。
+- 本轮是结构改造，不解决业务话术模糊搜索不准的问题；该问题留到阶段三、阶段四处理。
+
+下一步：
+
+- 进入阶段二前，先确认搜索服务边界拆分清单，只做 query expansion / ranking 预拆，不直接引入完整业务意图词库。
+
+---
+
+### 2026-06-28：阶段二 - 搜索服务边界预拆
+
+改造目标：
+
+- 按 `docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md` 的阶段二要求，给后续业务意图识别、搜索排序收紧和语义画像增强预留清晰入口。
+- 先把 `SearchService` 中的查询扩展、语义画像、评分分级和 reranker 重排纯逻辑拆出。
+- 保持现有搜索 API、搜索模式、召回顺序、匹配原因、S/A/B/C 阈值和前端响应结构不变。
+
+实际改动：
+
+- 新增 `backend/app/services/query_expansion_service.py`。
+- 新增 `backend/app/services/image_semantic_profile_service.py`。
+- 新增 `backend/app/services/search_ranking_service.py`。
+- 新增 `backend/app/services/search_models.py`，承接 `SearchHit`。
+- `QueryExpansionService` 接管数据库查询扩展、AI 搜索理解结果转扩展查询、智能搜索 keyword 拼接。
+- `ImageSemanticProfileService` 接管 reranker 文档构造和业务标签展示名生成。
+- `SearchRankingService` 接管命中合并、排序、reranker 重排、响应组装、匹配原因和 S/A/B/C 分级。
+- `SearchService` 保留搜索总编排、模式选择、Meilisearch 查询、Embedding 召回、数据库召回和降级逻辑。
+- 架构测试新增约束，防止 `SearchService` 重新持有评分、query expansion 和语义画像职责。
+- 架构测试新增约束，防止搜索边界服务反向依赖 Repository。
+
+明确没有改动：
+
+- 没有引入 `business_intents.json`。
+- 没有新增业务意图词库。
+- 没有调整搜索权重、分数阈值、强意图 strict 策略或 C 级兜底规则。
+- 没有重写 Meilisearch 查询。
+- 没有改前端搜索交互和 API 响应字段。
+- 没有改数据库 schema 和 Alembic migration。
+
+验证结果：
+
+- 搜索服务测试：`./.venv/bin/python -m pytest tests/test_search_service.py`，14 passed。
+- 架构测试：`./.venv/bin/python -m pytest tests/test_architecture.py`，11 passed。
+- 后端全量测试：`./.venv/bin/python -m pytest`，59 passed。
+- 前端检查：`npm run typecheck`，通过。
+- Ruff 限定检查：本轮触碰的搜索边界 Python 文件和架构测试 `All checks passed!`。
+- 手工业务验证：由现有搜索测试覆盖精准搜索、智能搜索、AI 扩展、Meilisearch 降级、Embedding 召回和 Reranker 重排行为。
+
+风险与遗留：
+
+- 本轮只做边界预拆，不解决 `AI错题本`、`AI拍题精学`、`专家规划` 的模糊业务话术归一问题。
+- `SearchService` 仍持有 Meilisearch 和 Embedding 召回细节，后续如继续膨胀，可再拆 SearchBackend / SemanticRecall 边界。
+- `QueryUnderstandingService` 和 `business_intents.json` 尚未接入，留到阶段三。
+- 强意图下不强行补满、C 级兜底不污染主结果等策略尚未实现，留到阶段四。
+
+下一步：
+
+- 进入阶段三时，只接入最小业务意图层，先放 `AI错题本`、`AI拍题精学`、`专家规划` 三个意图簇。
+
+---
+
+### 2026-06-28：阶段三 - 最小业务意图层
+
+改造目标：
+
+- 按 `docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md` 的阶段三要求，用独立配置承接业务话术。
+- 先只接入 `AI错题本`、`AI拍题精学`、`专家规划` 三个核心意图簇。
+- 让智能搜索在模型 Provider 不可用时，也能用本地词库完成基础意图归一。
+- 保持 `SearchService` 只调用 `QueryUnderstandingService`，不内置业务话术规则。
+
+实际改动：
+
+- 新增 `taxonomy/business_intents.json`。
+- 新增 `backend/app/domain/business_intents.py`，负责读取、校验和渲染业务意图材料。
+- 新增 `backend/app/services/query_understanding_service.py`，负责本地业务意图归一和 AI 搜索理解兜底。
+- `SearchService` 接入 `QueryUnderstandingService`，智能搜索先尝试本地业务意图归一；本地未命中时再尝试已有 AI 搜索理解。
+- 补充 `tests/test_business_intents.py`，验证业务意图目录、prompt 渲染、本地归一和 AI 兜底。
+- 补充搜索测试，验证无模型 Provider 时，三个业务痛点 query 可以通过本地词库召回对应标签图片。
+- 补充架构测试，防止 `SearchService` 直接依赖 `business_intents` 配置或写死三类业务话术。
+
+明确没有改动：
+
+- 没有改动数据库 schema 和 Alembic migration。
+- 没有改动前端搜索交互和 API 响应字段。
+- 没有把业务意图词库塞进 `taxonomy/catalog.json`。
+- 没有在 `SearchService` 中写死 `AI错题本`、`AI拍题精学`、`专家规划` 规则。
+- 没有实现阶段四的 strict 搜索策略、C 级兜底剔除或强意图少结果策略。
+- 没有调整 Meilisearch 查询、Embedding 召回、Reranker 权重或 S/A/B/C 分数阈值。
+
+验证结果：
+
+- 阶段三关键测试：`./.venv/bin/python -m pytest tests/test_business_intents.py tests/test_search_service.py tests/test_architecture.py`，32 passed。
+- 后端全量测试：`./.venv/bin/python -m pytest`，66 passed。
+- 前端检查：`npm run typecheck`，通过。
+- Ruff 限定检查：本轮触碰的业务意图、搜索理解、搜索服务和测试文件 `All checks passed!`。
+- 手工业务验证：由新增搜索测试覆盖 `整理错题费功夫又容易忘`、`孩子拍题只抄答案考试不会`、`出卷人编教材的人设计课程` 三类本地意图归一和召回。
+
+风险与遗留：
+
+- 本轮只完成 query -> business intent 的最小归一，没有收紧搜索主结果区。
+- 强意图下不强行补满、C 级兜底不污染主结果、匹配原因展示更细等策略留到阶段四。
+- 业务意图词库目前只包含三个种子意图，扩展到更多体系前必须先有评测集约束。
+
+下一步：
+
+- 进入阶段四时，基于 `QueryUnderstandingService` 的归一结果实现强意图搜索收紧。
+
+---
+
+### 2026-06-28：阶段四 - 强意图搜索收紧
+
+改造目标：
+
+- 按 `docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md` 的阶段四要求，解决强业务意图下泛召回素材污染主结果的问题。
+- 当本地业务意图归一结果置信度足够高时，启用 strict 主结果策略。
+- 强意图下只保留命中主业务标签、主标签名或语义总结的结果。
+- 强相关图片只有 1 张时，只返回 1 张，不用泛相关素材补满。
+- 在 `matchReasons` 中给前端可见的业务话术、主标签、语义总结和排除项检查原因。
+
+实际改动：
+
+- 在 `backend/app/services/search_models.py` 新增 `StrictSearchPolicy`。
+- `SearchService` 根据 `SearchUnderstanding` 中的本地业务意图归一结果生成 strict policy。
+- `SearchRankingService` 新增 strict policy 过滤逻辑。
+- strict 策略会保留以下结果：
+  - 命中主业务分类，例如 `同步自学体系 > AI拍题精学`。
+  - 命中主标签名，例如 `AI拍题精学`。
+  - 语义总结明确命中主标签。
+- strict 策略会剔除命中排除项的泛结果，例如“只给最终答案”的普通拍题素材。
+- strict 命中会补充匹配原因：业务话术、主业务标签、主标签、语义总结、排除项检查。
+- 补充搜索测试，验证 `孩子拍题只抄答案考试不会` 只返回 `AI拍题精学` 强相关图，不返回普通拍题答案素材。
+
+明确没有改动：
+
+- 没有新增更多业务意图簇。
+- 没有改前端搜索交互和 API 响应字段。
+- 没有改数据库 schema 和 Alembic migration。
+- 没有改 Meilisearch 查询参数、Embedding 向量召回或 Reranker API。
+- 没有调整通用精准搜索和非业务意图智能搜索的召回行为。
+- 没有扩展 15/30/50 条评测集；评测集扩展留到阶段六。
+
+验证结果：
+
+- 阶段四关键测试：`./.venv/bin/python -m pytest tests/test_search_service.py tests/test_business_intents.py tests/test_architecture.py`，33 passed。
+- 后端全量测试：`./.venv/bin/python -m pytest`，67 passed。
+- 前端检查：`npm run typecheck`，通过。
+- Ruff 限定检查：本轮触碰的搜索服务、ranking、models 和搜索测试文件 `All checks passed!`。
+- 手工业务验证：由新增测试覆盖“强相关只有 1 张时只返回 1 张，不用普通拍题答案素材补满”。
+
+风险与遗留：
+
+- 当前 strict 策略只在 `query_type=business_intent_search` 且置信度不低于 0.85 时启用。
+- AI Provider 返回的普通智能搜索理解暂不触发 strict，避免误伤原智能搜索行为。
+- 当前 strict 策略优先依赖已有业务标签、标签名和语义总结；旧图如果没有这些信息，仍需要阶段五提升 AI 语义总结质量。
+- 更多意图簇、更多搜索评测 query 留到阶段六。
+
+下一步：
+
+- 进入阶段五时，增强 AI 打标语义总结、推荐搜索词和 negative tags，让新上传图片更容易被长业务话术命中。
+
+---
+
+### 2026-06-28：阶段五 - AI 语义增强
+
+改造目标：
+
+- 按 `docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md` 的阶段五要求，增强新图 AI 分析结果的可检索性和可审查性。
+- 让 `image_summary`、`recommended_search_words`、`negative_tags` 和 `secondary_labels.reason` 承担明确的业务搜索职责。
+- 新上传图片应能通过真实家长/用户长痛点短语被召回。
+- AI 建议标签理由要能帮助设计师判断“为什么是它、为什么不是相邻标签”。
+- 保持人工已接受/已拒绝的审核状态不被重新分析覆盖。
+
+实际改动：
+
+- 更新 `skills/analyze-image-content/RULES.md`：
+  - `image_summary` 必须覆盖视觉主体、界面/功能、业务卖点和排除边界。
+  - `recommended_search_words` 必须包含短词、功能词和真实痛点短语。
+  - `negative_tags` 必须记录容易误召回但本图不支持的相邻概念。
+  - `secondary_labels.reason` 必须说明适配证据和相邻标签排除边界。
+- `AiService` 新增图片分析结果校验：
+  - 推荐搜索词必须为 5 到 10 个，去重，且至少包含一个长痛点短语。
+  - 负向相邻标签必须为 1 到 8 个，去重。
+  - 自动匹配标签 reason 必须包含排除边界表达。
+- `normalizer` 对旧的字符串二级标签和 code 标签补充更有审查价值的默认 reason。
+- `ImageAnalysisService` 保存 AI 分析时，将 `recommended_search_words` 去重后追加为 `业务卖点` 维度的 `ContentTag`。
+- `negative_tags` 不写入 `ContentTag`，避免把排除概念反向种进可搜索索引。
+- 补充测试，验证长业务痛点短语 `孩子拍题只抄答案考试不会` 可通过推荐搜索词召回新图。
+
+明确没有改动：
+
+- 没有新增数据库字段保存原始 `recommended_search_words` 或 `negative_tags`。
+- 没有改 Alembic migration。
+- 没有把 `negative_tags` 放进 Meilisearch、数据库搜索或 embedding 文档。
+- 没有改变 AI business label 的人工审核状态机。
+- 没有改前端标签审核 UI。
+- 没有扩展阶段六评测集。
+
+验证结果：
+
+- 阶段五关键测试：`cd backend && ./.venv/bin/python -m pytest tests/test_ai_analysis_rules.py tests/test_security_and_images.py::test_upload_starts_backend_ai_analysis tests/test_security_and_images.py::test_ai_analysis_is_persisted_to_image_detail tests/test_security_and_images.py::test_ai_analysis_accepts_string_secondary_labels tests/test_search_service.py::test_ai_recommended_search_words_recall_long_business_phrase`，11 passed。
+- Ruff 限定检查：`cd backend && ./.venv/bin/python -m ruff check app/services/ai_service.py app/ai/normalizer.py app/services/image_analysis_service.py tests/test_ai_analysis_rules.py tests/test_security_and_images.py tests/test_search_service.py`，通过。
+- 后端全量测试：`cd backend && ./.venv/bin/python -m pytest`，71 passed。
+- 前端检查：`cd client && npm run typecheck`，通过。
+- 人工审核状态保护由既有 `test_ai_analysis_is_persisted_to_image_detail` 覆盖：重跑分析不会覆盖 accepted/rejected AI label 状态。
+
+风险与遗留：
+
+- 当前没有独立字段保存负向标签，只通过模型输出规则和校验保证生成质量；后续如果要在审核界面展示负向标签，需要新增 schema/API/DB 设计。
+- 推荐搜索词目前以 `ContentTag` 形式进入搜索，是低侵入实现；后续如需区分“视觉内容标签”和“业务搜索词”，可再拆独立表或字段。
+- AI 输出校验比之前更严格，真实模型 prompt 需要按新版 Skill 规则返回完整字段。
+
+下一步：
+
+- 进入阶段六时，基于阶段二到阶段五的能力补 15/30/50 条搜索评测集，并用评测结果约束业务话术扩展。
+
+---
+
+### 2026-06-28：阶段六 - 扩展评测集与全量推广
+
+改造目标：
+
+- 按 `docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md` 的阶段六要求，把搜索评测从 3 个种子意图扩展到六大体系。
+- 建立 15/30/50 三批累计搜索评测 query，后续搜索逻辑变更可重复对比。
+- 让评测记录包含 query、真实意图、期望体系、期望二级标签、强相关图片、不应出现图片、评分标准和结果记录。
+- 扩展本地业务意图目录，避免评测集和意图识别实现脱节。
+
+实际改动：
+
+- 新增 `taxonomy/search_eval_cases.json`，包含 50 条搜索评测 query：
+  - 第 1 批累计 15 条。
+  - 第 2 批累计 30 条。
+  - 第 3 批累计 50 条。
+  - 覆盖同步校内、同步考点、同步培养、同步规划、同步自学、同步伴学六大体系。
+  - 覆盖当前 taxonomy 中全部图片二级标签。
+- 新增 `backend/app/domain/search_eval.py`：
+  - 加载并校验搜索评测集。
+  - 校验 50 条总量、15/30/50 批次累计数量、taxonomy 标签合法性、强相关/不应出现图片描述和评分标准。
+- 新增 `backend/scripts/run_search_eval.py`：
+  - 支持 `--validate-only` 只校验评测集资产。
+  - 支持连接当前数据库跑真实搜索评测并输出 JSON 报告。
+  - 旧 SQLite schema 未迁移时给出明确提示。
+- 扩展 `taxonomy/business_intents.json`：
+  - 从 3 个种子意图扩展到 16 个业务意图。
+  - 覆盖六大体系和全部当前图片二级标签。
+  - 对 50 条评测 query 做本地归一约束。
+- 补充 `tests/test_search_eval.py`，验证评测集批次、六大体系覆盖、taxonomy 标签覆盖、每个业务意图都有评测覆盖、50 条 query 都能归一到期望标签。
+- 更新业务意图测试，从“三个种子意图”升级为“六大体系覆盖”。
+
+明确没有改动：
+
+- 没有新增数据库表或 Alembic migration。
+- 没有改前端搜索页面。
+- 没有继续调整搜索评分权重、strict policy 或排序规则。
+- 没有批量重分析旧图。
+- 没有把评测结果截图硬编码进仓库；真实素材库评测时再补 result record。
+
+验证结果：
+
+- 阶段六关键测试：`cd backend && ./.venv/bin/python -m pytest tests/test_search_eval.py tests/test_business_intents.py tests/test_search_service.py`，25 passed。
+- 阶段六资产校验：`cd backend && ./.venv/bin/python scripts/run_search_eval.py --batch 3 --validate-only`，返回 50 条 validated。
+- Ruff 限定检查：`cd backend && ./.venv/bin/python -m ruff check tests/test_search_eval.py tests/test_business_intents.py app/domain/search_eval.py scripts/run_search_eval.py`，通过。
+- JSON 格式校验：`taxonomy/business_intents.json` 和 `taxonomy/search_eval_cases.json` 均可被 `python -m json.tool` 解析。
+- 后端全量测试：`cd backend && ./.venv/bin/python -m pytest`，76 passed。
+- 前端检查：`cd client && npm run typecheck`，通过。
+
+风险与遗留：
+
+- 本地 `data/piancton.db` 已于 2026-06-28 迁移到 `20260626_0005 (head)`，迁移前备份为 `data/piancton.db.before-stage6-migration-20260628`。
+- `run_search_eval.py` 已能在本地 SQLite 上跑真实搜索评测；但当前本地库素材和业务标签不完整，评测分数不能代表真实素材库质量。
+- Docker、服务器或云端数据库迁移时仍应执行 Alembic `upgrade head`，再跑真实搜索评测记录 top3/top5 指标。
+- 评测集中的强相关/不应出现图片目前是图片特征描述，不是固定 image id；等真实素材库稳定后可以补充具体 image id 和截图。
+- 评测集已覆盖六大体系，但还没有形成前端可视化报告页。
+
+下一步：
+
+- 后续任何搜索逻辑改动前，先跑 `run_search_eval.py --validate-only` 确认评测资产，再在已迁移数据库上跑真实搜索评测并记录 top3/top5 指标。
+
+---
+
+### 2026-06-28：中等改 - 搜索意图不确定性决策
+
+改造目标：
+
+- 让本地业务意图词库只在强命中、低歧义时直接拍板。
+- 当本地命中较弱或多个意图分数接近时，优先交给 AI 搜索理解做消歧。
+- AI 不可用时保留本地弱兜底，但降低置信度，避免误触发强意图 strict 策略。
+
+实际改动：
+
+- `QueryUnderstandingService.understand()` 新增决策层：
+  - 明确本地强命中：直接返回本地业务意图。
+  - 本地低置信或多意图接近：优先调用 AI。
+  - AI 不可用且本地有候选：返回弱兜底结果。
+- `understand_locally()` 保持纯本地最高匹配能力，用于评测集覆盖验证。
+- 补充测试覆盖明确本地命中、弱命中走 AI、多意图接近走 AI、AI 不可用弱兜底。
+- 补充搜索服务回归，验证本地“规划”歧义时，AI 可消歧到 `专家规划` 并触发强意图收紧。
+
+明确没有改动：
+
+- 没有拆 `SearchRankingService`。
+- 没有改搜索评分阈值、Meilisearch 查询或 Embedding/Reranker 调用。
+- 没有扩展业务意图词库和评测集内容。
+- 没有改前端搜索交互。
+
+验证结果：
+
+- 业务意图、搜索服务、搜索评测测试：`30 passed`。
+- Ruff 限定检查：通过。
+- 后端全量测试：`82 passed`。
+- 后端 Pyright：通过。
+- 前端 TypeScript：通过。
+- 搜索评测资产：50 条结构校验通过。
+
+风险与遗留：
+
+- 本地词库仍是轻量匹配，不替代复杂语义理解。
+- 真实素材库评测后，如果 AI 消歧成本或稳定性有问题，再考虑加缓存或更细的置信规则。
+
+---
+
+### 2026-06-28：大改 - 搜索排序架构收口
+
+改造目标：
+
+- 把 `SearchRankingService` 从“评分、响应组装、reranker、strict filter 都在一起”的重服务，收口成搜索排序门面。
+- 保持搜索 API、搜索结果、匹配原因、S/A/B/C 阈值和 strict 策略行为不变。
+- 后续继续优化搜索策略时，避免在一个大文件里不断追加条件分支。
+
+实际改动：
+
+- 新增 `SearchScorer`：只负责命中原因、分数计算和 S/A/B/C 分级。
+- 新增 `SearchResponseBuilder`：只负责把 `SearchHit` 转成 `SearchResponse`。
+- 新增 `SemanticRerankService`：只负责 reranker 调用、候选截断和失败保序。
+- 新增 `StrictIntentFilter`：只负责强意图过滤、排除项判断、否定语义识别和 strict 命中加权。
+- `SearchRankingService` 保留原有外部方法名，内部只做命中合并、基础排序和委托编排。
+- 架构测试新增护栏，防止 `SearchRankingService` 重新持有评分、响应组装和 strict 细节。
+- 搜索边界服务护栏扩展到新增的四个服务文件。
+
+明确没有改动：
+
+- 没有改 `SearchService` 的搜索模式和外部 API。
+- 没有改 Meilisearch、Embedding 或 Reranker 的调用协议。
+- 没有改业务意图词库、评测集、AI prompt 或前端页面。
+- 没有调整搜索阈值、strict policy 置信度或匹配原因文案。
+
+验证结果：
+
+- 搜索服务和架构测试：`33 passed`。
+- Ruff 限定检查：通过。
+
+风险与遗留：
+
+- `SearchService` 仍持有 Meilisearch 和 Embedding 召回细节；如果后续继续变重，再拆 SearchBackend / SemanticRecall。
+- 搜索策略行为保持不变，真实素材库质量提升仍需要跑 50 条评测用例后再决定。
+
+---
+
+### 2026-06-28：打包与部署配置收口
+
+改造目标：
+
+- 修正生产环境文档与实际后端配置之间的变量漂移。
+- 让默认 Docker Compose 保持轻量，只启动 web、backend 和 postgres。
+- Meilisearch 保持可选增强层，必须显式配置 profile 后才启用。
+- 给后续打包、验收和 GitHub 发布提供统一检查入口。
+
+实际改动：
+
+- `.env.docker.example` 移除无效的 `APP_ORIGIN`，生产域名统一使用 `CORS_ORIGINS`。
+- `docker-compose.yml` 默认不再给后端注入 `MEILISEARCH_URL`，避免未启动 search profile 时产生无意义同步重试。
+- 后端容器健康检查改为 `/health/ready`，明确检查数据库就绪。
+- Nginx 增加 gzip、静态资源长期缓存、`index.html` no-store 和较长 API 代理超时。
+- 后端 Dockerfile 关闭 pip 版本检查和缓存，前端 Dockerfile 关闭 npm audit/fund 噪音。
+- 根目录新增 `Makefile`，提供 `make check`、`make docker-build`、`make docker-up` 和 `make docker-up-search`。
+- README、后端 README、服务器验收清单和架构文档同步更新部署口径。
+
+明确没有改动：
+
+- 没有上传云服务器。
+- 没有推送 GitHub。
+- 没有改变业务 API、数据库 schema、搜索排序或 AI 分析逻辑。
+
+风险与遗留：
+
+- 真正生产验收仍必须在目标服务器执行 HTTPS、持久化、权限和备份恢复检查。
+- 启用 Meilisearch 时必须在 `.env` 中同时配置 `SEARCH_BACKEND=meilisearch`、`MEILISEARCH_URL` 和 `MEILISEARCH_API_KEY`。
 
 ---
 

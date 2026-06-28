@@ -78,5 +78,6 @@ backend/.env
 # Local application data
 data/*.db
 data/*.db-*
+data/*.db.*
 storage/images/*
 !storage/images/.gitkeep

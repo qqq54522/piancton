@@ -15,9 +15,11 @@ from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_analysis_service import ImageAnalysisService
+from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
-from app.services.semantic_search_clients import RerankerClient
+from app.services.image_tagging_service import ImageTaggingService
 from app.services.search_service import SearchService
+from app.services.semantic_search_clients import RerankerClient
 from app.services.storage_service import LocalStorageProvider
 from app.services.tag_service import TagService
 from app.services.user_service import UserService
@@ -48,6 +50,14 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
         settings.thumbnail_max_size,
         embedding_index=EmbeddingIndexSync.from_settings(),
     )
+
+
+def get_image_lifecycle_service(db: Session = Depends(get_db)) -> ImageLifecycleService:
+    return ImageLifecycleService(db, LocalStorageProvider(settings.storage_dir))
+
+
+def get_image_tagging_service(db: Session = Depends(get_db)) -> ImageTaggingService:
+    return ImageTaggingService(db, embedding_index=EmbeddingIndexSync.from_settings())
 
 
 def get_image_analysis_service(db: Session = Depends(get_db)) -> ImageAnalysisService:

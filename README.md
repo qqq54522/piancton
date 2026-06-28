@@ -19,16 +19,16 @@
 
 ## 当前状态与后续工作
 
-代码层面的内测版优化与第一轮标签/AI/搜索改造已经完成，本地使用 SQLite
-与旧库副本验证通过。当前检查结果：
+代码层面的内测版优化、六阶段标签/AI/搜索改造和第一轮小清理已经完成。
+当前本地检查结果：
 
-- 后端 pytest：33 项通过
+- 后端 pytest：84 项通过
 - Ruff、Pyright：通过
-- 前端 ESLint、TypeScript、Vitest、生产构建：通过
-- npm 生产依赖安全审计：0 个已知漏洞
-- 登录、图片首页和管理员页面浏览器回归：通过
+- 前端 TypeScript、Vitest、生产构建：通过
+- 搜索评测资产：50 条用例通过结构校验
+- 服务器生产验收仍以本文件后续清单为准
 
-剩余工作不是重复改代码，而是在目标服务器执行生产环境验收：
+剩余工作不是重复改基础代码，而是在目标服务器执行生产环境验收，并用真实素材库持续记录搜索质量：
 
 1. 在服务器安装 Docker Engine 和 Docker Compose。
 2. 配置生产域名、HTTPS 和 `.env`。
@@ -63,6 +63,12 @@ uvicorn app.main:app --reload --port 8000
 cd client
 npm install
 npm run dev
+```
+
+统一检查入口：
+
+```bash
+make check
 ```
 
 API 变化后，在后端运行期间执行：
@@ -104,14 +110,15 @@ Compose 内置的 Nginx 监听 HTTP。生产域名的 HTTPS 证书应由服务�
 
 ```bash
 cp .env.docker.example .env
-# 修改数据库密码、域名和 Cookie 配置
+# 修改数据库密码、CORS_ORIGINS、Cookie 和可选模型配置
 # 如需启用 AI，同时配置 MODEL_PROVIDER、MODEL_BASE_URL、MODEL_API_KEY、MODEL_NAME
 docker compose up --build -d
 docker compose exec backend python -m scripts.create_admin admin 'replace-with-a-strong-password'
 docker compose exec backend python -m scripts.seed_taxonomy
 ```
 
-生产 HTTPS 环境必须设置 `SESSION_COOKIE_SECURE=true`。
+生产 HTTPS 环境必须设置 `SESSION_COOKIE_SECURE=true`，并把 `CORS_ORIGINS`
+设置为最终 HTTPS 域名，例如 `https://images.example.com`。
 
 如果 Docker Hub 拉取超时，可以优先使用云厂商提供的 Docker 镜像加速器。项目也支持在
 `.env` 中覆盖基础镜像完整名称：
@@ -150,7 +157,7 @@ docker compose exec backend python -m scripts.rebuild_search_index
 ## 服务器上线验收清单
 
 - [ ] `.env` 中已替换默认 PostgreSQL 密码
-- [ ] `APP_ORIGIN` 是最终 HTTPS 域名
+- [ ] `CORS_ORIGINS` 是最终 HTTPS 域名
 - [ ] `SESSION_COOKIE_SECURE=true`
 - [ ] 反向代理已配置有效 HTTPS 证书
 - [ ] `docker compose up --build -d` 成功
@@ -182,6 +189,9 @@ docker compose exec backend python -m scripts.rebuild_search_index
 
 - [架构与边界规则](docs/ARCHITECTURE.md)
 - [搜索模式、大模型理解与图片语义补标](docs/SEARCH_MODES_AND_AI.md)
+- [项目改造与意图识别施工入口](docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md)
+- [搜索业务话术词库与意图簇映射](docs/SEARCH_BUSINESS_INTENT_MAP.md)
+- [标签系统完善与 AI 打标改造方案](docs/TAGGING_SYSTEM_IMPROVEMENT_PLAN.md)
 - [服务器部署验收清单](docs/SERVER_DEPLOYMENT_CHECKLIST.md)
 - [搜索引擎选型决策](docs/adr/0001-search-engine.md)
 - [项目优化记录与后续计划](docs/OPTIMIZATION_PLAN.md)
@@ -190,3 +200,10 @@ docker compose exec backend python -m scripts.rebuild_search_index
 分析批次记录、数据库确定性搜索词扩展、精准/智能搜索手动切换、搜索意图理解接入、
 Meilisearch 可选降级层、搜索索引增量同步和重建脚本。业务搜索没有强制切换为
 Meilisearch 单一路径，也不要求额外采购 OCR、Embedding 或 Reranker API。
+
+打包优化入口：
+
+- `make check`：后端测试、Ruff、Pyright、前端类型检查、前端测试和生产构建。
+- `make docker-build`：只构建 Compose 镜像。
+- `make docker-up`：启动默认的 web、backend、postgres。
+- `make docker-up-search`：同时启动可选 Meilisearch profile。

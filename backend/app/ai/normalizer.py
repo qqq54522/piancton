@@ -5,6 +5,15 @@ from typing import Any
 from app.ai.contracts import ModelRequest
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
 
+DEFAULT_SECONDARY_LABEL_REASON = (
+    "模型返回稳定 code，系统已转换为标准二级标签结构；"
+    "模型未提供具体适配证据和相邻概念边界。"
+)
+STRING_SECONDARY_LABEL_REASON = (
+    "模型以简写形式返回，系统已转换为标准二级标签结构；"
+    "模型未提供具体适配证据和相邻概念边界。"
+)
+
 
 def normalize_model_payload(
     request: ModelRequest,
@@ -158,7 +167,7 @@ def _normalize_secondary_label(value: Any) -> Any:
         "confidence": 0.75,
         "evidence_level": "C",
         "role": "secondary",
-        "reason": "模型以简写形式返回，系统已转换为标准二级标签结构。",
+        "reason": STRING_SECONDARY_LABEL_REASON,
     }
 
 
@@ -180,7 +189,10 @@ def _normalize_secondary_label_dict(value: dict[str, Any]) -> dict[str, Any] | N
         confidence=normalized.get("confidence", 0.75),
         evidence_level=normalized.get("evidence_level", "C"),
         role=normalized.get("role", "secondary"),
-        reason=normalized.get("reason", "模型返回稳定 code，系统已转换为标准二级标签结构。"),
+        reason=normalized.get(
+            "reason",
+            DEFAULT_SECONDARY_LABEL_REASON,
+        ),
     )
     if code_label:
         return code_label
@@ -193,7 +205,7 @@ def _secondary_label_from_code(
     confidence: Any = 0.75,
     evidence_level: Any = "C",
     role: Any = "secondary",
-    reason: Any = "模型返回稳定 code，系统已转换为标准二级标签结构。",
+    reason: Any = DEFAULT_SECONDARY_LABEL_REASON,
 ) -> dict[str, Any] | None:
     catalog = load_taxonomy_catalog()
     node_by_code = catalog.node_by_code
@@ -208,7 +220,7 @@ def _secondary_label_from_code(
         "confidence": confidence,
         "evidence_level": evidence_level if evidence_level in {"A", "B", "C"} else "C",
         "role": role if role in {"primary", "secondary"} else "secondary",
-        "reason": str(reason or "模型返回稳定 code，系统已转换为标准二级标签结构。"),
+        "reason": str(reason or DEFAULT_SECONDARY_LABEL_REASON),
     }
 
 

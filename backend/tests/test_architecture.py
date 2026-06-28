@@ -108,3 +108,157 @@ def test_image_service_does_not_own_ai_analysis_persistence():
     assert "ImageLevel2Category" not in source
     assert "create_analysis_run" not in source
     assert "save_ai_analysis" not in source
+
+
+def test_image_service_does_not_own_lifecycle_or_tagging_workflows():
+    path = ROOT / "services" / "image_service.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "ImageService"
+    )
+    method_names = {
+        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
+    }
+
+    assert {
+        "delete",
+        "list_deleted",
+        "restore",
+        "purge",
+        "update_tags",
+        "review_business_label",
+        "_promote_ai_label_to_manual",
+        "_remove_rejected_ai_label_outputs",
+    }.isdisjoint(method_names)
+
+    imports = imported_modules(path)
+    assert "app.repositories.tag_repository" not in imports
+    assert "ImageBusinessLabel" not in path.read_text(encoding="utf-8")
+
+
+def test_search_service_keeps_ranking_and_query_expansion_outside_orchestrator():
+    path = ROOT / "services" / "search_service.py"
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SearchService"
+    )
+    method_names = {
+        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
+    }
+
+    assert {
+        "_build_response",
+        "_build_scored_image",
+        "_rerank_hits",
+        "_rerank_document",
+        "_database_queries",
+        "_queries_from_understanding",
+        "_smart_keyword",
+        "_match_level",
+        "_business_label_name",
+    }.isdisjoint(method_names)
+    assert "ImageBusinessLabel" not in source
+    assert "ScoredImage" not in source
+    assert "image_to_read" not in source
+
+
+def test_search_service_keeps_recall_backends_outside_orchestrator():
+    path = ROOT / "services" / "search_service.py"
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SearchService"
+    )
+    method_names = {
+        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
+    }
+
+    assert {
+        "_search_meilisearch",
+        "_search_embeddings",
+    }.isdisjoint(method_names)
+    assert "httpx" not in source
+    assert "cosine_similarity" not in source
+    assert "load_vector" not in source
+    assert "repo.search" not in source
+    assert "repo.list_embeddings" not in source
+
+
+def test_search_boundary_services_do_not_depend_on_repositories():
+    boundary_files = [
+        ROOT / "services" / "query_expansion_service.py",
+        ROOT / "services" / "search_ranking_service.py",
+        ROOT / "services" / "image_semantic_profile_service.py",
+        ROOT / "services" / "query_understanding_service.py",
+        ROOT / "services" / "search_scorer.py",
+        ROOT / "services" / "search_response_builder.py",
+        ROOT / "services" / "semantic_rerank_service.py",
+        ROOT / "services" / "strict_intent_filter.py",
+    ]
+    violations = []
+    for path in boundary_files:
+        imports = imported_modules(path)
+        if any(module.startswith("app.repositories") for module in imports):
+            violations.append(path.name)
+    assert violations == []
+
+
+def test_search_ranking_service_stays_as_orchestrator():
+    path = ROOT / "services" / "search_ranking_service.py"
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SearchRankingService"
+    )
+    method_names = {
+        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
+    }
+
+    assert {
+        "build_scored_image",
+        "match_level",
+        "_matching_names",
+        "_strict_hit",
+        "_matches_primary_category",
+        "_matches_primary_label",
+    }.isdisjoint(method_names)
+    assert "image_to_read" not in source
+    assert "NEGATION_MARKERS" not in source
+    assert "_contains_unnegated_concept" not in source
+
+
+def test_search_service_calls_query_understanding_without_owning_intent_config():
+    path = ROOT / "services" / "search_service.py"
+    imports = imported_modules(path)
+    source = path.read_text(encoding="utf-8")
+
+    assert "app.services.query_understanding_service" in imports
+    assert "app.domain.business_intents" not in imports
+    assert "AI错题本" not in source
+    assert "AI拍题精学" not in source
+    assert "专家规划" not in source
+
+
+def test_business_intents_domain_does_not_depend_on_services_or_repositories():
+    imports = imported_modules(ROOT / "domain" / "business_intents.py")
+
+    assert not any(
+        module.startswith(("app.services", "app.repositories")) for module in imports
+    )
+
+
+def test_search_eval_domain_does_not_depend_on_services_or_repositories():
+    imports = imported_modules(ROOT / "domain" / "search_eval.py")
+
+    assert not any(
+        module.startswith(("app.services", "app.repositories")) for module in imports
+    )

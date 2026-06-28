@@ -4,7 +4,7 @@ ARG NGINX_BASE_IMAGE=nginx:1.27-alpine
 FROM ${NODE_BASE_IMAGE} AS build
 WORKDIR /workspace/client
 COPY client/package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 COPY client .
 RUN npm run build
 

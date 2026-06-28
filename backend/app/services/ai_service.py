@@ -27,6 +27,17 @@ from app.schemas.ai import (
 
 ResultModel = TypeVar("ResultModel", bound=BaseModel)
 
+SECONDARY_REASON_BOUNDARY_MARKERS = (
+    "不是",
+    "而非",
+    "区别",
+    "排除",
+    "不属于",
+    "避免误判",
+    "相近",
+    "未体现",
+)
+
 
 class AiService:
     """Model-neutral entry point for every AI task."""
@@ -159,3 +170,71 @@ class AiService:
                 "自动匹配最多包含一个主标签和两个副标签",
                 status_code=502,
             )
+
+        self._validate_recommended_search_words(result)
+        self._validate_negative_tags(result)
+        self._validate_secondary_label_reasons(result)
+
+    def _validate_recommended_search_words(self, result: ImageAnalysisResult) -> None:
+        words = [word.strip() for word in result.recommended_search_words if word.strip()]
+        if not 5 <= len(words) <= 10:
+            raise AppError(
+                "model_response_invalid",
+                "模型必须返回 5 到 10 个推荐搜索词",
+                status_code=502,
+                details={"recommendedSearchWordCount": len(words)},
+            )
+        if len(set(words)) != len(words):
+            raise AppError(
+                "model_response_invalid",
+                "模型返回了重复的推荐搜索词",
+                status_code=502,
+            )
+        if any(len(word) > 40 for word in words):
+            raise AppError(
+                "model_response_invalid",
+                "推荐搜索词应保持为可检索的短词或短语",
+                status_code=502,
+            )
+        if not any(len(word) >= 8 for word in words):
+            raise AppError(
+                "model_response_invalid",
+                "推荐搜索词必须包含至少一个真实痛点长短语",
+                status_code=502,
+            )
+
+    def _validate_negative_tags(self, result: ImageAnalysisResult) -> None:
+        tags = [tag.strip() for tag in result.negative_tags if tag.strip()]
+        if not 1 <= len(tags) <= 8:
+            raise AppError(
+                "model_response_invalid",
+                "模型必须返回 1 到 8 个负向相邻标签",
+                status_code=502,
+                details={"negativeTagCount": len(tags)},
+            )
+        if len(set(tags)) != len(tags):
+            raise AppError(
+                "model_response_invalid",
+                "模型返回了重复的负向相邻标签",
+                status_code=502,
+            )
+
+    def _validate_secondary_label_reasons(self, result: ImageAnalysisResult) -> None:
+        weak_reasons = [
+            f"{item.system} > {item.label}"
+            for item in result.secondary_labels
+            if not self._has_boundary_reason(item.reason)
+        ]
+        if weak_reasons:
+            raise AppError(
+                "model_response_invalid",
+                "自动匹配标签理由必须说明适配证据和相邻标签排除边界",
+                status_code=502,
+                details={"secondaryLabels": weak_reasons},
+            )
+
+    def _has_boundary_reason(self, reason: str) -> bool:
+        text = reason.strip()
+        return bool(text) and any(
+            marker in text for marker in SECONDARY_REASON_BOUNDARY_MARKERS
+        )

@@ -3,8 +3,8 @@ from sqlalchemy import select
 from app.models.image import ContentTag, Image, ImageBusinessLabel, ImageTag
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
-from app.services.search_index import image_to_search_document
 from app.services.embedding_index import EmbeddingIndexSync, image_to_embedding_document
+from app.services.search_index import image_to_search_document
 from app.services.search_index_sync import SearchIndexSync
 from scripts.seed_taxonomy import backfill_manual_business_labels
 

@@ -100,27 +100,14 @@ export interface ScoredImageMatch {
   matchedLevel2Categories: string[];
 }
 
-export interface SellingPointHit {
-  pointKey: string;
-  pointName: string;
-  weight: number;
-}
-
-export interface SellingPointMatch {
-  systemKey: string;
-  systemName: string;
-  points: SellingPointHit[];
-}
-
 export interface SemanticSearchResponse {
   results: ScoredImageMatch[];
   hasMore: boolean;
   searchUnderstanding?: SearchUnderstanding;
   matchSummary?: string;
-  searchMode?: 'selling_point' | 'fuzzy' | 'meilisearch';
+  searchMode?: 'fuzzy' | 'meilisearch';
   fallback?: boolean;
   fallbackReason?: string;
-  sellingPointMatches?: SellingPointMatch[];
 }
 
 export interface ProviderStatus {

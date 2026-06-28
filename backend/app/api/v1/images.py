@@ -19,7 +19,9 @@ from app.api.dependencies import (
     get_current_user,
     get_db_session_factory,
     get_image_analysis_service,
+    get_image_lifecycle_service,
     get_image_service,
+    get_image_tagging_service,
     get_search_service,
     require_roles,
     require_write_role,
@@ -39,7 +41,9 @@ from app.services.ai_service import AiService
 from app.services.analysis_tasks import run_image_analysis_task
 from app.services.audit_service import AuditService
 from app.services.image_analysis_service import ImageAnalysisService
+from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
+from app.services.image_tagging_service import ImageTaggingService
 from app.services.search_service import SearchService
 
 router = APIRouter(prefix="/images", tags=["images"])
@@ -125,7 +129,7 @@ def upload_image(
 @router.get("/trash", response_model=list[ImageRead])
 def list_deleted_images(
     _: User = Depends(require_roles("designer", "admin")),
-    service: ImageService = Depends(get_image_service),
+    service: ImageLifecycleService = Depends(get_image_lifecycle_service),
 ):
     return service.list_deleted()
 
@@ -135,7 +139,7 @@ def restore_image(
     image_id: str,
     request: Request,
     user: User = Depends(require_write_role),
-    service: ImageService = Depends(get_image_service),
+    service: ImageLifecycleService = Depends(get_image_lifecycle_service),
     audit: AuditService = Depends(get_audit_service),
 ):
     image = service.restore(image_id)
@@ -154,7 +158,7 @@ def purge_image(
     image_id: str,
     request: Request,
     user: User = Depends(require_write_role),
-    service: ImageService = Depends(get_image_service),
+    service: ImageLifecycleService = Depends(get_image_lifecycle_service),
     audit: AuditService = Depends(get_audit_service),
 ):
     service.purge(image_id)
@@ -240,7 +244,7 @@ def update_image_tags(
     payload: ImageTagsUpdate,
     request: Request,
     user: User = Depends(require_write_role),
-    service: ImageService = Depends(get_image_service),
+    service: ImageTaggingService = Depends(get_image_tagging_service),
     audit: AuditService = Depends(get_audit_service),
 ):
     image = service.update_tags(image_id, payload.tag_ids, payload.primary_tag_id)
@@ -265,7 +269,7 @@ def review_business_label(
     payload: BusinessLabelReviewUpdate,
     request: Request,
     user: User = Depends(require_write_role),
-    service: ImageService = Depends(get_image_service),
+    service: ImageTaggingService = Depends(get_image_tagging_service),
     audit: AuditService = Depends(get_audit_service),
 ):
     image = service.review_business_label(
@@ -289,7 +293,7 @@ def delete_image(
     image_id: str,
     request: Request,
     user: User = Depends(require_write_role),
-    service: ImageService = Depends(get_image_service),
+    service: ImageLifecycleService = Depends(get_image_lifecycle_service),
     audit: AuditService = Depends(get_audit_service),
 ):
     service.delete(image_id)

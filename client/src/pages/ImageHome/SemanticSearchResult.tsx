@@ -2,7 +2,7 @@ import { X, Sparkles, Target, Layers, Search, AlertTriangle } from 'lucide-react
 import { Button } from '@client/src/components/ui/button';
 import { Badge } from '@client/src/components/ui/badge';
 import { motion } from 'framer-motion';
-import type { SearchMode, SemanticSearchResponse, ScoredImageMatch, SearchUnderstanding, SellingPointMatch } from '@client/src/types/api';
+import type { SearchMode, SemanticSearchResponse, ScoredImageMatch, SearchUnderstanding } from '@client/src/types/api';
 import ImageCard from './ImageCard';
 
 interface SemanticSearchResultProps {
@@ -55,37 +55,6 @@ const itemVariants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0 },
 };
-
-function SellingPointMatchPanel({ matches, fallback, fallbackReason }: { matches: SellingPointMatch[]; fallback?: boolean; fallbackReason?: string }) {
-  return (
-    <div className="mb-4 space-y-2">
-      {fallback && (
-        <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5">
-          <AlertTriangle className="size-3.5 text-amber-600" />
-          <span className="text-xs text-amber-700">
-            卖点匹配已降级为模糊搜索{fallbackReason ? `（${fallbackReason}）` : ''}
-          </span>
-        </div>
-      )}
-      {matches.map((sys) => (
-        <div key={sys.systemKey} className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-2.5">
-          <Sparkles className="mt-0.5 size-4 flex-shrink-0 text-primary" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-primary/90">{sys.systemName}</p>
-            <div className="mt-1 flex flex-wrap gap-1">
-              {sys.points.map((p) => (
-                <Badge key={p.pointKey} variant="outline" className="border-primary/30 bg-white text-xs text-primary/80">
-                  {p.pointName}
-                  <span className="ml-1 text-[10px] opacity-70">{Math.round(p.weight * 100)}%</span>
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function SearchUnderstandingPanel({ understanding, onKeywordClick }: { understanding: SearchUnderstanding; onKeywordClick: (kw: string) => void }) {
   return (
@@ -220,8 +189,6 @@ function ScoredImageCard({ scored }: { scored: ScoredImageMatch }) {
 const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordClick }: SemanticSearchResultProps) => {
   const understanding = result.searchUnderstanding;
   const hasResults = result.results.length > 0;
-  const isSellingPoint = result.searchMode === 'selling_point';
-  const hasSellingPointMatches = result.sellingPointMatches && result.sellingPointMatches.length > 0;
 
   const groupedResults = {
     S: result.results.filter((r) => r.matchLevel === 'S'),
@@ -235,16 +202,9 @@ const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordC
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-medium text-foreground">
           「{keyword}」的搜索结果
-          {isSellingPoint && (
-            <Badge className="ml-2 bg-primary/10 text-primary border-primary/20 text-xs">
-              卖点匹配
-            </Badge>
-          )}
-          {!isSellingPoint && (
-            <Badge className="ml-2 bg-muted text-muted-foreground border-border text-xs">
-              {searchMode === 'smart' ? '智能搜索' : '精准搜索'}
-            </Badge>
-          )}
+          <Badge className="ml-2 bg-muted text-muted-foreground border-border text-xs">
+            {searchMode === 'smart' ? '智能搜索' : '精准搜索'}
+          </Badge>
           {result.searchMode === 'meilisearch' && (
             <Badge className="ml-2 bg-blue-50 text-blue-700 border-blue-200 text-xs">
               Meilisearch
@@ -257,15 +217,7 @@ const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordC
         </Button>
       </div>
 
-      {hasSellingPointMatches && (
-        <SellingPointMatchPanel
-          matches={result.sellingPointMatches!}
-          fallback={result.fallback}
-          fallbackReason={result.fallbackReason}
-        />
-      )}
-
-      {result.fallback && !isSellingPoint && (
+      {result.fallback && (
         <div className="mb-4 flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5">
           <AlertTriangle className="size-3.5 text-amber-600" />
           <span className="text-xs text-amber-700">
@@ -274,7 +226,7 @@ const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordC
         </div>
       )}
 
-      {understanding && !isSellingPoint && (
+      {understanding && (
         <SearchUnderstandingPanel understanding={understanding} onKeywordClick={onKeywordClick} />
       )}
 

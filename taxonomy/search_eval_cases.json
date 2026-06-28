@@ -1,0 +1,665 @@
+{
+  "version": "2026.06.1",
+  "cases": [
+    {
+      "id": "SE001",
+      "batch": 1,
+      "query": "整理错题费功夫又容易忘",
+      "true_intent": "找能体现错题自动整理、错因分析和复习闭环的图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "ai_error_book",
+      "strong_relevant_images": ["错题上传页", "错因分析页", "错题复习闭环图"],
+      "disallowed_images": ["普通做题页", "只给答案页", "泛课程列表"],
+      "scoring": {
+        "must": ["Top 3 至少出现 AI错题本 强相关图片", "主结果不能出现只给答案页"],
+        "should": ["匹配原因包含错题、错因、复习或同类题"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE002",
+      "batch": 1,
+      "query": "孩子拍题只抄答案考试不会",
+      "true_intent": "找拍题后分步讲解、讲清思路而不是直接给答案的图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "photo_guided_learning",
+      "strong_relevant_images": ["拍题识别页", "分步讲解页", "解题思路引导图"],
+      "disallowed_images": ["普通答案页", "错题本列表", "AI聊天页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 AI拍题精学 强相关图片", "普通答案页不得进入主结果"],
+        "should": ["匹配原因包含拍题、分步讲解、不是直接给答案"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE003",
+      "batch": 1,
+      "query": "出卷人编教材的人设计课程",
+      "true_intent": "找专家、命题人或教材编者参与课程规划的图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "expert_planning",
+      "strong_relevant_images": ["命题专家介绍页", "教研团队规划页", "专家课程路径图"],
+      "disallowed_images": ["普通课程页", "新课标题型页", "没有专家背书的计划页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 专家规划 强相关图片"],
+        "should": ["匹配原因包含专家、命题、教材编者或教研"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE004",
+      "batch": 1,
+      "query": "孩子听不懂老师讲课",
+      "true_intent": "找用动画或可视化讲透课堂知识点的图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "animation_explanation",
+      "strong_relevant_images": ["动画课程播放页", "知识点可视化讲解页", "故事化讲解图"],
+      "disallowed_images": ["静态题目页", "测试结果页", "拍题解题页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 动画精讲 强相关图片"],
+        "should": ["匹配原因包含动画、讲解、听不懂或可视化"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE005",
+      "batch": 1,
+      "query": "教材版本要和学校一致",
+      "true_intent": "找教材版本、章节和校内进度对齐的图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "school_sync",
+      "strong_relevant_images": ["教材版本选择页", "同步章节目录页", "校内进度同步图"],
+      "disallowed_images": ["无教材线索课程页", "专家规划页", "专项训练页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 同步校内 强相关图片"],
+        "should": ["匹配原因包含教材、版本、章节或校内进度"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE006",
+      "batch": 1,
+      "query": "学完马上知道孩子掌握没掌握",
+      "true_intent": "找学完即测、正确率和掌握情况即时反馈的图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "instant_quiz",
+      "strong_relevant_images": ["课后小测页", "正确率反馈页", "掌握情况测验结果图"],
+      "disallowed_images": ["长期学情周报", "纯动画课程页", "无结果的练习页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 课后小测 强相关图片"],
+        "should": ["匹配原因包含小测、学后检测、正确率或掌握情况"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE007",
+      "batch": 1,
+      "query": "换个题型还是错",
+      "true_intent": "找相似题、变式题和迁移训练图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "transfer_practice",
+      "strong_relevant_images": ["相似题推荐页", "变式训练页", "一题带一类题讲解图"],
+      "disallowed_images": ["单题答案页", "错题本列表页", "普通课程页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 举一反三 强相关图片"],
+        "should": ["匹配原因包含变式、同类题、迁移或举一反三"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE008",
+      "batch": 1,
+      "query": "考前抓重点提分",
+      "true_intent": "找重难点、薄弱点和专项突破训练图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "focused_excellence",
+      "strong_relevant_images": ["专项突破页", "薄弱点训练页", "考前冲刺重难点图"],
+      "disallowed_images": ["普通课程列表", "学情报告页", "新课标预测页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 专项培优 强相关图片"],
+        "should": ["匹配原因包含专项、重难点、薄弱点或提分"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE009",
+      "batch": 1,
+      "query": "新中考题型变化怎么准备",
+      "true_intent": "找新课标、新考法、新题型预测训练图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "new_curriculum_prediction",
+      "strong_relevant_images": ["新课标训练页", "新题型预测页", "情境题练习图"],
+      "disallowed_images": ["普通旧题练习", "专家背书页", "校内同步目录"],
+      "scoring": {
+        "must": ["Top 3 至少出现 新课标新考法预测 强相关图片"],
+        "should": ["匹配原因包含新课标、新考法、新题型或情境题"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE010",
+      "batch": 1,
+      "query": "小升初怕孩子跟不上",
+      "true_intent": "找学段衔接、过渡适应和知识断层处理图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "stage_transition",
+      "strong_relevant_images": ["小升初衔接页", "学段路径图", "知识断层补齐图"],
+      "disallowed_images": ["普通教材同步页", "无阶段变化课程页", "专家规划页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 学段衔接 强相关图片"],
+        "should": ["匹配原因包含小升初、初升高、衔接或知识断层"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE011",
+      "batch": 1,
+      "query": "孩子只会死记硬背换题就不会",
+      "true_intent": "找底层逻辑、通用方法和解题模型图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "universal_method",
+      "strong_relevant_images": ["底层逻辑讲解页", "通用解法模型页", "一题多解推导图"],
+      "disallowed_images": ["只给答案页", "单纯刷题页", "专项训练但无方法论页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 万能解法 强相关图片"],
+        "should": ["匹配原因包含底层逻辑、通用方法、模型或不是死记硬背"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE012",
+      "batch": 1,
+      "query": "离中考还有一个月怎么规划",
+      "true_intent": "找按孩子目标和时间生成学习路径与每日任务的图片",
+      "expected_system_code": "sync_planning",
+      "expected_label_code": "ai_learning_plan",
+      "strong_relevant_images": ["AI学习计划页", "每日任务日程页", "目标路径规划图"],
+      "disallowed_images": ["普通课程列表", "专家背书页", "没有个人条件的规划页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 AI定制学习方案 强相关图片"],
+        "should": ["匹配原因包含规划、学习路径、目标、日程或定制"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE013",
+      "batch": 1,
+      "query": "孩子晚上写题卡住没人教",
+      "true_intent": "找 AI 私教随时答疑、互动辅导图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "ai_tutor_qa",
+      "strong_relevant_images": ["AI答疑对话页", "提问框辅导页", "随问随答学习助手图"],
+      "disallowed_images": ["真人老师督学消息", "只有课程视频页", "拍题识别页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 AI私教答疑 强相关图片"],
+        "should": ["匹配原因包含AI答疑、随时问、卡住或互动辅导"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE014",
+      "batch": 1,
+      "query": "孩子叫不动管不住一管就吵架",
+      "true_intent": "找真人老师督促、提醒和人工跟进图片",
+      "expected_system_code": "sync_companion",
+      "expected_label_code": "human_teacher_supervision",
+      "strong_relevant_images": ["真人老师提醒页", "督学跟进记录页", "人工反馈消息图"],
+      "disallowed_images": ["AI对话页", "学习报告页", "没有老师证据的计划页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 真人老师督学 强相关图片"],
+        "should": ["匹配原因包含真人老师、督学、提醒、监督或管不住"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE015",
+      "batch": 1,
+      "query": "家长想知道孩子每天学了什么",
+      "true_intent": "找学习报告、进度、正确率和掌握情况反馈图片",
+      "expected_system_code": "sync_companion",
+      "expected_label_code": "learning_report",
+      "strong_relevant_images": ["学情报告页", "学习时长统计页", "掌握情况反馈图"],
+      "disallowed_images": ["单次课后小测", "老师消息页", "无数据课程页"],
+      "scoring": {
+        "must": ["Top 3 至少出现 学情报告反馈 强相关图片"],
+        "should": ["匹配原因包含学情报告、学习数据、进度、时长或掌握情况"],
+        "pass_condition": "Top 3 命中期望二级标签，且 Top 5 不出现 disallowed_images"
+      },
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE016",
+      "batch": 2,
+      "query": "上课前快速预习一下",
+      "true_intent": "找课前快速预习、知识点速览图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "rapid_preview_review",
+      "strong_relevant_images": ["极速预习页", "知识点速览页", "课前快速梳理图"],
+      "disallowed_images": ["长期学习规划页", "完整课程讲解页", "课后小测页"],
+      "scoring": {"must": ["Top 3 命中 极速预习复习"], "should": ["匹配原因包含预习、课前、快速"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE017",
+      "batch": 2,
+      "query": "作业前想回顾今天知识点",
+      "true_intent": "找课后快速复习、知识点回顾图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "rapid_preview_review",
+      "strong_relevant_images": ["极速复习页", "知识点回顾页"],
+      "disallowed_images": ["长期学习规划页", "拍题答案页"],
+      "scoring": {"must": ["Top 3 命中 极速预习复习"], "should": ["匹配原因包含复习、回顾、课后"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE018",
+      "batch": 2,
+      "query": "家长不会辅导初中数学",
+      "true_intent": "找 AI 私教答疑帮助家长降低辅导压力的图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "ai_tutor_qa",
+      "strong_relevant_images": ["AI私教答疑页", "智能辅导对话页"],
+      "disallowed_images": ["真人老师督学页", "纯课程播放页"],
+      "scoring": {"must": ["Top 3 命中 AI私教答疑"], "should": ["匹配原因包含家长不会辅导、AI答疑"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE019",
+      "batch": 2,
+      "query": "错题本",
+      "true_intent": "找 AI 错题本核心功能图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "ai_error_book",
+      "strong_relevant_images": ["错题本列表页", "错因分析页"],
+      "disallowed_images": ["普通题库页", "拍题答案页"],
+      "scoring": {"must": ["Top 3 命中 AI错题本"], "should": ["匹配原因包含错题本"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE020",
+      "batch": 2,
+      "query": "拍题后要讲思路不是直接给答案",
+      "true_intent": "找 AI 拍题精学而非答案页",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "photo_guided_learning",
+      "strong_relevant_images": ["分步解析页", "解题思路页"],
+      "disallowed_images": ["最终答案页", "普通AI聊天页"],
+      "scoring": {"must": ["Top 3 命中 AI拍题精学"], "should": ["匹配原因包含讲思路、不是答案"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE021",
+      "batch": 2,
+      "query": "当天课堂学完回来复习",
+      "true_intent": "找校内同步、当天知识巩固图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "school_sync",
+      "strong_relevant_images": ["校内同步章节页", "当天知识复习页"],
+      "disallowed_images": ["无教材线索课程页", "专家规划页"],
+      "scoring": {"must": ["Top 3 命中 同步校内"], "should": ["匹配原因包含当天、课堂、复习"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE022",
+      "batch": 2,
+      "query": "用动画讲透知识点",
+      "true_intent": "找动画精讲图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "animation_explanation",
+      "strong_relevant_images": ["动画知识点讲解页", "可视化演示页"],
+      "disallowed_images": ["静态答案页", "测验结果页"],
+      "scoring": {"must": ["Top 3 命中 动画精讲"], "should": ["匹配原因包含动画、讲透"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE023",
+      "batch": 2,
+      "query": "课后小测反馈正确率",
+      "true_intent": "找课后小测和正确率反馈图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "instant_quiz",
+      "strong_relevant_images": ["小测正确率页", "学后检测结果页"],
+      "disallowed_images": ["综合学情周报", "课程视频页"],
+      "scoring": {"must": ["Top 3 命中 课后小测"], "should": ["匹配原因包含正确率、小测"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE024",
+      "batch": 2,
+      "query": "想练同类题",
+      "true_intent": "找举一反三、同类题训练图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "transfer_practice",
+      "strong_relevant_images": ["同类题训练页", "相似题推荐页"],
+      "disallowed_images": ["单题答案页", "普通课程页"],
+      "scoring": {"must": ["Top 3 命中 举一反三"], "should": ["匹配原因包含同类题"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE025",
+      "batch": 2,
+      "query": "孩子薄弱点怎么提升",
+      "true_intent": "找薄弱点专项突破图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "focused_excellence",
+      "strong_relevant_images": ["薄弱点专项训练页", "提分重点页"],
+      "disallowed_images": ["泛学习报告页", "普通课程页"],
+      "scoring": {"must": ["Top 3 命中 专项培优"], "should": ["匹配原因包含薄弱点、提升"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE026",
+      "batch": 2,
+      "query": "孩子遇到情境题不会做",
+      "true_intent": "找新课标新考法预测和情境题训练图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "new_curriculum_prediction",
+      "strong_relevant_images": ["情境题训练页", "新考法预测页"],
+      "disallowed_images": ["旧题练习页", "专家课程页"],
+      "scoring": {"must": ["Top 3 命中 新课标新考法预测"], "should": ["匹配原因包含情境题、新考法"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE027",
+      "batch": 2,
+      "query": "初升高难度突然变大",
+      "true_intent": "找初升高衔接图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "stage_transition",
+      "strong_relevant_images": ["初升高衔接页", "难度跃迁路径图"],
+      "disallowed_images": ["普通校内同步页", "无学段变化课程页"],
+      "scoring": {"must": ["Top 3 命中 学段衔接"], "should": ["匹配原因包含初升高、难度"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE028",
+      "batch": 2,
+      "query": "一道题学会一类题",
+      "true_intent": "找通用方法或解题模型图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "universal_method",
+      "strong_relevant_images": ["万能解法页", "题型方法总结图"],
+      "disallowed_images": ["只刷题页", "只给答案页"],
+      "scoring": {"must": ["Top 3 命中 万能解法"], "should": ["匹配原因包含一题一类、方法"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE029",
+      "batch": 2,
+      "query": "想按孩子水平定制学习计划",
+      "true_intent": "找 AI 定制学习方案图片",
+      "expected_system_code": "sync_planning",
+      "expected_label_code": "ai_learning_plan",
+      "strong_relevant_images": ["个性化学习方案页", "水平诊断后计划页"],
+      "disallowed_images": ["普通课程列表", "专家规划页"],
+      "scoring": {"must": ["Top 3 命中 AI定制学习方案"], "should": ["匹配原因包含水平、定制、计划"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE030",
+      "batch": 2,
+      "query": "每周给家长发学习报告",
+      "true_intent": "找学情报告反馈图片",
+      "expected_system_code": "sync_companion",
+      "expected_label_code": "learning_report",
+      "strong_relevant_images": ["学习周报页", "家长报告页"],
+      "disallowed_images": ["单次小测页", "老师督促消息页"],
+      "scoring": {"must": ["Top 3 命中 学情报告反馈"], "should": ["匹配原因包含周报、家长报告"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE031",
+      "batch": 3,
+      "query": "需要真人老师帮忙监督",
+      "true_intent": "找真人老师督学图片",
+      "expected_system_code": "sync_companion",
+      "expected_label_code": "human_teacher_supervision",
+      "strong_relevant_images": ["真人老师督学页", "老师提醒反馈图"],
+      "disallowed_images": ["AI答疑页", "学习报告页"],
+      "scoring": {"must": ["Top 3 命中 真人老师督学"], "should": ["匹配原因包含真人老师、监督"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE032",
+      "batch": 3,
+      "query": "家长不用每天安排学习任务",
+      "true_intent": "找自动生成每日学习任务的 AI 定制方案图片",
+      "expected_system_code": "sync_planning",
+      "expected_label_code": "ai_learning_plan",
+      "strong_relevant_images": ["每日任务安排页", "AI学习日程页"],
+      "disallowed_images": ["老师督促消息页", "普通课程页"],
+      "scoring": {"must": ["Top 3 命中 AI定制学习方案"], "should": ["匹配原因包含任务、安排、AI规划"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE033",
+      "batch": 3,
+      "query": "考前没时间了想快速复习",
+      "true_intent": "找极速复习图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "rapid_preview_review",
+      "strong_relevant_images": ["考前快速复习页", "知识点速览页"],
+      "disallowed_images": ["长期学习规划页", "专项培优页"],
+      "scoring": {"must": ["Top 3 命中 极速预习复习"], "should": ["匹配原因包含考前、快速复习"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE034",
+      "batch": 3,
+      "query": "孩子不好意思问老师",
+      "true_intent": "找 AI 私教随时提问图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "ai_tutor_qa",
+      "strong_relevant_images": ["AI提问框页", "随时答疑页"],
+      "disallowed_images": ["真人老师消息页", "课程播放页"],
+      "scoring": {"must": ["Top 3 命中 AI私教答疑"], "should": ["匹配原因包含随时问、AI"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE035",
+      "batch": 3,
+      "query": "考前不知道复习哪几道错题",
+      "true_intent": "找错题本复习提醒和错题归档图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "ai_error_book",
+      "strong_relevant_images": ["考前错题复习页", "错题归档页"],
+      "disallowed_images": ["普通练习页", "专项培优但无错题本页"],
+      "scoring": {"must": ["Top 3 命中 AI错题本"], "should": ["匹配原因包含错题、复习"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE036",
+      "batch": 3,
+      "query": "孩子十分钟写完作业去玩",
+      "true_intent": "找拍题精学避免抄答案图片",
+      "expected_system_code": "sync_self_study",
+      "expected_label_code": "photo_guided_learning",
+      "strong_relevant_images": ["拍题分步讲解页", "思路引导页"],
+      "disallowed_images": ["最终答案页", "普通错题列表"],
+      "scoring": {"must": ["Top 3 命中 AI拍题精学"], "should": ["匹配原因包含抄答案、讲思路"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE037",
+      "batch": 3,
+      "query": "课本章节和学校进度对齐",
+      "true_intent": "找同步校内图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "school_sync",
+      "strong_relevant_images": ["课本章节同步页", "学校进度对齐页"],
+      "disallowed_images": ["无章节线索课程页", "专项训练页"],
+      "scoring": {"must": ["Top 3 命中 同步校内"], "should": ["匹配原因包含课本、章节、进度"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE038",
+      "batch": 3,
+      "query": "抽象内容变直观",
+      "true_intent": "找动画精讲图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "animation_explanation",
+      "strong_relevant_images": ["抽象知识动画演示页", "可视化讲解图"],
+      "disallowed_images": ["静态题页", "测试结果页"],
+      "scoring": {"must": ["Top 3 命中 动画精讲"], "should": ["匹配原因包含抽象、直观、动画"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE039",
+      "batch": 3,
+      "query": "学习结果看得见",
+      "true_intent": "找学完即测和结果反馈图片",
+      "expected_system_code": "sync_school",
+      "expected_label_code": "instant_quiz",
+      "strong_relevant_images": ["测验结果页", "掌握度反馈页"],
+      "disallowed_images": ["长期学习报告页", "课程播放页"],
+      "scoring": {"must": ["Top 3 命中 课后小测"], "should": ["匹配原因包含结果、反馈、测验"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE040",
+      "batch": 3,
+      "query": "做一道会一类题",
+      "true_intent": "找举一反三图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "transfer_practice",
+      "strong_relevant_images": ["一题带一类页", "迁移练习页"],
+      "disallowed_images": ["单题答案页", "普通课程页"],
+      "scoring": {"must": ["Top 3 命中 举一反三"], "should": ["匹配原因包含一类题、迁移"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE041",
+      "batch": 3,
+      "query": "找不到提分重点",
+      "true_intent": "找专项培优图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "focused_excellence",
+      "strong_relevant_images": ["提分重点页", "重难点突破页"],
+      "disallowed_images": ["泛课程页", "学情报告页"],
+      "scoring": {"must": ["Top 3 命中 专项培优"], "should": ["匹配原因包含提分、重点"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE042",
+      "batch": 3,
+      "query": "买不到针对新课标的练习",
+      "true_intent": "找新课标新考法预测图片",
+      "expected_system_code": "sync_exam",
+      "expected_label_code": "new_curriculum_prediction",
+      "strong_relevant_images": ["新课标练习页", "新考法预测页"],
+      "disallowed_images": ["旧题练习页", "普通校内同步页"],
+      "scoring": {"must": ["Top 3 命中 新课标新考法预测"], "should": ["匹配原因包含新课标、练习"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE043",
+      "batch": 3,
+      "query": "孩子升学后突然变中游",
+      "true_intent": "找学段衔接图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "stage_transition",
+      "strong_relevant_images": ["升学衔接页", "阶段过渡适应图"],
+      "disallowed_images": ["普通课程页", "无学段线索页"],
+      "scoring": {"must": ["Top 3 命中 学段衔接"], "should": ["匹配原因包含升学、衔接"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE044",
+      "batch": 3,
+      "query": "讲底层逻辑的图",
+      "true_intent": "找万能解法图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "universal_method",
+      "strong_relevant_images": ["底层逻辑讲解页", "解题模型图"],
+      "disallowed_images": ["只给答案页", "纯专项练习页"],
+      "scoring": {"must": ["Top 3 命中 万能解法"], "should": ["匹配原因包含底层逻辑"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE045",
+      "batch": 3,
+      "query": "孩子学习不走弯路",
+      "true_intent": "找专家规划图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "expert_planning",
+      "strong_relevant_images": ["专家课程规划页", "教研把关路径图"],
+      "disallowed_images": ["普通学习规划页", "无专家背书页"],
+      "scoring": {"must": ["Top 3 命中 专家规划"], "should": ["匹配原因包含专家、规划、不走弯路"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE046",
+      "batch": 3,
+      "query": "学习没有方向越学越乱",
+      "true_intent": "找 AI 定制学习方案图片",
+      "expected_system_code": "sync_planning",
+      "expected_label_code": "ai_learning_plan",
+      "strong_relevant_images": ["学习路径规划页", "个性化任务页"],
+      "disallowed_images": ["普通课程列表", "专家背书页"],
+      "scoring": {"must": ["Top 3 命中 AI定制学习方案"], "should": ["匹配原因包含方向、规划、路径"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE047",
+      "batch": 3,
+      "query": "孩子自律差需要有人盯",
+      "true_intent": "找真人老师督学图片",
+      "expected_system_code": "sync_companion",
+      "expected_label_code": "human_teacher_supervision",
+      "strong_relevant_images": ["老师盯学页", "督促提醒页"],
+      "disallowed_images": ["AI答疑页", "学情报告页"],
+      "scoring": {"must": ["Top 3 命中 真人老师督学"], "should": ["匹配原因包含自律、有人盯"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE048",
+      "batch": 3,
+      "query": "学习过程不是黑盒",
+      "true_intent": "找学情报告反馈图片",
+      "expected_system_code": "sync_companion",
+      "expected_label_code": "learning_report",
+      "strong_relevant_images": ["学习过程报告页", "家长反馈数据页"],
+      "disallowed_images": ["单次小测页", "老师督促消息页"],
+      "scoring": {"must": ["Top 3 命中 学情报告反馈"], "should": ["匹配原因包含黑盒、报告、反馈"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE049",
+      "batch": 3,
+      "query": "家长只想看一眼报告就放心",
+      "true_intent": "找家长报告和学习数据反馈图片",
+      "expected_system_code": "sync_companion",
+      "expected_label_code": "learning_report",
+      "strong_relevant_images": ["家长学习报告页", "学习数据概览页"],
+      "disallowed_images": ["老师聊天页", "普通课程页"],
+      "scoring": {"must": ["Top 3 命中 学情报告反馈"], "should": ["匹配原因包含报告、放心、数据"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    },
+    {
+      "id": "SE050",
+      "batch": 3,
+      "query": "真正懂命题的人规划学习路径",
+      "true_intent": "找专家规划图片",
+      "expected_system_code": "sync_cultivation",
+      "expected_label_code": "expert_planning",
+      "strong_relevant_images": ["命题专家规划页", "专家学习路径图"],
+      "disallowed_images": ["普通学习计划页", "新题型预测页"],
+      "scoring": {"must": ["Top 3 命中 专家规划"], "should": ["匹配原因包含命题、专家、路径"], "pass_condition": "Top 3 命中期望二级标签"},
+      "result_record": {"status": "not_run", "screenshot": "", "notes": "待真实素材库评测时补截图"}
+    }
+  ]
+}

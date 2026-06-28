@@ -85,15 +85,7 @@ class ImageAnalysisService:
             for label in image.business_labels
             if label.origin == "manual"
         }
-        content_tags = [
-            ContentTag(
-                tag_name=item.tag.strip(),
-                confidence=item.confidence,
-                dimension=item.dimension,
-            )
-            for item in result.content_tags
-            if item.tag.strip()
-        ]
+        content_tags = self._content_tags_from_analysis(result)
         level2_categories = [
             ImageLevel2Category(
                 category_name=(
@@ -176,6 +168,39 @@ class ImageAnalysisService:
             else node_by_name.get((item.system.strip(), item.label.strip()))
             for item in result.secondary_labels
         ]
+
+    def _content_tags_from_analysis(
+        self,
+        result: ImageAnalysisResult,
+    ) -> list[ContentTag]:
+        content_tags: list[ContentTag] = []
+        seen: set[str] = set()
+        for item in result.content_tags:
+            name = item.tag.strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            content_tags.append(
+                ContentTag(
+                    tag_name=name,
+                    confidence=item.confidence,
+                    dimension=item.dimension,
+                )
+            )
+
+        for word in result.recommended_search_words:
+            name = word.strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            content_tags.append(
+                ContentTag(
+                    tag_name=name[:100],
+                    confidence=0.72,
+                    dimension="业务卖点",
+                )
+            )
+        return content_tags
 
     def _detail(self, image_id: str) -> ImageDetailRead:
         image = self._get(image_id)

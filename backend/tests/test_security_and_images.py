@@ -143,11 +143,17 @@ def test_upload_starts_backend_ai_analysis(client, db_factory):
                         "confidence": 0.91,
                         "evidence_level": "A",
                         "role": "primary",
-                        "reason": "图片适合动画讲解知识点。",
+                        "reason": "图片适合动画讲解知识点，不是课后小测或普通答案页。",
                     }
                 ],
-                "recommended_search_words": [],
-                "negative_tags": [],
+                "recommended_search_words": [
+                    "动画讲解",
+                    "知识点",
+                    "同步校内",
+                    "讲清思路",
+                    "孩子听不懂老师讲课",
+                ],
+                "negative_tags": ["课后小测", "普通答案页"],
             }
 
     class FakeAiService(AiService):
@@ -196,7 +202,7 @@ def test_upload_starts_backend_ai_analysis(client, db_factory):
     detail = client.get(f"/api/images/{uploaded.json()['id']}").json()
     assert detail["analysisRuns"][0]["status"] == "succeeded"
     assert detail["imageSummary"] == "上传后自动分析出的图片语义。"
-    assert len(detail["contentTags"]) == 18
+    assert len(detail["contentTags"]) == 23
     assert any(
         item["origin"] == "ai" and item["labelCode"] == "animation_explanation"
         for item in detail["businessLabels"]
@@ -224,11 +230,17 @@ def test_ai_analysis_is_persisted_to_image_detail(client, db_factory):
                         confidence=0.91,
                         evidence_level="A",
                         role="primary",
-                        reason="图片标题和内容指向动画讲透知识点。",
+                        reason="图片标题和内容指向动画讲透知识点，不是课后小测或普通答案页。",
                     )
                 ],
-                recommended_search_words=["动画讲解", "知识点"],
-                negative_tags=[],
+                recommended_search_words=[
+                    "动画讲解",
+                    "知识点",
+                    "同步校内",
+                    "讲清思路",
+                    "孩子听不懂老师讲课",
+                ],
+                negative_tags=["课后小测", "普通答案页"],
             )
 
     app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
@@ -270,7 +282,10 @@ def test_ai_analysis_is_persisted_to_image_detail(client, db_factory):
     assert response.status_code == 200
     detail = client.get(f"/api/images/{image['id']}").json()
     assert detail["imageSummary"] == "一个展示动画讲解知识点的功能图。"
-    assert [item["tagName"] for item in detail["contentTags"]] == ["动画讲解", "知识点"]
+    content_tag_names = [item["tagName"] for item in detail["contentTags"]]
+    assert "动画讲解" in content_tag_names
+    assert "知识点" in content_tag_names
+    assert "孩子听不懂老师讲课" in content_tag_names
     assert detail["level2Categories"][0]["categoryName"] == "同步校内体系 > 动画精讲"
     ai_label = next(item for item in detail["businessLabels"] if item["origin"] == "ai")
     assert ai_label["labelCode"] == "animation_explanation"
@@ -355,7 +370,7 @@ def test_ai_analysis_is_persisted_to_image_detail(client, db_factory):
     assert manual_review.json()["code"] == "manual_label_not_reviewable"
 
 
-def test_ai_analysis_accepts_string_secondary_labels(client):
+def test_ai_analysis_rejects_string_secondary_labels_without_real_reason(client):
     from app.api import dependencies
     from app.main import app
 
@@ -381,8 +396,14 @@ def test_ai_analysis_accepts_string_secondary_labels(client):
                             "同步校内体系 > 动画精讲",
                             "同步培养体系 > 万能解法",
                         ],
-                        "recommended_search_words": [],
-                        "negative_tags": [],
+                        "recommended_search_words": [
+                            "动画讲解",
+                            "知识点",
+                            "同步校内",
+                            "万能解法",
+                            "孩子听不懂老师讲课",
+                        ],
+                        "negative_tags": ["课后小测", "普通答案页"],
                     }
 
             return AiService(Provider()).analyze_image(_path)
@@ -399,13 +420,8 @@ def test_ai_analysis_accepts_string_secondary_labels(client):
     ).json()
 
     response = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
-    assert response.status_code == 200
-    detail = client.get(f"/api/images/{image['id']}").json()
-    assert detail["contentTags"][0]["tagName"] == "动画讲解标签1"
-    assert [item["categoryName"] for item in detail["level2Categories"]] == [
-        "同步校内体系 > 动画精讲",
-        "同步培养体系 > 万能解法",
-    ]
+    assert response.status_code == 502
+    assert response.json()["code"] == "model_response_invalid"
 
 
 def test_upload_size_limit(client, monkeypatch):

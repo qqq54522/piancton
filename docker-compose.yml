@@ -38,8 +38,8 @@ services:
       MODEL_API_KEY: ${MODEL_API_KEY:-}
       MODEL_TIMEOUT_SECONDS: ${MODEL_TIMEOUT_SECONDS:-120}
       SEARCH_BACKEND: ${SEARCH_BACKEND:-database}
-      MEILISEARCH_URL: ${MEILISEARCH_URL:-http://meilisearch:7700}
-      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY:-replace-with-a-search-master-key}
+      MEILISEARCH_URL: ${MEILISEARCH_URL:-}
+      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY:-}
       MEILISEARCH_INDEX: ${MEILISEARCH_INDEX:-images}
       SEARCH_TIMEOUT_SECONDS: ${SEARCH_TIMEOUT_SECONDS:-2}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
@@ -58,10 +58,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
   meilisearch:
     image: ${MEILISEARCH_IMAGE:-getmeili/meilisearch:v1.13}

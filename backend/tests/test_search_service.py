@@ -1,6 +1,7 @@
-from app.domain.search_query_expansion import expand_search_terms
 import json
 
+from app.domain.business_intents import BusinessIntent, BusinessIntentCatalog
+from app.domain.search_query_expansion import expand_search_terms
 from app.models.image import (
     ContentTag,
     Image,
@@ -11,9 +12,18 @@ from app.models.image import (
 )
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
-from app.schemas.ai import ExpandedSearchTag, SearchCategoryMatch, SearchUnderstanding
+from app.schemas.ai import (
+    ConfidenceTag,
+    ExpandedSearchTag,
+    ImageAnalysisResult,
+    SearchCategoryMatch,
+    SearchUnderstanding,
+    SecondaryLabel,
+)
+from app.services.image_analysis_service import ImageAnalysisService
+from app.services.search_models import SearchHit, SearchUnavailable
+from app.services.search_service import SearchService
 from app.services.semantic_search_clients import RerankResult, SemanticSearchClientError
-from app.services.search_service import SearchHit, SearchService, SearchUnavailable
 
 
 def create_searchable_image(db) -> Image:
@@ -67,6 +77,84 @@ def create_searchable_image(db) -> Image:
             confidence=0.91,
         )
     )
+    db.add(image)
+    db.commit()
+    return image
+
+
+def create_business_intent_image(
+    db,
+    *,
+    system_code: str,
+    system_name: str,
+    label_code: str,
+    label_name: str,
+    title: str,
+    summary: str,
+) -> Image:
+    system = Tag(
+        code=system_code,
+        name=system_name,
+        color="#6366F1",
+        node_type="system",
+        assignable=False,
+        status="active",
+    )
+    business_tag = Tag(
+        code=label_code,
+        name=label_name,
+        color="#818CF8",
+        parent=system,
+        is_secondary=True,
+        node_type="image_label",
+        assignable=True,
+        status="active",
+    )
+    image = Image(
+        title=title,
+        file_name=f"{label_code}.png",
+        storage_key=f"{label_code}.png",
+        thumbnail_storage_key=f"{label_code}-thumb.jpg",
+        media_type="image/png",
+        size_bytes=100,
+        uploader="admin",
+        image_summary=summary,
+    )
+    image.tag_links.append(ImageTag(tag=business_tag))
+    image.business_labels.append(
+        ImageBusinessLabel(
+            tag=business_tag,
+            label_code=label_code,
+            origin="manual",
+            role="primary",
+            review_status="accepted",
+            confidence=1.0,
+        )
+    )
+    db.add(image)
+    db.commit()
+    return image
+
+
+def create_generic_image(
+    db,
+    *,
+    tag_name: str,
+    title: str,
+    summary: str,
+) -> Image:
+    tag = Tag(name=tag_name, color="#94A3B8")
+    image = Image(
+        title=title,
+        file_name=f"{tag_name}.png",
+        storage_key=f"{tag_name}.png",
+        thumbnail_storage_key=f"{tag_name}-thumb.jpg",
+        media_type="image/png",
+        size_bytes=100,
+        uploader="admin",
+        image_summary=summary,
+    )
+    image.tag_links.append(ImageTag(tag=tag))
     db.add(image)
     db.commit()
     return image
@@ -179,6 +267,177 @@ def test_query_expansion_covers_cross_system_business_language():
         assert expected_term in expand_search_terms(query)
 
 
+def test_smart_search_uses_local_business_intents_without_ai_provider(db_factory):
+    with db_factory() as db:
+        error_book = create_business_intent_image(
+            db,
+            system_code="sync_self_study",
+            system_name="同步自学体系-错题",
+            label_code="ai_error_book",
+            label_name="AI错题本",
+            title="错题本功能图",
+            summary="展示错题上传、错因分析和同类题复习闭环。",
+        )
+        photo_learning = create_business_intent_image(
+            db,
+            system_code="sync_self_study_2",
+            system_name="同步自学体系-拍题",
+            label_code="photo_guided_learning",
+            label_name="AI拍题精学",
+            title="拍题精学功能图",
+            summary="展示拍题后分步讲解解题思路，不直接给最终答案。",
+        )
+        expert_planning = create_business_intent_image(
+            db,
+            system_code="sync_cultivation",
+            system_name="同步培养体系",
+            label_code="expert_planning",
+            label_name="专家规划",
+            title="专家规划功能图",
+            summary="展示命题专家和教研团队设计课程路径。",
+        )
+
+        cases = [
+            ("整理错题费功夫又容易忘", error_book.id, "同步自学体系 > AI错题本"),
+            ("孩子拍题只抄答案考试不会", photo_learning.id, "同步自学体系 > AI拍题精学"),
+            ("出卷人编教材的人设计课程", expert_planning.id, "同步培养体系 > 专家规划"),
+        ]
+        for query, expected_image_id, expected_category in cases:
+            response = SearchService(db).search(query, 12, "smart")
+
+            assert response.search_understanding is not None
+            assert response.search_understanding.normalized_query in {
+                "AI错题本",
+                "AI拍题精学",
+                "专家规划",
+            }
+            assert response.search_understanding.matched_level2_categories[0].category == (
+                expected_category
+            )
+            assert response.results[0].image.id == expected_image_id
+            assert "AI 意图理解：标准化查询" in response.results[0].match_reasons
+
+
+def test_strong_business_intent_filters_generic_fallback_results(db_factory):
+    with db_factory() as db:
+        expected = create_business_intent_image(
+            db,
+            system_code="sync_self_study",
+            system_name="同步自学体系",
+            label_code="photo_guided_learning",
+            label_name="AI拍题精学",
+            title="拍题精学功能图",
+            summary="展示拍题后分步讲解解题思路，不是普通答案页，也不直接给最终答案。",
+        )
+        create_generic_image(
+            db,
+            tag_name="普通拍题",
+            title="普通拍题答案素材",
+            summary="孩子拍题后只看到最终答案，没有分步讲解。",
+        )
+
+        response = SearchService(db).search(
+            "孩子拍题只抄答案考试不会",
+            12,
+            "smart",
+        )
+
+    assert [result.image.id for result in response.results] == [expected.id]
+    assert response.results[0].match_level in {"S", "A", "B"}
+    assert any(
+        "强意图业务话术匹配" in reason
+        and "孩子拍题只抄答案考试不会" in reason
+        for reason in response.results[0].match_reasons
+    )
+    assert "强意图主标签匹配：AI拍题精学" in response.results[0].match_reasons
+    assert "强意图排除项检查通过" in response.results[0].match_reasons
+
+
+def test_ai_recommended_search_words_recall_long_business_phrase(db_factory):
+    with db_factory() as db:
+        system = Tag(
+            code="sync_self_study",
+            name="同步自学体系",
+            color="#6366F1",
+            node_type="system",
+            assignable=False,
+            status="active",
+        )
+        business_tag = Tag(
+            code="photo_guided_learning",
+            name="AI拍题精学",
+            color="#818CF8",
+            parent=system,
+            is_secondary=True,
+            node_type="image_label",
+            assignable=True,
+            status="active",
+        )
+        image = Image(
+            title="拍题精学功能图",
+            file_name="photo-learning.png",
+            storage_key="photo-learning.png",
+            thumbnail_storage_key="photo-learning-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+        )
+        db.add_all([system, business_tag, image])
+        db.commit()
+
+        ImageAnalysisService(db).save_ai_analysis(
+            image.id,
+            ImageAnalysisResult(
+                image_type="function",
+                image_summary=(
+                    "孩子在拍题学习界面查看分步讲解，突出不只给答案而是讲清思路，"
+                    "不是普通答案页。"
+                ),
+                content_tags=[
+                    ConfidenceTag(
+                        tag=f"拍题视觉标签{index}",
+                        confidence=0.9,
+                        dimension="产品功能",
+                    )
+                    for index in range(20)
+                ],
+                secondary_labels=[
+                    SecondaryLabel(
+                        label_code="photo_guided_learning",
+                        system="同步自学体系",
+                        label="AI拍题精学",
+                        confidence=0.93,
+                        evidence_level="A",
+                        role="primary",
+                        reason="画面展示拍题后的分步讲解，适合AI拍题精学，不是普通答案页。",
+                    )
+                ],
+                recommended_search_words=[
+                    "拍题",
+                    "分步讲解",
+                    "讲清思路",
+                    "不只给答案",
+                    "孩子拍题只抄答案考试不会",
+                ],
+                negative_tags=["普通答案页", "纯题库"],
+            ),
+        )
+
+        saved = ImageRepository(db).get(image.id)
+        response = SearchService(db).search(
+            "孩子拍题只抄答案考试不会",
+            12,
+            "precise",
+        )
+
+    assert saved is not None
+    tag_names = [item.tag_name for item in saved.content_tags]
+    assert "孩子拍题只抄答案考试不会" in tag_names
+    assert "普通答案页" not in tag_names
+    assert [result.image.id for result in response.results] == [image.id]
+    assert "标签匹配" in response.results[0].match_reasons
+
+
 def test_meilisearch_failure_falls_back_to_database(db_factory, monkeypatch):
     with db_factory() as db:
         create_searchable_image(db)
@@ -191,7 +450,7 @@ def test_meilisearch_failure_falls_back_to_database(db_factory, monkeypatch):
         def unavailable(_keyword: str, _limit: int):
             raise SearchUnavailable("索引未就绪")
 
-        monkeypatch.setattr(service, "_search_meilisearch", unavailable)
+        monkeypatch.setattr(service.meilisearch_recall, "search", unavailable)
         response = service.search("动画", 12)
 
     assert response.search_mode == "fuzzy"
@@ -212,7 +471,7 @@ def test_meilisearch_response_uses_external_score(db_factory, monkeypatch):
         def indexed(_keyword: str, _limit: int):
             return [SearchHit(image=image, score=0.97, reasons=("Meilisearch 匹配",))]
 
-        monkeypatch.setattr(service, "_search_meilisearch", indexed)
+        monkeypatch.setattr(service.meilisearch_recall, "search", indexed)
         response = service.search("同步", 12)
 
     assert response.search_mode == "meilisearch"
@@ -415,7 +674,7 @@ def test_smart_search_attempts_meilisearch_with_ai_expansion(db_factory, monkeyp
             captured["keyword"] = keyword
             return [SearchHit(image=image, score=0.96, reasons=("Meilisearch 匹配",))]
 
-        monkeypatch.setattr(service, "_search_meilisearch", indexed)
+        monkeypatch.setattr(service.meilisearch_recall, "search", indexed)
         response = service.search("听课费劲", 12, "smart")
 
     assert response.search_mode == "meilisearch"
@@ -446,3 +705,87 @@ def test_smart_search_without_meilisearch_uses_ai_expansion_database(db_factory,
     assert response.search_understanding == understanding
     assert len(response.results) == 1
     assert "AI 意图理解：标准化查询" in response.results[0].match_reasons
+
+
+def test_smart_search_uses_ai_when_local_business_intent_is_ambiguous(db_factory):
+    class FakeProvider:
+        configured = True
+
+    class FakeAiService:
+        provider = FakeProvider()
+
+        def understand_search(self, keyword: str) -> SearchUnderstanding:
+            assert keyword == "体现规划"
+            return SearchUnderstanding(
+                original_query=keyword,
+                normalized_query="专家规划",
+                search_intent="用户在找专家参与课程规划的素材",
+                query_type="business_intent_search",
+                expanded_level1_tags=[],
+                matched_level2_categories=[
+                    SearchCategoryMatch(
+                        category="同步培养体系 > 专家规划",
+                        relation="direct",
+                        reason="AI 根据上下文消歧为专家规划",
+                        weight=0.91,
+                    )
+                ],
+                exclude_tags=["普通学习规划"],
+                search_strategy="按专家规划强意图召回",
+            )
+
+    with db_factory() as db:
+        create_business_intent_image(
+            db,
+            system_code="sync_planning",
+            system_name="同步规划体系",
+            label_code="ai_learning_plan",
+            label_name="AI定制学习方案",
+            title="AI定制学习方案",
+            summary="根据孩子水平生成学习计划。",
+        )
+        create_business_intent_image(
+            db,
+            system_code="sync_cultivation",
+            system_name="同步培养体系",
+            label_code="expert_planning",
+            label_name="专家规划",
+            title="专家规划",
+            summary="命题专家和教材编者参与课程规划。",
+        )
+        service = SearchService(db, ai_service=FakeAiService())
+        service.query_understanding.catalog = BusinessIntentCatalog(
+            version="test",
+            intents=(
+                BusinessIntent(
+                    code="plan_intent",
+                    name="学习规划",
+                    target_system_code="sync_planning",
+                    target_label_code="ai_learning_plan",
+                    phrases=("规划",),
+                    pain_points=(),
+                    must_have_concepts=(),
+                    nice_to_have_concepts=(),
+                    exclude_concepts=(),
+                    result_policy="strict_allow_few_results",
+                ),
+                BusinessIntent(
+                    code="expert_intent",
+                    name="专家规划",
+                    target_system_code="sync_cultivation",
+                    target_label_code="expert_planning",
+                    phrases=("规划",),
+                    pain_points=(),
+                    must_have_concepts=(),
+                    nice_to_have_concepts=(),
+                    exclude_concepts=("普通学习规划",),
+                    result_policy="strict_allow_few_results",
+                ),
+            ),
+        )
+        response = service.search("体现规划", 12, "smart")
+
+    assert response.search_understanding is not None
+    assert response.search_understanding.normalized_query == "专家规划"
+    assert [result.image.title for result in response.results] == ["专家规划"]
+    assert response.results[0].match_level == "S"
