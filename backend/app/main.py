@@ -1,15 +1,16 @@
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.middleware import RequestContextMiddleware
-from app.db.session import engine
+from app.db.session import get_db
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="2.0.0")
@@ -49,16 +50,19 @@ def health_live():
     return {"status": "ok", "environment": settings.app_env}
 
 
-@app.get("/health/ready", tags=["system"])
-def health_ready():
+def database_ready_response(db: Session):
     try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+        db.execute(text("SELECT 1"))
     except SQLAlchemyError as exc:
         raise AppError("database_unavailable", "数据库尚未就绪", status_code=503) from exc
     return {"status": "ready", "environment": settings.app_env}
 
 
+@app.get("/health/ready", tags=["system"])
+def health_ready(db: Session = Depends(get_db)):
+    return database_ready_response(db)
+
+
 @app.get("/health", tags=["system"])
-def health():
-    return health_ready()
+def health(db: Session = Depends(get_db)):
+    return database_ready_response(db)
