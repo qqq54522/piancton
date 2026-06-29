@@ -1,12 +1,12 @@
 from sqlalchemy import select
 
-from app.models.image import ContentTag, Image, ImageBusinessLabel, ImageTag
+from app.models.image import ContentTag, Image, ImageBusinessLabel, ImageCategory, ImageTag
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
 from app.services.embedding_index import EmbeddingIndexSync, image_to_embedding_document
 from app.services.search_index import image_to_search_document
 from app.services.search_index_sync import SearchIndexSync
-from scripts.seed_taxonomy import backfill_manual_business_labels
+from scripts.seed_taxonomy import backfill_legacy_image_categories, backfill_manual_business_labels
 
 
 def test_image_to_search_document_contains_manual_ai_and_content_terms(db_factory):
@@ -270,3 +270,53 @@ def test_seed_backfills_manual_business_labels_from_existing_image_tags(db_facto
         "instant_quiz",
     ]
     assert [label.role for label in labels] == ["primary", "additional"]
+
+
+def test_seed_backfills_function_category_for_legacy_tagged_images(db_factory):
+    with db_factory() as db:
+        tag = Tag(
+            code="stage_transition",
+            name="学段衔接",
+            color="#F472B6",
+            node_type="image_label",
+            assignable=True,
+            status="active",
+        )
+        image = Image(
+            title="学段衔接旧图",
+            file_name="legacy-stage.png",
+            storage_key="legacy-stage.png",
+            thumbnail_storage_key="legacy-stage-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+        )
+        image.tag_links.append(ImageTag(tag=tag))
+        already_classified = Image(
+            title="已有场景分类",
+            file_name="scene.png",
+            storage_key="scene.png",
+            thumbnail_storage_key="scene-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            categories=[ImageCategory(name="scene")],
+        )
+        already_classified.tag_links.append(ImageTag(tag=tag))
+        db.add_all([image, already_classified])
+        db.commit()
+
+        created = backfill_legacy_image_categories(db)
+        db.commit()
+        categories = {
+            row[0]: row[1]
+            for row in db.execute(
+                select(Image.title, ImageCategory.name)
+                .join(ImageCategory, ImageCategory.image_id == Image.id)
+                .order_by(Image.title)
+            ).all()
+        }
+
+    assert created == 1
+    assert categories["学段衔接旧图"] == "function"
+    assert categories["已有场景分类"] == "scene"

@@ -24,11 +24,16 @@ const ImageCard = ({ image, overlay }: ImageCardProps) => {
       .filter((t) => t.parentId || !childParentIds.has(t.id))
       .sort((a, b) => Number(a.isSecondary) - Number(b.isSecondary));
   }, [image.tags]);
+  const primaryTag = displayTags[0];
+  const hiddenTagCount = Math.max(displayTags.length - 1, 0);
+  const tagSummary = displayTags
+    .map((tag) => (tag.parentName ? `${tag.parentName} > ${tag.name || '未命名'}` : (tag.name || '未命名')))
+    .join('\n');
 
   return (
     <Link
       to={`/image/${image.id}`}
-      className="group block overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
@@ -49,28 +54,30 @@ const ImageCard = ({ image, overlay }: ImageCardProps) => {
           </div>
         )}
       </div>
-      <div className="p-3">
+      <div className="flex min-h-[86px] flex-1 flex-col p-3">
         <h3 className="truncate text-sm font-medium text-foreground">
           {image.title}
         </h3>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {displayTags.slice(0, 3).map((tag) => (
+        <div className="mt-2 flex min-h-6 items-center gap-1.5" title={tagSummary || undefined}>
+          {primaryTag ? (
             <Badge
-              key={tag.id}
+              key={primaryTag.id}
               variant="secondary"
-              className="text-[10px] font-normal transition-opacity"
+              className="max-w-[calc(100%-3rem)] truncate text-[10px] font-normal transition-opacity"
               style={{
-                backgroundColor: `${tag.color || '#6B7280'}18`,
-                color: tag.color || '#6B7280',
-                borderColor: `${tag.color || '#6B7280'}30`,
+                backgroundColor: `${primaryTag.color || '#6B7280'}18`,
+                color: primaryTag.color || '#6B7280',
+                borderColor: `${primaryTag.color || '#6B7280'}30`,
               }}
             >
-              {tag.parentName ? `${tag.parentName} > ${tag.name || '未命名'}` : (tag.name || '未命名')}
+              {primaryTag.parentName ? `${primaryTag.parentName} > ${primaryTag.name || '未命名'}` : (primaryTag.name || '未命名')}
             </Badge>
-          ))}
-          {displayTags.length > 3 && (
-            <Badge variant="secondary" className="text-[10px] font-normal">
-              +{displayTags.length - 3}
+          ) : (
+            <span className="text-xs text-muted-foreground/60">未归类</span>
+          )}
+          {hiddenTagCount > 0 && (
+            <Badge variant="outline" className="shrink-0 bg-background text-[10px] font-normal text-muted-foreground">
+              +{hiddenTagCount}
             </Badge>
           )}
         </div>

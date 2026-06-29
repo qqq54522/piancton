@@ -33,6 +33,7 @@ const ImageBrowser = ({ parentTagId }: ImageBrowserProps) => {
     setSearchInput, setSortBy, setTagPanelOpen, setUploadOpen, showChildTags,
     showImages, sortBy, tagPanelOpen, uploadOpen,
   } = browser;
+  const shouldRenderImageSection = showImages && !globalSearchKeyword;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -147,7 +148,7 @@ const ImageBrowser = ({ parentTagId }: ImageBrowserProps) => {
         </>
       )}
 
-      {showImages && (
+      {shouldRenderImageSection && (
         <>
           <CanRole roles={['designer']}>
             <LocalImageToolbar

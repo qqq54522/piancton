@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Sparkles, Target, Layers, Search, AlertTriangle, MessageSquare } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, type UseMutationResult } from '@tanstack/react-query';
 import { Button } from '@client/src/components/ui/button';
 import { Badge } from '@client/src/components/ui/badge';
 import { Input } from '@client/src/components/ui/input';
@@ -172,36 +172,89 @@ function ScoredImageCard({ scored }: { scored: ScoredImageMatch }) {
   const LevelIcon = config.icon;
 
   const overlay = (
-    <>
-      <div className="absolute left-2 top-2 flex items-center gap-1">
-        <Badge className={`${config.color} text-[10px] font-medium shadow-sm`}>
-          <LevelIcon className="mr-0.5 size-3" />
-          {scored.matchLevel} {config.label}
-        </Badge>
-      </div>
-      {scored.matchReasons.length > 0 && (
-        <div className="absolute bottom-2 left-2 right-2">
-          <div className="rounded bg-background/90 px-1.5 py-0.5 text-[10px] leading-tight text-foreground/80 shadow-sm backdrop-blur-sm line-clamp-1">
-            {scored.matchReasons[0]}
-          </div>
-        </div>
-      )}
-    </>
+    <div className="absolute left-2 top-2 flex items-center gap-1">
+      <Badge className={`${config.color} text-[10px] font-medium shadow-sm`}>
+        <LevelIcon className="mr-0.5 size-3" />
+        {scored.matchLevel} {config.label}
+      </Badge>
+    </div>
   );
 
   return (
-    <motion.div variants={itemVariants} className="space-y-2">
+    <motion.div variants={itemVariants} className="h-full">
       <ImageCard image={scored.image} overlay={overlay} />
-      {scored.matchReasons.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {scored.matchReasons.slice(0, 3).map((reason) => (
-            <Badge key={reason} variant="outline" className="max-w-full truncate text-[10px] font-normal">
-              {reason}
-            </Badge>
+    </motion.div>
+  );
+}
+
+function SearchResultGrid({ items }: { items: ScoredImageMatch[] }) {
+  return (
+    <motion.div
+      className="grid grid-cols-2 items-stretch gap-4 sm:grid-cols-3 lg:grid-cols-4"
+      initial="hidden"
+      animate="visible"
+      variants={staggerVariants}
+    >
+      {items.map((scored) => (
+        <ScoredImageCard key={scored.image.id} scored={scored} />
+      ))}
+    </motion.div>
+  );
+}
+
+function SearchFeedbackPanel({
+  feedbackNote,
+  feedbackMutation,
+  submittedFeedback,
+  onFeedbackNoteChange,
+}: {
+  feedbackNote: string;
+  feedbackMutation: UseMutationResult<void, Error, SearchFeedbackType>;
+  submittedFeedback: SearchFeedbackType | null;
+  onFeedbackNoteChange: (value: string) => void;
+}) {
+  return (
+    <div className="mt-6 border-t border-border pt-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MessageSquare className="size-4" />
+          <span>这次搜索结果是否满足需求？</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {FEEDBACK_OPTIONS.map((option) => (
+            <Button
+              key={option.type}
+              variant={submittedFeedback === option.type ? 'default' : 'outline'}
+              size="sm"
+              disabled={feedbackMutation.isPending}
+              onClick={() => feedbackMutation.mutate(option.type)}
+            >
+              {option.label}
+            </Button>
           ))}
         </div>
+      </div>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <Input
+          value={feedbackNote}
+          onChange={(event) => onFeedbackNoteChange(event.target.value)}
+          placeholder="可选：补充你想找的画面、风格或业务话术"
+          className="h-9 text-sm"
+          maxLength={200}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!feedbackNote.trim() || feedbackMutation.isPending}
+          onClick={() => feedbackMutation.mutate('asset_request')}
+        >
+          提交说明
+        </Button>
+      </div>
+      {submittedFeedback && (
+        <p className="mt-2 text-xs text-emerald-600">已记录反馈，管理员会在搜索运营里看到。</p>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -245,11 +298,6 @@ const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordC
           <Badge className="ml-2 bg-muted text-muted-foreground border-border text-xs">
             {searchMode === 'smart' ? '智能搜索' : '精准搜索'}
           </Badge>
-          {result.searchMode === 'meilisearch' && (
-            <Badge className="ml-2 bg-blue-50 text-blue-700 border-blue-200 text-xs">
-              Meilisearch
-            </Badge>
-          )}
         </h2>
         <Button variant="ghost" size="sm" onClick={onClear}>
           <X className="mr-1 size-3.5" />
@@ -292,63 +340,19 @@ const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordC
                   </Badge>
                   <span className="text-xs text-muted-foreground">{items.length} 张</span>
                 </div>
-                <motion.div
-                  className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
-                  initial="hidden"
-                  animate="visible"
-                  variants={staggerVariants}
-                >
-                  {items.map((scored) => (
-                    <ScoredImageCard key={scored.image.id} scored={scored} />
-                  ))}
-                </motion.div>
+                <SearchResultGrid items={items} />
               </div>
             );
           })}
         </div>
       )}
 
-      <div className="mt-6 border-t border-border pt-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MessageSquare className="size-4" />
-            <span>这次搜索结果是否满足需求？</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {FEEDBACK_OPTIONS.map((option) => (
-              <Button
-                key={option.type}
-                variant={submittedFeedback === option.type ? 'default' : 'outline'}
-                size="sm"
-                disabled={feedbackMutation.isPending}
-                onClick={() => feedbackMutation.mutate(option.type)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={feedbackNote}
-            onChange={(event) => setFeedbackNote(event.target.value)}
-            placeholder="可选：补充你想找的画面、风格或业务话术"
-            className="h-9 text-sm"
-            maxLength={200}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!feedbackNote.trim() || feedbackMutation.isPending}
-            onClick={() => feedbackMutation.mutate('asset_request')}
-          >
-            提交说明
-          </Button>
-        </div>
-        {submittedFeedback && (
-          <p className="mt-2 text-xs text-emerald-600">已记录反馈，管理员会在搜索运营里看到。</p>
-        )}
-      </div>
+      <SearchFeedbackPanel
+        feedbackNote={feedbackNote}
+        feedbackMutation={feedbackMutation}
+        submittedFeedback={submittedFeedback}
+        onFeedbackNoteChange={setFeedbackNote}
+      />
     </div>
   );
 };

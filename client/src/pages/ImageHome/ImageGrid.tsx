@@ -35,6 +35,7 @@ const ImageGrid = ({ images, emptyText, withPresence = false }: ImageGridProps) 
       key={image.id}
       variants={itemVariants}
       layout={withPresence}
+      className="h-full"
     >
       <ImageCard image={image} />
     </motion.div>
@@ -42,7 +43,7 @@ const ImageGrid = ({ images, emptyText, withPresence = false }: ImageGridProps) 
 
   return (
     <motion.div
-      className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+      className="grid grid-cols-2 items-stretch gap-4 sm:grid-cols-3 lg:grid-cols-4"
       initial="hidden"
       animate="visible"
       variants={staggerVariants}

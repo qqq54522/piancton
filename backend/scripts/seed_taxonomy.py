@@ -4,7 +4,7 @@ from sqlalchemy import or_, select
 
 from app.db.session import SessionLocal
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
-from app.models.image import ImageBusinessLabel, ImageTag
+from app.models.image import ImageBusinessLabel, ImageCategory, ImageTag
 from app.models.tag import Tag
 
 
@@ -60,8 +60,9 @@ def seed_taxonomy() -> tuple[int, int, int]:
             parent_by_code[node.code] = tag
         db.flush()
         backfilled = backfill_manual_business_labels(db)
+        category_backfilled = backfill_legacy_image_categories(db)
         db.commit()
-    return created, updated, backfilled
+    return created, updated, backfilled, category_backfilled
 
 
 def backfill_manual_business_labels(db) -> int:
@@ -142,11 +143,50 @@ def backfill_manual_business_labels(db) -> int:
     return backfilled
 
 
+def backfill_legacy_image_categories(db) -> int:
+    """Give legacy tagged images a default precise-filter category.
+
+    Older deployments allowed images to keep manual/business labels while having
+    no scene/function category. The precise finder combines selected tags with
+    the category filter, so those otherwise valid assets disappeared when users
+    chose "功能". New uploads already write categories explicitly; this backfill
+    only touches images that have search labels but no category rows.
+    """
+
+    image_ids_with_categories = set(db.scalars(select(ImageCategory.image_id)).all())
+    tagged_image_ids = set(
+        db.scalars(
+            select(ImageTag.image_id)
+            .join(Tag, Tag.id == ImageTag.tag_id)
+            .where(
+                Tag.assignable.is_(True),
+                Tag.status == "active",
+                Tag.node_type != "system",
+            )
+        ).all()
+    )
+    business_labeled_image_ids = set(
+        db.scalars(
+            select(ImageBusinessLabel.image_id)
+            .where(ImageBusinessLabel.review_status != "rejected")
+        ).all()
+    )
+    candidate_ids = sorted(
+        (tagged_image_ids | business_labeled_image_ids) - image_ids_with_categories
+    )
+    for image_id in candidate_ids:
+        db.add(ImageCategory(image_id=image_id, name="function"))
+    db.flush()
+    return len(candidate_ids)
+
+
 def main() -> None:
-    created, updated, backfilled = seed_taxonomy()
+    created, updated, backfilled, category_backfilled = seed_taxonomy()
     print(
         "Seeded taxonomy: "
-        f"created={created}, updated={updated}, manual_business_labels={backfilled}"
+        f"created={created}, updated={updated}, "
+        f"manual_business_labels={backfilled}, "
+        f"legacy_image_categories={category_backfilled}"
     )
 
 
