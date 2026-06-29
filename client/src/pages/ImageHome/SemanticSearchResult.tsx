@@ -1,8 +1,18 @@
-import { X, Sparkles, Target, Layers, Search, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { X, Sparkles, Target, Layers, Search, AlertTriangle, MessageSquare } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
 import { Button } from '@client/src/components/ui/button';
 import { Badge } from '@client/src/components/ui/badge';
+import { Input } from '@client/src/components/ui/input';
 import { motion } from 'framer-motion';
-import type { SearchMode, SemanticSearchResponse, ScoredImageMatch, SearchUnderstanding } from '@client/src/types/api';
+import { submitSearchFeedback } from '@client/src/api/image';
+import type {
+  SearchFeedbackType,
+  SearchMode,
+  SemanticSearchResponse,
+  ScoredImageMatch,
+  SearchUnderstanding,
+} from '@client/src/types/api';
 import ImageCard from './ImageCard';
 
 interface SemanticSearchResultProps {
@@ -180,15 +190,45 @@ function ScoredImageCard({ scored }: { scored: ScoredImageMatch }) {
   );
 
   return (
-    <motion.div variants={itemVariants}>
+    <motion.div variants={itemVariants} className="space-y-2">
       <ImageCard image={scored.image} overlay={overlay} />
+      {scored.matchReasons.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {scored.matchReasons.slice(0, 3).map((reason) => (
+            <Badge key={reason} variant="outline" className="max-w-full truncate text-[10px] font-normal">
+              {reason}
+            </Badge>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
 
+const FEEDBACK_OPTIONS: Array<{ type: SearchFeedbackType; label: string }> = [
+  { type: 'not_relevant', label: '结果不相关' },
+  { type: 'too_few_results', label: '结果太少' },
+  { type: 'need_different_style', label: '想要别的风格' },
+  { type: 'asset_request', label: '提交素材需求' },
+];
+
 const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordClick }: SemanticSearchResultProps) => {
   const understanding = result.searchUnderstanding;
   const hasResults = result.results.length > 0;
+  const [feedbackNote, setFeedbackNote] = useState('');
+  const [submittedFeedback, setSubmittedFeedback] = useState<SearchFeedbackType | null>(null);
+  const feedbackMutation = useMutation({
+    mutationFn: (feedbackType: SearchFeedbackType) => submitSearchFeedback({
+      searchLogId: result.searchLogId,
+      keyword,
+      feedbackType,
+      note: feedbackNote.trim() || undefined,
+    }),
+    onSuccess: (_data, feedbackType) => {
+      setSubmittedFeedback(feedbackType);
+      setFeedbackNote('');
+    },
+  });
 
   const groupedResults = {
     S: result.results.filter((r) => r.matchLevel === 'S'),
@@ -267,6 +307,48 @@ const SemanticSearchResult = ({ keyword, result, searchMode, onClear, onKeywordC
           })}
         </div>
       )}
+
+      <div className="mt-6 border-t border-border pt-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MessageSquare className="size-4" />
+            <span>这次搜索结果是否满足需求？</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {FEEDBACK_OPTIONS.map((option) => (
+              <Button
+                key={option.type}
+                variant={submittedFeedback === option.type ? 'default' : 'outline'}
+                size="sm"
+                disabled={feedbackMutation.isPending}
+                onClick={() => feedbackMutation.mutate(option.type)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={feedbackNote}
+            onChange={(event) => setFeedbackNote(event.target.value)}
+            placeholder="可选：补充你想找的画面、风格或业务话术"
+            className="h-9 text-sm"
+            maxLength={200}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!feedbackNote.trim() || feedbackMutation.isPending}
+            onClick={() => feedbackMutation.mutate('asset_request')}
+          >
+            提交说明
+          </Button>
+        </div>
+        {submittedFeedback && (
+          <p className="mt-2 text-xs text-emerald-600">已记录反馈，管理员会在搜索运营里看到。</p>
+        )}
+      </div>
     </div>
   );
 };

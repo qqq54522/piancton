@@ -10,6 +10,7 @@ from app.domain.business_intents import (
     target_display_name,
     target_label,
 )
+from app.domain.search_policy import SearchPolicyCatalog, load_search_policy
 from app.schemas.ai import SearchCategoryMatch, SearchUnderstanding
 from app.services.ai_service import AiService
 
@@ -31,16 +32,18 @@ class QueryUnderstandingService:
         self,
         ai_service: AiService | None = None,
         catalog: BusinessIntentCatalog | None = None,
+        search_policy: SearchPolicyCatalog | None = None,
     ):
         self.ai_service = ai_service
         self.catalog = catalog or load_business_intents()
+        self.search_policy = search_policy or load_search_policy()
 
     def understand(self, keyword: str) -> SearchUnderstanding | None:
         query = keyword.strip()
         if not query:
             return None
         matches = self._local_matches(query)
-        if matches and self._should_trust_local(matches):
+        if matches and self._should_trust_local(query, matches):
             return self._understanding_from_match(query, matches[0])
 
         ai_understanding = self._understand_with_ai(query)
@@ -76,16 +79,22 @@ class QueryUnderstandingService:
             reverse=True,
         )
 
-    def _should_trust_local(self, matches: list[IntentMatch]) -> bool:
+    def _should_trust_local(self, query: str, matches: list[IntentMatch]) -> bool:
         if not matches:
             return False
         top = matches[0]
         if top.confidence < LOCAL_TRUST_THRESHOLD:
             return False
         if len(matches) == 1:
-            return True
+            return not (
+                self._is_ambiguous_query(query)
+                and top.confidence < 0.95
+            )
         second = matches[1]
-        return top.confidence - second.confidence > AMBIGUOUS_CONFIDENCE_GAP
+        confidence_gap = top.confidence - second.confidence
+        if self._is_ambiguous_query(query) and confidence_gap <= 0.15:
+            return False
+        return confidence_gap > AMBIGUOUS_CONFIDENCE_GAP
 
     def _understand_with_ai(self, query: str) -> SearchUnderstanding | None:
         if not self.ai_service or not self.ai_service.provider.configured:
@@ -157,6 +166,14 @@ class QueryUnderstandingService:
             intent=intent,
             confidence=max(scores),
             reasons=tuple(reasons),
+        )
+
+    def _is_ambiguous_query(self, query: str) -> bool:
+        needle = _normalize(query)
+        return any(
+            _normalize(term) in needle
+            for term in self.search_policy.ambiguous_terms
+            if _normalize(term)
         )
 
 

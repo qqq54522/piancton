@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BriefcaseBusiness, FileClock, Images, LogOut, Menu, Palette, ScrollText, Shield, X } from 'lucide-react';
+import { BriefcaseBusiness, FileClock, Images, LogOut, Menu, Palette, ScrollText, Search, Shield, X } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { Button } from '@client/src/components/ui/button';
@@ -81,6 +81,19 @@ const Layout = () => {
               审计日志
             </NavLink>
           )}
+          {user?.role === 'admin' && (
+            <NavLink
+              to="/admin/search-ops"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-secondary'
+                }`
+              }
+            >
+              <Search className="mr-1 inline size-3.5" />
+              搜索运营
+            </NavLink>
+          )}
         </nav>
 
         <div className="ml-auto hidden items-center gap-2 md:flex">
@@ -154,6 +167,13 @@ const Layout = () => {
                 className="mt-1 block rounded-md px-3 py-2 text-sm font-medium"
               >
                 审计日志
+              </NavLink>
+              <NavLink
+                to="/admin/search-ops"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mt-1 block rounded-md px-3 py-2 text-sm font-medium"
+              >
+                搜索运营
               </NavLink>
             </>
           )}

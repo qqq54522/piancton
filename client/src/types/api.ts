@@ -4,6 +4,7 @@ export type {
   BusinessLabel,
   AuditLog,
   ContentTag,
+  ImageSemanticProfile,
   ImageDetail,
   ImageItem,
   Level2Category,
@@ -103,6 +104,7 @@ export interface ScoredImageMatch {
 export interface SemanticSearchResponse {
   results: ScoredImageMatch[];
   hasMore: boolean;
+  searchLogId?: string | null;
   searchUnderstanding?: SearchUnderstanding;
   matchSummary?: string;
   searchMode?: 'fuzzy' | 'meilisearch';
@@ -114,4 +116,119 @@ export interface ProviderStatus {
   provider: string;
   configured: boolean;
   modelName: string;
+}
+
+export interface SearchMetricItem {
+  label: string;
+  count: number;
+}
+
+export interface SearchLogItem {
+  id: string;
+  keyword: string;
+  requestedMode: string;
+  servedMode: string;
+  fallback: boolean;
+  fallbackReason?: string | null;
+  resultCount: number;
+  normalizedQuery?: string | null;
+  queryType?: string | null;
+  matchedCategory?: string | null;
+  topImageIds: string[];
+  matchReasons: string[];
+  createdAt: string;
+}
+
+export type SearchFeedbackType =
+  | 'not_relevant'
+  | 'too_few_results'
+  | 'need_different_style'
+  | 'asset_request';
+
+export interface SearchFeedbackItem {
+  id: string;
+  searchLogId?: string | null;
+  keyword: string;
+  feedbackType: SearchFeedbackType | string;
+  note?: string | null;
+  createdAt: string;
+}
+
+export interface SearchOpsIssue {
+  id: string;
+  keyword: string;
+  issueType: string;
+  severity: 'high' | 'medium' | 'low';
+  source: string;
+  count: number;
+  reason: string;
+  suggestedAction: string;
+  latestAt: string;
+}
+
+export interface AiReviewQueueItem {
+  id: string;
+  imageId: string;
+  imageTitle: string;
+  thumbnailUrl: string;
+  labelCode: string;
+  labelName: string;
+  systemName?: string | null;
+  role: string;
+  confidence?: number | null;
+  evidenceLevel?: string | null;
+  reason?: string | null;
+  createdAt: string;
+}
+
+export interface LabelHealthItem {
+  tagId: string;
+  labelCode?: string | null;
+  labelName: string;
+  systemName?: string | null;
+  imageCount: number;
+  manualCount: number;
+  aiPendingCount: number;
+  aiAcceptedCount: number;
+  aiRejectedCount: number;
+  searchCount: number;
+  healthLevel: 'healthy' | 'needs_assets' | 'needs_review' | 'watch';
+  recommendation: string;
+}
+
+export interface AssetGapItem {
+  keyword: string;
+  demandCount: number;
+  suggestedLabel?: string | null;
+  reason: string;
+  source: string;
+}
+
+export interface SearchFeedbackRequest {
+  searchLogId?: string | null;
+  keyword: string;
+  feedbackType: SearchFeedbackType;
+  note?: string | null;
+}
+
+export interface SearchOpsSummary {
+  totalSearches: number;
+  zeroResultCount: number;
+  fallbackCount: number;
+  aiUnderstoodCount: number;
+  smartSearchCount: number;
+  preciseSearchCount: number;
+  topQueries: SearchMetricItem[];
+  zeroResultQueries: SearchMetricItem[];
+  topNormalizedQueries: SearchMetricItem[];
+  topMatchedCategories: SearchMetricItem[];
+  feedbackCount: number;
+  feedbackByType: SearchMetricItem[];
+  feedbackQueries: SearchMetricItem[];
+  recentFeedback: SearchFeedbackItem[];
+  recentLogs: SearchLogItem[];
+  searchIssues: SearchOpsIssue[];
+  aiReviewQueue: AiReviewQueueItem[];
+  labelHealth: LabelHealthItem[];
+  assetGaps: AssetGapItem[];
 }

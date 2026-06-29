@@ -7,15 +7,12 @@ from pathlib import Path
 from typing import BinaryIO, Optional
 
 from app.core.errors import AppError, NotFoundError
-from app.models.image import (
-    Image,
-    ImageCategory,
-    ImageTag,
-)
+from app.models.image import Image, ImageCategory, ImageTag
 from app.repositories.image_repository import ImageRepository
 from app.schemas.image import ImageDetailRead, ImageListResponse, ImageRead
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_tagging_service import ImageTaggingService
+from app.services.related_image_service import RelatedImageService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail, image_to_read
 from app.services.storage_service import StorageProvider
@@ -67,6 +64,7 @@ class ImageService:
             search_index=self.search_index,
             embedding_index=self.embedding_index,
         )
+        self.related_images = RelatedImageService(self.images)
 
     def list_images(
         self,
@@ -102,9 +100,7 @@ class ImageService:
 
     def get_detail(self, image_id: str) -> ImageDetailRead:
         image = self._get(image_id)
-        tag_ids = [link.tag_id for link in image.tag_links]
-        related = self.images.list(None, tag_ids, None, None, None, 9, "createdAt")
-        return image_to_detail(image, [item for item in related if item.id != image.id][:8])
+        return image_to_detail(image, self.related_images.related_images(image, 8))
 
     def upload(
         self,
@@ -115,6 +111,7 @@ class ImageService:
         primary_tag_id: str | None,
         categories: list[str],
         uploader: str,
+        expected_search_words: list[str] | None = None,
     ) -> ImageRead:
         tags = self.tagging.validate_tags(tag_ids)
         manual_business_labels = self.tagging.manual_business_labels(tags, primary_tag_id)
@@ -138,6 +135,7 @@ class ImageService:
             tag_links=[ImageTag(tag=tag) for tag in tags],
             business_labels=manual_business_labels,
             categories=[ImageCategory(name=name) for name in sorted(set(categories))],
+            content_tags=self.tagging.expected_search_word_tags(expected_search_words or []),
         )
         try:
             self.images.add(image)

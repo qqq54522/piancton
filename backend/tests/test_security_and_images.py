@@ -88,6 +88,64 @@ def test_upload_preview_download_and_validation(client):
     assert detail["downloadCount"] == 1
 
 
+def test_search_ops_summary_is_admin_only_and_records_searches(client):
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    tag = create_leaf_tag(client, headers, "搜索运营")
+    uploaded = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("search.png", png_file(), "image/png")},
+        data={"title": "搜索运营测试图", "tagIds": tag["id"], "categories": "function"},
+    )
+    assert uploaded.status_code == 201
+
+    search = client.post(
+        "/api/images/search",
+        json={"keyword": "搜索运营测试图", "limit": 12, "searchMode": "precise"},
+    )
+    assert search.status_code == 200
+    search_body = search.json()
+    assert search_body["results"]
+    assert search_body["searchLogId"]
+
+    feedback = client.post(
+        "/api/search-feedback",
+        headers=headers,
+        json={
+            "searchLogId": search_body["searchLogId"],
+            "keyword": "搜索运营测试图",
+            "feedbackType": "not_relevant",
+            "note": "想看另一种风格",
+        },
+    )
+    assert feedback.status_code == 201
+
+    summary = client.get("/api/admin/search-ops/summary")
+    assert summary.status_code == 200
+    data = summary.json()
+    assert data["totalSearches"] == 1
+    assert data["preciseSearchCount"] == 1
+    assert data["feedbackCount"] == 1
+    assert data["feedbackByType"][0]["label"] == "not_relevant"
+    assert data["recentFeedback"][0]["note"] == "想看另一种风格"
+    assert data["recentLogs"][0]["keyword"] == "搜索运营测试图"
+    assert data["recentLogs"][0]["resultCount"] == 1
+
+    business_csrf = login(client, "business", "business-password")
+    business_feedback = client.post(
+        "/api/search-feedback",
+        headers={"X-CSRF-Token": business_csrf, "Origin": "http://localhost:5173"},
+        json={
+            "keyword": "业务方搜索词",
+            "feedbackType": "too_few_results",
+        },
+    )
+    assert business_feedback.status_code == 201
+    forbidden = client.get("/api/admin/search-ops/summary")
+    assert forbidden.status_code == 403
+
+
 def test_ai_not_configured_is_explicit(client):
     from app.ai.placeholder import PlaceholderModelProvider
     from app.api import dependencies

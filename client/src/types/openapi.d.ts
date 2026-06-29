@@ -582,6 +582,28 @@ export interface components {
             /** Dimension */
             dimension?: string | null;
         };
+        /** ImageSemanticProfile */
+        ImageSemanticProfile: {
+            /** Visualfacts */
+            visualFacts?: string[];
+            /** Businessintent */
+            businessIntent?: string;
+            /** Searchphrases */
+            searchPhrases?: string[];
+            /** Exclusionboundaries */
+            exclusionBoundaries?: string[];
+        };
+        /** SemanticProfileRead */
+        SemanticProfileRead: {
+            /** Visualfacts */
+            visualFacts?: string[];
+            /** Businessintent */
+            businessIntent?: string;
+            /** Searchphrases */
+            searchPhrases?: string[];
+            /** Exclusionboundaries */
+            exclusionBoundaries?: string[];
+        };
         /** ExpandedSearchTag */
         ExpandedSearchTag: {
             /** Tag */
@@ -610,6 +632,8 @@ export interface components {
             imageType: "function" | "scene_emotion" | "scene_functional";
             /** Imagesummary */
             imageSummary: string;
+            /** Semanticprofile */
+            semanticProfile?: components["schemas"]["ImageSemanticProfile"];
             /** Contenttags */
             contentTags?: components["schemas"]["ConfidenceTag"][];
             /** Secondarylabels */
@@ -649,6 +673,35 @@ export interface components {
             /** Reviewstatus */
             reviewStatus: "accepted" | "pending" | "rejected";
         };
+        /** SearchFeedbackCreate */
+        SearchFeedbackCreate: {
+            /** Searchlogid */
+            searchLogId?: string | null;
+            /** Keyword */
+            keyword: string;
+            /** Feedbacktype */
+            feedbackType: "not_relevant" | "too_few_results" | "need_different_style" | "asset_request";
+            /** Note */
+            note?: string | null;
+        };
+        /** SearchFeedbackRead */
+        SearchFeedbackRead: {
+            /** Id */
+            id: string;
+            /** Searchlogid */
+            searchLogId?: string | null;
+            /** Keyword */
+            keyword: string;
+            /** Feedbacktype */
+            feedbackType: string;
+            /** Note */
+            note?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
         /** ImageDetailRead */
         ImageDetailRead: {
             /** Id */
@@ -684,6 +737,8 @@ export interface components {
             tags: components["schemas"]["TagRead"][];
             /** Imagesummary */
             imageSummary?: string | null;
+            /** Semanticprofile */
+            semanticProfile?: components["schemas"]["SemanticProfileRead"] | null;
             /** Relatedimages */
             relatedImages?: components["schemas"]["ImageRead"][];
             /** Contenttags */
@@ -858,6 +913,8 @@ export interface components {
             fallback: boolean;
             /** Fallbackreason */
             fallbackReason?: string | null;
+            /** Searchlogid */
+            searchLogId?: string | null;
             /** Matchsummary */
             matchSummary: string;
         };

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from app.core.errors import AppError, NotFoundError
-from app.models.image import Image, ImageBusinessLabel, ImageTag
+from app.models.image import ContentTag, Image, ImageBusinessLabel, ImageTag
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
 from app.repositories.tag_repository import TagRepository
 from app.schemas.image import ImageDetailRead, ImageRead
 from app.services.embedding_index import EmbeddingIndexSync
+from app.services.related_image_service import RelatedImageService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail, image_to_read
 from app.services.unit_of_work import UnitOfWork
@@ -24,6 +25,7 @@ class ImageTaggingService:
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
+        self.related_images = RelatedImageService(self.images)
 
     def update_tags(
         self,
@@ -114,6 +116,23 @@ class ImageTaggingService:
             )
         return labels
 
+    def expected_search_word_tags(self, words: list[str]) -> list[ContentTag]:
+        content_tags: list[ContentTag] = []
+        seen: set[str] = set()
+        for word in words:
+            name = word.strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            content_tags.append(
+                ContentTag(
+                    tag_name=name[:100],
+                    confidence=1.0,
+                    dimension="用户预期搜索词",
+                )
+            )
+        return content_tags
+
     def _promote_ai_label_to_manual(
         self,
         image: Image,
@@ -182,9 +201,7 @@ class ImageTaggingService:
 
     def _detail(self, image_id: str) -> ImageDetailRead:
         image = self._get(image_id)
-        tag_ids = [link.tag_id for link in image.tag_links]
-        related = self.images.list(None, tag_ids, None, None, None, 9, "createdAt")
-        return image_to_detail(image, [item for item in related if item.id != image.id][:8])
+        return image_to_detail(image, self.related_images.related_images(image, 8))
 
     def _sync_index(self, image_id: str) -> None:
         image = self.images.get(image_id)

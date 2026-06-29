@@ -15,6 +15,8 @@ from app.repositories.tag_repository import TagRepository
 from app.schemas.ai import ImageAnalysisResult
 from app.schemas.image import ImageDetailRead
 from app.services.embedding_index import EmbeddingIndexSync
+from app.services.image_semantic_profile_service import ImageSemanticProfileService
+from app.services.related_image_service import RelatedImageService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail
 from app.services.unit_of_work import UnitOfWork
@@ -34,6 +36,8 @@ class ImageAnalysisService:
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
+        self.semantic_profile = ImageSemanticProfileService()
+        self.related_images = RelatedImageService(self.images)
 
     def create_analysis_run(self, image_id: str) -> AnalysisRun:
         image = self._get(image_id)
@@ -144,6 +148,7 @@ class ImageAnalysisService:
         self.images.replace_ai_profile(
             image,
             summary=result.image_summary.strip(),
+            semantic_profile_json=self.semantic_profile.profile_json_from_analysis(result),
             content_tags=content_tags,
             level2_categories=level2_categories,
             analysis_run=analysis_run,
@@ -204,9 +209,7 @@ class ImageAnalysisService:
 
     def _detail(self, image_id: str) -> ImageDetailRead:
         image = self._get(image_id)
-        tag_ids = [link.tag_id for link in image.tag_links]
-        related = self.images.list(None, tag_ids, None, None, None, 9, "createdAt")
-        return image_to_detail(image, [item for item in related if item.id != image.id][:8])
+        return image_to_detail(image, self.related_images.related_images(image, 8))
 
     def _sync_index(self, image_id: str) -> None:
         image = self.images.get(image_id)

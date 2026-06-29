@@ -8,6 +8,8 @@ from app.models.image import (
     ImageLevel2Category,
     ImageTag,
 )
+from app.models.search_feedback import SearchFeedbackEvent
+from app.models.search_log import SearchLog
 from app.models.tag import Tag
 from app.models.user import AuditLog, LoginThrottle, User, UserSession
 
@@ -21,6 +23,8 @@ __all__ = [
     "ImageEmbedding",
     "AnalysisRun",
     "ImageBusinessLabel",
+    "SearchLog",
+    "SearchFeedbackEvent",
     "User",
     "UserSession",
     "LoginThrottle",

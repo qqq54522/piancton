@@ -35,6 +35,13 @@ class Level2CategoryRead(ApiModel):
     reason: Optional[str] = None
 
 
+class SemanticProfileRead(ApiModel):
+    visual_facts: List[str] = Field(default_factory=list)
+    business_intent: str = ""
+    search_phrases: List[str] = Field(default_factory=list)
+    exclusion_boundaries: List[str] = Field(default_factory=list)
+
+
 class BusinessLabelRead(ApiModel):
     id: str
     label_code: str
@@ -78,6 +85,7 @@ class ImageRead(ApiModel):
 
 class ImageDetailRead(ImageRead):
     image_summary: Optional[str] = None
+    semantic_profile: Optional[SemanticProfileRead] = None
     related_images: List[ImageRead] = Field(default_factory=list)
     content_tags: List[ContentTagRead] = Field(default_factory=list)
     level2_categories: List[Level2CategoryRead] = Field(default_factory=list)
@@ -112,5 +120,6 @@ class SearchResponse(ApiModel):
     search_mode: Literal["fuzzy", "meilisearch"] = "fuzzy"
     fallback: bool = False
     fallback_reason: Optional[str] = None
+    search_log_id: Optional[str] = None
     search_understanding: Optional[SearchUnderstanding] = None
     match_summary: str

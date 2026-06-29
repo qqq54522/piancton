@@ -28,6 +28,7 @@ class Image(Base):
     uploader: Mapped[str] = mapped_column(String(100), default="local")
     download_count: Mapped[int] = mapped_column(Integer, default=0, index=True)
     image_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    semantic_profile_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )

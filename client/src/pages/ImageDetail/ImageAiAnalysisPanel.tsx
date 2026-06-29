@@ -27,6 +27,37 @@ const reviewStatusLabel = (label: BusinessLabel) => {
   return '待审核';
 };
 
+const ProfileTagGroup = ({
+  title,
+  items,
+  tone = 'primary',
+}: {
+  title: string;
+  items: string[];
+  tone?: 'primary' | 'rose';
+}) => {
+  if (!items.length) return null;
+  const toneClass = tone === 'rose'
+    ? 'border-rose-200 bg-rose-50 text-rose-700'
+    : 'border-primary/20 bg-primary/5 text-primary/70';
+  return (
+    <div className="space-y-1.5">
+      <span className="text-[11px] font-medium text-muted-foreground">{title}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item) => (
+          <Badge
+            key={item}
+            variant="outline"
+            className={`max-w-full cursor-default whitespace-normal text-left text-xs leading-relaxed ${toneClass}`}
+          >
+            {item}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ImageAiAnalysisPanel = ({
   detail,
   provider,
@@ -95,6 +126,29 @@ const ImageAiAnalysisPanel = ({
           <p className="mt-1.5 rounded-lg border border-primary/10 bg-primary/5 px-3 py-2 text-sm leading-relaxed text-foreground/80">
             {detail.imageSummary}
           </p>
+        </div>
+      )}
+
+      {detail.semanticProfile && (
+        <div className="mt-5">
+          <span className="text-sm font-medium text-foreground">语义画像</span>
+          <div className="mt-2 space-y-3 border-l border-primary/20 pl-3">
+            {detail.semanticProfile.businessIntent && (
+              <div>
+                <span className="text-[11px] font-medium text-muted-foreground">业务意图</span>
+                <p className="mt-1 text-sm text-foreground/80">
+                  {detail.semanticProfile.businessIntent}
+                </p>
+              </div>
+            )}
+            <ProfileTagGroup title="画面事实" items={detail.semanticProfile.visualFacts ?? []} />
+            <ProfileTagGroup title="适合搜索" items={detail.semanticProfile.searchPhrases ?? []} />
+            <ProfileTagGroup
+              title="排除边界"
+              items={detail.semanticProfile.exclusionBoundaries ?? []}
+              tone="rose"
+            />
+          </div>
         </div>
       )}
 

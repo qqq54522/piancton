@@ -23,13 +23,7 @@ class SearchScorer:
         tag_names = [link.tag.name for link in image.tag_links]
         content_tag_names = [item.tag_name for item in image.content_tags]
         category_names = [item.category_name for item in image.level2_categories]
-        business_labels = [
-            label for label in image.business_labels if label.review_status != "rejected"
-        ]
-        business_label_names = [
-            self.semantic_profile.business_label_name(label) for label in business_labels
-        ]
-        business_label_codes = [label.label_code for label in business_labels]
+        business_labels = self.semantic_profile.searchable_business_labels(image)
 
         title = image.title.lower()
         exact_title = bool(needle and (needle in title or title in needle))
@@ -40,30 +34,36 @@ class SearchScorer:
             and (needle in summary or summary in needle)
         )
         matched_tags = self._matching_names(needle, tag_names + content_tag_names)
-        matched_categories = self._matching_names(
+        matched_level2_categories = self._matching_names(needle, category_names)
+        matched_business_labels = self._matching_business_labels(
             needle,
-            category_names + business_label_names + business_label_codes,
+            business_labels,
         )
+        matched_categories = unique([*matched_level2_categories, *matched_business_labels])
 
         reasons = list(external_reasons)
         if exact_title:
             reasons.append("标题匹配")
         if matched_tags:
             reasons.append("标签匹配")
-        if matched_categories:
+        if matched_level2_categories:
+            reasons.append("AI 二级分类匹配")
+        if matched_business_labels:
             reasons.append("业务标签匹配")
         if summary_match:
             reasons.append("图片摘要匹配")
         if not reasons:
             reasons.append("搜索索引匹配")
 
+        business_label_score = self._business_label_score(needle, business_labels)
         score_candidates = [
             score
             for score in (
                 external_score,
                 1.0 if exact_title else None,
                 0.9 if summary_match else None,
-                0.86 if matched_categories else None,
+                business_label_score,
+                0.8 if matched_level2_categories else None,
                 0.8 if matched_tags else None,
             )
             if score is not None
@@ -93,3 +93,32 @@ class SearchScorer:
         if not needle:
             return []
         return unique([name for name in names if needle in name.lower()])
+
+    def _matching_business_labels(self, needle: str, labels) -> list[str]:
+        if not needle:
+            return []
+        matched: list[str] = []
+        for label in labels:
+            names = [
+                label.label_code,
+                label.tag.name,
+                self.semantic_profile.business_label_name(label),
+            ]
+            if any(needle in name.lower() for name in names if name):
+                matched.append(self.semantic_profile.business_label_name(label))
+        return unique(matched)
+
+    def _business_label_score(self, needle: str, labels) -> float | None:
+        if not needle:
+            return None
+        scores: list[float] = []
+        for label in labels:
+            names = [
+                label.label_code,
+                label.tag.name,
+                self.semantic_profile.business_label_name(label),
+            ]
+            if not any(needle in name.lower() for name in names if name):
+                continue
+            scores.append(0.92 * self.semantic_profile.label_policy.label_weight(label))
+        return max(scores) if scores else None

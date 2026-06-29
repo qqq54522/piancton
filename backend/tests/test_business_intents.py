@@ -5,6 +5,7 @@ from app.domain.business_intents import (
     render_business_intents_for_prompt,
     target_display_name,
 )
+from app.domain.search_policy import SearchPolicyCatalog
 from app.schemas.ai import SearchCategoryMatch, SearchUnderstanding
 from app.services.query_understanding_service import QueryUnderstandingService
 
@@ -132,6 +133,44 @@ def test_query_understanding_uses_ai_for_weak_local_match():
     )
 
     assert service.understand("只说一个模糊词") == ai_result
+
+
+def test_query_understanding_uses_ai_for_configured_ambiguous_terms():
+    ai_result = _ai_understanding("AI消歧后的规划")
+
+    class FakeProvider:
+        configured = True
+
+    class FakeAiService:
+        provider = FakeProvider()
+
+        def understand_search(self, keyword: str):
+            assert keyword == "需要规划"
+            return ai_result
+
+    service = QueryUnderstandingService(
+        ai_service=FakeAiService(),
+        catalog=_test_catalog(
+            BusinessIntent(
+                code="planning_intent",
+                name="学习规划",
+                target_system_code="sync_planning",
+                target_label_code="ai_learning_plan",
+                phrases=(),
+                pain_points=("需要规划",),
+                must_have_concepts=(),
+                nice_to_have_concepts=(),
+                exclude_concepts=(),
+                result_policy="strict_allow_few_results",
+            )
+        ),
+        search_policy=SearchPolicyCatalog(
+            version="test",
+            ambiguous_terms=("规划",),
+        ),
+    )
+
+    assert service.understand("需要规划") == ai_result
 
 
 def test_query_understanding_uses_ai_for_ambiguous_local_matches():

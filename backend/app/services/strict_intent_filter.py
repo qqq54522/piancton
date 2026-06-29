@@ -39,13 +39,11 @@ class StrictIntentFilter:
             " ".join(item.category_name for item in image.level2_categories),
             " ".join(
                 self.semantic_profile.business_label_name(label)
-                for label in image.business_labels
-                if label.review_status != "rejected"
+                for label in self.semantic_profile.searchable_business_labels(image)
             ),
             " ".join(
                 label.label_code
-                for label in image.business_labels
-                if label.review_status != "rejected"
+                for label in self.semantic_profile.searchable_business_labels(image)
             ),
         ]
         excluded_terms = [
@@ -56,24 +54,40 @@ class StrictIntentFilter:
         if excluded_terms:
             return None
 
-        category_match = self._matches_primary_category(image, policy)
-        label_match = self._matches_primary_label(image, policy)
+        trusted_category_match = self._matches_primary_category(image, policy, trusted=True)
+        trusted_label_match = self._matches_primary_label(image, policy, trusted=True)
+        pending_category_match = self._matches_primary_category(
+            image,
+            policy,
+            trusted=False,
+        )
+        pending_label_match = self._matches_primary_label(
+            image,
+            policy,
+            trusted=False,
+        )
+        pending_match = (
+            pending_category_match or pending_label_match
+        ) and self._pending_match_has_semantic_support(image, policy)
         summary_match = bool(
             image.image_summary
             and _normalize(policy.primary_label) in _normalize(image.image_summary)
         )
-        if not any([category_match, label_match, summary_match]):
+        if not any([trusted_category_match, trusted_label_match, pending_match, summary_match]):
             return None
 
         reasons = list(hit.reasons)
         reasons.append(f"强意图业务话术匹配：{policy.intent_reason}")
         score_candidates = [score for score in [hit.score] if score is not None]
-        if category_match:
+        if trusted_category_match:
             reasons.append(f"强意图主业务标签匹配：{policy.primary_category}")
             score_candidates.append(0.95)
-        if label_match:
+        if trusted_label_match:
             reasons.append(f"强意图主标签匹配：{policy.primary_label}")
             score_candidates.append(0.92)
+        if pending_match:
+            reasons.append("待审核 AI 标签有语义证据支持")
+            score_candidates.append(0.78)
         if summary_match:
             reasons.append(f"强意图语义总结匹配：{policy.primary_label}")
             score_candidates.append(0.82)
@@ -88,12 +102,16 @@ class StrictIntentFilter:
         self,
         image: Image,
         policy: StrictSearchPolicy,
+        *,
+        trusted: bool,
     ) -> bool:
-        category_names = [item.category_name for item in image.level2_categories]
+        labels = self._labels_by_trust(image, trusted=trusted)
+        category_names = [
+            item.category_name for item in image.level2_categories
+        ] if not trusted and labels else []
         business_label_names = [
             self.semantic_profile.business_label_name(label)
-            for label in image.business_labels
-            if label.review_status != "rejected"
+            for label in labels
         ]
         normalized_category = _normalize(policy.primary_category)
         return any(
@@ -105,17 +123,56 @@ class StrictIntentFilter:
         self,
         image: Image,
         policy: StrictSearchPolicy,
+        *,
+        trusted: bool,
     ) -> bool:
-        label_names = [link.tag.name for link in image.tag_links]
+        label_names = [link.tag.name for link in image.tag_links] if trusted else []
         business_label_names = [
             label.tag.name
-            for label in image.business_labels
-            if label.review_status != "rejected"
+            for label in self._labels_by_trust(image, trusted=trusted)
         ]
         normalized_label = _normalize(policy.primary_label)
         return any(
             _normalize(name) == normalized_label
             for name in [*label_names, *business_label_names]
+        )
+
+    def _labels_by_trust(self, image: Image, *, trusted: bool):
+        labels = self.semantic_profile.searchable_business_labels(image)
+        if trusted:
+            return [
+                label
+                for label in labels
+                if self.semantic_profile.label_policy.is_trusted(label)
+            ]
+        return [
+            label
+            for label in labels
+            if self.semantic_profile.label_policy.is_pending_ai(label)
+        ]
+
+    def _pending_match_has_semantic_support(
+        self,
+        image: Image,
+        policy: StrictSearchPolicy,
+    ) -> bool:
+        normalized_label = _normalize(policy.primary_label)
+        normalized_category = _normalize(policy.primary_category)
+        searchable_text = " ".join(
+            [
+                image.image_summary or "",
+                " ".join(item.tag_name for item in image.content_tags),
+                " ".join(item.category_name for item in image.level2_categories),
+            ]
+        )
+        normalized_text = _normalize(searchable_text)
+        if normalized_label and normalized_label in normalized_text:
+            return True
+        if normalized_category and normalized_category in normalized_text:
+            return True
+        return any(
+            label.reason and label.evidence_level in {"A", "B"}
+            for label in self._labels_by_trust(image, trusted=False)
         )
 
 

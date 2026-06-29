@@ -300,12 +300,25 @@ class ImageRepository:
         image: Image,
         *,
         summary: str,
+        semantic_profile_json: str | None,
         content_tags: list[ContentTag],
         level2_categories: list[ImageLevel2Category],
         analysis_run: AnalysisRun | None = None,
         business_labels: list[ImageBusinessLabel] | None = None,
     ) -> Image:
+        preserved_content_tags = [
+            item
+            for item in image.content_tags
+            if item.dimension == "用户预期搜索词"
+        ]
+        seen_content_tag_names = {item.tag_name for item in content_tags}
+        content_tags.extend(
+            item
+            for item in preserved_content_tags
+            if item.tag_name not in seen_content_tag_names
+        )
         image.image_summary = summary
+        image.semantic_profile_json = semantic_profile_json
         image.content_tags.clear()
         image.content_tags.extend(content_tags)
         image.level2_categories.clear()

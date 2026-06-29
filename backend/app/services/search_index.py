@@ -7,6 +7,7 @@ from typing import Any, Iterable
 from app.domain.taxonomy_catalog import TaxonomyCatalog, load_taxonomy_catalog
 from app.models.image import Image, ImageBusinessLabel
 from app.models.tag import Tag
+from app.services.image_semantic_profile_service import ImageSemanticProfileService
 
 
 def _unique(values: Iterable[str | None]) -> list[str]:
@@ -84,6 +85,8 @@ def image_to_search_document(
     """
 
     catalog = catalog or load_taxonomy_catalog()
+    semantic_profile = ImageSemanticProfileService()
+    profile = semantic_profile.profile_from_image(image)
     manual_tags = [link.tag for link in image.tag_links]
     searchable_business_labels = [
         label for label in image.business_labels if label.review_status != "rejected"
@@ -147,12 +150,20 @@ def image_to_search_document(
     ai_reasons = _unique(label.reason for label in searchable_business_labels)
     category_names = _unique(item.name for item in image.categories)
     file_stem = Path(image.file_name).stem
+    profile_visual_facts = profile.visual_facts if profile else []
+    profile_search_phrases = profile.search_phrases if profile else []
+    profile_exclusion_boundaries = profile.exclusion_boundaries if profile else []
+    profile_business_intent = profile.business_intent if profile else ""
 
     searchable_text_parts = _unique(
         [
             image.title,
             file_stem,
             image.image_summary,
+            *profile_visual_facts,
+            profile_business_intent,
+            *profile_search_phrases,
+            *profile_exclusion_boundaries,
             *manual_label_names,
             *manual_label_codes,
             *business_label_names,
@@ -175,6 +186,10 @@ def image_to_search_document(
         "fileName": image.file_name,
         "fileStem": file_stem,
         "caption": image.image_summary or "",
+        "semanticProfileVisualFacts": profile_visual_facts,
+        "semanticProfileBusinessIntent": profile_business_intent,
+        "semanticProfileSearchPhrases": profile_search_phrases,
+        "semanticProfileExclusionBoundaries": profile_exclusion_boundaries,
         "manualPrimaryLabelCode": manual_primary.code if manual_primary else None,
         "manualPrimaryLabelName": _tag_label(manual_primary) if manual_primary else None,
         "manualLabelCodes": manual_label_codes,

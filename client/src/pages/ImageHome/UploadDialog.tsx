@@ -31,6 +31,7 @@ const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps
   const [primaryTagId, setPrimaryTagId] = useState<string | null>(null);
   const [additionalTagIds, setAdditionalTagIds] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>(['function']);
+  const [expectedSearchWords, setExpectedSearchWords] = useState('');
   const [uploading, setUploading] = useState(false);
   const provider = useProviderStatus(open);
 
@@ -46,6 +47,7 @@ const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps
     setPrimaryTagId(null);
     setAdditionalTagIds([]);
     setCategories(['function']);
+    setExpectedSearchWords('');
   };
 
   const close = () => {
@@ -104,6 +106,11 @@ const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps
           [primaryTagId, ...additionalTagIds.filter((id) => id !== primaryTagId)],
           primaryTagId,
           categories,
+          expectedSearchWords
+            .split('\n')
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .slice(0, 5),
           true,
         );
       }
@@ -215,6 +222,17 @@ const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps
             ))}
           </div>
         </div>
+
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">希望被搜到的话术（可选）</span>
+          <textarea
+            value={expectedSearchWords}
+            onChange={(event) => setExpectedSearchWords(event.target.value)}
+            className="min-h-20 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            placeholder={'每行一句，例如：\n孩子拍题只抄答案怎么办\n整理错题太费时间'}
+            maxLength={300}
+          />
+        </label>
 
         <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           {provider.isLoading

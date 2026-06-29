@@ -9,6 +9,7 @@ export type ContentTag = components['schemas']['ContentTagRead'];
 export type Level2Category = components['schemas']['Level2CategoryRead'];
 export type BusinessLabel = components['schemas']['BusinessLabelRead'];
 export type AnalysisRun = components['schemas']['AnalysisRunRead'];
+export type ImageSemanticProfile = components['schemas']['SemanticProfileRead'];
 export type AuditLog = components['schemas']['AuditLogRead'];
 
 type GeneratedTag = components['schemas']['TagRead'];

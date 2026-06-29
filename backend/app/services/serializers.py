@@ -9,8 +9,10 @@ from app.schemas.image import (
     ImageDetailRead,
     ImageRead,
     Level2CategoryRead,
+    SemanticProfileRead,
 )
 from app.schemas.tag import TagRead
+from app.services.image_semantic_profile_service import ImageSemanticProfileService
 
 AnalysisRunStatus = Literal["queued", "running", "succeeded", "failed"]
 VALID_ANALYSIS_RUN_STATUSES: set[AnalysisRunStatus] = {
@@ -74,9 +76,15 @@ def analysis_run_status(value: str) -> AnalysisRunStatus:
 
 
 def image_to_detail(image: Image, related: list[Image]) -> ImageDetailRead:
+    semantic_profile = ImageSemanticProfileService().profile_from_image(image)
     return ImageDetailRead(
         **image_to_read(image).model_dump(),
         image_summary=image.image_summary,
+        semantic_profile=(
+            SemanticProfileRead.model_validate(semantic_profile.model_dump())
+            if semantic_profile
+            else None
+        ),
         related_images=[image_to_read(item) for item in related],
         content_tags=[
             ContentTagRead(

@@ -7,6 +7,7 @@ import type {
   ImageListParams,
   ImageListResponse,
   ProviderStatus,
+  SearchFeedbackRequest,
   SemanticSearchRequest,
   SemanticSearchResponse,
   Tag,
@@ -33,6 +34,7 @@ export async function uploadImage(
   tagIds: string[],
   primaryTagId: string | null,
   categories: string[],
+  expectedSearchWords: string[] = [],
   autoAnalyze = true,
 ): Promise<ImageItem> {
   const form = new FormData();
@@ -41,6 +43,7 @@ export async function uploadImage(
   form.append('tagIds', tagIds.join(','));
   if (primaryTagId) form.append('primaryTagId', primaryTagId);
   form.append('categories', categories.join(','));
+  form.append('expectedSearchWords', expectedSearchWords.join('\n'));
   form.append('autoAnalyze', String(autoAnalyze));
   return (await api.post('/api/images/upload', form)).data;
 }
@@ -112,6 +115,10 @@ export async function semanticSearch(
   params: SemanticSearchRequest,
 ): Promise<SemanticSearchResponse> {
   return (await api.post('/api/images/search', params)).data;
+}
+
+export async function submitSearchFeedback(data: SearchFeedbackRequest): Promise<void> {
+  await api.post('/api/search-feedback', data);
 }
 
 export async function fetchProviderStatus(): Promise<ProviderStatus> {

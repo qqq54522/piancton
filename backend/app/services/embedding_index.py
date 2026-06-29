@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from app.core.config import get_settings
 from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
+from app.services.image_semantic_profile_service import ImageSemanticProfileService
 from app.services.semantic_search_clients import EmbeddingClient, SemanticSearchClientError
 
 logger = logging.getLogger(__name__)
@@ -71,12 +72,14 @@ class EmbeddingIndexSync:
 
 
 def image_to_embedding_document(image: Image) -> str:
+    semantic_profile = ImageSemanticProfileService()
     business_labels = [
         label for label in image.business_labels if label.review_status != "rejected"
     ]
     parts = [
         f"标题：{image.title}",
         f"语义总结：{image.image_summary}" if image.image_summary else "",
+        "语义画像：" + "、".join(semantic_profile.profile_terms(image)),
         "隐形标签：" + "、".join(item.tag_name for item in image.content_tags),
         "业务标签：" + "、".join(_business_label_name(label) for label in business_labels),
         "人工标签：" + "、".join(link.tag.name for link in image.tag_links),

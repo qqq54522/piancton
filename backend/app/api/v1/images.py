@@ -22,6 +22,7 @@ from app.api.dependencies import (
     get_image_lifecycle_service,
     get_image_service,
     get_image_tagging_service,
+    get_search_analytics_service,
     get_search_service,
     require_roles,
     require_write_role,
@@ -44,6 +45,7 @@ from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
 from app.services.image_tagging_service import ImageTaggingService
+from app.services.search_analytics_service import SearchAnalyticsService
 from app.services.search_service import SearchService
 
 router = APIRouter(prefix="/images", tags=["images"])
@@ -72,10 +74,20 @@ def list_images(
 @router.post("/search", response_model=SearchResponse)
 def semantic_search(
     payload: SearchRequest,
-    _: User = Depends(get_current_user),
+    request: Request,
+    user: User = Depends(get_current_user),
     service: SearchService = Depends(get_search_service),
+    analytics: SearchAnalyticsService = Depends(get_search_analytics_service),
 ):
-    return service.search(payload.keyword, payload.limit, payload.search_mode)
+    response = service.search(payload.keyword, payload.limit, payload.search_mode)
+    response.search_log_id = analytics.record_search(
+        actor_user_id=user.id,
+        keyword=payload.keyword,
+        requested_mode=payload.search_mode,
+        response=response,
+        request_id=request.state.request_id,
+    )
+    return response
 
 
 @router.post("/upload", response_model=ImageRead, status_code=status.HTTP_201_CREATED)
@@ -87,6 +99,7 @@ def upload_image(
     tag_ids: str = Form(default="", alias="tagIds"),
     primary_tag_id: str = Form(default="", alias="primaryTagId"),
     categories: str = Form(default=""),
+    expected_search_words: str = Form(default="", alias="expectedSearchWords"),
     auto_analyze: bool = Form(default=True, alias="autoAnalyze"),
     user: User = Depends(require_write_role),
     service: ImageService = Depends(get_image_service),
@@ -104,6 +117,7 @@ def upload_image(
         primary_tag_id or None,
         [item for item in categories.split(",") if item],
         user.username,
+        [item for item in expected_search_words.split("\n") if item.strip()],
     )
     audit.record(
         actor_user_id=user.id,

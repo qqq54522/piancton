@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.domain.search_query_expansion import ExpandedQuery
 from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
+from app.services.business_label_policy import BusinessLabelPolicy
 from app.services.query_expansion_service import unique
 from app.services.search_models import SearchHit
 
@@ -48,6 +49,7 @@ class DatabaseSearchRecallService:
 
 
 def database_match_score(image: Image, term: str) -> float:
+    label_policy = BusinessLabelPolicy()
     needle = term.strip().lower()
     if not needle:
         return 0.65
@@ -62,16 +64,20 @@ def database_match_score(image: Image, term: str) -> float:
     if any(needle in name for name in [*tag_names, *content_tags]):
         return 0.8
     category_names = [item.category_name.lower() for item in image.level2_categories]
-    business_labels = [
-        label
-        for label in image.business_labels
-        if label.review_status != "rejected"
+    searchable_labels = [
+        label for label in image.business_labels if label_policy.is_searchable(label)
     ]
-    business_terms = [
-        label.label_code.lower()
-        for label in business_labels
-    ]
-    business_terms.extend(label.tag.name.lower() for label in business_labels)
-    if any(needle in name for name in [*category_names, *business_terms]):
-        return 0.86
+    business_scores: list[float] = []
+    for label in searchable_labels:
+        terms = [
+            label.label_code.lower(),
+            label.tag.name.lower(),
+            label_policy.display_name(label).lower(),
+        ]
+        if any(needle in name for name in terms):
+            business_scores.append(0.92 * label_policy.label_weight(label))
+    if business_scores:
+        return max(business_scores)
+    if any(needle in name for name in category_names):
+        return 0.8
     return 0.65

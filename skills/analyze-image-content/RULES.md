@@ -10,6 +10,12 @@ Required output:
 {
   "image_type": "function | scene_emotion | scene_functional",
   "image_summary": "一段简洁、客观的中文总结，覆盖主体、界面/功能、业务卖点和排除边界",
+  "semantic_profile": {
+    "visual_facts": ["图中真实可见的主体、界面、文字、动作或场景事实"],
+    "business_intent": "最核心的业务语义归属，例如 同步自学体系 > AI拍题精学",
+    "search_phrases": ["适合召回这张图的业务话术、痛点表达、功能短语"],
+    "exclusion_boundaries": ["不应该用来召回这张图的相邻概念或误判边界"]
+  },
   "content_tags": [
     {
       "tag": "简洁中文标签",
@@ -44,6 +50,12 @@ Rules:
   - interface/function, such as拍题、分步讲解、错题本、学情报告、AI答疑、课程规划;
   - business selling point, such as不只给答案、讲清思路、同步校内、减少家长辅导压力;
   - exclusion boundary, such as不是纯答案页、不是普通题库、未出现真人老师、未体现规划服务.
+- `semantic_profile` is the structured retrieval asset for this image:
+  - `visual_facts`: return 3 to 6 factual Chinese phrases based only on visible evidence.
+  - `business_intent`: return the strongest closed-catalog system and label when evidence supports one; otherwise return a concise uncertainty statement.
+  - `search_phrases`: return 5 to 10 Chinese phrases that business users may search for, including at least two pain-point or scenario phrases.
+  - `exclusion_boundaries`: return 2 to 6 adjacent concepts that should be down-ranked or excluded for this image.
+  - Do not put decorative copywriting here. Every item should help retrieval, filtering, or designer review.
 - `recommended_search_words` should help later retrieval and contain 5 to 10 unique Chinese phrases:
   - include short words, such as拍题、错题、报告;
   - include functional words, such as分步讲解、错因分析、学习规划;

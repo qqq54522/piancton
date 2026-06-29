@@ -24,6 +24,18 @@ def payload(*, tag_count: int = 20, secondary_labels=None):
             "孩子在学习界面观看动画讲解数学知识点，突出同步校内讲清思路，"
             "不是只展示答案的普通题库页面。"
         ),
+        "semantic_profile": {
+            "visual_facts": ["学习界面", "动画讲解数学知识点", "学生观看课程"],
+            "business_intent": "同步校内体系 > 动画精讲",
+            "search_phrases": [
+                "动画讲解",
+                "孩子听不懂老师讲课",
+                "同步校内知识点讲解",
+                "讲清学习思路",
+                "课堂内容听不懂",
+            ],
+            "exclusion_boundaries": ["普通答案页", "课后小测"],
+        },
         "content_tags": [
             {
                 "tag": f"内容标签{index}",
@@ -71,6 +83,17 @@ def test_image_analysis_normalizes_known_english_dimensions():
 
     assert len(result.content_tags) == 20
     assert {item.dimension for item in result.content_tags} == {"物体", "场景"}
+    assert result.semantic_profile.business_intent == "同步校内体系 > 动画精讲"
+    assert "孩子听不懂老师讲课" in result.semantic_profile.search_phrases
+
+
+def test_image_analysis_allows_legacy_payload_without_semantic_profile():
+    legacy_payload = payload()
+    legacy_payload.pop("semantic_profile")
+
+    result = AiService(StaticProvider(legacy_payload)).analyze_image(Path("unused.png"))
+
+    assert result.semantic_profile.business_intent == ""
 
 
 def test_image_analysis_rejects_unknown_closed_secondary_label():

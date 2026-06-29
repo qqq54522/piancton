@@ -7,6 +7,7 @@ import { AdminRoute, DesignerRoute, ProtectedRoute } from './lib/auth';
 
 const AdminUsers = lazy(() => import('./pages/AdminUsers/AdminUsers'));
 const AdminAudit = lazy(() => import('./pages/AdminAudit/AdminAudit'));
+const AdminSearchOps = lazy(() => import('./pages/AdminSearchOps/AdminSearchOps'));
 const ImageDetail = lazy(() => import('./pages/ImageDetail/ImageDetail'));
 const ImageHome = lazy(() => import('./pages/ImageHome/ImageHome'));
 const Login = lazy(() => import('./pages/Login/Login'));
@@ -35,6 +36,7 @@ const RoutesComponent = () => (
           <Route element={<AdminRoute />}>
             <Route path="admin/users" element={<AdminUsers />} />
             <Route path="admin/audit" element={<AdminAudit />} />
+            <Route path="admin/search-ops" element={<AdminSearchOps />} />
           </Route>
         </Route>
       </Route>

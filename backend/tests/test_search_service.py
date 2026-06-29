@@ -21,6 +21,7 @@ from app.schemas.ai import (
     SecondaryLabel,
 )
 from app.services.image_analysis_service import ImageAnalysisService
+from app.services.related_image_service import RelatedImageService
 from app.services.search_models import SearchHit, SearchUnavailable
 from app.services.search_service import SearchService
 from app.services.semantic_search_clients import RerankResult, SemanticSearchClientError
@@ -160,6 +161,37 @@ def create_generic_image(
     return image
 
 
+def create_shared_business_taxonomy(
+    db,
+    *,
+    system_code: str = "sync_self_study",
+    system_name: str = "同步自学体系",
+    label_code: str = "photo_guided_learning",
+    label_name: str = "AI拍题精学",
+):
+    system = Tag(
+        code=system_code,
+        name=system_name,
+        color="#6366F1",
+        node_type="system",
+        assignable=False,
+        status="active",
+    )
+    business_tag = Tag(
+        code=label_code,
+        name=label_name,
+        color="#818CF8",
+        parent=system,
+        is_secondary=True,
+        node_type="image_label",
+        assignable=True,
+        status="active",
+    )
+    db.add_all([system, business_tag])
+    db.flush()
+    return system, business_tag
+
+
 def test_database_search_matches_business_labels(db_factory):
     with db_factory() as db:
         create_searchable_image(db)
@@ -236,6 +268,61 @@ def test_database_search_treats_image_summary_as_strong_semantic_match(db_factor
     assert "图片摘要匹配" in response.results[0].match_reasons
 
 
+def test_manual_business_label_ranks_above_pending_ai_label(db_factory):
+    with db_factory() as db:
+        _system, business_tag = create_shared_business_taxonomy(db)
+        manual = Image(
+            title="设计师确认拍题素材",
+            file_name="manual-photo-learning.png",
+            storage_key="manual-photo-learning.png",
+            thumbnail_storage_key="manual-photo-learning-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="展示拍题后的分步讲解。",
+        )
+        manual.tag_links.append(ImageTag(tag=business_tag))
+        manual.business_labels.append(
+            ImageBusinessLabel(
+                tag=business_tag,
+                label_code="photo_guided_learning",
+                origin="manual",
+                role="primary",
+                review_status="accepted",
+                confidence=1.0,
+            )
+        )
+        pending = Image(
+            title="AI待审核拍题素材",
+            file_name="pending-photo-learning.png",
+            storage_key="pending-photo-learning.png",
+            thumbnail_storage_key="pending-photo-learning-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="可能是拍题讲解页面。",
+        )
+        pending.business_labels.append(
+            ImageBusinessLabel(
+                tag=business_tag,
+                label_code="photo_guided_learning",
+                origin="ai",
+                role="primary",
+                review_status="pending",
+                confidence=0.91,
+                evidence_level="A",
+                reason="画面可能展示拍题讲解，不是普通答案页。",
+            )
+        )
+        db.add_all([manual, pending])
+        db.commit()
+
+        response = SearchService(db).search("AI拍题精学", 12, "precise")
+
+    assert [result.image.id for result in response.results[:2]] == [manual.id, pending.id]
+    assert response.results[0].final_score > response.results[1].final_score
+
+
 def test_image_list_keyword_uses_expanded_business_terms(db_factory):
     with db_factory() as db:
         image = create_searchable_image(db)
@@ -251,6 +338,76 @@ def test_image_list_keyword_uses_expanded_business_terms(db_factory):
         )
 
     assert [row.title for row in rows] == ["知识点动画讲解"]
+
+
+def test_related_images_prioritize_same_business_intent(db_factory):
+    with db_factory() as db:
+        _system, business_tag = create_shared_business_taxonomy(db)
+        source = Image(
+            title="拍题精学源图",
+            file_name="source.png",
+            storage_key="source.png",
+            thumbnail_storage_key="source-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="展示拍题后分步讲解。",
+        )
+        source.tag_links.append(ImageTag(tag=business_tag))
+        source.content_tags.append(
+            ContentTag(tag_name="拍题讲解", confidence=0.92, dimension="产品功能")
+        )
+        source.business_labels.append(
+            ImageBusinessLabel(
+                tag=business_tag,
+                label_code="photo_guided_learning",
+                origin="manual",
+                role="primary",
+                review_status="accepted",
+                confidence=1.0,
+            )
+        )
+        same_intent = Image(
+            title="同业务意图素材",
+            file_name="same.png",
+            storage_key="same.png",
+            thumbnail_storage_key="same-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="同样展示拍题后的思路讲解。",
+        )
+        same_intent.business_labels.append(
+            ImageBusinessLabel(
+                tag=business_tag,
+                label_code="photo_guided_learning",
+                origin="manual",
+                role="primary",
+                review_status="accepted",
+                confidence=1.0,
+            )
+        )
+        generic = Image(
+            title="普通拍题素材",
+            file_name="generic.png",
+            storage_key="generic.png",
+            thumbnail_storage_key="generic-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="designer",
+            image_summary="只展示拍题入口。",
+        )
+        generic.content_tags.append(
+            ContentTag(tag_name="拍题讲解", confidence=0.88, dimension="产品功能")
+        )
+        db.add_all([source, same_intent, generic])
+        db.commit()
+
+        source = ImageRepository(db).get(source.id)
+        assert source is not None
+        related = RelatedImageService(ImageRepository(db)).related_images(source, 2)
+
+    assert related[0].id == same_intent.id
 
 
 def test_query_expansion_covers_cross_system_business_language():
@@ -385,7 +542,7 @@ def test_ai_recommended_search_words_recall_long_business_phrase(db_factory):
         db.add_all([system, business_tag, image])
         db.commit()
 
-        ImageAnalysisService(db).save_ai_analysis(
+        detail = ImageAnalysisService(db).save_ai_analysis(
             image.id,
             ImageAnalysisResult(
                 image_type="function",
@@ -393,6 +550,16 @@ def test_ai_recommended_search_words_recall_long_business_phrase(db_factory):
                     "孩子在拍题学习界面查看分步讲解，突出不只给答案而是讲清思路，"
                     "不是普通答案页。"
                 ),
+                semantic_profile={
+                    "visual_facts": ["拍题学习界面", "分步讲解", "孩子查看解题思路"],
+                    "business_intent": "同步自学体系 > AI拍题精学",
+                    "search_phrases": [
+                        "拍题后讲思路",
+                        "孩子拍题只抄答案考试不会",
+                        "拍题不直接给答案",
+                    ],
+                    "exclusion_boundaries": ["普通答案页", "纯题库"],
+                },
                 content_tags=[
                     ConfidenceTag(
                         tag=f"拍题视觉标签{index}",
@@ -434,6 +601,9 @@ def test_ai_recommended_search_words_recall_long_business_phrase(db_factory):
     tag_names = [item.tag_name for item in saved.content_tags]
     assert "孩子拍题只抄答案考试不会" in tag_names
     assert "普通答案页" not in tag_names
+    assert detail.semantic_profile is not None
+    assert detail.semantic_profile.business_intent == "同步自学体系 > AI拍题精学"
+    assert "拍题后讲思路" in detail.semantic_profile.search_phrases
     assert [result.image.id for result in response.results] == [image.id]
     assert "标签匹配" in response.results[0].match_reasons
 

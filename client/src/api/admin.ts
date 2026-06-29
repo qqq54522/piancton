@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { AuditLog, User, UserRole } from '@client/src/types/api';
+import type { AuditLog, SearchOpsSummary, User, UserRole } from '@client/src/types/api';
 
 
 export async function fetchUsers(): Promise<User[]> {
@@ -27,4 +27,8 @@ export async function resetPassword(id: string, password: string): Promise<void>
 
 export async function fetchAuditLogs(): Promise<AuditLog[]> {
   return (await api.get('/api/admin/users/audit-logs')).data;
+}
+
+export async function fetchSearchOpsSummary(days = 7): Promise<SearchOpsSummary> {
+  return (await api.get('/api/admin/search-ops/summary', { params: { days } })).data;
 }
