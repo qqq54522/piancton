@@ -1,118 +1,36 @@
 from __future__ import annotations
 
-import json
-import logging
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
-
-from app.models.image import Image, ImageBusinessLabel, ImageTag
 from app.models.search_feedback import SearchFeedbackEvent
 from app.models.search_log import SearchLog
 from app.models.tag import Tag
 from app.repositories.search_feedback_repository import SearchFeedbackRepository
 from app.repositories.search_log_repository import SearchLogRepository
-from app.schemas.image import SearchResponse
+from app.repositories.search_ops_repository import SearchOpsRepository
 from app.schemas.search_ops import (
     AiReviewQueueItem,
     AssetGapItem,
     LabelHealthItem,
-    SearchFeedbackCreate,
-    SearchFeedbackRead,
-    SearchLogRead,
     SearchMetricItem,
-    SearchOpsSummary,
     SearchOpsIssueRead,
+    SearchOpsSummary,
 )
-from app.services.unit_of_work import UnitOfWork
-
-logger = logging.getLogger(__name__)
+from app.services.search_ops_serializers import feedback_read, log_read
 
 
-class SearchAnalyticsService:
+class SearchOpsService:
+    """Read path for the admin search operations dashboard.
+
+    Pulls raw rows through repositories and only performs in-memory
+    aggregation, ranking and formatting here.
+    """
+
     def __init__(self, db):
-        self.db = db
         self.logs = SearchLogRepository(db)
         self.feedback = SearchFeedbackRepository(db)
-        self.uow = UnitOfWork(db)
-
-    def record_search(
-        self,
-        *,
-        actor_user_id: str | None,
-        keyword: str,
-        requested_mode: str,
-        response: SearchResponse,
-        request_id: str | None = None,
-    ) -> str | None:
-        understanding = response.search_understanding
-        top_result_ids = [item.image.id for item in response.results[:8]]
-        match_reasons = sorted(
-            {
-                reason
-                for result in response.results[:5]
-                for reason in result.match_reasons
-            }
-        )
-        matched_category = None
-        if understanding and understanding.matched_level2_categories:
-            matched_category = understanding.matched_level2_categories[0].category
-
-        try:
-            log = self.logs.add(
-                SearchLog(
-                    actor_user_id=actor_user_id,
-                    keyword=keyword.strip()[:200],
-                    requested_mode=requested_mode,
-                    served_mode=response.search_mode,
-                    fallback=response.fallback,
-                    fallback_reason=response.fallback_reason,
-                    result_count=len(response.results),
-                    normalized_query=(
-                        understanding.normalized_query[:200]
-                        if understanding and understanding.normalized_query
-                        else None
-                    ),
-                    query_type=understanding.query_type if understanding else None,
-                    matched_category=matched_category[:200] if matched_category else None,
-                    top_image_ids_json=json.dumps(top_result_ids, ensure_ascii=False),
-                    match_reasons_json=json.dumps(match_reasons, ensure_ascii=False),
-                    request_id=request_id,
-                )
-            )
-            self.uow.commit()
-            return log.id
-        except Exception:
-            self.uow.rollback()
-            logger.warning("failed to record search analytics", exc_info=True)
-            return None
-
-    def record_feedback(
-        self,
-        *,
-        actor_user_id: str | None,
-        payload: SearchFeedbackCreate,
-        request_id: str | None = None,
-    ) -> SearchFeedbackRead | None:
-        try:
-            event = self.feedback.add(
-                SearchFeedbackEvent(
-                    search_log_id=payload.search_log_id,
-                    actor_user_id=actor_user_id,
-                    keyword=payload.keyword.strip()[:200],
-                    feedback_type=payload.feedback_type,
-                    note=(payload.note or "").strip()[:1000] or None,
-                    request_id=request_id,
-                )
-            )
-            self.uow.commit()
-            return self._feedback_read(event)
-        except Exception:
-            self.uow.rollback()
-            logger.warning("failed to record search feedback", exc_info=True)
-            return None
+        self.ops = SearchOpsRepository(db)
 
     def summary(self, *, days: int = 7, limit: int = 2000) -> SearchOpsSummary:
         bounded_days = max(1, min(days, 90))
@@ -145,9 +63,9 @@ class SearchAnalyticsService:
                 item.keyword for item in feedback_events if item.keyword
             ),
             recent_feedback=[
-                self._feedback_read(item) for item in feedback_events[:50]
+                feedback_read(item) for item in feedback_events[:50]
             ],
-            recent_logs=[self._log_read(item) for item in logs[:50]],
+            recent_logs=[log_read(item) for item in logs[:50]],
             search_issues=self._search_issues(logs, feedback_events),
             ai_review_queue=self._ai_review_queue(),
             label_health=self._label_health(logs),
@@ -280,24 +198,6 @@ class SearchAnalyticsService:
         )[:50]
 
     def _ai_review_queue(self, limit: int = 50) -> list[AiReviewQueueItem]:
-        stmt = (
-            select(ImageBusinessLabel)
-            .join(Image, Image.id == ImageBusinessLabel.image_id)
-            .where(
-                Image.deleted_at.is_(None),
-                ImageBusinessLabel.origin == "ai",
-                ImageBusinessLabel.review_status == "pending",
-            )
-            .options(
-                selectinload(ImageBusinessLabel.image),
-                selectinload(ImageBusinessLabel.tag).selectinload(Tag.parent),
-            )
-            .order_by(
-                ImageBusinessLabel.confidence.desc().nullslast(),
-                ImageBusinessLabel.created_at.desc(),
-            )
-            .limit(limit)
-        )
         return [
             AiReviewQueueItem(
                 id=label.id,
@@ -313,37 +213,13 @@ class SearchAnalyticsService:
                 reason=label.reason,
                 created_at=label.created_at,
             )
-            for label in self.db.scalars(stmt).all()
+            for label in self.ops.pending_ai_labels(limit=limit)
         ]
 
     def _label_health(self, logs: list[SearchLog]) -> list[LabelHealthItem]:
-        tags = list(
-            self.db.scalars(
-                select(Tag)
-                .where(Tag.assignable.is_(True), Tag.status == "active")
-                .options(selectinload(Tag.parent))
-                .order_by(Tag.sort_order.asc(), Tag.name.asc())
-            ).all()
-        )
-        image_counts = Counter(
-            {
-                tag_id: count
-                for tag_id, count in self.db.execute(
-                    select(ImageTag.tag_id, func.count(func.distinct(ImageTag.image_id)))
-                    .join(Image, Image.id == ImageTag.image_id)
-                    .where(Image.deleted_at.is_(None))
-                    .group_by(ImageTag.tag_id)
-                ).all()
-            }
-        )
-        label_rows = list(
-            self.db.scalars(
-                select(ImageBusinessLabel)
-                .join(Image, Image.id == ImageBusinessLabel.image_id)
-                .where(Image.deleted_at.is_(None))
-                .options(selectinload(ImageBusinessLabel.tag).selectinload(Tag.parent))
-            ).all()
-        )
+        tags = self.ops.assignable_tags()
+        image_counts = self.ops.image_counts_by_tag()
+        label_rows = self.ops.active_business_labels()
         manual_counts: Counter[str] = Counter()
         ai_pending_counts: Counter[str] = Counter()
         ai_accepted_counts: Counter[str] = Counter()
@@ -358,7 +234,7 @@ class SearchAnalyticsService:
             elif label.review_status == "rejected":
                 ai_rejected_counts[label.tag_id] += 1
 
-        search_counts = Counter()
+        search_counts: Counter[str] = Counter()
         for log in logs:
             for tag in tags:
                 display = self._tag_display_name(tag)
@@ -367,7 +243,7 @@ class SearchAnalyticsService:
 
         rows: list[LabelHealthItem] = []
         for tag in tags:
-            image_count = int(image_counts[tag.id])
+            image_count = int(image_counts.get(tag.id, 0))
             pending = ai_pending_counts[tag.id]
             manual = manual_counts[tag.id]
             accepted = ai_accepted_counts[tag.id]
@@ -455,39 +331,3 @@ class SearchAnalyticsService:
         if tag.parent:
             return f"{tag.parent.name} > {tag.name}"
         return tag.name
-
-    def _log_read(self, log: SearchLog) -> SearchLogRead:
-        return SearchLogRead(
-            id=log.id,
-            keyword=log.keyword,
-            requested_mode=log.requested_mode,
-            served_mode=log.served_mode,
-            fallback=log.fallback,
-            fallback_reason=log.fallback_reason,
-            result_count=log.result_count,
-            normalized_query=log.normalized_query,
-            query_type=log.query_type,
-            matched_category=log.matched_category,
-            top_image_ids=self._json_list(log.top_image_ids_json),
-            match_reasons=self._json_list(log.match_reasons_json),
-            created_at=log.created_at,
-        )
-
-    def _feedback_read(self, event: SearchFeedbackEvent) -> SearchFeedbackRead:
-        return SearchFeedbackRead(
-            id=event.id,
-            search_log_id=event.search_log_id,
-            keyword=event.keyword,
-            feedback_type=event.feedback_type,
-            note=event.note,
-            created_at=event.created_at,
-        )
-
-    def _json_list(self, payload: str) -> list[str]:
-        try:
-            value = json.loads(payload)
-        except json.JSONDecodeError:
-            return []
-        if not isinstance(value, list):
-            return []
-        return [str(item) for item in value]

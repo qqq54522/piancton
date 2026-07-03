@@ -7,6 +7,7 @@ ModelTask = Literal[
     "secondary_selling_point_classification",
     "search_intent_understanding",
     "copy_selling_point_matching",
+    "image_summary_match",
 ]
 
 

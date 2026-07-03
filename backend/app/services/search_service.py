@@ -12,6 +12,7 @@ from app.schemas.image import SearchResponse
 from app.services.ai_service import AiService
 from app.services.database_search_recall import DatabaseSearchRecallService
 from app.services.embedding_recall_service import EmbeddingRecallService
+from app.services.image_summary_match_service import ImageSummaryMatchService
 from app.services.meilisearch_recall_service import MeilisearchRecallService
 from app.services.query_expansion_service import QueryExpansionService
 from app.services.query_understanding_service import QueryUnderstandingService
@@ -47,7 +48,11 @@ class SearchService:
         self.embedding_top_n = embedding_top_n
         self.expansion = QueryExpansionService()
         self.query_understanding = QueryUnderstandingService(ai_service)
-        self.ranking = SearchRankingService(reranker, reranker_top_n)
+        self.ranking = SearchRankingService(
+            reranker,
+            reranker_top_n,
+            summary_matcher=ImageSummaryMatchService(ai_service),
+        )
         self.database_recall = DatabaseSearchRecallService(repo)
         self.embedding_recall = EmbeddingRecallService(repo, embedding_client)
         self.meilisearch_recall = MeilisearchRecallService(
@@ -100,6 +105,12 @@ class SearchService:
                 hits = self.ranking.apply_strict_policy(
                     hits,
                     self._strict_policy(understanding),
+                )
+                hits = self.ranking.apply_summary_judgement(
+                    keyword=keyword,
+                    understanding=understanding,
+                    hits=hits,
+                    limit=limit,
                 )[:limit]
                 return self.ranking.build_response(
                     keyword=keyword,
@@ -148,6 +159,12 @@ class SearchService:
         hits = self.ranking.apply_strict_policy(
             hits,
             self._strict_policy(search_understanding),
+        )
+        hits = self.ranking.apply_summary_judgement(
+            keyword=keyword,
+            understanding=search_understanding,
+            hits=hits,
+            limit=limit,
         )[:limit]
         return self.ranking.build_response(
             keyword=keyword,

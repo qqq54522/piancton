@@ -1642,6 +1642,134 @@ docs/TAGGING_SYSTEM_IMPROVEMENT_PLAN.md
 
 ---
 
+### 2026-07-02：搜索分析服务拆分与查询下沉
+
+改造目标：
+
+- 拆薄 `SearchAnalyticsService`（493 行），它当时同时承担搜索日志写入、反馈写入和管理员运营看板聚合，是当前后端唯一明显过重的服务。
+- 把散落在服务层的裸 SQLAlchemy 查询下沉到 Repository，遵守本项目“数据访问在 Repository 层”的既有约束。
+- 保持 `/api/images/search`、`/api/search-feedback`、`/api/admin/search-ops/summary` 三个接口行为和响应结构不变。
+
+实际改动：
+
+- 新增 `backend/app/repositories/search_ops_repository.py`：承接原 `_ai_review_queue` 和 `_label_health` 中的 AI 待审核标签、可分配标签、按标签图片计数和活跃业务标签查询。
+- 新增 `backend/app/services/search_ops_serializers.py`：共享 `log_read` / `feedback_read` / `json_list` 序列化，供写入与读取两个服务复用，避免重复。
+- 新增 `backend/app/services/search_log_service.py`（`SearchLogService`）：只负责写入路径 `record_search` / `record_feedback`，失败时回滚并降级为 None，不影响主请求。
+- 新增 `backend/app/services/search_ops_service.py`（`SearchOpsService`）：只负责管理员运营看板 `summary` 及其聚合逻辑，所有数据访问改为经 Repository。
+- 删除 `backend/app/services/search_analytics_service.py`。
+- `dependencies.py` 将 `get_search_analytics_service` 拆为 `get_search_log_service` 和 `get_search_ops_service`。
+- `images.py` 搜索接口改注入 `SearchLogService`；`search_feedback.py` 改注入 `SearchLogService`；`search_ops.py` 改注入 `SearchOpsService`。
+
+明确没有改动：
+
+- 没有改动数据库 schema 和 Alembic migration。
+- 没有改动前端页面、交互和 API 路径、响应字段。
+- 没有改动搜索召回、排序、strict policy、AI 分析或 taxonomy 逻辑。
+- 没有改变标签健康度、素材缺口、问题队列的启发式规则和输出口径（仅把数据来源换成 Repository）。
+- 没有引入新的依赖或任务队列。
+
+验证结果：
+
+- 后端测试：`./.venv/bin/python -m pytest -q`，90 passed。
+- Ruff 限定检查：本轮触碰的 Repository、序列化、两个新服务和四个接口/依赖文件，`All checks passed!`。
+- Pyright：本轮改动文件 0 错误；仓库仅存 `scripts/seed_taxonomy.py` 2 个与本轮无关的既有类型告警。
+- 手工业务验证：由既有 `test_search_ops_summary_is_admin_only_and_records_searches` 覆盖搜索记录、反馈写入和管理员看板汇总主流程。
+
+风险与遗留：
+
+- `SearchOpsService._label_health` 目前仍在 Python 层做 `logs × tags` 匹配统计，数据量放大后可再进一步下沉为 SQL 聚合；本轮只做拆分与查询下沉，未改算法复杂度。
+- 前端 `useImageBrowser` 拆分（原第三项优化）本轮未做，按计划推迟到按需再动。
+
+下一步：
+
+- 若后续继续扩展运营看板维度，新增聚合查询统一进 `SearchOpsRepository`，聚合逻辑留在 `SearchOpsService`，避免服务重新变重。
+
+---
+
+### 2026-07-02：第二轮前端优化 - useImageBrowser 与搜索结果组件收口
+
+改造目标：
+
+- 拆分 `useImageBrowser` 的浏览分页、本地筛选、全局语义搜索和 UI 派生状态职责。
+- 拆分 `SemanticSearchResult` 为独立组件目录，降低单文件膨胀风险。
+- 保持 `ImageHome.tsx` 消费的字段名和页面交互行为不变。
+
+实际改动：
+
+- 新增 `client/src/features/images/hooks/useImageListQuery.ts`，承接图片列表查询、分页结果和无限滚动 sentinel。
+- 新增 `client/src/features/images/hooks/useImageFilters.ts`，承接本地关键词、标签筛选、分类筛选、排序和筛选标签文案。
+- 新增 `client/src/features/images/hooks/useGlobalImageSearch.ts`，承接全局语义搜索输入、搜索模式、标签建议、降级搜索和搜索结果。
+- 新增 `client/src/features/images/hooks/useImageBrowserUi.ts`，承接上传/标签/筛选弹窗开关、面包屑、子标签和展示条件。
+- `useImageBrowser.ts` 收口为组合入口，并在入口层保持“筛选与全局搜索互斥”的联动语义。
+- 将 `SemanticSearchResult.tsx` 拆为 `SemanticSearchResult/index.tsx`、`SearchUnderstandingPanel.tsx`、`ScoredImageCard.tsx`、`SearchResultGrid.tsx`、`SearchFeedbackPanel.tsx` 和 `constants.ts`。
+
+明确没有改动：
+
+- 没有改动后端代码、API 路径或响应字段。
+- 没有改动 UI 视觉、交互文案或路由。
+- 没有引入新依赖。
+- 没有拆 `ImageDetail` 相关组件。
+
+验证结果：
+
+- 前端 typecheck：`npm run typecheck` 通过。
+- 前端 lint：`npm run lint` 通过。
+- 前端测试：`npm run test`，1 passed。
+- 前端构建：`npm run build` 成功。
+- 手工冒烟：Vite dev server 指向 Docker API 后，登录、首页图片库、全局搜索结果、搜索反馈区、上传弹窗和标签管理面板均可打开；浏览器控制台无 error。
+
+风险与遗留：
+
+- 本轮只做结构拆分，未扩展前端测试覆盖；筛选弹窗组合条件和无限滚动仍主要依赖现有类型检查与手工回归。
+- `ImageDetailInfoPanel` / `ImageAiAnalysisPanel` 仍偏重，留到后续轮次。
+
+下一步：
+
+- 视需要为 `useImageBrowser` 的筛选/全局搜索互斥关系补轻量 hook 测试，再评估详情页信息面板拆分。
+
+---
+
+### 2026-07-03：搜索准确率优化 - 图片语义总结裁判层
+
+改造目标：
+
+- 在智能搜索强业务意图命中后，增加“用户搜索意图 ↔ 图片语义总结”的二次判定。
+- 让同一业务标签下的候选图继续按语义总结区分 S/A/B/C/X，避免只靠标签命中把不贴意图的图排到前面。
+- 保持现有 API 响应结构、前端展示和基础搜索降级逻辑不变。
+
+实际改动：
+
+- 新增 `skills/judge-image-summary-match/RULES.md`，定义图片语义总结匹配裁判的 S/A/B/C/X 输出协议。
+- `AiService` 新增 `match_image_summaries`，复用现有 OpenAI-compatible JSON 任务入口。
+- 新增 `ImageSummaryMatchService`，只在业务意图搜索、候选图有语义总结且 AI Provider 支持裁判时运行；失败或未配置时自动保持旧搜索结果。
+- `SearchRankingService` 在 strict policy 后接入 summary 裁判，并把裁判等级转成搜索分数和匹配原因。
+- 补充测试：同为 `AI拍题精学` 标签时，summary 表达“分步讲解”的图保留为 S，summary 表达“只给答案”的图被排除。
+
+明确没有改动：
+
+- 没有改动前端 API 字段和页面结构。
+- 没有改动数据库 schema 或 Alembic migration。
+- 没有改动上传、AI 打标落库、标签审核和搜索反馈接口。
+- 没有让裁判层成为硬依赖；AI 不可用时搜索仍按旧链路返回。
+
+验证结果：
+
+- 后端测试：`./.venv/bin/python -m pytest -q`，91 passed。
+- Ruff：`./.venv/bin/ruff check app tests`，All checks passed。
+- Pyright：`./.venv/bin/python -m pyright`，0 errors。
+- 前端 typecheck / lint / test / build 均通过。
+
+风险与遗留：
+
+- 裁判层当前只对强业务意图候选图生效；普通精准搜索不调用，避免成本和延迟扩大。
+- 真实准确率还需要用业务搜索评测集继续校准 prompt 和阈值。
+
+下一步：
+
+- 先围绕 `AI错题本`、`AI拍题精学`、`专家规划` 补评测 case，用失败样本迭代裁判 prompt。
+
+---
+
 ## 13. 关键决策点
 
 后续开发前，需要确认几个产品级规则。

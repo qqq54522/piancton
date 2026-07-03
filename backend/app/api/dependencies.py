@@ -18,7 +18,8 @@ from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
 from app.services.image_tagging_service import ImageTaggingService
-from app.services.search_analytics_service import SearchAnalyticsService
+from app.services.search_log_service import SearchLogService
+from app.services.search_ops_service import SearchOpsService
 from app.services.search_service import SearchService
 from app.services.semantic_search_clients import RerankerClient
 from app.services.storage_service import LocalStorageProvider
@@ -90,8 +91,12 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
     )
 
 
-def get_search_analytics_service(db: Session = Depends(get_db)) -> SearchAnalyticsService:
-    return SearchAnalyticsService(db)
+def get_search_log_service(db: Session = Depends(get_db)) -> SearchLogService:
+    return SearchLogService(db)
+
+
+def get_search_ops_service(db: Session = Depends(get_db)) -> SearchOpsService:
+    return SearchOpsService(db)
 
 
 def get_ai_service() -> AiService:

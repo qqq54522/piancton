@@ -14,6 +14,9 @@ MODEL_SKILLS = {
     "search_intent_understanding": (
         "understand-image-search-intent",
     ),
+    "image_summary_match": (
+        "judge-image-summary-match",
+    ),
     "copy_selling_point_matching": (
         "match-copy-selling-points",
     ),
@@ -37,6 +40,7 @@ def build_task_prompt(task: str) -> str:
         "image_content_analysis",
         "secondary_selling_point_classification",
         "search_intent_understanding",
+        "image_summary_match",
     }:
         sections.append(render_catalog_for_prompt())
     elif task == "copy_selling_point_matching":

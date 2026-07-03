@@ -2,10 +2,10 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request, status
 
-from app.api.dependencies import get_search_analytics_service, require_csrf
+from app.api.dependencies import get_search_log_service, require_csrf
 from app.models.user import User
 from app.schemas.search_ops import SearchFeedbackCreate, SearchFeedbackRead
-from app.services.search_analytics_service import SearchAnalyticsService
+from app.services.search_log_service import SearchLogService
 
 router = APIRouter(prefix="/search-feedback", tags=["search-feedback"])
 
@@ -15,7 +15,7 @@ def create_search_feedback(
     payload: SearchFeedbackCreate,
     request: Request,
     user: User = Depends(require_csrf),
-    service: SearchAnalyticsService = Depends(get_search_analytics_service),
+    service: SearchLogService = Depends(get_search_log_service),
 ):
     feedback = service.record_feedback(
         actor_user_id=user.id,

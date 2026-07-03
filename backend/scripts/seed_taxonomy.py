@@ -8,7 +8,7 @@ from app.models.image import ImageBusinessLabel, ImageCategory, ImageTag
 from app.models.tag import Tag
 
 
-def seed_taxonomy() -> tuple[int, int, int]:
+def seed_taxonomy() -> tuple[int, int, int, int]:
     catalog = load_taxonomy_catalog()
     created = 0
     updated = 0

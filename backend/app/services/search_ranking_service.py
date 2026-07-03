@@ -5,6 +5,7 @@ from typing import Literal
 from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import SearchResponse
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
+from app.services.image_summary_match_service import ImageSummaryMatchService
 from app.services.query_expansion_service import unique
 from app.services.search_models import SearchHit, StrictSearchPolicy
 from app.services.search_response_builder import SearchResponseBuilder
@@ -20,11 +21,13 @@ class SearchRankingService:
         reranker: RerankerClient | None = None,
         reranker_top_n: int = 50,
         semantic_profile: ImageSemanticProfileService | None = None,
+        summary_matcher: ImageSummaryMatchService | None = None,
     ):
         profile = semantic_profile or ImageSemanticProfileService()
         scorer = SearchScorer(profile)
         self.reranker = SemanticRerankService(reranker, reranker_top_n, profile)
         self.strict_filter = StrictIntentFilter(profile)
+        self.summary_matcher = summary_matcher
         self.response_builder = SearchResponseBuilder(scorer)
 
     def merge_hits(
@@ -71,6 +74,25 @@ class SearchRankingService:
         if not policy or not policy.enabled:
             return hits
         return self.sort_hits(self.strict_filter.apply(hits, policy))
+
+    def apply_summary_judgement(
+        self,
+        *,
+        keyword: str,
+        understanding,
+        hits: list[SearchHit],
+        limit: int,
+    ) -> list[SearchHit]:
+        if not self.summary_matcher:
+            return hits
+        return self.sort_hits(
+            self.summary_matcher.judge(
+                keyword=keyword,
+                understanding=understanding,
+                hits=hits,
+                limit=limit,
+            )
+        )
 
     def build_response(
         self,

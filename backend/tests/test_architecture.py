@@ -201,6 +201,7 @@ def test_search_boundary_services_do_not_depend_on_repositories():
         ROOT / "services" / "search_response_builder.py",
         ROOT / "services" / "semantic_rerank_service.py",
         ROOT / "services" / "strict_intent_filter.py",
+        ROOT / "services" / "image_summary_match_service.py",
     ]
     violations = []
     for path in boundary_files:

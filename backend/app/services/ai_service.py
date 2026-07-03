@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import TypeVar
 
@@ -20,6 +21,7 @@ from app.domain.ai_taxonomy import (
 )
 from app.schemas.ai import (
     ImageAnalysisResult,
+    ImageSummaryMatchResult,
     ProviderStatus,
     SearchUnderstanding,
     SellingPointMatchResult,
@@ -82,6 +84,16 @@ class AiService:
                 input_text=copy,
             ),
             SellingPointMatchResult,
+        )
+
+    def match_image_summaries(self, payload: dict) -> ImageSummaryMatchResult:
+        return self._run(
+            ModelRequest(
+                task="image_summary_match",
+                prompt=build_task_prompt("image_summary_match"),
+                input_text=json.dumps(payload, ensure_ascii=False),
+            ),
+            ImageSummaryMatchResult,
         )
 
     def _run(self, request: ModelRequest, result_type: type[ResultModel]) -> ResultModel:

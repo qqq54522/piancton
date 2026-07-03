@@ -22,7 +22,7 @@ from app.api.dependencies import (
     get_image_lifecycle_service,
     get_image_service,
     get_image_tagging_service,
-    get_search_analytics_service,
+    get_search_log_service,
     get_search_service,
     require_roles,
     require_write_role,
@@ -45,7 +45,7 @@ from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
 from app.services.image_tagging_service import ImageTaggingService
-from app.services.search_analytics_service import SearchAnalyticsService
+from app.services.search_log_service import SearchLogService
 from app.services.search_service import SearchService
 
 router = APIRouter(prefix="/images", tags=["images"])
@@ -77,7 +77,7 @@ def semantic_search(
     request: Request,
     user: User = Depends(get_current_user),
     service: SearchService = Depends(get_search_service),
-    analytics: SearchAnalyticsService = Depends(get_search_analytics_service),
+    analytics: SearchLogService = Depends(get_search_log_service),
 ):
     response = service.search(payload.keyword, payload.limit, payload.search_mode)
     response.search_log_id = analytics.record_search(

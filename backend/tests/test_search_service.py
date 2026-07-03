@@ -16,6 +16,8 @@ from app.schemas.ai import (
     ConfidenceTag,
     ExpandedSearchTag,
     ImageAnalysisResult,
+    ImageSummaryMatchItem,
+    ImageSummaryMatchResult,
     SearchCategoryMatch,
     SearchUnderstanding,
     SecondaryLabel,
@@ -508,6 +510,109 @@ def test_strong_business_intent_filters_generic_fallback_results(db_factory):
     )
     assert "强意图主标签匹配：AI拍题精学" in response.results[0].match_reasons
     assert "强意图排除项检查通过" in response.results[0].match_reasons
+
+
+def test_smart_search_uses_image_summary_judge_for_same_label_candidates(
+    db_factory,
+    monkeypatch,
+):
+    class FakeProvider:
+        configured = True
+
+    class FakeAiService:
+        provider = FakeProvider()
+
+        def match_image_summaries(self, payload: dict) -> ImageSummaryMatchResult:
+            assert payload["query"] == "孩子拍题只抄答案考试不会"
+            matches = []
+            for candidate in payload["candidates"]:
+                summary = candidate["image_summary"]
+                if "分步讲解" in summary:
+                    matches.append(
+                        ImageSummaryMatchItem(
+                            image_id=candidate["image_id"],
+                            matched=True,
+                            level="S",
+                            score=0.97,
+                            reason="语义总结明确表达拍题后分步讲解思路，不是只给答案。",
+                        )
+                    )
+                else:
+                    matches.append(
+                        ImageSummaryMatchItem(
+                            image_id=candidate["image_id"],
+                            matched=False,
+                            level="X",
+                            score=0.1,
+                            reason="语义总结没有表达学习过程。",
+                            negative_reason="图片只展示最终答案，和避免抄答案的意图相反。",
+                        )
+                    )
+            return ImageSummaryMatchResult(matches=matches)
+
+    with db_factory() as db:
+        _system, business_tag = create_shared_business_taxonomy(db)
+        good = Image(
+            title="拍题精学讲解图",
+            file_name="good.png",
+            storage_key="good.png",
+            thumbnail_storage_key="good-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="admin",
+            image_summary="展示拍题后分步讲解解题思路，帮助孩子理解过程。",
+        )
+        bad = Image(
+            title="拍题答案图",
+            file_name="bad.png",
+            storage_key="bad.png",
+            thumbnail_storage_key="bad-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="admin",
+            image_summary="展示拍题后快速查看最终答案。",
+        )
+        for image in (good, bad):
+            image.tag_links.append(ImageTag(tag=business_tag))
+            image.business_labels.append(
+                ImageBusinessLabel(
+                    tag=business_tag,
+                    label_code=business_tag.code or business_tag.id,
+                    origin="manual",
+                    role="primary",
+                    review_status="accepted",
+                    confidence=1.0,
+                )
+            )
+            db.add(image)
+        db.commit()
+        service = SearchService(db, ai_service=FakeAiService())
+        understanding = SearchUnderstanding(
+            original_query="孩子拍题只抄答案考试不会",
+            normalized_query="AI拍题精学",
+            search_intent="用户想找拍题后讲清思路、避免只抄答案的素材",
+            query_type="business_intent_search",
+            expanded_level1_tags=[],
+            matched_level2_categories=[
+                SearchCategoryMatch(
+                    category="同步自学体系 > AI拍题精学",
+                    relation="direct",
+                    reason="测试强业务意图",
+                    weight=0.92,
+                )
+            ],
+            exclude_tags=[],
+            search_strategy="按 AI拍题精学 召回后用 summary 裁判",
+        )
+        monkeypatch.setattr(service, "_understand_search", lambda _keyword: understanding)
+        response = service.search("孩子拍题只抄答案考试不会", 12, "smart")
+
+    assert [result.image.id for result in response.results] == [good.id]
+    assert response.results[0].match_level == "S"
+    assert any(
+        reason.startswith("语义总结裁判S")
+        for reason in response.results[0].match_reasons
+    )
 
 
 def test_ai_recommended_search_words_recall_long_business_phrase(db_factory):

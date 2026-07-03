@@ -94,3 +94,16 @@ class SellingPointMatchResult(ApiModel):
     matched: List[SellingPointSystemMatch] = Field(default_factory=list)
     expand_keywords: List[str] = Field(default_factory=list)
     confidence: float = Field(default=0, ge=0, le=1)
+
+
+class ImageSummaryMatchItem(ApiModel):
+    image_id: str
+    matched: bool
+    level: Literal["S", "A", "B", "C", "X"]
+    score: float = Field(ge=0, le=1)
+    reason: str
+    negative_reason: Optional[str] = None
+
+
+class ImageSummaryMatchResult(ApiModel):
+    matches: List[ImageSummaryMatchItem] = Field(default_factory=list)
