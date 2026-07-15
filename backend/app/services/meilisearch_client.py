@@ -11,6 +11,21 @@ class MeilisearchClientError(RuntimeError):
     pass
 
 
+MEILISEARCH_SEARCHABLE_ATTRIBUTES = (
+    "title",
+    "acceptedConceptNames",
+    "acceptedConceptPhrases",
+    "assetSearchPhrases",
+    "caption",
+    "semanticProfileBusinessIntent",
+    "semanticProfileSearchPhrases",
+    "semanticProfileVisualFacts",
+    "contentTags",
+    "searchableText",
+    "pendingConceptNames",
+)
+
+
 class MeilisearchClient:
     def __init__(
         self,
@@ -43,19 +58,7 @@ class MeilisearchClient:
         self._require_configured()
         self.ensure_index()
         settings = {
-            "searchableAttributes": [
-                "title",
-                "caption",
-                "searchableText",
-                "semanticProfileBusinessIntent",
-                "semanticProfileSearchPhrases",
-                "acceptedConceptNames",
-                "acceptedConceptPhrases",
-                "assetSearchPhrases",
-                "semanticProfileVisualFacts",
-                "contentTags",
-                "pendingConceptNames",
-            ],
+            "searchableAttributes": list(MEILISEARCH_SEARCHABLE_ATTRIBUTES),
             "filterableAttributes": [
                 "status",
                 "assetGroupId",

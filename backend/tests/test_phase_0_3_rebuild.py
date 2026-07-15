@@ -82,6 +82,53 @@ def test_phase1_concept_can_link_multiple_systems_and_keep_stable_code(
     assert renamed.json()["code"] == "cross_system_learning_method"
     assert renamed.json()["version"] == 2
 
+    added_phrase = client.post(
+        f"/api/business-concepts/{concept['id']}/search-phrases",
+        headers=headers,
+        json={
+            "phrase": "课程跟学校进度一致",
+            "phraseType": "colloquial",
+            "origin": "manual",
+        },
+    )
+    assert added_phrase.status_code == 200
+    phrase = added_phrase.json()["searchPhrases"][0]
+
+    updated_phrase = client.patch(
+        f"/api/business-concepts/{concept['id']}/search-phrases/{phrase['id']}",
+        headers=headers,
+        json={
+            "phrase": "课程内容跟学校进度一致",
+            "reviewStatus": "rejected",
+            "weight": 0.9,
+        },
+    )
+    assert updated_phrase.status_code == 200
+    updated = updated_phrase.json()["searchPhrases"][0]
+    assert updated["phrase"] == "课程内容跟学校进度一致"
+    assert updated["reviewStatus"] == "rejected"
+    assert updated["weight"] == 0.9
+    assert updated_phrase.json()["version"] == 4
+
+    seeded_phrases = client.post(
+        f"/api/business-concepts/{concept['id']}/search-phrases",
+        headers=headers,
+        json={
+            "phrase": "初始资料中的固定说法",
+            "phraseType": "official",
+            "origin": "source_document",
+        },
+    ).json()["searchPhrases"]
+    seeded_phrase = next(
+        item for item in seeded_phrases if item["phrase"] == "初始资料中的固定说法"
+    )
+    immutable = client.patch(
+        f"/api/business-concepts/{concept['id']}/search-phrases/{seeded_phrase['id']}",
+        headers=headers,
+        json={"phrase": "直接改掉初始资料"},
+    )
+    assert immutable.status_code == 400
+
 
 def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(client):
     csrf = login(client, "admin", "admin-password")

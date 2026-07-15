@@ -19,6 +19,7 @@ import { Select } from '@client/src/components/ui/select';
 import { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
 import UploadAssetPicker from './UploadAssetPicker';
+import ConceptPhraseInheritancePanel from './ConceptPhraseInheritancePanel';
 import UploadSearchPhraseFields from './UploadSearchPhraseFields';
 import { normalizeExpectedSearchWords } from './uploadSearchPhrases';
 
@@ -37,6 +38,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [uploading, setUploading] = useState(false);
   const provider = useProviderStatus(open);
   const concepts = useBusinessConcepts(open);
+  const selectedConcept = concepts.data?.find((concept) => concept.id === conceptId);
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
@@ -178,6 +180,10 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                   <span className="field-hint">选择具体卖点；六大体系关系会自动复用</span>
                 </label>
               </div>
+
+              {selectedConcept && (
+                <ConceptPhraseInheritancePanel concept={selectedConcept} />
+              )}
 
               <UploadSearchPhraseFields values={expectedSearchWords} onChange={setExpectedSearchWords} />
 

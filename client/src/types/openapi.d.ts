@@ -449,6 +449,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/business-concepts/{concept_id}/search-phrases/{phrase_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Concept Search Phrase */
+        patch: operations["update_concept_search_phrase_api_business_concepts__concept_id__search_phrases__phrase_id__patch"];
+        trace?: never;
+    };
     "/api/business-concepts/{concept_id}/relations": {
         parameters: {
             query?: never;
@@ -1197,6 +1214,19 @@ export interface components {
              */
             createdAt: string;
         };
+        /** ConceptSearchPhraseUpdate */
+        ConceptSearchPhraseUpdate: {
+            /** Phrase */
+            phrase?: string | null;
+            /** Phrasetype */
+            phraseType?: ("official" | "alias" | "pain" | "outcome" | "scenario" | "colloquial" | "typo") | null;
+            /** Reviewstatus */
+            reviewStatus?: ("pending" | "accepted" | "rejected") | null;
+            /** Weight */
+            weight?: number | null;
+            /** Sourceref */
+            sourceRef?: string | null;
+        };
         /** ConceptSuggestion */
         ConceptSuggestion: {
             /** Conceptcode */
@@ -1618,7 +1648,7 @@ export interface components {
              * Feedbacktype
              * @enum {string}
              */
-            feedbackType: "not_relevant" | "too_few_results" | "need_different_style" | "asset_request";
+            feedbackType: "relevant" | "not_relevant" | "too_few_results" | "need_different_style" | "asset_request";
             /** Note */
             note?: string | null;
             /** Resultimageid */
@@ -3032,6 +3062,47 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ConceptSearchPhraseCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessConceptRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_concept_search_phrase_api_business_concepts__concept_id__search_phrases__phrase_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                concept_id: string;
+                phrase_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConceptSearchPhraseUpdate"];
             };
         };
         responses: {

@@ -34,6 +34,7 @@ class SearchFeedbackCreate(ApiModel):
     search_log_id: Optional[str] = None
     keyword: str
     feedback_type: Literal[
+        "relevant",
         "not_relevant",
         "too_few_results",
         "need_different_style",

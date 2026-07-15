@@ -142,12 +142,11 @@ def _add_phrases(
     *,
     source_ref: str,
 ) -> int:
-    existing = {(item.phrase, item.origin) for item in concept.search_phrases}
+    existing = {item.phrase for item in concept.search_phrases}
     count = 0
     for value, phrase_type in values:
         phrase = value.strip()
-        key = (phrase, "source_document")
-        if not phrase or key in existing:
+        if not phrase or phrase in existing:
             continue
         concept.search_phrases.append(
             ConceptSearchPhrase(
@@ -159,7 +158,7 @@ def _add_phrases(
                 source_ref=source_ref,
             )
         )
-        existing.add(key)
+        existing.add(phrase)
         count += 1
     return count
 

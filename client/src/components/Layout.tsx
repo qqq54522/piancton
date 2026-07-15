@@ -5,6 +5,7 @@ import {
   FileClock,
   Images,
   LayoutGrid,
+  LibraryBig,
   LogOut,
   Menu,
   Palette,
@@ -76,6 +77,11 @@ const Layout = () => {
               <LayoutGrid className="size-4" />素材库
             </NavLink>
             {user?.role === 'admin' && (
+              <NavLink to="/admin/concepts" className={navClass}>
+                <LibraryBig className="size-4" />卖点管理
+              </NavLink>
+            )}
+            {user?.role === 'admin' && (
               <NavLink to="/admin/search-ops" className={navClass}>
                 <Search className="size-4" />搜索运营
               </NavLink>
@@ -145,6 +151,11 @@ const Layout = () => {
               <NavLink to="/" end onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
                 <LayoutGrid className="size-4" />素材库
               </NavLink>
+              {user?.role === 'admin' && (
+                <NavLink to="/admin/concepts" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
+                  <LibraryBig className="size-4" />卖点管理
+                </NavLink>
+              )}
               {user?.role === 'admin' && (
                 <NavLink to="/admin/search-ops" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
                   <Search className="size-4" />搜索运营

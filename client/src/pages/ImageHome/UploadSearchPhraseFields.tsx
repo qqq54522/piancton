@@ -22,9 +22,9 @@ export default function UploadSearchPhraseFields({ values, onChange }: UploadSea
     <div className="rounded-2xl border border-border/80 bg-secondary/45 p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-sm font-semibold">首次搜索话术</h3>
+          <h3 className="text-sm font-semibold">当前素材独有话术</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            只写这张图片独有的画面、文案或场景说法。
+            只写这张图片区别于同卖点其他素材的画面、文案或场景说法。
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-[11px] text-muted-foreground shadow-xs">
@@ -73,7 +73,7 @@ export default function UploadSearchPhraseFields({ values, onChange }: UploadSea
           <Plus className="size-4" />添加另一种说法
         </Button>
         <span className="text-[11px] text-muted-foreground">
-          {atLimit ? '已达首次上限；发布后仍可继续补充' : '发布后可在素材详情持续添加，不受 5 条总限制'}
+          {atLimit ? '已达首次上限；发布后可在详情继续维护' : '建议 3～5 条，通用说法不要在这里重复填写'}
         </span>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Check, MessageSquarePlus, X } from 'lucide-react';
+import { ArrowUpRight, BookOpenText, Check, MessageSquarePlus, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { getApiError } from '@client/src/api/client';
@@ -7,16 +8,32 @@ import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import type { AssetGroup } from '@client/src/types/api';
+import type { BusinessConcept } from '@client/src/types/api';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
+import { splitAcceptedConceptPhrases } from '@client/src/features/assets/conceptPhrasePresentation';
+import { useAuth } from '@client/src/lib/auth';
 
 type AssetActions = ReturnType<typeof useAssetActions>;
 
-function AssetPhraseReviewPanel({ group, actions }: { group: AssetGroup; actions: AssetActions }) {
+function AssetPhraseReviewPanel({
+  group,
+  concepts,
+  actions,
+}: {
+  group: AssetGroup;
+  concepts: BusinessConcept[];
+  actions: AssetActions;
+}) {
+  const { user } = useAuth();
   const [phrase, setPhrase] = useState('');
   const accepted = group.searchPhrases.filter((item) => item.reviewStatus === 'accepted');
   const pending = group.searchPhrases.filter(
     (item) => item.origin === 'ai' && item.reviewStatus === 'pending',
   );
+  const inherited = group.conceptLinks
+    .filter((link) => link.reviewStatus === 'accepted' && link.relationRole !== 'excludes')
+    .map((link) => concepts.find((concept) => concept.id === link.conceptId))
+    .filter((concept): concept is BusinessConcept => Boolean(concept));
 
   const addPhrase = async () => {
     if (!phrase.trim()) return;
@@ -38,10 +55,55 @@ function AssetPhraseReviewPanel({ group, actions }: { group: AssetGroup; actions
 
   return (
     <section className="surface-card p-5 sm:p-6">
+      {inherited.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-primary/15 bg-accent/45 p-4">
+          <div className="flex items-start gap-2.5">
+            <BookOpenText className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold">从卖点继承的公共话术</h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                这些话术由关联卖点统一维护，不需要在当前素材重复添加。
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-3">
+            {inherited.map((concept) => {
+              const phrases = splitAcceptedConceptPhrases(concept.searchPhrases);
+              return (
+                <div key={concept.id} className="rounded-xl bg-card/80 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-semibold">
+                      {concept.name} · {phrases.publicPhrases.length} 条公共话术
+                    </span>
+                    {user?.role === 'admin' && (
+                      <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs">
+                        <Link to={`/admin/concepts?concept=${concept.id}`}>
+                          管理 <ArrowUpRight className="size-3" />
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {phrases.publicPhrases.slice(0, 4).map((item) => (
+                      <Badge key={item.id} variant="secondary">{item.phrase}</Badge>
+                    ))}
+                    {phrases.publicPhrases.length > 4 && (
+                      <Badge variant="outline">还有 {phrases.publicPhrases.length - 4} 条</Badge>
+                    )}
+                    {phrases.keywords.length > 0 && (
+                      <Badge variant="outline">{phrases.keywords.length} 个辅助关键词</Badge>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">素材独有搜索话术</h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">发布后可以随搜索反馈持续补充，不受首次 5 条限制；通用话术留在卖点概念层复用。</p>
+          <h2 className="font-semibold">当前素材独有话术</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">只维护这张图区别于同卖点其他素材的画面、文案和使用场景；建议保持在 3～8 条。</p>
         </div>
         <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">已确认 {accepted.length}</span>
       </div>

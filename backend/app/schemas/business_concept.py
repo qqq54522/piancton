@@ -34,6 +34,16 @@ class ConceptSearchPhraseRead(ConceptSearchPhraseCreate):
     created_at: datetime
 
 
+class ConceptSearchPhraseUpdate(ApiModel):
+    phrase: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    phrase_type: Optional[
+        Literal["official", "alias", "pain", "outcome", "scenario", "colloquial", "typo"]
+    ] = None
+    review_status: Optional[Literal["pending", "accepted", "rejected"]] = None
+    weight: Optional[float] = Field(default=None, ge=0, le=2)
+    source_ref: Optional[str] = Field(default=None, max_length=300)
+
+
 class BusinessConceptCreate(ApiModel):
     code: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9_-]*$")
     name: str = Field(min_length=1, max_length=150)

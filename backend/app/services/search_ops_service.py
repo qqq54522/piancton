@@ -170,6 +170,8 @@ class SearchOpsService:
             ),
         }
         for event in feedback_events:
+            if event.feedback_type == "relevant":
+                continue
             issue_type, reason, action, severity = feedback_map.get(
                 event.feedback_type,
                 ("feedback", "业务方提交了搜索反馈", "查看反馈备注并归因", "medium"),

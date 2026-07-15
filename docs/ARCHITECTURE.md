@@ -19,7 +19,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 ```
 
 前端的图片、素材组和 AI 状态逻辑位于 `features/`，认证位于 `lib/auth.tsx`，
-管理员界面位于 `pages/AdminUsers/`。远程状态由 TanStack Query 管理，接口类型
+管理员界面按用户、卖点公共话术、搜索运营和审计拆分在 `pages/Admin*/`。远程状态由 TanStack Query 管理，接口类型
 由 FastAPI OpenAPI 生成。
 
 ## 强制边界
@@ -40,6 +40,8 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 普通业务用户只有一个搜索框；六大体系只有在用户显式选择时才是硬过滤。
 - 外部搜索分支不得共享请求 SQLAlchemy Session；ORM 实体只由请求主会话水合。
 - 候选融合后最多执行一次 Reranker，生成式图片摘要裁判不得回到在线链路。
+- 公共搜索话术属于业务概念，素材详情只保存当前图片独有话术；公共话术编辑/停用必须经过管理员接口和概念版本更新。
+- Meilisearch 字段优先级必须保持已确认业务语言高于素材独有话术、素材独有话术高于客观内容标签。
 
 这些约束由 `backend/tests/test_architecture.py` 和 CI 检查。
 

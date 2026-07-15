@@ -76,6 +76,10 @@ def test_master_and_project_log_publish_the_same_current_phase():
     login = _read("client/src/pages/Login/Login.tsx")
     home_header = _read("client/src/pages/ImageHome/ImageHomeHeader.tsx")
     search_result = _read("client/src/pages/ImageHome/SemanticSearchResult/index.tsx")
+    search_card = _read("client/src/pages/ImageHome/SemanticSearchResult/ScoredImageCard.tsx")
+    upload_phrases = _read("client/src/pages/ImageHome/UploadSearchPhraseFields.tsx")
+    inheritance = _read("client/src/pages/ImageHome/ConceptPhraseInheritancePanel.tsx")
+    concept_page = _read("client/src/pages/AdminConcepts/AdminConcepts.tsx")
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -87,6 +91,8 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D031" in master
     assert "D032" in master
     assert "D033" in master
+    assert "D034" in master
+    assert "D035" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -100,6 +106,13 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "业务素材库" not in home_header
     assert "外部增强" not in search_result
     assert "智能语义搜索暂时响应较慢" in search_result
+    assert "就是这张" in search_card
+    assert "当前素材独有话术" in upload_phrases
+    assert "公共话术只在卖点层维护一次" in inheritance
+    assert "辅助关键词" in inheritance
+    assert 'title="卖点与公共话术"' in concept_page
+    assert "卖点管理" in layout
+    assert "AI培训" not in concept_page
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme

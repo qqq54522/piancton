@@ -7,6 +7,7 @@ from app.models.business_concept import (
 from app.models.image import ContentTag, Image
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
+from app.services.database_search_recall import database_match_score
 from app.services.related_image_service import RelatedImageService
 from app.services.search_service import SearchService
 
@@ -171,6 +172,32 @@ def test_asset_specific_phrase_recalls_only_its_group(db_factory):
     ids = [item.image.id for item in response.results]
     assert first.id in ids
     assert second.id not in ids
+
+
+def test_confirmed_business_language_outweighs_objective_content_tags(db_factory):
+    with db_factory() as db:
+        image = create_concept_image(
+            db,
+            phrase="课程跟学校进度一致",
+            title="产品功能画面",
+            summary="一张用于业务介绍的产品功能图。",
+        )
+        image.asset_group.search_phrases.append(
+            AssetSearchPhrase(
+                phrase="手机章节对照课本目录",
+                origin="manual",
+                review_status="accepted",
+            )
+        )
+        db.commit()
+
+        concept_phrase_score = database_match_score(image, "课程跟学校进度一致")
+        asset_phrase_score = database_match_score(image, "手机章节对照课本目录")
+        content_tag_score = database_match_score(image, "知识点")
+
+    assert concept_phrase_score == 0.95
+    assert asset_phrase_score == 0.9
+    assert content_tag_score == 0.8
 
 
 def test_related_images_prioritize_shared_confirmed_concepts(db_factory):

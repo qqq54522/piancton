@@ -47,7 +47,11 @@ function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorks
             concepts={concepts.data ?? []}
             actions={actions}
           />
-          <AssetPhraseReviewPanel group={group.data} actions={actions} />
+          <AssetPhraseReviewPanel
+            group={group.data}
+            concepts={concepts.data ?? []}
+            actions={actions}
+          />
         </>
       )}
     </div>

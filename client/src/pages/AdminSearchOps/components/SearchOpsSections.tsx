@@ -21,6 +21,7 @@ import type {
 } from '@client/src/types/api';
 
 export const FEEDBACK_LABELS: Record<string, string> = {
+  relevant: '就是这张',
   not_relevant: '结果不相关',
   too_few_results: '结果太少',
   need_different_style: '想要别的风格',

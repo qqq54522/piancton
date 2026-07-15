@@ -126,6 +126,26 @@ export interface ConceptSystemLink {
   status: string;
 }
 
+export type ConceptPhraseType =
+  | 'official'
+  | 'alias'
+  | 'pain'
+  | 'outcome'
+  | 'scenario'
+  | 'colloquial'
+  | 'typo';
+
+export interface ConceptSearchPhrase {
+  id: string;
+  phrase: string;
+  phraseType: ConceptPhraseType;
+  origin: 'source_document' | 'manual' | 'ai' | 'search_feedback' | 'migrated';
+  reviewStatus: 'pending' | 'accepted' | 'rejected';
+  weight: number;
+  sourceRef?: string | null;
+  createdAt: string;
+}
+
 export interface BusinessConcept {
   id: string;
   code: string;
@@ -135,6 +155,7 @@ export interface BusinessConcept {
   status: string;
   version: number;
   systemLinks: ConceptSystemLink[];
+  searchPhrases: ConceptSearchPhrase[];
 }
 
 export interface ScoredImageMatch {
@@ -214,6 +235,7 @@ export interface SearchLogItem {
 }
 
 export type SearchFeedbackType =
+  | 'relevant'
   | 'not_relevant'
   | 'too_few_results'
   | 'need_different_style'

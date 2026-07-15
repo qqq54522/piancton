@@ -198,3 +198,17 @@ def test_phase5_system_filter_asset_metadata_and_result_feedback(client, db_fact
     assert feedback.status_code == 201
     assert feedback.json()["resultImageId"] == first["id"]
     assert feedback.json()["assetGroupId"] == first["assetGroupId"]
+
+    positive_feedback = client.post(
+        "/api/search-feedback",
+        headers=headers,
+        json={
+            "searchLogId": body["searchLogId"],
+            "keyword": "体系筛选素材",
+            "feedbackType": "relevant",
+            "resultImageId": first["id"],
+            "assetGroupId": first["assetGroupId"],
+        },
+    )
+    assert positive_feedback.status_code == 201
+    assert positive_feedback.json()["feedbackType"] == "relevant"

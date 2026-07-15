@@ -9,6 +9,7 @@ from app.models.image import ContentTag, Image
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
 from app.services.embedding_index import EmbeddingIndexSync, image_to_embedding_document
+from app.services.meilisearch_client import MEILISEARCH_SEARCHABLE_ATTRIBUTES
 from app.services.search_index import image_to_search_document
 from app.services.search_index_sync import SearchIndexSync
 
@@ -164,3 +165,12 @@ def test_phase6_metadata_no_longer_declares_legacy_image_semantic_tables():
         "image_level2_categories",
         "image_business_labels",
     }.isdisjoint(Base.metadata.tables)
+
+
+def test_meilisearch_prioritizes_confirmed_language_over_objective_tags():
+    priorities = list(MEILISEARCH_SEARCHABLE_ATTRIBUTES)
+
+    assert priorities.index("acceptedConceptPhrases") < priorities.index("assetSearchPhrases")
+    assert priorities.index("assetSearchPhrases") < priorities.index("contentTags")
+    assert priorities.index("contentTags") < priorities.index("pendingConceptNames")
+    assert priorities.index("searchableText") > priorities.index("contentTags")
