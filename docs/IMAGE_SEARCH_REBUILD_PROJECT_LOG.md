@@ -1,8 +1,8 @@
 # 图片搜索改造项目日志
 
 更新时间：2026-07-15  
-当前范围：Phase 0～Phase 5  
-当前状态：Phase 0～5 工程改造完成；旧图片数据已清零，等待新素材重新建立 Phase 0/4 真实业务基线
+当前范围：Phase 0～Phase 6
+当前状态：Phase 0～6 工程改造完成；旧图片数据已清零，等待新素材重新建立 Phase 0/4 真实业务基线
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
 
@@ -546,6 +546,67 @@ Model：数据结构和关系
 1. 从 1 张已审核主图开始重新录入，在素材详情确认主要表达/可以支持/不适用关系。
 2. 累积 3～6 张代表图后重建 Phase 0 基线。
 3. 累积 10～20 条真实查询并启用实际外部 Provider 后，完成 Phase 4 全链路质量与时延验收。
+
+---
+
+## 2026-07-15：建立 Phase 0～6 回滚点并治理文档漂移
+
+### 本轮目标
+
+- 在继续录入真实素材前，把当前 Phase 0～6 工程成果保存为独立、可推送、可回滚的 Git 版本。
+- 使用全新 PostgreSQL 环境验证迁移和全量检查，不只依赖本地 SQLite。
+- 统一当前执行文档口径，明确历史文档边界，并用自动化测试阻止旧口径回流。
+
+### 回滚点与 PostgreSQL CI
+
+- 创建分支：`codex/image-search-phase6-checkpoint`。
+- 创建回滚提交：`7529cee Checkpoint image search rebuild phases 0-6`。
+- 推送到 GitHub 后触发 CI run `29425274877`。
+- 后端任务使用 PostgreSQL 17，从空数据库执行 Alembic `upgrade head` 到 `20260715_0014`，随后 Ruff、Pyright 和 Pytest 全部通过。
+- 前端任务执行 `npm ci`、ESLint、TypeScript、Vitest 和 production build，全部通过。
+
+### 文档治理
+
+- 重写根 README 的当前能力、阶段状态、真实素材入口、统一搜索和服务器验收口径。
+- 更新 `backend/README.md`、`ARCHITECTURE.md`、`SEARCH_MODES_AND_AI.md`、`SERVER_DEPLOYMENT_CHECKLIST.md` 和 Meilisearch ADR，使其与 Phase 6 代码一致。
+- 为旧前端施工文档、旧优化总表、旧改造总控、旧业务意图地图和旧标签改造方案增加“历史文档说明”。
+- `IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 增加发布回滚点、文档治理记录、D026 文档状态决策和 D027 静态概念种子/AI Prompt 偏差记录。
+- `DEVELOPMENT_GUARDRAILS.md` 增加当前执行文档、历史文档和自动检查规则。
+
+### 自动防漂移
+
+- 新增 `backend/tests/test_documentation_consistency.py`：
+  - 阻止首次上传标签必选、18～22 个标签硬指标、普通用户搜索模式切换等旧契约回到当前执行文档；
+  - 要求当前执行文档引用改造总纲；
+  - 要求历史施工资料保留明确状态标记；
+  - 要求总纲和项目日志发布同一个当前 Phase。
+- `make check` 增加前端 ESLint，使本地统一检查与 GitHub CI 口径一致。
+
+### 数据迁移
+
+- 本轮没有新增或修改数据库迁移。
+- 本地数据库仍为 `20260715_0014`，正式素材仍为 0。
+
+### 测试结果
+
+- 本地后端 Pytest：`86 passed`，其中新增文档一致性测试 `4 passed`。
+- Ruff：通过。
+- Pyright：0 error、0 warning。
+- 前端 TypeScript、ESLint、Vitest（`2 passed`）和 production build：通过。
+- `git diff --check`：通过。
+- 首个 Phase 0～6 回滚提交的 GitHub PostgreSQL/前端 CI：通过。
+
+### 遗留问题
+
+- 真实素材、负责人关系和真实查询绑定仍为空，Phase 0/4 业务验收继续是 `partial`。
+- D027 尚未落实：概念种子和 AI Prompt 仍以静态 taxonomy 为输入，开放概念长期维护前需要改为不覆盖数据库人工事实并读取当前启用概念。
+- 目标服务器的 HTTPS、持久化、权限、备份和恢复演练仍未执行。
+
+### 下一步
+
+1. 后续文档或契约变化继续运行 `make check`，并保留回滚提交与文档治理提交的独立边界。
+2. 从空库录入首批 3～6 张代表素材并完成负责人关系确认。
+3. 绑定 10～20 条真实查询，重建 Phase 0/4 基线。
 
 ---
 

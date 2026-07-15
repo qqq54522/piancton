@@ -1,177 +1,126 @@
-# 搜索模式、大模型理解与图片语义补标
+# 统一搜索、AI 理解与图片语义分析
 
-状态：已接入“精准搜索 / 智能搜索”手动切换；模型 Provider 已配置时，图片上传后由后端自动排队执行 AI 语义补标；Meilisearch 作为智能搜索增强层，失败时自动回退数据库搜索。
+状态：Phase 4～6 工程完成。普通业务用户和后端请求均不再存在“精准/智能”模式选择；系统使用一条自动限时、缓存、可降级的搜索编排。
 
-## 两种搜索模式
+> 当前阶段、数据边界和后续验收以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。
 
-### 精准搜索
+## 一个搜索入口
 
-适合业务方已经知道要找什么：
+业务用户只输入想找的业务点、用户痛点、结果诉求、画面、渠道或尺寸，不需要理解内部召回方式。
 
-- 完整标题、长标题、文件名；
-- 六大体系名称；
-- 二级标签；
-- 明确业务表达。
+六大体系是稳定业务地图和可选快捷筛选：
 
-底层逻辑：
+- 未选择体系时，搜索允许跨体系召回。
+- 用户显式选择体系时，该体系才进入硬过滤。
+- `search_mode` 只描述本次实际服务来源，例如数据库模糊路径或 Meilisearch，不是用户可选模式。
 
-1. 使用 `taxonomy/catalog.json` 做业务词扩展；
-2. 查数据库里的标题、摘要、人工标签、隐性内容标签、二级业务标签和 AI 理由；
-3. 标题匹配做双向判断：搜索词包含标题，或标题包含搜索词，都算标题命中。
-4. 图片摘要是重要语义匹配字段；搜索词命中摘要，或长搜索句包含整段摘要时，会作为强语义匹配进入排序。
+## 在线搜索编排
 
-这保证了“复制一长串标题或文案”时，不会因为搜索词比真实标题更长而搜不到。
-
-### 智能搜索
-
-适合业务方输入模糊自然语言：
-
-- “孩子听不懂老师讲课”；
-- “家长不会辅导”；
-- “有没有考前突击的图”；
-- “学习没方向，不知道怎么规划”。
-
-底层逻辑：
-
-1. 如果模型 Provider 已配置，先调用大模型做搜索意图理解；
-2. 将模型输出的标准查询、扩展标签、二级分类候选加入搜索计划；
-3. 优先尝试 Meilisearch；
-4. 如果 Meilisearch 不可用，自动回退到数据库搜索；
-5. 前端展示降级提示，不影响业务方继续拿到结果。
-
-## 大模型在这里做什么
-
-大模型只做“理解”和“补标”，不直接决定最终返回哪张图。
-
-### 搜索意图理解
-
-输入：
-
-```json
-{
-  "keyword": "孩子听不懂老师讲课"
-}
-```
-
-模型输出会被后端校验并归一化。例如模型返回 `animation_explanation`，系统会展示为：
+在线链路按配置启动以下来源：
 
 ```text
-同步校内体系 > 动画精讲
+本地概念与概念搜索表达 ─┐
+数据库图片/素材短语召回 ─┼─> 候选融合 ─> 体系过滤 ─> 素材组折叠 ─> 一次可选 Reranker
+Meilisearch 关键词召回 ───┤
+Embedding 语义召回 ──────┤
+复杂查询模型理解 ─────────┘
 ```
 
-这样保留 code 的稳定性，同时避免业务界面出现难懂的英文 code。
+职责边界：
 
-### 图片语义补标
+- `SearchService` 只装配依赖并提供同步/异步门面。
+- `AsyncSearchOrchestrator` 只串联流水线。
+- `SearchExternalBranches` 管理外部分支、缓存和主会话水合。
+- `SearchRerankCoordinator` 管理总截止内唯一一次重排。
+- 外部分支先返回轻量候选 ID 或向量，不在线程间共享 SQLAlchemy Session。
 
-设计师上传图片后，上传接口会在后端判断模型 Provider 是否已配置：
+默认时间预算：
 
-- 如果已配置：自动创建一条 `queued` 分析任务，并在后台执行图片语义分析；
-- 如果未配置：图片照常上传，后续可在详情页手动点击“重新分析”；
-- 前端不再负责上传后额外调用分析接口，避免页面卡住、状态缓存过期或网络中断导致漏分析。
+| 环节 | 当前预算 |
+|---|---:|
+| 总截止 | 2.5 秒 |
+| Meilisearch | 0.2 秒 |
+| Embedding | 0.65 秒 |
+| 复杂查询理解 | 0.9 秒 |
+| Top 20 Reranker | 0.7 秒 |
 
-手动重跑接口仍然保留：
+这些数值是工程初始值，仍需用新代表素材和真实 Provider 完成 P95 验收。
 
-```text
-POST /api/ai/images/{image_id}/analyze
-```
+## 降级规则
 
-它会调用视觉模型生成：
+- Meilisearch 不可用：继续数据库概念/短语召回和其他可用分支。
+- Embedding 不可用：继续数据库与 Meilisearch。
+- 查询理解模型不可用：继续本地概念理解和已有召回。
+- Reranker 不可用或超时：使用本地融合分数排序。
+- 所有外部能力不可用：数据库路径仍必须返回可用结果。
 
-- 图片摘要；
-- 18 到 22 个隐性内容标签；
-- 推荐搜索词；
-- 二级业务标签建议；
-- 置信度和理由。
+生成式“图片摘要裁判”已经退出在线链路；候选融合后最多调用一次 Reranker。
 
-模型输出仍然受六大体系目录约束，不能凭空发明二级标签。
+## 上传阶段的 AI
 
-详情页会展示最新分析任务状态：
+设计师首次上传只要求图片文件，标题可以由文件名生成。业务概念、渠道、素材独有搜索语和延展尺寸均可后补。
 
-- `queued`：已排队；
-- `running`：分析中；
-- `succeeded`：已完成；
-- `failed`：分析失败。
+模型 Provider 已配置时，上传后可以异步执行：
 
-当最新任务处于 `queued` 或 `running` 时，详情页会自动轮询刷新；设计师不能重复点击“重新分析”，避免同一张图同时跑多次。
+- OCR 与画面事实提取；
+- 主体、场景、动作、风格和可见产品功能分析；
+- Semantic Profile V2；
+- 客观 `content_tags`；
+- 业务概念关系建议；
+- 素材独有搜索表达；
+- Embedding 与派生搜索索引刷新。
 
-### AI 建议的采纳规则
+Provider 未配置或分析失败不影响图片上传、预览、下载和人工关系维护。
 
-AI 自动匹配的业务标签默认不是最终归档结果，而是 `pending` 状态的建议。
+## 客观语义与业务事实分离
 
-设计师点击“接受”后：
+图片客观语义保存在 Semantic Profile V2 和 `content_tags`。AI 对业务含义的判断只能写成素材概念关系建议：
 
-- 原设计师主标签不会被覆盖；
-- 该 AI 建议会被追加为设计师附加标签；
-- 这个标签会进入最终归档和搜索权重；
-- 原 AI 建议仍保留为 `accepted`，用于追踪来源和理由。
+- `origin=ai`；
+- `review_status=pending`；
+- 关系为 `expresses` 或 `supports`；
+- 必须给出证据与相邻概念排除边界。
 
-设计师点击“拒绝”后：
+负责人确认后形成 `origin=manual`、`review_status=accepted` 的业务事实。AI 重跑不得覆盖人工确认或人工拒绝结果。
 
-- 该 AI 建议保留为 `rejected`；
-- 不会进入最终人工标签；
-- 后续重新分析不会把同一个已拒绝标签反复作为新待审核建议推回来。
+## 业务概念与搜索语言
 
-重新分析时：
+- 六大体系稳定节点位于 `tags`。
+- 可变化业务概念位于 `business_concepts`。
+- 通用业务话术位于 `concept_search_phrases`，在概念层复用。
+- 图片独有画面或场景表达位于 `asset_search_phrases`。
+- 图片与概念的主要表达、支持或排除关系位于 `asset_concept_links`。
 
-- 图片摘要、隐形内容标签和未审核 AI 建议会刷新；
-- 已接受、已拒绝的 AI 判断会保留；
-- 已经转成人工标签的 AI 建议不会重复生成一条新的待审核建议。
+当前 16 个概念和初始表达由 taxonomy 源文件幂等初始化。概念层是运行事实来源；静态种子与 AI Prompt 如何跟随数据库概念变更，是进入概念长期运营前必须收口的已知技术债。
 
-## Meilisearch 的位置
+## 搜索结果与反馈
 
-Meilisearch 不是主数据库，也不是唯一搜索引擎。
+搜索按素材组返回：
 
-它的位置是：
+- 同一主视觉的横版、竖版和渠道延展只占一张结果卡；
+- 用户在卡片内选择需要的尺寸或渠道；
+- 匹配原因来自真实命中链路，不由模型自由编写；
+- 单结果“不相关”反馈记录查询、图片和素材组，只用于搜索优化，不修改发布审批或人工概念关系。
 
-```text
-智能搜索增强层
-```
+## 当前配置边界
 
-如果 Meilisearch 可用，智能搜索优先尝试它；如果不可用，数据库搜索会兜底。这样本地和线上都不会因为搜索容器异常导致业务方搜不到图。
-
-## Embedding 与 Reranker 的位置
-
-Embedding API 用于向量召回：把用户搜索词和图片语义画像转成向量，再从已保存的图片向量中召回语义相近的候选图。图片语义画像由标题、图片摘要、隐性标签、业务标签、人工标签和分类组成。
-
-图片 AI 分析完成、标题/标签更新、AI 业务标签审核变化后，会尽力刷新该图片的 embedding。Embedding API 未配置或调用失败时，搜索会继续使用数据库 / Meilisearch 召回。
-
-Reranker API 是可选精排层：数据库或 Meilisearch 先召回候选结果，Reranker 再根据搜索词与候选图的标题、图片摘要、隐性标签、业务标签和人工标签重新排序。如果 Reranker 未配置、超时或返回异常，搜索会自动保留原排序返回结果。
-
-旧图片可用脚本补齐语义向量：
-
-```bash
-cd backend
-python -m scripts.rebuild_embeddings
-```
-
-## 当前关键配置
+核心配置包括：
 
 ```env
-MODEL_PROVIDER=openai_compatible
-MODEL_NAME=你的模型名
-MODEL_BASE_URL=你的 OpenAI-compatible Base URL
-MODEL_API_KEY=你的 API Key
-
-MEILISEARCH_URL=http://meilisearch:7700
-MEILISEARCH_API_KEY=replace-with-a-search-master-key
-MEILISEARCH_INDEX=images
-
-EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1
-EMBEDDING_MODEL_NAME=Qwen/Qwen3-VL-Embedding-8B
-EMBEDDING_TOP_N=100
-
-RERANKER_BASE_URL=https://api.siliconflow.cn/v1
-RERANKER_MODEL_NAME=Qwen/Qwen3-VL-Reranker-8B
-RERANKER_TOP_N=50
+SEARCH_BACKEND=database
+SEARCH_TOTAL_TIMEOUT_SECONDS=2.5
+SEARCH_MEILISEARCH_TIMEOUT_SECONDS=0.2
+SEARCH_EMBEDDING_TIMEOUT_SECONDS=0.65
+SEARCH_UNDERSTANDING_TIMEOUT_SECONDS=0.9
+SEARCH_RERANKER_TIMEOUT_SECONDS=0.7
+SEARCH_CANDIDATE_LIMIT=20
 ```
 
-如果模型未配置：
+需要时再分别配置模型 Provider、Meilisearch、Embedding 和 Reranker。任何一个外部能力都不是上传或基础搜索的单点依赖。
 
-- 精准搜索正常；
-- 智能搜索不会做模型意图理解，但仍会尝试 Meilisearch / 数据库兜底；
-- 图片上传不会自动生成 AI 补标。
+## 当前验收边界
 
-如果 Meilisearch 未启动：
-
-- 精准搜索正常；
-- 智能搜索会显示降级提示，并回到数据库搜索。
+- 工程故障注入已经覆盖任一外部分支失败时仍有数据库结果。
+- 当前正式素材库为空，历史 Phase 0/4 报告不代表当前搜索质量。
+- 录入 3～6 张代表素材并绑定 10～20 条真实查询后，重新生成基线。
+- 开启实际外部 Provider 后，执行全链路质量、超时、降级和 P95 验收。

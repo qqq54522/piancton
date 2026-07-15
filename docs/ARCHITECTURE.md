@@ -12,10 +12,13 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
                     |
                     +-> ModelProvider -> placeholder / OpenAI-compatible 多模态模型
                     |
-                    +-> SearchService -> 数据库搜索 / Meilisearch 派生索引
+                    +-> SearchService -> 限时并行搜索编排
+                                      -> 数据库概念/短语召回
+                                      -> Meilisearch / Embedding / 查询理解
+                                      -> 一次可选 Reranker
 ```
 
-前端的图片、标签和 AI 状态逻辑位于 `features/`，认证位于 `lib/auth.tsx`，
+前端的图片、素材组和 AI 状态逻辑位于 `features/`，认证位于 `lib/auth.tsx`，
 管理员界面位于 `pages/AdminUsers/`。远程状态由 TanStack Query 管理，接口类型
 由 FastAPI OpenAPI 生成。
 
@@ -31,9 +34,12 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 数据库结构禁止使用 `create_all()`，只能通过 Alembic migration 修改。
 - AI 业务只依赖 `ModelProvider`；未配置 Provider 时必须失败，不能返回空结果冒充成功。
 - AI 输出必须先经过 normalizer、Pydantic schema 和 taxonomy catalog 校验，才能写入业务数据。
-- 人工业务标签与 AI 建议必须区分来源：`origin=manual` 或 `origin=ai`；AI 建议通过 `review_status=pending/accepted/rejected` 流转。
-- 数据库是图片、标签、AI 分析和审核状态的事实源；Meilisearch 只是可重建的派生索引。
+- 素材概念关系必须区分人工事实与 AI 建议：`origin=manual/ai`；AI 建议通过 `review_status=pending/accepted/rejected` 流转。
+- 数据库是图片、业务概念、素材关系、AI 分析和审核状态的事实源；Meilisearch 只是可重建的派生索引。
 - Meilisearch 不可用时搜索必须降级到数据库路径，不能阻断上传、详情或基础搜索。
+- 普通业务用户只有一个搜索框；六大体系只有在用户显式选择时才是硬过滤。
+- 外部搜索分支不得共享请求 SQLAlchemy Session；ORM 实体只由请求主会话水合。
+- 候选融合后最多执行一次 Reranker，生成式图片摘要裁判不得回到在线链路。
 
 这些约束由 `backend/tests/test_architecture.py` 和 CI 检查。
 
@@ -75,31 +81,27 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - Compose 内的 Nginx 只提供 HTTP，生产 HTTPS 由外层反向代理或负载均衡负责。
 - `/health/live` 检查进程存活，`/health/ready` 同时检查数据库。
 
-## 状态记录与决策
+## 当前状态记录
 
-截至 2026-06-28：
+截至 2026-07-15：
 
-- 本地开发链路使用 SQLite，后端测试、前端检查和浏览器回归已经跑通过。
-- PostgreSQL Schema、Alembic migration、Dockerfile、Nginx、Compose 和可选 Meilisearch profile 已经完成。
-- 后端支持 OpenAI-compatible 多模态模型；未配置模型时返回明确的 `503 provider_not_configured`。
-- 模型 Provider 已配置时，上传成功后可自动排队 AI 分析；分析结果写入前经过 schema、normalizer 和 taxonomy 校验。
-- 搜索已支持精准搜索与智能搜索手动切换；Meilisearch 是可选增强层，不是主数据源。
-- 图片生命周期、人工标签/AI 建议审核、AI 分析持久化和搜索编排已经拆成独立服务边界。
-- 业务意图话术位于 `taxonomy/business_intents.json`，稳定标签仍位于 `taxonomy/catalog.json`。
-- 搜索评测资产位于 `taxonomy/search_eval_cases.json`，当前覆盖 50 条用例和全部二级业务标签。
-- Docker 默认只启动 web、backend 和 postgres；Meilisearch profile 需要显式配置并启动。
-- 本地继续开发不需要安装 Docker、Podman 或 PostgreSQL；服务器推荐仅安装 Docker Engine 与 Compose。
-- PostgreSQL 使用 Compose 容器，不在宿主机重复安装；Podman 不在默认支持范围内。
-- 生产部署是否完成，仍以目标服务器实际验收为准。
+- Phase 0～6 工程改造和旧职责清理完成，数据库 revision 为 `20260715_0014`。
+- `tags` 只保留 6 个稳定体系节点；可变化业务语义位于 `business_concepts`、概念关系、概念搜索表达和素材概念关系。
+- 首次上传自动建立素材组；主图可先发布，延展、备选和修订版本可后续追加。
+- 图片客观语义使用 Semantic Profile V2 与 `content_tags`；AI 业务判断写入待审核素材概念关系建议。
+- 在线搜索只有一条自动编排，不再向普通用户或 API 暴露搜索模式选择。
+- 本地正式素材库当前为空；Phase 0/4 真实质量验收等待 3～6 张代表素材和 10～20 条真实查询重新建立。
+- Phase 0～6 回滚提交已在 GitHub Actions 的 PostgreSQL 17 环境完成从零迁移、后端检查和前端检查。
+- Docker Compose、Nginx、PostgreSQL 和可选 Meilisearch profile 已具备，但目标服务器生产验收、持久化和备份恢复仍未完成。
 
-生产部署是否完成，以根目录 README 的“服务器上线验收清单”为唯一判定标准。
-后续排查时先检查该清单，不要重复讨论已经由测试覆盖的本地代码问题。
+架构和业务阶段的唯一事实来源是 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`；部署是否完成以根目录 README 和 `docs/SERVER_DEPLOYMENT_CHECKLIST.md` 的实际勾选记录为准。
 
 ## 下一轮决策
 
 优先做能让项目进入真实使用闭环的事情：
 
-1. 服务器上线验收，确认部署、持久化、权限和备份恢复。
-2. 用真实图片和 50 条搜索评测用例记录搜索质量。
-3. 如果上传和模型分析变慢，再把 AI 分析从 `BackgroundTasks` 升级为独立 worker。
-4. 在继续新增标签、AI 和审核功能前，优先清理前端旧类型、文档漂移和搜索排序服务重量。
+1. 从空库录入 3～6 张代表素材并完成负责人关系确认。
+2. 绑定 10～20 条真实查询，重建 Phase 0/4 质量和延迟基线。
+3. 启用需要的外部搜索增强并执行故障注入、P95 和派生索引重建验证。
+4. 服务器上线验收，确认部署、持久化、权限和备份恢复。
+5. 如果上传和模型分析明显变慢，再把 AI 分析从 `BackgroundTasks` 升级为独立 worker。

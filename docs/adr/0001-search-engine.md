@@ -13,12 +13,14 @@
 
 使用 Meilisearch Community Edition 作为可选派生搜索索引。
 
-当前结构：
+当前结构（Phase 4～6）：
 
 ```text
 SQLite / PostgreSQL：权威主数据
 Meilisearch：可重建搜索索引
-SearchService：优先搜索索引，失败时回退数据库
+SearchService：统一搜索门面
+AsyncSearchOrchestrator：数据库 / Meilisearch / Embedding / 查询理解并行融合
+SearchRerankCoordinator：总截止内最多一次重排
 ```
 
 Meilisearch 不保存唯一事实，不承接权限判断，不阻断上传、编辑、删除、恢复和 AI 分析。
@@ -33,17 +35,18 @@ Meilisearch 不保存唯一事实，不承接权限判断，不阻断上传、�
 
 ## 当前实现
 
-- `SEARCH_BACKEND=database` 是默认路径。
-- 设置 `SEARCH_BACKEND=meilisearch` 且配置 `MEILISEARCH_URL` 后启用搜索索引。
-- 上传、改标题、改标签、删除、恢复、永久删除和 AI 分析完成后，会尽力同步索引。
+- `SEARCH_BACKEND=database` 是默认路径，数据库概念/短语召回始终可用。
+- 设置 `SEARCH_BACKEND=meilisearch` 且配置 `MEILISEARCH_URL` 后启用关键词增强分支。
+- 上传、改标题、素材版本变化、删除、恢复、永久删除和 AI 分析完成后，会尽力同步索引。
 - 同步失败只记录日志，不影响主流程。
 - `scripts.verify_search_index` 用于验证真实 Meilisearch 写入和查询。
 - `scripts.rebuild_search_index` 可从主数据库重建正式索引。
+- 普通用户不选择搜索模式；`search_mode` 只记录本次实际服务来源。
 
 ## 降级策略
 
 - Meilisearch 不可用：返回数据库模糊搜索结果，并标记 fallback。
-- 模型 Provider 未配置：智能搜索不做大模型意图理解，但仍保留数据库搜索兜底。
+- 模型 Provider 未配置：跳过复杂查询理解，仍保留本地概念理解和数据库搜索。
 - 索引落后或丢失：用重建脚本从主数据库恢复。
 
 ## 重新评估条件

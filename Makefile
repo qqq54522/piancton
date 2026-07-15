@@ -13,6 +13,7 @@ backend-check:
 
 frontend-check:
 	cd client && npm run typecheck
+	cd client && npm run lint
 	cd client && npm test -- --run
 	cd client && npm run build
 

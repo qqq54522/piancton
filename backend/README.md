@@ -2,6 +2,8 @@
 
 FastAPI 应用使用 API、Service、Repository、Model/Database 分层。数据库结构只能通过 Alembic 修改。
 
+> 当前业务模型和阶段状态以项目根目录的 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为准。旧图片直挂标签、旧场景/功能分类和搜索请求模式已在 Phase 6 下线。
+
 ## 常用命令
 
 ```bash
@@ -23,9 +25,7 @@ make docker-build
 make docker-up
 ```
 
-`seed_taxonomy` 除了同步六大体系目录，也会把旧的 `image_tags` 关系回填为
-`image_business_labels` 中的人工主/附加业务标签。标准体系根节点等不可打标标签
-不会被回填。
+`seed_taxonomy` 同步六大体系稳定节点，并幂等初始化当前业务概念、概念体系关系、概念搜索表达和概念关系。图片不再直接挂固定标签；图片与业务概念的负责人确认事实保存在素材组关系中。
 
 - 健康检查：`http://127.0.0.1:8000/health`
 - OpenAPI：`http://127.0.0.1:8000/docs`
@@ -35,7 +35,7 @@ make docker-up
 | 能力 | business | designer | admin |
 |---|---:|---:|---:|
 | 浏览、搜索、预览、下载 | ✓ | ✓ | ✓ |
-| 上传、编辑图片和标签 |  | ✓ | ✓ |
+| 上传、维护素材版本和概念关系 |  | ✓ | ✓ |
 | AI 操作 |  | ✓ | ✓ |
 | 用户管理 |  |  | ✓ |
 | 审计日志 |  |  | ✓ |
@@ -60,16 +60,15 @@ make docker-up
 
 ## 搜索后端
 
-默认 `SEARCH_BACKEND=database`，使用本地数据库模糊搜索。可设置
-`SEARCH_BACKEND=meilisearch` 启用影子搜索：
+默认 `SEARCH_BACKEND=database`，统一搜索仍执行数据库概念/短语召回。可设置
+`SEARCH_BACKEND=meilisearch` 启用 Meilisearch 关键词增强分支：
 
 - `MEILISEARCH_URL`，例如 `http://meilisearch:7700`
 - `MEILISEARCH_API_KEY`，可选
 - `MEILISEARCH_INDEX`，默认 `images`
 - `SEARCH_TIMEOUT_SECONDS`，默认 2 秒
 
-Meilisearch 不可用或返回异常时，接口会自动降级到数据库搜索，并在响应中
-返回 `fallback=true` 和 `fallbackReason`。
+在线搜索由一条限时异步编排统一执行：数据库、Meilisearch、Embedding 和复杂查询理解按配置并行运行，候选融合后最多调用一次 Reranker。任一外部分支不可用或超时时，接口使用已取得的候选返回，并通过诊断字段记录降级来源。
 
 重建派生搜索索引：
 
@@ -81,7 +80,7 @@ python -m scripts.rebuild_search_index
 
 `verify_search_index` 使用临时 Meilisearch 索引验证真实索引写入和
 SearchService 查询；`--dry-run` 只打印前几条搜索文档，不访问 Meilisearch。
-正式验证和重建需要先配置 `MEILISEARCH_URL`。
+正式验证和重建需要先配置 `MEILISEARCH_URL`。Meilisearch 永远是可重建派生索引，不是素材或业务概念的事实源。
 
 Docker 默认不会配置 `MEILISEARCH_URL`，因此没有启用搜索 profile 时，上传和编辑
 不会反复尝试同步一个不存在的搜索容器。启用 profile 时必须显式配置

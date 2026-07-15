@@ -1,42 +1,46 @@
-# 标签图片仓库
+# 图片素材搜索仓库
 
-面向设计师与业务团队的内部图片素材仓库。设计师维护图片、标签和分类，业务人员通过标签与关键词检索并下载素材，管理员负责内测账号。
+面向设计师与业务团队的内部图片素材仓库。设计师维护主图、延展版本、业务概念关系和素材独有搜索语，业务人员通过一个搜索框检索并下载素材，管理员负责账号、审计和搜索运营。
+
+> 当前项目状态以 [图片搜索系统改造总纲](docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md) 为唯一事实来源。Phase 0～6 工程改造已完成，当前从空素材库重新录入代表素材，Phase 0/4 真实数据验收仍为 `partial`。
 
 ## 当前能力
 
 - HttpOnly Cookie 会话、CSRF 防护和后端角色权限
 - 图片安全上传、真实格式校验、预览与下载计数分离
 - 自动缩略图、图片回收站与永久删除
-- 标签树、允许打标标签必选、同级名称唯一、分类、稳定游标分页和多标签 AND 筛选
+- 六大体系稳定地图、版本化业务概念及多对多素材关系
+- 主图、延展图、备选图、修订版和素材组级去重展示
 - PostgreSQL + Alembic，开发环境也可使用 SQLite
 - 本地持久化图片卷，可替换 Storage Provider
 - AI Provider 稳定接口；未配置时明确返回 `503 provider_not_configured`
 - 已支持 OpenAI-compatible 多模态模型接入，API Key 只放后端环境变量
-- 模型 Provider 已配置时，上传成功后自动排队 AI 分析；生成 18–22 个中文隐形内容标签
-- AI 自动匹配只使用封闭的 16 个业务标签，不修改人工标签树
+- 模型 Provider 已配置时，上传成功后自动排队 OCR、客观语义分析和业务概念关系建议
+- AI 建议与负责人确认严格区分来源和审核状态，不覆盖人工确认事实
+- 一个业务搜索框、六大体系可选筛选、数据库/Meilisearch/Embedding 并行召回和一次 Reranker
 - React、TanStack Query、OpenAPI TypeScript 类型和管理员页面
 - 登录失败限流、结构化 request ID、安全响应头和操作审计
 
 ## 当前状态与后续工作
 
-代码层面的内测版优化、六阶段标签/AI/搜索改造和第一轮小清理已经完成。
+Phase 0～6 工程改造和旧职责清理已经完成。当前本地素材库为空，下一步是录入 3～6 张已审核代表主图、确认业务概念关系并重新建立真实搜索基线。
 当前本地检查结果：
 
-- 后端 pytest：84 项通过
+- 后端 pytest：86 项通过（含 4 项文档一致性检查）
 - Ruff、Pyright：通过
-- 前端 TypeScript、Vitest、生产构建：通过
+- 前端 TypeScript、ESLint、Vitest、生产构建：通过
 - 搜索评测资产：50 条用例通过结构校验
+- PostgreSQL 17 CI：Phase 0～6 回滚提交已通过从零迁移和全量检查
 - 服务器生产验收仍以本文件后续清单为准
 
-剩余工作不是重复改基础代码，而是在目标服务器执行生产环境验收，并用真实素材库持续记录搜索质量：
+剩余工作不是重复改基础代码，而是建立真实素材闭环并完成生产环境验收：
 
-1. 在服务器安装 Docker Engine 和 Docker Compose。
-2. 配置生产域名、HTTPS 和 `.env`。
-3. 启动 Nginx、FastAPI、PostgreSQL 和持久化卷。
-4. 执行 Alembic migration 并创建首位管理员。
-5. 验证登录、权限、上传、预览、下载和用户管理。
-6. 重启容器，确认数据库和图片仍然保留。
-7. 配置并演练 PostgreSQL 与图片卷的备份恢复。
+1. 上传 3～6 张已审核代表主图并确认“主要表达/可以支持/不适用”关系。
+2. 建立 10～20 条真实查询绑定，重新生成 Phase 0/4 报告。
+3. 启用需要的外部搜索增强，完成故障注入和 P95 压测。
+4. 在目标服务器配置域名、HTTPS、PostgreSQL 和持久化卷。
+5. 验证权限、上传、分析、搜索、预览、下载和反馈闭环。
+6. 配置并演练 PostgreSQL 与图片卷的备份恢复。
 
 在以上服务器验收完成前，不要把项目标记为“生产部署已验证”。
 
@@ -133,7 +137,7 @@ MEILISEARCH_IMAGE=你的镜像源/getmeili/meilisearch:v1.13
 
 不填这些变量时，仍使用 Docker Hub 默认镜像。
 
-如需验证 Meilisearch 影子搜索，先在 `.env` 中设置：
+如需启用 Meilisearch 关键词增强分支，先在 `.env` 中设置：
 
 ```env
 SEARCH_BACKEND=meilisearch
@@ -151,8 +155,7 @@ docker compose exec backend python -m scripts.rebuild_search_index
 
 `verify_search_index` 会创建临时索引、写入搜索文档、通过后端 SearchService
 执行真实 Meilisearch 查询，并在成功后清理临时索引。它通过后，再重建正式
-`images` 索引。Meilisearch 是可重建的搜索索引，不是主数据库。它不可用时
-后端会自动降级到数据库模糊搜索。
+`images` 索引。Meilisearch 是可重建的派生索引，不是主数据库；不可用或超时时，统一搜索编排继续使用数据库概念/短语召回及其他已配置分支。
 
 ## 服务器上线验收清单
 
@@ -164,8 +167,10 @@ docker compose exec backend python -m scripts.rebuild_search_index
 - [ ] `docker compose ps` 中三个服务均健康
 - [ ] Alembic 已升级到最新 revision
 - [ ] 首位管理员已创建且初始密码已修改
-- [ ] 六大体系与二级标签已通过 `python -m scripts.seed_taxonomy` 初始化
-- [ ] 上传和编辑图片时至少选择一个已启用且允许打标的标签
+- [ ] 六大体系与业务概念种子已通过 `python -m scripts.seed_taxonomy` 初始化
+- [ ] 首次上传不要求业务概念或延展尺寸，上传后会自动建立素材组
+- [ ] 设计师可确认业务概念关系、追加延展版本并替换主图
+- [ ] 业务用户只看到一个搜索框，六大体系筛选为可选项
 - [ ] business 无法调用写接口
 - [ ] designer 可上传和维护素材，但不能管理用户
 - [ ] admin 可管理用户
@@ -175,7 +180,7 @@ docker compose exec backend python -m scripts.rebuild_search_index
 - [ ] 删除进入回收站，恢复和永久删除均正常
 - [ ] 登录限流、安全响应头和 request ID 正常
 - [ ] 管理员可以查看审计日志
-- [ ] 容器重启后用户、标签、图片和下载数仍然存在
+- [ ] 容器重启后用户、体系、业务概念、素材组、图片和下载数仍然存在
 - [ ] PostgreSQL 与图片卷已建立定时备份
 - [ ] 已实际完成一次备份恢复演练
 
@@ -185,22 +190,17 @@ docker compose exec backend python -m scripts.rebuild_search_index
 
 ## 当前文档与优化记录
 
-项目文档只保留当前可执行信息，以及用于追踪未来计划和已完成改造的优化记录：
+当前执行文档：
 
+- [图片搜索系统改造总纲（唯一事实来源）](docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md)
+- [图片搜索改造项目日志](docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md)
 - [后续开发核心护栏](docs/DEVELOPMENT_GUARDRAILS.md)
 - [架构与边界规则](docs/ARCHITECTURE.md)
-- [搜索模式、大模型理解与图片语义补标](docs/SEARCH_MODES_AND_AI.md)
-- [项目改造与意图识别施工入口](docs/REFACTOR_AND_INTENT_EXECUTION_PLAN.md)
-- [搜索业务话术词库与意图簇映射](docs/SEARCH_BUSINESS_INTENT_MAP.md)
-- [标签系统完善与 AI 打标改造方案](docs/TAGGING_SYSTEM_IMPROVEMENT_PLAN.md)
+- [统一搜索、AI 理解与图片语义分析](docs/SEARCH_MODES_AND_AI.md)
 - [服务器部署验收清单](docs/SERVER_DEPLOYMENT_CHECKLIST.md)
 - [搜索引擎选型决策](docs/adr/0001-search-engine.md)
-- [项目优化记录与后续计划](docs/OPTIMIZATION_PLAN.md)
 
-第一轮已实施目录治理、稳定业务编码、人工/AI 标签来源拆分、旧图人工标签回填、
-分析批次记录、数据库确定性搜索词扩展、精准/智能搜索手动切换、搜索意图理解接入、
-Meilisearch 可选降级层、搜索索引增量同步和重建脚本。业务搜索没有强制切换为
-Meilisearch 单一路径，也不要求额外采购 OCR、Embedding 或 Reranker API。
+历史施工和业务来源资料仍保留在 `docs/`，但文件顶部必须标记“历史文档说明”；历史内容不能覆盖总纲中的当前状态。
 
 打包优化入口：
 
