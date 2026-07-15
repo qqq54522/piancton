@@ -74,6 +74,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     branding = _read("client/src/lib/branding.ts")
     layout = _read("client/src/components/Layout.tsx")
     login = _read("client/src/pages/Login/Login.tsx")
+    home_header = _read("client/src/pages/ImageHome/ImageHomeHeader.tsx")
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -82,6 +83,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D028" in master
     assert "D029" in master
     assert "D030" in master
+    assert "D031" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -91,4 +93,6 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "PRODUCT_NAME = '卖点智库'" in branding
     assert "PRODUCT_NAME" in layout
     assert "PRODUCT_NAME" in login
+    assert "title={PRODUCT_NAME}" in home_header
+    assert "业务素材库" not in home_header
     assert "<title>卖点智库</title>" in html
