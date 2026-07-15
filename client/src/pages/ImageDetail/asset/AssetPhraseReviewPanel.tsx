@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, MessageSquarePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { getApiError } from '@client/src/api/client';
@@ -37,10 +37,15 @@ function AssetPhraseReviewPanel({ group, actions }: { group: AssetGroup; actions
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <h2 className="font-semibold">这张素材独有的搜索语</h2>
-      <p className="mt-1 text-xs text-muted-foreground">通用业务话术维护在概念层；这里只补充画面或该素材独有表达。</p>
-      <div className="mt-3 flex min-h-8 flex-wrap gap-2">
+    <section className="surface-card p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">素材独有搜索话术</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">发布后可以随搜索反馈持续补充，不受首次 5 条限制；通用话术留在卖点概念层复用。</p>
+        </div>
+        <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">已确认 {accepted.length}</span>
+      </div>
+      <div className="mt-4 flex min-h-8 flex-wrap gap-2">
         {accepted.length > 0
           ? accepted.map((item) => <Badge key={item.id} variant="secondary">{item.phrase}</Badge>)
           : <span className="text-xs text-muted-foreground">暂无已确认的素材独有搜索语</span>}
@@ -56,14 +61,23 @@ function AssetPhraseReviewPanel({ group, actions }: { group: AssetGroup; actions
           ))}
         </div>
       )}
-      <div className="mt-4 flex gap-2">
-        <Input
-          value={phrase}
-          onChange={(event) => setPhrase(event.target.value)}
-          placeholder="例如：蓝色竖版学习周报"
-          maxLength={300}
-        />
-        <Button onClick={addPhrase} disabled={!phrase.trim() || actions.addPhrase.isPending}>添加</Button>
+      <div className="mt-5 rounded-xl border border-border/80 bg-secondary/40 p-3">
+        <label className="field-label">添加新说法</label>
+        <div className="flex gap-2">
+          <Input
+            value={phrase}
+            onChange={(event) => setPhrase(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && phrase.trim()) addPhrase();
+            }}
+            placeholder="例如：蓝色竖版学习周报"
+            maxLength={300}
+            className="bg-card"
+          />
+          <Button onClick={addPhrase} disabled={!phrase.trim() || actions.addPhrase.isPending}>
+            <MessageSquarePlus className="size-4" />添加
+          </Button>
+        </div>
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeExpectedSearchWords } from './UploadDialog';
+import { normalizeExpectedSearchWords } from './uploadSearchPhrases';
 
 describe('upload search phrases', () => {
   it('trims, removes empty and duplicate phrases, and keeps at most five', () => {

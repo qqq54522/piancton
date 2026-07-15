@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FileClock, Upload } from 'lucide-react';
 
+import PageHeader from '@client/src/components/PageHeader';
 import { Button } from '@client/src/components/ui/button';
 import { CanRole } from '@client/src/lib/auth';
 
@@ -11,24 +12,23 @@ const ImageHomeHeader = ({
   isDesigner: boolean;
   onOpenUpload: () => void;
 }) => (
-  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">图片库</h1>
-      <p className="mt-1 text-sm text-muted-foreground">统一搜索素材，业务关系在素材详情中维护</p>
-    </div>
-    {isDesigner && (
+  <PageHeader
+    eyebrow="Asset Library"
+    title="业务素材库"
+    description="用一句业务需求找到可用素材；上传、版本和业务关系都在同一个素材组中持续维护。"
+    actions={isDesigner ? (
       <div className="flex items-center gap-2">
         <CanRole roles={['designer']}>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" asChild>
             <Link to="/trash"><FileClock className="mr-1.5 size-4" />回收站</Link>
           </Button>
-          <Button size="sm" onClick={onOpenUpload}>
+          <Button onClick={onOpenUpload}>
             <Upload className="mr-1.5 size-4" />上传主图
           </Button>
         </CanRole>
       </div>
-    )}
-  </div>
+    ) : undefined}
+  />
 );
 
 export default ImageHomeHeader;

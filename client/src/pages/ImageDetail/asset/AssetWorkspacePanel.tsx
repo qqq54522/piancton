@@ -20,7 +20,7 @@ function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorks
 
   if (group.isLoading) {
     return (
-      <div className="mt-6 flex justify-center rounded-xl border py-10">
+      <div className="surface-card mt-6 flex justify-center py-10">
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
     );
@@ -28,7 +28,12 @@ function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorks
   if (!group.data) return null;
 
   return (
-    <div className="mt-6 space-y-5">
+    <div className="mt-10 space-y-5">
+      <div>
+        <p className="section-kicker">Asset Workspace</p>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">素材工作台</h2>
+        <p className="mt-1 text-sm text-muted-foreground">在这里持续维护版本、业务卖点和后续收集到的搜索话术。</p>
+      </div>
       <AssetVersionsPanel
         group={group.data}
         editable={editable}

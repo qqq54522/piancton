@@ -8,7 +8,7 @@ const RelatedImageItem = ({ image }: { image: ImageItem }) => {
   return (
     <Link
       to={`/image/${image.id}`}
-      className="group flex-shrink-0 overflow-hidden rounded-lg border border-border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      className="group flex-shrink-0 overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
       style={{ width: 200 }}
     >
       <div className="aspect-[4/3] overflow-hidden bg-muted">
@@ -32,8 +32,9 @@ const RelatedImagesStrip = ({ images }: { images: ImageItem[] }) => {
   if (images.length === 0) return null;
 
   return (
-    <div className="mt-8">
-      <h2 className="mb-4 text-lg font-medium text-foreground">相关推荐</h2>
+    <div className="mt-10">
+      <p className="section-kicker">Related</p>
+      <h2 className="mb-4 mt-1 text-lg font-semibold text-foreground">相关素材</h2>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {images.map((image) => (
           <RelatedImageItem key={image.id} image={image} />

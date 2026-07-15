@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
+import { Select } from '@client/src/components/ui/select';
 
 interface AssetVersionDialogProps {
   open: boolean;
@@ -71,14 +72,13 @@ function AssetVersionDialog({
         {mode === 'variant' && (
           <label className="text-sm">
             <span className="mb-2 block font-medium">版本类型</span>
-            <select
+            <Select
               value={role}
               onChange={(event) => setRole(event.target.value as typeof role)}
-              className="h-9 w-full rounded-md border border-input bg-background px-3"
             >
               <option value="derivative">尺寸/渠道延展</option>
               <option value="alternative">同主题备选图</option>
-            </select>
+            </Select>
           </label>
         )}
         <DialogFooter>

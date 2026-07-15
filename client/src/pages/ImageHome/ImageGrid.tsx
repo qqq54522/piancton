@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ImageOff } from 'lucide-react';
+import type { ReactNode } from 'react';
 
+import EmptyState from '@client/src/components/EmptyState';
 import type { ImageItem } from '@client/src/types/api';
 import ImageCard from './ImageCard';
 
@@ -17,16 +19,20 @@ const itemVariants = {
 interface ImageGridProps {
   images: ImageItem[];
   emptyText: string;
+  emptyDescription?: string;
+  emptyAction?: ReactNode;
   withPresence?: boolean;
 }
 
-const ImageGrid = ({ images, emptyText, withPresence = false }: ImageGridProps) => {
+const ImageGrid = ({ images, emptyText, emptyDescription, emptyAction, withPresence = false }: ImageGridProps) => {
   if (images.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <ImageOff className="size-12 text-muted-foreground/50" />
-        <p className="mt-3 text-sm text-muted-foreground">{emptyText}</p>
-      </div>
+      <EmptyState
+        icon={<ImageOff className="size-5" />}
+        title={emptyText}
+        description={emptyDescription}
+        action={emptyAction}
+      />
     );
   }
 
@@ -43,7 +49,7 @@ const ImageGrid = ({ images, emptyText, withPresence = false }: ImageGridProps) 
 
   return (
     <motion.div
-      className="grid grid-cols-2 items-stretch gap-4 sm:grid-cols-3 lg:grid-cols-4"
+      className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
       initial="hidden"
       animate="visible"
       variants={staggerVariants}

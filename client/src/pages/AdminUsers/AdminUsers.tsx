@@ -1,21 +1,39 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { KeyRound, Plus, ShieldCheck, UserCheck, UserRoundCog } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as adminApi from '@client/src/api/admin';
 import { getApiError } from '@client/src/api/client';
+import PageHeader from '@client/src/components/PageHeader';
+import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
+import { Select } from '@client/src/components/ui/select';
 import type { UserRole } from '@client/src/types/api';
 
-
 const roles: UserRole[] = ['business', 'designer', 'admin'];
+const roleLabels: Record<UserRole, string> = {
+  business: '业务用户',
+  designer: '设计师',
+  admin: '管理员',
+};
 
 export default function AdminUsers() {
   const client = useQueryClient();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('business');
+  const [resetTarget, setResetTarget] = useState<{ id: string; username: string } | null>(null);
+  const [nextPassword, setNextPassword] = useState('');
   const users = useQuery({ queryKey: ['admin-users'], queryFn: adminApi.fetchUsers });
   const refresh = () => client.invalidateQueries({ queryKey: ['admin-users'] });
   const create = useMutation({
@@ -34,69 +52,125 @@ export default function AdminUsers() {
     onSuccess: refresh,
     onError: (error) => toast.error(getApiError(error).message),
   });
+  const resetPassword = useMutation({
+    mutationFn: ({ id, password: value }: { id: string; password: string }) => adminApi.resetPassword(id, value),
+    onSuccess: () => {
+      setResetTarget(null);
+      setNextPassword('');
+      toast.success('密码已重置，旧会话已失效');
+    },
+    onError: (error) => toast.error(getApiError(error).message),
+  });
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <h1 className="text-2xl font-semibold">用户管理</h1>
-      <div className="mt-5 grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-[1fr_1fr_160px_auto]">
-        <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="新账号" />
-        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="初始密码（至少 8 位）" />
-        <select className="rounded-md border bg-background px-3 text-sm" value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
-          {roles.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
-        <Button
-          disabled={create.isPending || username.trim().length < 3 || password.length < 8}
-          onClick={() => create.mutate({ username: username.trim(), password, role })}
-        >
-          创建账号
-        </Button>
-      </div>
-      <div className="mt-5 overflow-hidden rounded-xl border bg-card">
+    <div className="page-shell max-w-6xl">
+      <PageHeader
+        eyebrow="Administration"
+        title="用户与权限"
+        description="创建工作账号、分配角色，并在人员变化时及时停用访问权限。"
+      />
+
+      <section className="surface-card mt-7 p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+            <Plus className="size-5" />
+          </div>
+          <div>
+            <h2 className="font-semibold">创建新账号</h2>
+            <p className="mt-1 text-xs text-muted-foreground">账号创建后即可按角色进入对应工作区。</p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_180px_auto] md:items-end">
+          <label>
+            <span className="field-label">账号</span>
+            <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="至少 3 个字符" />
+          </label>
+          <label>
+            <span className="field-label">初始密码</span>
+            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="至少 8 位" />
+          </label>
+          <label>
+            <span className="field-label">角色</span>
+            <Select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
+              {roles.map((item) => <option key={item} value={item}>{roleLabels[item]}</option>)}
+            </Select>
+          </label>
+          <Button
+            disabled={create.isPending || username.trim().length < 3 || password.length < 8}
+            onClick={() => create.mutate({ username: username.trim(), password, role })}
+          >
+            <Plus className="size-4" />创建账号
+          </Button>
+        </div>
+      </section>
+
+      <section className="surface-card mt-6 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border/80 px-5 py-4">
+          <div>
+            <h2 className="font-semibold">现有账号</h2>
+            <p className="mt-1 text-xs text-muted-foreground">角色修改即时生效，停用后所有旧会话失效。</p>
+          </div>
+          {users.data && <Badge variant="secondary">{users.data.length} 个账号</Badge>}
+        </div>
         {users.isLoading ? (
-          <p className="p-5 text-sm text-muted-foreground">正在加载...</p>
+          <p className="p-6 text-sm text-muted-foreground">正在加载账号…</p>
         ) : users.isError ? (
-          <p className="p-5 text-sm text-destructive">
-            {getApiError(users.error).message}
-          </p>
+          <p className="p-6 text-sm text-destructive">{getApiError(users.error).message}</p>
         ) : users.data?.map((user) => (
-          <div key={user.id} className="grid items-center gap-3 border-b p-4 last:border-0 md:grid-cols-[1fr_180px_120px_auto]">
-            <div>
-              <div className="font-medium">{user.username}</div>
-              <div className="text-xs text-muted-foreground">{user.isActive ? '正常' : '已停用'}</div>
+          <div key={user.id} className="grid items-center gap-4 border-b border-border/70 px-5 py-4 last:border-0 md:grid-cols-[minmax(180px,1fr)_180px_120px_110px]">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${user.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-secondary text-muted-foreground'}`}>
+                {user.role === 'admin' ? <ShieldCheck className="size-4" /> : <UserCheck className="size-4" />}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{user.username}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{user.isActive ? '可正常登录' : '账号已停用'}</div>
+              </div>
             </div>
-            <select
-              className="h-9 rounded-md border bg-background px-2 text-sm"
+            <Select
               value={user.role}
-              onChange={(e) => update.mutate({ id: user.id, data: { role: e.target.value as UserRole } })}
+              onChange={(event) => update.mutate({ id: user.id, data: { role: event.target.value as UserRole } })}
             >
-              {roles.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+              {roles.map((item) => <option key={item} value={item}>{roleLabels[item]}</option>)}
+            </Select>
             <Button
               variant="outline"
               size="sm"
               onClick={() => update.mutate({ id: user.id, data: { isActive: !user.isActive } })}
             >
-              {user.isActive ? '停用' : '启用'}
+              {user.isActive ? '停用账号' : '重新启用'}
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                const next = window.prompt(`为 ${user.username} 设置新密码（至少 8 位）`);
-                if (!next) return;
-                try {
-                  await adminApi.resetPassword(user.id, next);
-                  toast.success('密码已重置，旧会话已失效');
-                } catch (error) {
-                  toast.error(getApiError(error).message);
-                }
-              }}
-            >
-              重置密码
+            <Button variant="ghost" size="sm" onClick={() => setResetTarget({ id: user.id, username: user.username })}>
+              <KeyRound className="size-4" />重置密码
             </Button>
           </div>
         ))}
-      </div>
+      </section>
+
+      <Dialog open={Boolean(resetTarget)} onOpenChange={(open) => !open && setResetTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+              <UserRoundCog className="size-5" />
+            </div>
+            <DialogTitle>重置 {resetTarget?.username} 的密码</DialogTitle>
+            <DialogDescription>保存后，该账号的旧登录会话会立即失效。</DialogDescription>
+          </DialogHeader>
+          <label>
+            <span className="field-label">新密码</span>
+            <Input type="password" value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} placeholder="至少 8 位" autoFocus />
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetTarget(null)}>取消</Button>
+            <Button
+              disabled={!resetTarget || nextPassword.length < 8 || resetPassword.isPending}
+              onClick={() => resetTarget && resetPassword.mutate({ id: resetTarget.id, password: nextPassword })}
+            >
+              确认重置
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

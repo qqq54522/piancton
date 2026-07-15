@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, Upload, X } from 'lucide-react';
+import { CheckCircle2, ImagePlus, Info, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as assetApi from '@client/src/api/asset';
@@ -9,25 +9,23 @@ import { Button } from '@client/src/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
+import { Select } from '@client/src/components/ui/select';
 import { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
+import UploadAssetPicker from './UploadAssetPicker';
+import UploadSearchPhraseFields from './UploadSearchPhraseFields';
+import { normalizeExpectedSearchWords } from './uploadSearchPhrases';
 
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-}
-
-const MAX_SEARCH_PHRASES = 5;
-
-export function normalizeExpectedSearchWords(values: string[]): string[] {
-  return [...new Set(values.map((item) => item.trim()).filter(Boolean))]
-    .slice(0, MAX_SEARCH_PHRASES);
 }
 
 const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
@@ -95,147 +93,122 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={(value) => (value ? onOpenChange(true) : close())}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>上传主图</DialogTitle>
+      <DialogContent
+        showCloseButton={!uploading}
+        className="grid max-h-[92vh] w-[calc(100%-1.25rem)] max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-0 p-0"
+      >
+        <DialogHeader className="border-b border-border/80 px-5 py-4 pr-14 sm:px-6 sm:py-5">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+              <ImagePlus className="size-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl tracking-tight">上传主图</DialogTitle>
+              <DialogDescription className="mt-1.5 leading-5">
+                先把已审核图片放进素材库。卖点、话术和延展版本都可以发布后继续完善。
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-          只选图片即可发布。业务概念、渠道和搜索话术都可以稍后在素材详情中补充。
-        </div>
-
-        <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 transition-colors hover:bg-muted/50">
-          <Upload className="size-8 text-muted-foreground" />
-          <span className="mt-2 text-sm text-muted-foreground">点击选择主图，可多选</span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(event) => setFiles(Array.from(event.target.files || []))}
-          />
-        </label>
-
-        {previews.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            {previews.map(({ file, url }) => (
-              <div key={`${file.name}-${file.lastModified}`} className="group relative overflow-hidden rounded-lg border">
-                <img src={url} alt={file.name} className="aspect-square size-full object-cover" />
-                <button
-                  type="button"
-                  aria-label={`移除 ${file.name}`}
-                  className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white"
-                  onClick={() => setFiles((items) => items.filter((item) => item !== file))}
-                >
-                  <X className="size-3" />
-                </button>
+        <div className="grid min-h-0 overflow-y-auto lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+          <section className="border-b border-border/80 bg-secondary/35 p-5 sm:p-6 lg:border-b-0 lg:border-r">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">1</span>
+              <div>
+                <h2 className="text-sm font-semibold">选择图片</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">图片是唯一必填项</p>
               </div>
-            ))}
-          </div>
-        )}
-
-        {files.length === 1 && (
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="图片名称（留空则使用文件名）"
-          />
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-2 text-sm font-medium">
-            <span>使用渠道（可选）</span>
-            <Input
-              value={channel}
-              onChange={(event) => setChannel(event.target.value)}
-              placeholder="例如：官网、朋友圈、公众号"
-              maxLength={100}
+            </div>
+            <UploadAssetPicker
+              files={files}
+              previews={previews}
+              onSelect={setFiles}
+              onRemove={(file) => setFiles((items) => items.filter((item) => item !== file))}
             />
-          </label>
-          <label className="space-y-2 text-sm font-medium">
-            <span>主要表达卖点（业务概念，可选）</span>
-            <select
-              value={conceptId}
-              onChange={(event) => setConceptId(event.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">交给 AI 建议或稍后确认</option>
-              {(concepts.data ?? []).map((concept) => (
-                <option key={concept.id} value={concept.id}>{concept.name}</option>
-              ))}
-            </select>
-            <span className="block text-xs font-normal text-muted-foreground">
-              这是具体卖点，不是六大体系；体系关系由概念配置自动复用。
-            </span>
-          </label>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">这张素材独有的搜索话术（可选）</span>
-            <span className="text-xs text-muted-foreground">最多 {MAX_SEARCH_PHRASES} 条</span>
-          </div>
-          <div className="mt-2 space-y-2">
-            {expectedSearchWords.map((value, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                  {index + 1}
-                </span>
-                <Input
-                  value={value}
-                  onChange={(event) => setExpectedSearchWords((items) => (
-                    items.map((item, itemIndex) => (
-                      itemIndex === index ? event.target.value : item
-                    ))
-                  ))}
-                  aria-label={`搜索话术 ${index + 1}`}
-                  placeholder={index === 0 ? '例如：孩子拍题只抄答案怎么办' : '再补充一种可能的搜索说法'}
-                  maxLength={300}
-                />
-                {expectedSearchWords.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`删除第 ${index + 1} 条搜索话术`}
-                    onClick={() => setExpectedSearchWords((items) => (
-                      items.filter((_, itemIndex) => itemIndex !== index)
-                    ))}
-                  >
-                    <X className="size-4" />
-                  </Button>
-                )}
+            {files.length > 1 && (
+              <div className="mt-3 flex gap-2 rounded-xl border border-primary/10 bg-accent/65 px-3 py-2.5 text-xs leading-5 text-accent-foreground">
+                <Info className="mt-0.5 size-3.5 shrink-0" />
+                右侧渠道、卖点和话术会应用到本次选中的全部图片；图片名称默认使用各自文件名。
               </div>
-            ))}
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => setExpectedSearchWords((items) => [...items, ''])}
-            disabled={expectedSearchWords.length >= MAX_SEARCH_PHRASES}
-          >
-            <Plus className="mr-1.5 size-4" />添加一条
-          </Button>
-          <p className="mt-2 text-xs text-muted-foreground">
-            通用业务话术跟随上方卖点复用；这里只补充这张图片独有的画面、文案或使用场景表达。
-          </p>
+            )}
+          </section>
+
+          <section className="p-5 sm:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <span className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">2</span>
+              <div>
+                <h2 className="text-sm font-semibold">补充素材信息</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">全部可选，留空也能直接发布</p>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              {files.length === 1 && (
+                <label className="block">
+                  <span className="field-label">素材名称</span>
+                  <Input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder={files[0]?.name.replace(/\.[^.]+$/, '') || '留空则使用文件名'}
+                    maxLength={200}
+                  />
+                </label>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="field-label">使用渠道</span>
+                  <Input
+                    value={channel}
+                    onChange={(event) => setChannel(event.target.value)}
+                    placeholder="官网、朋友圈、公众号"
+                    maxLength={100}
+                  />
+                  <span className="field-hint">用于筛选合适尺寸和使用场景</span>
+                </label>
+                <label className="block">
+                  <span className="field-label">主要表达卖点</span>
+                  <Select value={conceptId} onChange={(event) => setConceptId(event.target.value)}>
+                    <option value="">交给 AI 建议或稍后确认</option>
+                    {(concepts.data ?? []).map((concept) => (
+                      <option key={concept.id} value={concept.id}>{concept.name}</option>
+                    ))}
+                  </Select>
+                  <span className="field-hint">选择具体卖点；六大体系关系会自动复用</span>
+                </label>
+              </div>
+
+              <UploadSearchPhraseFields values={expectedSearchWords} onChange={setExpectedSearchWords} />
+
+              <div className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-card px-3.5 py-3 text-xs leading-5 text-muted-foreground">
+                {provider.isLoading ? (
+                  <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
+                ) : provider.data?.configured ? (
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                ) : (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+                )}
+                <span>
+                  {provider.isLoading
+                    ? '正在检查智能分析服务…'
+                    : provider.data?.configured
+                      ? '发布后会在后台执行 OCR、画面分析、卖点建议和搜索索引更新，不会阻塞当前上传。'
+                      : '当前未配置 AI，仍可正常上传和发布；之后可在详情页补做分析。'}
+                </span>
+              </div>
+            </div>
+          </section>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          {provider.isLoading
-            ? '正在检查 AI 分析服务…'
-            : provider.data?.configured
-              ? '上传后自动执行 OCR、客观画面分析、概念建议和搜索索引更新。'
-              : 'AI 未配置时仍可正常上传和发布，之后可以补做分析。'}
-        </p>
-
-        <DialogFooter>
+        <DialogFooter className="border-t border-border/80 bg-card px-5 py-4 sm:px-6">
+          <div className="mr-auto hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+            <CheckCircle2 className="size-4 text-success" />只要选择图片即可发布
+          </div>
           <Button variant="outline" onClick={close} disabled={uploading}>取消</Button>
-          <Button onClick={submit} disabled={uploading || !files.length}>
-            {uploading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            上传并发布
+          <Button onClick={submit} disabled={uploading || !files.length} className="min-w-28">
+            {uploading && <Loader2 className="size-4 animate-spin" />}
+            {uploading ? '正在上传' : files.length > 1 ? `发布 ${files.length} 张` : '上传并发布'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,7 +1,6 @@
-import { ArrowUpDown, Search, X } from 'lucide-react';
+import { ArrowUpDown, Check } from 'lucide-react';
 
 import { Button } from '@client/src/components/ui/button';
-import { Input } from '@client/src/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,51 +9,34 @@ import {
 } from '@client/src/components/ui/dropdown-menu';
 
 interface LocalImageToolbarProps {
-  searchInput: string;
+  imageCount: number;
   sortBy: 'createdAt' | 'downloadCount';
-  onSearchInputChange: (value: string) => void;
-  onKeywordChange: (value: string) => void;
   onSortByChange: (value: 'createdAt' | 'downloadCount') => void;
 }
 
-const LocalImageToolbar = ({
-  searchInput,
-  sortBy,
-  onSearchInputChange,
-  onKeywordChange,
-  onSortByChange,
-}: LocalImageToolbarProps) => (
-  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-    <div className="relative flex-1">
-      <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        placeholder="按标题、画面内容或业务表达查找..."
-        value={searchInput}
-        onChange={(event) => onSearchInputChange(event.target.value)}
-        onKeyDown={(event) => event.key === 'Enter' && onKeywordChange(searchInput)}
-        className="pl-9"
-      />
-      {searchInput && (
-        <button
-          type="button"
-          onClick={() => { onSearchInputChange(''); onKeywordChange(''); }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-        >
-          <X className="size-4" />
-        </button>
-      )}
+const LocalImageToolbar = ({ imageCount, sortBy, onSortByChange }: LocalImageToolbarProps) => (
+  <div className="mt-9 flex items-end justify-between gap-4">
+    <div>
+      <p className="section-kicker">Browse</p>
+      <div className="mt-1 flex items-baseline gap-2">
+        <h2 className="text-xl font-semibold tracking-tight">全部素材</h2>
+        {imageCount > 0 && <span className="text-xs text-muted-foreground">已加载 {imageCount} 组</span>}
+      </div>
     </div>
-    <Button variant="outline" size="sm" onClick={() => onKeywordChange(searchInput)}>搜索</Button>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          <ArrowUpDown className="mr-1.5 size-4" />
-          {sortBy === 'downloadCount' ? '下载量' : '最新上传'}
+          <ArrowUpDown className="size-4" />
+          {sortBy === 'downloadCount' ? '下载较多' : '最近上传'}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onSortByChange('createdAt')}>最新上传</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onSortByChange('downloadCount')}>下载量最多</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-40 rounded-xl p-1.5">
+        <DropdownMenuItem className="rounded-lg" onClick={() => onSortByChange('createdAt')}>
+          {sortBy === 'createdAt' && <Check className="size-4" />}最近上传
+        </DropdownMenuItem>
+        <DropdownMenuItem className="rounded-lg" onClick={() => onSortByChange('downloadCount')}>
+          {sortBy === 'downloadCount' && <Check className="size-4" />}下载较多
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   </div>

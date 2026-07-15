@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import * as imageApi from '@client/src/api/image';
 import { getApiError } from '@client/src/api/client';
 import { Button } from '@client/src/components/ui/button';
+import EmptyState from '@client/src/components/EmptyState';
+import PageHeader from '@client/src/components/PageHeader';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
 import type { ImageItem } from '@client/src/types/api';
 
@@ -20,7 +22,7 @@ function TrashItem({
 }) {
   const preview = useImageUrl(image.thumbnailUrl);
   return (
-    <article className="overflow-hidden rounded-xl border bg-card">
+    <article className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
       <img src={preview} alt={image.title} className="aspect-[4/3] w-full object-cover opacity-75" />
       <div className="p-3">
         <h2 className="truncate text-sm font-medium">{image.title}</h2>
@@ -70,9 +72,12 @@ export default function Trash() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <h1 className="text-2xl font-semibold">图片回收站</h1>
-      <p className="mt-1 text-sm text-muted-foreground">软删除的图片可恢复；永久删除不可撤销。</p>
+    <div className="page-shell">
+      <PageHeader
+        eyebrow="Recovery"
+        title="素材回收站"
+        description="误删素材可以恢复；只有确认不再需要时才执行永久删除。"
+      />
       {trash.isLoading ? (
         <p className="mt-8 text-sm text-muted-foreground">正在加载...</p>
       ) : trash.isError ? (
@@ -93,7 +98,13 @@ export default function Trash() {
           ))}
         </div>
       ) : (
-        <p className="mt-8 text-sm text-muted-foreground">回收站为空</p>
+        <div className="mt-7">
+          <EmptyState
+            icon={<Trash2 className="size-5" />}
+            title="回收站是空的"
+            description="删除的素材会暂存在这里，方便在误操作后恢复。"
+          />
+        </div>
       )}
     </div>
   );

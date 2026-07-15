@@ -9,6 +9,7 @@ ACTIVE_DOCS = (
     "docs/DEVELOPMENT_GUARDRAILS.md",
     "docs/SEARCH_MODES_AND_AI.md",
     "docs/SERVER_DEPLOYMENT_CHECKLIST.md",
+    "docs/UX_UI_DESIGN_SYSTEM.md",
 )
 
 HISTORICAL_DOCS = (
@@ -73,5 +74,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "当前范围：Phase 0～Phase 6" in project_log
     assert "D026" in master
     assert "D028" in master
+    assert "D029" in master
     assert "文档一致性自动测试" in master
-    assert "素材独有搜索话术采用最多 5 条的逐条添加交互" in master
+    assert "首次上传最多录入 5 条" in master
+    assert "不是素材搜索话术的永久总上限" in master

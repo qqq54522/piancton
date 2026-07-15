@@ -6,6 +6,7 @@ import type { AssetRelationRole } from '@client/src/api/asset';
 import { getApiError } from '@client/src/api/client';
 import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
+import { Select } from '@client/src/components/ui/select';
 import type { AssetGroup, BusinessConcept } from '@client/src/types/api';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
 
@@ -69,12 +70,12 @@ function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptRevie
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="surface-card p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">业务概念关系确认</h2>
+          <h2 className="font-semibold">业务卖点关系</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            这里只确认图片表达什么，不对图片质量打分。
+            确认这张素材主要表达什么、还能支持什么；这不是图片质量评分。
           </p>
         </div>
         {pending.length > 1 && (
@@ -86,7 +87,7 @@ function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptRevie
       </div>
 
       <div className="mt-4">
-        <p className="text-xs font-medium text-muted-foreground">负责人已确认</p>
+        <p className="text-xs font-medium text-muted-foreground">已确认关系</p>
         <div className="mt-2 flex min-h-8 flex-wrap gap-2">
           {confirmed.length > 0 ? confirmed.map((item) => (
             <Badge key={item.id} variant={item.relationRole === 'expresses' ? 'default' : 'outline'}>
@@ -124,25 +125,23 @@ function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptRevie
       <div className="mt-5 border-t border-border pt-4">
         <p className="text-xs font-medium text-muted-foreground">手动补充确认关系</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_150px_auto]">
-          <select
+          <Select
             value={conceptId}
             onChange={(event) => setConceptId(event.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">选择业务概念</option>
             {availableConcepts.map((concept) => (
               <option key={concept.id} value={concept.id}>{concept.name}</option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
             value={relationRole}
             onChange={(event) => setRelationRole(event.target.value as AssetRelationRole)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           >
             {Object.entries(ROLE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
-          </select>
+          </Select>
           <Button size="sm" onClick={confirmManual} disabled={!conceptId || actions.confirmConcept.isPending}>
             确认关系
           </Button>

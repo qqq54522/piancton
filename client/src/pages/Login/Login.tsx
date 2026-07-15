@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Images, LockKeyhole, UserRound } from 'lucide-react';
+import { Images, LockKeyhole, Sparkles, UserRound } from 'lucide-react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { getApiError } from '@client/src/api/client';
@@ -40,15 +40,16 @@ const Login = () => {
 
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-4 py-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(221_75%_55%/0.12),transparent_36%),radial-gradient(circle_at_bottom_right,hsl(160_60%_45%/0.09),transparent_32%)]" />
-      <section className="relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-        <div className="border-b border-border bg-gradient-to-br from-primary/10 via-card to-card px-7 pb-6 pt-7">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary shadow-md">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(224_76%_54%/0.14),transparent_34rem),radial-gradient(circle_at_bottom_right,hsl(199_85%_60%/0.10),transparent_30rem)]" />
+      <section className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/80 bg-card/95 shadow-2xl shadow-slate-900/10 backdrop-blur">
+        <div className="border-b border-border/70 bg-gradient-to-br from-primary/10 via-card to-card px-7 pb-6 pt-7">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-400 shadow-md shadow-primary/20">
             <Images className="size-5 text-primary-foreground" />
           </div>
-          <h1 className="mt-5 text-2xl font-semibold tracking-tight">登录标签图片仓库</h1>
+          <p className="mt-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary"><Sparkles className="size-3.5" />Piancton</p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">登录业务素材中心</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            使用管理员分配的账号登录，工作端由账号角色决定。
+            一个入口完成素材搜索、上传和业务关系维护。
           </p>
         </div>
         <form className="space-y-5 p-7" onSubmit={submit}>
@@ -60,7 +61,7 @@ const Login = () => {
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 placeholder="请输入账号"
-                className="h-10 pl-9"
+                className="h-11 pl-9"
                 autoComplete="username"
               />
             </div>
@@ -74,13 +75,13 @@ const Login = () => {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="至少 8 位密码"
-                className="h-10 pl-9"
+                className="h-11 pl-9"
                 autoComplete="current-password"
               />
             </div>
           </label>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="h-10 w-full" disabled={submitting}>
+          <Button type="submit" className="h-11 w-full" disabled={submitting}>
             {submitting ? '登录中...' : '登录'}
           </Button>
         </form>

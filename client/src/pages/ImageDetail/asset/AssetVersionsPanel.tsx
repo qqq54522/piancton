@@ -45,11 +45,11 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="surface-card p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold">素材版本与尺寸</h2>
-          <p className="mt-1 text-xs text-muted-foreground">同组版本共享业务关系，搜索结果只展示一张卡片。</p>
+          <h2 className="font-semibold">版本与尺寸</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">同组版本共享业务关系，搜索结果只占一个位置。</p>
         </div>
         {editable && (
           <div className="flex gap-2">
@@ -64,7 +64,7 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {group.images.map((image) => (
-          <div key={image.id} className={`overflow-hidden rounded-lg border ${image.isCurrent ? 'border-border' : 'border-dashed opacity-60'}`}>
+          <div key={image.id} className={`overflow-hidden rounded-xl border ${image.isCurrent ? 'border-border' : 'border-dashed opacity-60'}`}>
             <img src={image.thumbnailUrl} alt={image.title} className="aspect-[4/3] w-full object-cover" />
             <div className="space-y-1 p-3">
               <div className="flex items-center justify-between gap-2">

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchSearchOpsSummary } from '@client/src/api/admin';
 import { getApiError } from '@client/src/api/client';
 import { Button } from '@client/src/components/ui/button';
+import PageHeader from '@client/src/components/PageHeader';
 import {
   AssetGapsSection,
   FeedbackSection,
@@ -36,14 +37,12 @@ export default function AdminSearchOps() {
   const data = summary.data;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">搜索运营</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            管理员用于治理搜索质量、AI 概念关系、概念健康度和素材缺口。
-          </p>
-        </div>
+    <div className="page-shell">
+      <PageHeader
+        eyebrow="Search Operations"
+        title="搜索运营"
+        description="从真实查询和业务反馈中发现搜索问题、待审核卖点关系与素材缺口。"
+        actions={(
         <div className="inline-flex w-fit border border-border bg-card p-1">
           {dayOptions.map((value) => (
             <Button
@@ -56,15 +55,16 @@ export default function AdminSearchOps() {
             </Button>
           ))}
         </div>
-      </div>
+        )}
+      />
 
-      <div className="mt-5 flex flex-wrap gap-2 border-b border-border">
+      <div className="mt-7 flex flex-wrap gap-1 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
         {tabs.map((tab) => (
           <Button
             key={tab.id}
             variant={activeTab === tab.id ? 'default' : 'ghost'}
             size="sm"
-            className="mb-2"
+            className=""
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
@@ -77,7 +77,7 @@ export default function AdminSearchOps() {
       ) : summary.isError ? (
         <p className="mt-6 text-sm text-destructive">{getApiError(summary.error).message}</p>
       ) : data ? (
-        <div className="mt-6">
+        <div className="mt-7">
           {activeTab === 'overview' && <OverviewSection data={data} />}
           {activeTab === 'issues' && <IssuesSection issues={data.searchIssues} />}
           {activeTab === 'review' && <ReviewQueueSection items={data.aiReviewQueue} />}

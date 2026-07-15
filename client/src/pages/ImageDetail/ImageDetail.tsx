@@ -44,28 +44,30 @@ const ImageDetail = () => {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <div className="mb-4">
+    <div className="page-shell">
+      <div className="mb-5 flex items-center gap-2 text-sm">
         <button
           type="button"
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          返回
+          素材库
         </button>
+        <span className="text-border">/</span>
+        <span className="max-w-64 truncate text-muted-foreground">{detail.title}</span>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <div className="flex-1 overflow-hidden rounded-xl bg-[#1a1a2e] lg:max-w-[65%]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.75fr)]">
+        <div className="surface-card flex min-h-[420px] items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#f1f5f9_25%,transparent_25%),linear-gradient(225deg,#f1f5f9_25%,transparent_25%),linear-gradient(45deg,#f1f5f9_25%,transparent_25%),linear-gradient(315deg,#f1f5f9_25%,#fff_25%)] bg-[length:24px_24px] bg-[position:12px_0,12px_0,0_0,0_0] p-4">
           <img
             src={mainImageUrl}
             alt={detail.title}
-            className="mx-auto max-h-[70vh] w-full object-contain"
+            className="mx-auto max-h-[72vh] w-full rounded-xl object-contain shadow-sm"
           />
         </div>
 
-        <div className="flex-1 lg:max-w-[35%]">
+        <div>
           <ImageDetailInfoPanel
             detail={detail}
             isDesigner={isDesigner}

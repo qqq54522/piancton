@@ -19,13 +19,13 @@ const ImageCard = ({ image, overlay }: ImageCardProps) => {
   return (
     <Link
       to={`/image/${image.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={imageUrl}
           alt={image.title}
-          className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+        className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           loading="lazy"
         />
         {overlay && <div className="absolute inset-0 overflow-hidden">{overlay}</div>}
@@ -36,8 +36,8 @@ const ImageCard = ({ image, overlay }: ImageCardProps) => {
           </div>
         )}
       </div>
-      <div className="flex min-h-[82px] flex-1 flex-col p-3">
-        <h3 className="truncate text-sm font-medium text-foreground">{image.title}</h3>
+      <div className="flex min-h-[88px] flex-1 flex-col p-3.5">
+        <h3 className="truncate text-sm font-semibold text-foreground">{image.title}</h3>
         <div className="mt-2 flex min-h-6 items-center gap-1.5">
           {image.channel && <Badge variant="outline" className="text-[10px] font-normal">{image.channel}</Badge>}
           {image.width && image.height ? (

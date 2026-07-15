@@ -66,7 +66,7 @@ export function MetricCard({
   icon: typeof Activity;
 }) {
   return (
-    <div className="border border-border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">{label}</span>
         <Icon className="size-4 text-primary" />
@@ -86,7 +86,7 @@ export function MetricList({
   emptyText: string;
 }) {
   return (
-    <section className="border border-border bg-card">
+    <section className="surface-card overflow-hidden">
       <div className="border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       </div>
@@ -144,7 +144,7 @@ export function OverviewSection({ data }: { data: SearchOpsSummary }) {
 
 export function IssuesSection({ issues }: { issues: SearchOpsIssue[] }) {
   return (
-    <section className="overflow-hidden border border-border bg-card">
+    <section className="surface-card overflow-hidden">
       <SectionHeader title="搜索问题队列" description="从空结果、降级和用户反馈中自动归因出的待处理事项。" />
       {issues.length ? (
         <div className="divide-y divide-border">
@@ -178,7 +178,7 @@ export function IssuesSection({ issues }: { issues: SearchOpsIssue[] }) {
 
 export function ReviewQueueSection({ items }: { items: AiConceptReviewQueueItem[] }) {
   return (
-    <section className="overflow-hidden border border-border bg-card">
+    <section className="surface-card overflow-hidden">
       <SectionHeader title="AI 概念关系审核池" description="在素材详情中确认主要表达、可以支持或排除关系。" />
       {items.length ? (
         <div className="divide-y divide-border">
@@ -218,7 +218,7 @@ export function ReviewQueueSection({ items }: { items: AiConceptReviewQueueItem[
 
 export function ConceptHealthSection({ items }: { items: ConceptHealthItem[] }) {
   return (
-    <section className="overflow-hidden border border-border bg-card">
+    <section className="surface-card overflow-hidden">
       <SectionHeader title="业务概念健康度" description="按素材供给、搜索需求和 AI 审核压力判断概念治理优先级。" />
       {items.length ? (
         <div className="overflow-x-auto">
@@ -267,7 +267,7 @@ export function ConceptHealthSection({ items }: { items: ConceptHealthItem[] }) 
 
 export function AssetGapsSection({ items }: { items: AssetGapItem[] }) {
   return (
-    <section className="overflow-hidden border border-border bg-card">
+    <section className="surface-card overflow-hidden">
       <SectionHeader title="素材需求地图" description="把高频空结果、结果太少和业务方素材需求合并成补图优先级。" />
       {items.length ? (
         <div className="divide-y divide-border">
@@ -303,7 +303,7 @@ export function FeedbackSection({
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      <section className="overflow-hidden border border-border bg-card">
+      <section className="surface-card overflow-hidden">
         <SectionHeader title="最近反馈" />
         {feedback.length ? (
           <div className="divide-y divide-border">
@@ -325,7 +325,7 @@ export function FeedbackSection({
         )}
       </section>
 
-      <section className="overflow-hidden border border-border bg-card">
+      <section className="surface-card overflow-hidden">
         <SectionHeader title="最近搜索" />
         {logs.length ? (
           <div className="divide-y divide-border">
