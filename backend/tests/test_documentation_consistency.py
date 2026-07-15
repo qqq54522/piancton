@@ -69,12 +69,26 @@ def test_historical_docs_are_explicitly_marked():
 def test_master_and_project_log_publish_the_same_current_phase():
     master = _read("docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md")
     project_log = _read("docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md")
+    ux_rules = _read("docs/UX_UI_DESIGN_SYSTEM.md")
+    readme = _read("README.md")
+    branding = _read("client/src/lib/branding.ts")
+    layout = _read("client/src/components/Layout.tsx")
+    login = _read("client/src/pages/Login/Login.tsx")
+    html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
     assert "当前范围：Phase 0～Phase 6" in project_log
     assert "D026" in master
     assert "D028" in master
     assert "D029" in master
+    assert "D030" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
+    assert "系统正式产品名称统一为“卖点智库”" in master
+    assert "# 卖点智库 UX/UI 设计规范" in ux_rules
+    assert readme.startswith("# 卖点智库\n")
+    assert "PRODUCT_NAME = '卖点智库'" in branding
+    assert "PRODUCT_NAME" in layout
+    assert "PRODUCT_NAME" in login
+    assert "<title>卖点智库</title>" in html

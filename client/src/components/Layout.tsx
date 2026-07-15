@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@client/src/components/ui/dropdown-menu';
 import { useAuth } from '@client/src/lib/auth';
+import { PRODUCT_DESCRIPTOR, PRODUCT_NAME } from '@client/src/lib/branding';
 
 const navClass = ({ isActive }: { isActive: boolean }) => (
   `inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors ${
@@ -65,8 +66,8 @@ const Layout = () => {
               <Images className="size-[18px] text-primary-foreground" />
             </div>
             <div className="hidden leading-tight sm:block">
-              <span className="block text-sm font-semibold tracking-tight text-foreground">业务素材中心</span>
-              <span className="block text-[10px] tracking-[0.12em] text-muted-foreground">PIANCTON</span>
+              <span className="block text-sm font-semibold tracking-tight text-foreground">{PRODUCT_NAME}</span>
+              <span className="block text-[10px] tracking-[0.08em] text-muted-foreground">{PRODUCT_DESCRIPTOR}</span>
             </div>
           </NavLink>
 

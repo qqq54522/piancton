@@ -6,6 +6,7 @@ import { getApiError } from '@client/src/api/client';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import { useAuth } from '@client/src/lib/auth';
+import { PRODUCT_NAME } from '@client/src/lib/branding';
 
 
 const Login = () => {
@@ -46,8 +47,8 @@ const Login = () => {
           <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-400 shadow-md shadow-primary/20">
             <Images className="size-5 text-primary-foreground" />
           </div>
-          <p className="mt-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary"><Sparkles className="size-3.5" />Piancton</p>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">登录业务素材中心</h1>
+          <p className="mt-5 flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-primary"><Sparkles className="size-3.5" />{PRODUCT_NAME}</p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">欢迎登录</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             一个入口完成素材搜索、上传和业务关系维护。
           </p>

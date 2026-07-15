@@ -8,8 +8,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RoutesComponent from './app';
 import { Toaster } from '@client/src/components/ui/sonner';
 import { AuthProvider } from '@client/src/lib/auth';
+import { PRODUCT_NAME } from '@client/src/lib/branding';
 import './index.css';
 
+document.title = PRODUCT_NAME;
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
