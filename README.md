@@ -23,10 +23,10 @@
 
 ## 当前状态与后续工作
 
-Phase 0～6 工程改造和旧职责清理已经完成。当前本地素材库为空，下一步是录入 3～6 张已审核代表主图、确认业务概念关系并重新建立真实搜索基线。
+Phase 0～6 工程改造和旧职责清理已经完成。当前本地素材库已有 1 张已审核代表主图并完成“主要表达”关系确认；下一步再补充 2～5 张代表主图，并重新建立真实搜索基线。
 当前本地检查结果：
 
-- 后端 pytest：86 项通过（含 4 项文档一致性检查）
+- 后端 pytest：87 项通过（含 4 项文档一致性检查）
 - Ruff、Pyright：通过
 - 前端 TypeScript、ESLint、Vitest、生产构建：通过
 - 搜索评测资产：50 条用例通过结构校验
@@ -35,7 +35,7 @@ Phase 0～6 工程改造和旧职责清理已经完成。当前本地素材库�
 
 剩余工作不是重复改基础代码，而是建立真实素材闭环并完成生产环境验收：
 
-1. 上传 3～6 张已审核代表主图并确认“主要表达/可以支持/不适用”关系。
+1. 在现有 1 张已审核代表主图基础上再补充 2～5 张，并确认“主要表达/可以支持/不适用”关系。
 2. 建立 10～20 条真实查询绑定，重新生成 Phase 0/4 报告。
 3. 启用需要的外部搜索增强，完成故障注入和 P95 压测。
 4. 在目标服务器配置域名、HTTPS、PostgreSQL 和持久化卷。
@@ -141,6 +141,7 @@ MEILISEARCH_IMAGE=你的镜像源/getmeili/meilisearch:v1.13
 
 ```env
 SEARCH_BACKEND=meilisearch
+COMPOSE_PROFILES=search
 MEILISEARCH_URL=http://meilisearch:7700
 MEILISEARCH_API_KEY=replace-with-a-search-master-key
 ```

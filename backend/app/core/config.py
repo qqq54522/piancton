@@ -47,9 +47,9 @@ class Settings(BaseSettings):
     reranker_top_n: int = 50
     search_total_timeout_seconds: float = 2.5
     search_meilisearch_timeout_seconds: float = 0.2
-    search_embedding_timeout_seconds: float = 0.65
+    search_embedding_timeout_seconds: float = 1.8
     search_understanding_timeout_seconds: float = 0.9
-    search_reranker_timeout_seconds: float = 0.7
+    search_reranker_timeout_seconds: float = 1.4
     search_candidate_limit: int = 20
     search_cache_ttl_seconds: float = 300.0
     search_cache_max_entries: int = 512

@@ -65,7 +65,10 @@ class AsyncSearchOrchestrator:
             external_query,
             limit,
         )
-        embedding_result, embedding_task = self.external_branches.start_embedding(keyword)
+        embedding_result, embedding_task = self.external_branches.start_embedding(
+            keyword,
+            local_understanding,
+        )
         understanding_result, understanding_task = self.external_branches.start_understanding(
             keyword,
             local_understanding,

@@ -247,6 +247,61 @@ def test_phase4_versioned_concept_phrase_recalls_confirmed_asset(db_factory):
     )
 
 
+def test_phase4_school_alignment_query_recalls_confirmed_asset_locally(db_factory):
+    class UnexpectedEmbedding:
+        configured = True
+        model_name = "unused-for-high-confidence-local-query"
+
+        def embed(self, _inputs: list[str]):
+            raise AssertionError("本地高置信概念查询不应等待 Embedding")
+
+    with db_factory() as db:
+        image = _image("课程同步", "school-sync.png")
+        concept = BusinessConcept(
+            code="school_sync",
+            name="同步校内",
+            concept_type="business_term",
+        )
+        group = AssetGroup(
+            title=image.title,
+            created_by="designer",
+            images=[image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([concept, group])
+        db.flush()
+        group.primary_image_id = image.id
+        db.commit()
+
+        response = SearchService(
+            db,
+            embedding_client=UnexpectedEmbedding(),
+        ).search("和学校课程一致", 12)
+
+    assert response.search_understanding is not None
+    assert response.search_understanding.normalized_query == "同步校内"
+    assert [item.image.id for item in response.results] == [image.id]
+    assert any(
+        "素材主要表达业务概念" in reason
+        for reason in response.results[0].match_reasons
+    )
+    assert response.search_diagnostics is not None
+    embedding_branch = next(
+        item
+        for item in response.search_diagnostics.branches
+        if item.source == "embedding"
+    )
+    assert embedding_branch.status == "skipped"
+    assert embedding_branch.detail == "本地高置信业务概念已满足"
+
+
 def test_phase4_generic_short_phrase_does_not_cross_match_long_query(db_factory):
     with db_factory() as db:
         image = _image("动画课程素材", "course.png")

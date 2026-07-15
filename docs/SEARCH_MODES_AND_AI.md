@@ -40,11 +40,11 @@ Embedding 语义召回 ──────┤
 |---|---:|
 | 总截止 | 2.5 秒 |
 | Meilisearch | 0.2 秒 |
-| Embedding | 0.65 秒 |
+| Embedding | 1.8 秒；高置信本地概念查询跳过 |
 | 复杂查询理解 | 0.9 秒 |
-| Top 20 Reranker | 0.7 秒 |
+| Top 20 Reranker | 1.4 秒，且受剩余总截止约束 |
 
-这些数值是工程初始值，仍需用新代表素材和真实 Provider 完成 P95 验收。
+这些数值来自首张真实素材和当前 Provider 的单次延迟校准；样本仍不足，后续需要随代表素材和真实查询继续完成 P95 验收。
 
 ## 降级规则
 
@@ -110,9 +110,9 @@ Provider 未配置或分析失败不影响图片上传、预览、下载和人�
 SEARCH_BACKEND=database
 SEARCH_TOTAL_TIMEOUT_SECONDS=2.5
 SEARCH_MEILISEARCH_TIMEOUT_SECONDS=0.2
-SEARCH_EMBEDDING_TIMEOUT_SECONDS=0.65
+SEARCH_EMBEDDING_TIMEOUT_SECONDS=1.8
 SEARCH_UNDERSTANDING_TIMEOUT_SECONDS=0.9
-SEARCH_RERANKER_TIMEOUT_SECONDS=0.7
+SEARCH_RERANKER_TIMEOUT_SECONDS=1.4
 SEARCH_CANDIDATE_LIMIT=20
 ```
 
@@ -121,6 +121,6 @@ SEARCH_CANDIDATE_LIMIT=20
 ## 当前验收边界
 
 - 工程故障注入已经覆盖任一外部分支失败时仍有数据库结果。
-- 当前正式素材库为空，历史 Phase 0/4 报告不代表当前搜索质量。
-- 录入 3～6 张代表素材并绑定 10～20 条真实查询后，重新生成基线。
+- 当前正式素材库已有 1 张已审核代表主图；单图、单查询验证不代表整体搜索质量。
+- 再补充 2～5 张代表素材并累计绑定 10～20 条真实查询后，重新生成 Phase 0/4 基线。
 - 开启实际外部 Provider 后，执行全链路质量、超时、降级和 P95 验收。

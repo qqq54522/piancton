@@ -75,6 +75,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     layout = _read("client/src/components/Layout.tsx")
     login = _read("client/src/pages/Login/Login.tsx")
     home_header = _read("client/src/pages/ImageHome/ImageHomeHeader.tsx")
+    search_result = _read("client/src/pages/ImageHome/SemanticSearchResult/index.tsx")
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -84,6 +85,8 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D029" in master
     assert "D030" in master
     assert "D031" in master
+    assert "D032" in master
+    assert "D033" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -95,4 +98,12 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "PRODUCT_NAME" in login
     assert "title={PRODUCT_NAME}" in home_header
     assert "业务素材库" not in home_header
+    assert "外部增强" not in search_result
+    assert "智能语义搜索暂时响应较慢" in search_result
+    assert "和学校课程一致" in master
+    assert "外部服务只增强" in master
+    assert "当前本地素材库已有 1 张" in readme
+    assert "当前本地素材库为空" not in readme
+    assert "当前正式素材库为空" not in _read("docs/SEARCH_MODES_AND_AI.md")
+    assert "本地正式素材库当前为空" not in _read("docs/ARCHITECTURE.md")
     assert "<title>卖点智库</title>" in html

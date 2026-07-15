@@ -61,7 +61,16 @@ class SearchExternalBranches:
             )
         )
 
-    def start_embedding(self, keyword: str):
+    def start_embedding(
+        self,
+        keyword: str,
+        local_understanding: SearchUnderstanding | None,
+    ):
+        if _has_high_confidence_local_concept(local_understanding):
+            return self.runner.skipped(
+                "embedding",
+                "本地高置信业务概念已满足",
+            ), None
         if not self.embedding.configured:
             return self.runner.skipped("embedding", "服务未配置"), None
         cache_key = f"{self.embedding.model_name}:{_cache_key(keyword)}"
@@ -162,3 +171,14 @@ async def _ready(value):
 
 def _cache_key(value: str) -> str:
     return "".join(value.lower().split())
+
+
+def _has_high_confidence_local_concept(
+    understanding: SearchUnderstanding | None,
+) -> bool:
+    if understanding is None:
+        return False
+    return any(
+        item.weight >= 0.85
+        for item in understanding.matched_business_concepts
+    )

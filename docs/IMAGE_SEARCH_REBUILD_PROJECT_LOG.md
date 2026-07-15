@@ -746,6 +746,54 @@ Model：数据结构和关系
 
 ---
 
+## 2026-07-16：首张真实素材搜索修正
+
+### 本轮目标
+
+- 修复“课程同步”素材已经人工确认“同步校内”，但查询“和学校课程一致”仍返回 0 张的问题。
+- 保证外部搜索服务失败时，人工确认概念及常见表达仍能由本地链路召回。
+
+### 完成内容
+
+- 新增“学校课程一致/同步/对齐”等 5 条概念级表达，查询不再误判为“动画精讲”。
+- 高置信本地概念查询跳过查询 Embedding 和模型查询理解；模糊查询继续并行使用外部分支。
+- 实测当前 Provider 延迟后，把查询 Embedding/Reranker 预算调整为 `1.8s/1.4s`，总截止保持 `2.5s`；Docker Compose 显式传递全部搜索预算配置。
+- 恢复 Meilisearch 容器，重建 1 张正式素材的派生索引，并完成健康、临时索引写入、真实查询和清理验证；本地 `.env` 启用 `COMPOSE_PROFILES=search`。
+- 业务端降级文案改为“智能语义搜索响应较慢，已使用基础搜索”，技术分支名称和超时诊断继续只在管理员搜索运营页展示。
+
+### 修改文件
+
+- 搜索：`business_intents.json`、`search_external_branches.py`、`search_orchestrator.py`、`config.py`、`docker-compose.yml` 和环境示例。
+- 前端：`SemanticSearchResult/index.tsx`。
+- 测试：`test_business_intents.py`、`test_phase4_search_orchestration.py`、`test_documentation_consistency.py`。
+- 文档：改造总纲、项目日志、开发护栏、搜索说明、UX/UI 规范和 README。
+
+### 数据迁移
+
+- 无结构迁移。后端启动时幂等同步 5 条新增概念表达，当前 `concept_search_phrases=454`；Meilisearch 正式派生索引已重建 1 张素材。
+
+### 测试结果
+
+- 失败优先回归：修改前两个专项测试均失败，错误归一为“动画精讲”；修改后通过。
+- 专项回归：业务意图、Phase 4 编排和文档一致性共 `21 passed`。
+- `make check`：后端 `87 passed`、Ruff、Pyright；前端 TypeScript、ESLint、Vitest（2 个文件、`3 passed`）和 production build 全部通过。
+- Provider 单次实测：Embedding `1.648s`、模型查询理解 `9.589s`、单候选 Reranker `1.269s`。
+- 真实数据库完整链路：`134ms`、1 张、无降级；关闭全部外部分支：`76ms`、仍返回同一张。
+- 浏览器走查：查询“和学校课程一致”显示 1 张“课程同步”，匹配原因包含“学校课程一致”和“同步校内”，无降级警告。
+
+### 遗留问题
+
+- 当前只有 1 张真实素材和 1 条已复验查询，Phase 0/4 搜索质量仍为 `partial`，不能据此宣称整体搜索质量验收完成。
+- 当前模型查询理解约 `9.6s`，不适合作为 2.5 秒在线主链路依赖；模糊查询优先依靠本地概念、Meilisearch 和 Embedding，模型结果允许超时丢弃。
+
+### 下一步
+
+1. 继续录入 2～5 张代表素材，并为每张建立明确查询、口语改写和禁止素材。
+2. 累计 10～20 条真实查询后重跑 Phase 0/4 基线，观察零结果率、Top 3 命中率和 P95。
+3. 根据更多真实延迟样本决定是否更换更快的查询理解模型，不在样本不足时放宽 2.5 秒总截止。
+
+---
+
 ## 后续日志模板
 
 后续每次改造在本文末尾追加以下内容：

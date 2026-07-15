@@ -61,7 +61,7 @@ const SemanticSearchResult = ({
         <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
           <AlertTriangle className="size-3.5 text-amber-600" />
           <span className="text-xs text-amber-700">
-            部分搜索增强服务暂不可用，已展示当前可用的最佳结果。
+            智能语义搜索暂时响应较慢，已使用基础搜索；结果可能不完整，可换一种说法或稍后重试。
           </span>
         </div>
       )}
