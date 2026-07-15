@@ -72,20 +72,7 @@ class EmbeddingIndexSync:
 
 
 def image_to_embedding_document(image: Image) -> str:
-    semantic_profile = ImageSemanticProfileService()
-    business_labels = [
-        label for label in image.business_labels if label.review_status != "rejected"
-    ]
-    parts = [
-        f"标题：{image.title}",
-        f"语义总结：{image.image_summary}" if image.image_summary else "",
-        "语义画像：" + "、".join(semantic_profile.profile_terms(image)),
-        "隐形标签：" + "、".join(item.tag_name for item in image.content_tags),
-        "业务标签：" + "、".join(_business_label_name(label) for label in business_labels),
-        "人工标签：" + "、".join(link.tag.name for link in image.tag_links),
-        "分类：" + "、".join(item.name for item in image.categories),
-    ]
-    return "\n".join(part for part in parts if part.strip() and not part.endswith("："))
+    return ImageSemanticProfileService().rerank_document(image)
 
 
 def embedding_content_hash(document_text: str, model_name: str) -> str:
@@ -109,9 +96,3 @@ def load_vector(vector_json: str) -> list[float]:
     if not isinstance(value, list):
         return []
     return [float(item) for item in value]
-
-
-def _business_label_name(label) -> str:
-    if label.tag.parent:
-        return f"{label.tag.parent.name} > {label.tag.name}"
-    return label.tag.name

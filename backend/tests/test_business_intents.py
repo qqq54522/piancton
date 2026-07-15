@@ -6,7 +6,7 @@ from app.domain.business_intents import (
     target_display_name,
 )
 from app.domain.search_policy import SearchPolicyCatalog
-from app.schemas.ai import SearchCategoryMatch, SearchUnderstanding
+from app.schemas.ai import SearchConceptMatch, SearchUnderstanding
 from app.services.query_understanding_service import QueryUnderstandingService
 
 
@@ -62,8 +62,8 @@ def test_query_understanding_maps_core_intent_queries_locally():
         understanding = service.understand(query)
         assert understanding is not None
         assert understanding.normalized_query == normalized_query
-        assert understanding.matched_level2_categories[0].category == category
-        assert understanding.matched_level2_categories[0].relation == "direct"
+        assert understanding.matched_business_concepts[0].concept == category
+        assert understanding.matched_business_concepts[0].relation == "direct"
 
 
 def test_query_understanding_falls_back_to_ai_when_local_intent_does_not_match():
@@ -98,7 +98,7 @@ def test_query_understanding_keeps_decisive_local_match_without_ai():
 
     assert understanding is not None
     assert understanding.normalized_query == "AI错题本"
-    assert understanding.matched_level2_categories[0].weight >= 0.85
+    assert understanding.matched_business_concepts[0].weight >= 0.85
 
 
 def test_query_understanding_uses_ai_for_weak_local_match():
@@ -240,7 +240,7 @@ def test_query_understanding_uses_weak_local_fallback_when_ai_unavailable():
     understanding = service.understand("只说一个模糊词")
 
     assert understanding is not None
-    match = understanding.matched_level2_categories[0]
+    match = understanding.matched_business_concepts[0]
     assert understanding.normalized_query == "AI错题本"
     assert match.weight < 0.85
     assert "本地弱兜底" in match.reason
@@ -256,15 +256,15 @@ def _ai_understanding(normalized_query: str) -> SearchUnderstanding:
         normalized_query=normalized_query,
         search_intent="AI 搜索理解",
         query_type="ai_search",
-        expanded_level1_tags=[],
-        matched_level2_categories=[
-            SearchCategoryMatch(
-                category="同步自学体系 > AI错题本",
+        expanded_terms=[],
+        matched_business_concepts=[
+            SearchConceptMatch(
+                concept="同步自学体系 > AI错题本",
                 relation="direct",
                 reason="AI 判断",
                 weight=0.91,
             )
         ],
-        exclude_tags=[],
+        excluded_concepts=[],
         search_strategy="AI 消歧",
     )

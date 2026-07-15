@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
+import * as assetApi from '@client/src/api/asset';
+import { getApiError } from '@client/src/api/client';
+import * as imageApi from '@client/src/api/image';
 import { Button } from '@client/src/components/ui/button';
 import {
   Dialog,
@@ -11,118 +14,76 @@ import {
   DialogTitle,
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
-import TagTreeSelector from '@client/src/components/TagTreeSelector';
-import type { TagWithCount } from '@client/src/types/api';
-import * as imageApi from '@client/src/api/image';
-import { getApiError } from '@client/src/api/client';
 import { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
-
+import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
 
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tags: TagWithCount[];
   onSuccess: () => void;
 }
 
-const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps) => {
+const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
-  const [primaryTagId, setPrimaryTagId] = useState<string | null>(null);
-  const [additionalTagIds, setAdditionalTagIds] = useState<string[]>([]);
-  const [categories, setCategories] = useState<string[]>(['function']);
+  const [channel, setChannel] = useState('');
+  const [conceptId, setConceptId] = useState('');
   const [expectedSearchWords, setExpectedSearchWords] = useState('');
   const [uploading, setUploading] = useState(false);
   const provider = useProviderStatus(open);
-
+  const concepts = useBusinessConcepts(open);
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
   );
 
-  const reset = () => {
+  useEffect(() => () => {
     previews.forEach((item) => URL.revokeObjectURL(item.url));
+  }, [previews]);
+
+  const reset = () => {
     setFiles([]);
     setTitle('');
-    setPrimaryTagId(null);
-    setAdditionalTagIds([]);
-    setCategories(['function']);
+    setChannel('');
+    setConceptId('');
     setExpectedSearchWords('');
   };
-
   const close = () => {
     reset();
     onOpenChange(false);
   };
 
-  const toggleTag = (tagId: string) => {
-    if (tagId === primaryTagId) return;
-    setAdditionalTagIds((current) =>
-      current.includes(tagId)
-        ? current.filter((id) => id !== tagId)
-        : [...current, tagId],
-    );
-  };
-
-  const selectPrimaryTag = (tagId: string) => {
-    setPrimaryTagId((current) => {
-      const next = current === tagId ? null : tagId;
-      if (next) {
-        setAdditionalTagIds((items) => items.filter((id) => id !== next));
-      }
-      return next;
-    });
-  };
-
-  const toggleCategory = (category: string) => {
-    setCategories((current) =>
-      current.includes(category)
-        ? current.filter((item) => item !== category)
-        : [...current, category],
-    );
-  };
-
   const submit = async () => {
     if (!files.length) return toast.error('请选择图片');
-    if (!primaryTagId) return toast.error('请选择一个主业务标签');
-    if (!categories.length) return toast.error('请至少选择一个分类');
-
     setUploading(true);
     try {
-      let providerConfigured = provider.data?.configured ?? false;
-      try {
-        providerConfigured = (await imageApi.fetchProviderStatus()).configured;
-      } catch {
-        // 上传接口会在后端再次判断是否已配置模型，这里只影响提示文案。
-      }
       for (const [index, file] of files.entries()) {
-        const fileTitle =
-          files.length === 1 && title.trim()
-            ? title.trim()
-            : file.name.replace(/\.[^.]+$/, '');
-        await imageApi.uploadImage(
+        const fileTitle = files.length === 1 && title.trim()
+          ? title.trim()
+          : file.name.replace(/\.[^.]+$/, '') || `图片 ${index + 1}`;
+        const image = await imageApi.uploadImage({
           file,
-          fileTitle || `图片 ${index + 1}`,
-          [primaryTagId, ...additionalTagIds.filter((id) => id !== primaryTagId)],
-          primaryTagId,
-          categories,
-          expectedSearchWords
+          title: fileTitle,
+          channel,
+          expectedSearchWords: expectedSearchWords
             .split('\n')
             .map((item) => item.trim())
             .filter(Boolean)
             .slice(0, 5),
-          true,
-        );
+          autoAnalyze: true,
+        });
+        if (conceptId && image.assetGroupId) {
+          await assetApi.confirmAssetConcept(image.assetGroupId, conceptId, 'expresses');
+        }
       }
-      if (providerConfigured) {
-        toast.success(`成功上传 ${files.length} 张图片，AI 正在后台自动分析`);
-      } else {
-        toast.success(`成功上传 ${files.length} 张图片，AI 已由后端判断是否自动分析`);
-      }
+      toast.success(
+        provider.data?.configured
+          ? `已上传 ${files.length} 张主图，AI 正在后台分析`
+          : `已上传 ${files.length} 张主图`,
+      );
       onSuccess();
       close();
     } catch (error) {
-      console.error(error);
       toast.error(getApiError(error).message);
     } finally {
       setUploading(false);
@@ -133,12 +94,16 @@ const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps
     <Dialog open={open} onOpenChange={(value) => (value ? onOpenChange(true) : close())}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>上传图片</DialogTitle>
+          <DialogTitle>上传主图</DialogTitle>
         </DialogHeader>
+
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          只选图片即可发布。业务概念、渠道和搜索话术都可以稍后在素材详情中补充。
+        </div>
 
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 transition-colors hover:bg-muted/50">
           <Upload className="size-8 text-muted-foreground" />
-          <span className="mt-2 text-sm text-muted-foreground">点击选择本地图片，可多选</span>
+          <span className="mt-2 text-sm text-muted-foreground">点击选择主图，可多选</span>
           <input
             type="file"
             accept="image/*"
@@ -155,6 +120,7 @@ const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps
                 <img src={url} alt={file.name} className="aspect-square size-full object-cover" />
                 <button
                   type="button"
+                  aria-label={`移除 ${file.name}`}
                   className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white"
                   onClick={() => setFiles((items) => items.filter((item) => item !== file))}
                 >
@@ -169,94 +135,59 @@ const UploadDialog = ({ open, onOpenChange, tags, onSuccess }: UploadDialogProps
           <Input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="图片标题（留空则使用文件名）"
+            placeholder="图片名称（留空则使用文件名）"
           />
         )}
 
-        <div>
-          <p className="mb-2 text-sm font-medium">主业务标签</p>
-          <p className="mb-2 text-xs text-muted-foreground">
-            选择图片最核心的业务归属，系统会按这个标签保存设计师原始意图。
-          </p>
-          <TagTreeSelector
-            tags={tags}
-            selectedIds={primaryTagId ? [primaryTagId] : []}
-            onToggle={selectPrimaryTag}
-            placeholder="选择主业务标签"
-            expandable
-            assignableOnly
-          />
-        </div>
-
-        <div>
-          <p className="mb-2 text-sm font-medium">附加标签（可选）</p>
-          <p className="mb-2 text-xs text-muted-foreground">
-            如果这张图还适合其他业务表达，可以在这里补充；AI 分析后也会给出自动建议。
-          </p>
-          <TagTreeSelector
-            tags={tags}
-            selectedIds={additionalTagIds.filter((id) => id !== primaryTagId)}
-            onToggle={toggleTag}
-            placeholder="选择附加标签"
-            expandable
-            assignableOnly
-          />
-        </div>
-
-        <div>
-          <p className="mb-2 text-sm font-medium">分类</p>
-          <div className="flex gap-2">
-            {[
-              ['scene', '场景'],
-              ['function', '功能'],
-            ].map(([value, label]) => (
-              <Button
-                key={value}
-                type="button"
-                size="sm"
-                variant={categories.includes(value) ? 'default' : 'outline'}
-                onClick={() => toggleCategory(value)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-2 text-sm font-medium">
+            <span>使用渠道（可选）</span>
+            <Input
+              value={channel}
+              onChange={(event) => setChannel(event.target.value)}
+              placeholder="例如：官网、朋友圈、公众号"
+              maxLength={100}
+            />
+          </label>
+          <label className="space-y-2 text-sm font-medium">
+            <span>主要表达概念（可选）</span>
+            <select
+              value={conceptId}
+              onChange={(event) => setConceptId(event.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">交给 AI 建议或稍后确认</option>
+              {(concepts.data ?? []).map((concept) => (
+                <option key={concept.id} value={concept.id}>{concept.name}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <label className="block">
-          <span className="mb-2 block text-sm font-medium">希望被搜到的话术（可选）</span>
+          <span className="mb-2 block text-sm font-medium">业务人员可能怎么搜索（可选）</span>
           <textarea
             value={expectedSearchWords}
             onChange={(event) => setExpectedSearchWords(event.target.value)}
-            className="min-h-20 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="min-h-20 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             placeholder={'每行一句，例如：\n孩子拍题只抄答案怎么办\n整理错题太费时间'}
-            maxLength={300}
+            maxLength={500}
           />
         </label>
 
-        <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {provider.isLoading
             ? '正在检查 AI 分析服务…'
             : provider.data?.configured
-              ? '上传成功后将自动生成语义总结、约 20 个隐形内容标签，并匹配封闭业务标签。'
-              : 'AI 服务未配置，本次只上传图片，不会生成自动分析结果。'}
-        </div>
+              ? '上传后自动执行 OCR、客观画面分析、概念建议和搜索索引更新。'
+              : 'AI 未配置时仍可正常上传和发布，之后可以补做分析。'}
+        </p>
 
         <DialogFooter>
-          <Button variant="outline" onClick={close} disabled={uploading}>
-            取消
-          </Button>
-          <Button
-            onClick={submit}
-            disabled={
-              uploading
-              || !files.length
-              || !primaryTagId
-              || !categories.length
-            }
-          >
+          <Button variant="outline" onClick={close} disabled={uploading}>取消</Button>
+          <Button onClick={submit} disabled={uploading || !files.length}>
             {uploading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            上传
+            上传并发布
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,0 +1,572 @@
+# 图片搜索改造项目日志
+
+更新时间：2026-07-15  
+当前范围：Phase 0～Phase 5  
+当前状态：Phase 0～5 工程改造完成；旧图片数据已清零，等待新素材重新建立 Phase 0/4 真实业务基线
+
+> 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+---
+
+## 2026-07-15：完成 Phase 0～Phase 3 工程改造
+
+### 一、本轮目标
+
+- 将原有“单张图片 + 固定标签”结构逐步改造成“业务概念 + 素材组 + 多对多关系”。
+- 保证六大体系稳定，但下层业务内容可以修改、合并、拆分和跨体系复用。
+- 主图可以先发布，延展尺寸、备选版本和修订版本可以后续追加。
+- 将 AI 识别出的客观画面内容与业务负责人确认的业务关系彻底分离。
+- 控制模块体积和单点压力，继续保持 Model、Repository、Service、API 分层。
+- 本轮不提前实现 Phase 4 在线搜索编排和 Phase 5 完整端侧改版。
+
+### 二、Phase 0：搜索评测基线
+
+完成内容：
+
+- 扩展搜索评测用例结构，支持：
+  - 强相关素材组；
+  - 可接受素材组；
+  - 禁止出现素材组；
+  - 期望业务概念；
+  - 查询歧义说明；
+  - 是否允许少结果；
+  - 数据集完整状态。
+- 搜索评测脚本增加执行耗时、Top 素材组、缺失素材、禁止素材和 P95 统计。
+- 建立首批 15 条查询的基线数据集。
+- 将 `SE004` 绑定到当前唯一有效的真实素材组。
+- 生成基线报告：`docs/PHASE0_BASELINE_REPORT_2026-07-15.json`。
+
+当前结果：
+
+- 数据集状态：`partial`。
+- 查询数量：15 条。
+- 真实素材绑定：1 条。
+- `SE004`：Top 1 命中。
+- 本地精准搜索 P95：`37.26ms`。
+- 当前总体命中率不能作为搜索质量结论，因为正式搜索库只有 1 张可搜索代表图。
+
+主要文件：
+
+- `backend/app/domain/search_eval.py`
+- `backend/scripts/run_search_eval.py`
+- `taxonomy/search_eval_cases.json`
+- `docs/PHASE0_BASELINE_REPORT_2026-07-15.json`
+
+### 三、Phase 1：业务概念层
+
+完成内容：
+
+- 新增可版本化业务概念模型。
+- 支持一个概念关联多个业务体系。
+- 支持概念之间的相似、替代、合并等关系。
+- 将通用搜索表达挂在业务概念层，避免每张图片重复保存相同搜索语言。
+- 新增业务概念 Repository、Service、Schema、Serializer 和管理 API。
+- 新增幂等概念种子脚本，从现有 taxonomy 和业务意图配置初始化概念数据。
+- 种子脚本连续执行两次验证通过，第二次新增和更新均为 0。
+
+当前数据：
+
+- 业务概念：16 个。
+- 概念与体系关系：21 条。
+- 概念搜索表达：433 条。
+- 概念关系：14 条。
+
+主要文件：
+
+- `backend/app/models/business_concept.py`
+- `backend/app/repositories/business_concept_repository.py`
+- `backend/app/services/business_concept_service.py`
+- `backend/app/services/business_concept_serializers.py`
+- `backend/app/schemas/business_concept.py`
+- `backend/app/api/v1/business_concepts.py`
+- `backend/scripts/seed_business_concepts.py`
+
+### 四、Phase 2：素材组、主图和延展图
+
+完成内容：
+
+- 新增素材组模型，将同一套画面的主图、延展图、备选图和修订版归入同一组。
+- 首次上传自动建立素材组，不再强制首次上传必须填写业务标签。
+- 支持后续追加：
+  - 延展尺寸 `derivative`；
+  - 备选版本 `alternative`；
+  - 修订版本 `revision`。
+- 图片新增素材角色、尺寸、宽高比、渠道、版本号和当前版本等字段。
+- 上传暂存阶段记录图片宽度和高度。
+- 搜索响应按 `asset_group_id` 去重，同一套图只占一个搜索位置，并优先展示主图。
+- 保留原图片响应结构，降低旧页面和旧接口的迁移压力。
+- 新增素材 Repository、Service、Schema、Serializer 和 API。
+
+当前数据：
+
+- 素材组：2 个。
+- 旧图片已完成一图一组回填。
+
+主要文件：
+
+- `backend/app/models/asset.py`
+- `backend/app/repositories/asset_repository.py`
+- `backend/app/services/asset_service.py`
+- `backend/app/services/asset_serializers.py`
+- `backend/app/schemas/asset.py`
+- `backend/app/api/v1/assets.py`
+- `backend/app/services/search_response_builder.py`
+- `backend/app/services/storage_service.py`
+
+### 五、Phase 3：图片理解和负责人确认
+
+完成内容：
+
+- 将图片语义升级为 Semantic Profile V2。
+- AI 客观识别结果拆分为：
+  - 画面事实；
+  - OCR 文字；
+  - 主体；
+  - 场景；
+  - 动作；
+  - 视觉风格；
+  - 画面中可见的产品功能；
+  - 素材独有搜索表达；
+  - 负向画面概念。
+- 取消为了凑数量强制生成 18～22 个标签的规则，改为要求内容真实和维度覆盖。
+- AI 只提出业务概念关系建议，默认状态为 `pending`。
+- 业务负责人可以确认图片与业务概念的：
+  - 主要表达 `expresses`；
+  - 可以支持 `supports`；
+  - 不适用/排除。
+- 人工确认结果作为金标准，与 AI 建议分开保存。
+- AI 重新分析时保留已接受、已拒绝和人工确认的关系，不允许覆盖人工结果。
+- 图片独有搜索短语进入独立素材搜索短语表，不再混入通用内容标签。
+- 保留旧 `ImageBusinessLabel` 兼容读取，计划在 Phase 6 下线。
+- 前端现有 AI 详情面板切换为 V2 客观字段展示，并重新生成 OpenAPI 类型。
+
+当前数据：
+
+- 素材概念关系：1 条。
+- Semantic Profile 已完成 V1 → V2 数据回填。
+
+主要文件：
+
+- `backend/app/schemas/ai.py`
+- `backend/app/ai/normalizer.py`
+- `backend/app/services/image_analysis_service.py`
+- `backend/app/services/image_semantic_profile_service.py`
+- `backend/app/services/asset_relation_service.py`
+- `skills/analyze-image-content/RULES.md`
+- `client/src/pages/ImageDetail/ImageAiAnalysisPanel.tsx`
+- `client/src/types/openapi.d.ts`
+
+### 六、数据库迁移
+
+本轮新增三段独立迁移：
+
+1. `20260715_0009_business_concepts.py`
+   - 新建业务概念、概念体系关系、概念关系和概念搜索表达表。
+2. `20260715_0010_asset_groups.py`
+   - 新建素材组并补充图片版本字段；旧图片回填为素材组。
+3. `20260715_0011_asset_semantics_v2.py`
+   - 新建素材概念关系和素材搜索短语表；旧关系及 Semantic Profile V1 数据迁移到新结构。
+
+迁移结果：
+
+- 实际本地数据库已升级到 `20260715_0011 (head)`。
+- 在数据库副本上完成 `0005 → 0011` 升级验证。
+- 完成 `0011 → 0010 → 0011` 降级和重新升级验证。
+- Phase 3 降级时会先把 Semantic Profile V2 回写为旧版本可读取的兼容结构。
+- `/tmp` 中的数据库只用于迁移验证，不作为长期备份。
+
+### 七、模块分层与维护性处理
+
+本轮按照以下边界拆分代码：
+
+```text
+API：鉴权、请求参数和响应输出
+  ↓
+Service：单一业务工作流
+  ↓
+Repository：数据库查询和写入
+  ↓
+Model：数据结构和关系
+```
+
+具体处理：
+
+- 业务概念、素材组、素材关系使用三个独立模块承载。
+- API 不直接写数据库。
+- Repository 不处理 HTTP 和业务编排。
+- `ImageAnalysisService` 不直接承担素材关系表的持久化细节，交由 `AssetRelationService` 处理。
+- 搜索结果素材组去重放在响应构建层，不塞进图片上传服务。
+- 新增架构测试，阻止 API、Service、Repository 重新混成大文件。
+- Phase 4 的多路召回、总超时、缓存、降级和 Reranker 未提前塞入本轮模块。
+
+### 八、验证结果
+
+后端：
+
+- Ruff：通过。
+- Pyright：0 error。
+- Pytest：`96 passed`。
+- 数据库迁移升降级：通过。
+- `git diff --check`：通过。
+
+前端：
+
+- TypeScript typecheck：通过。
+- ESLint：通过。
+- Vitest：通过。
+- Vite production build：通过。
+
+新增重点测试：
+
+- Phase 0 评测结构和真实素材绑定。
+- 业务概念多体系关系及幂等种子。
+- 首次上传自动建素材组。
+- 延展图后续追加。
+- 搜索结果素材组级去重。
+- Semantic Profile V1 → V2 兼容。
+- AI 建议与人工确认隔离。
+- AI 重跑不覆盖人工结果。
+- P0～P3 模块架构边界。
+
+测试文件：
+
+- `backend/tests/test_phase_0_3_rebuild.py`
+- `backend/tests/test_architecture.py`
+- `backend/tests/test_ai_analysis_rules.py`
+- `backend/tests/test_search_service.py`
+- `backend/tests/test_security_and_images.py`
+
+### 九、未完成事项
+
+- Phase 0 仍缺少 2～5 张已审核代表主图。
+- 需要业务负责人确认代表图的“主要表达/可以支持/不适用”关系。
+- 需要将 10～20 条查询绑定到真实素材组后重新运行基线。
+- 搜索 P95 `2.5s` 目标仍待用户最终确认。
+- 当前概念初始类型统一为 `business_term`，后续可由负责人逐步细化。
+- （当时状态）Phase 4 在线并行召回、总超时、缓存、降级和 Reranker 尚未开始；现已完成工程改造。
+- （当时状态）Phase 5 设计师端和业务搜索端完整交互尚未开始；现已完成工程改造。
+- Phase 6 双读迁移、旧标签职责下线和正式切换尚未开始。
+
+### 十、下一步
+
+1. 补充 2～5 张已审核代表主图。
+2. 完成负责人业务概念关系确认。
+3. 扩充真实查询绑定并重新运行 Phase 0 基线。
+4. 更新改造总纲的跨窗口接力区。
+5. 开始 Phase 4 搜索核心改造。
+
+---
+
+## 2026-07-15：完成 Phase 4 在线搜索编排改造
+
+### 本轮目标
+
+- 将串行搜索改造成并行、限时、可缓存、可监控和可降级的在线链路。
+- 任一外部模型或索引不可用时，数据库概念/短语搜索仍能返回结果。
+- 候选融合后只执行一次 Reranker，移除默认链路中的第二次生成式图片摘要裁判。
+- 搜索以素材组为排序和展示单位。
+
+### 完成内容
+
+- 新增 `AsyncSearchOrchestrator`，`SearchService` 缩为薄门面和依赖装配入口。
+- 将外部分支启动、缓存和主会话水合拆到 `SearchExternalBranches`，将总截止内唯一一次重排拆到 `SearchRerankCoordinator`；总编排器由 455 行收口到 256 行。
+- 搜索 API 改为异步 `await search_async(...)`，同步脚本保留兼容入口。
+- Meilisearch、Embedding、复杂查询理解在独立线程分支同时启动。
+- 外部分支只返回候选 ID/向量，ORM 图片在请求主会话统一装载，避免线程共享 Session。
+- 新增版本化概念名称、概念搜索表达和负责人确认素材关系召回。
+- 新增多路候选融合和一致性加分。
+- 同一素材组在 Reranker 之前合并，最多对 Top 20 素材组调用一次 Reranker。
+- Reranker、Embedding、Meilisearch 或生成式查询理解失败时自动降级。
+- 查询理解和 Embedding 查询向量增加进程内 TTL/LRU 缓存。
+- 增加总截止和分支预算：总计 `2.5s`、Meilisearch `0.2s`、Embedding `0.65s`、复杂查询理解 `0.9s`、Reranker `0.7s`。
+- 每次搜索返回并持久化分支状态、耗时、候选数、缓存命中、降级来源和 Reranker 使用信息。
+- Meilisearch 派生文档增加素材组和业务概念字段。
+- 两到三个字的泛化词只允许完整查询精确匹配，避免“课程/教材”等词在长句中造成跨概念误召回。
+- 搜索运营页增加 P95、超时、缓存命中和 Reranker 使用指标。
+
+### 主要文件
+
+- `backend/app/services/search_orchestrator.py`
+- `backend/app/services/search_external_branches.py`
+- `backend/app/services/search_rerank_coordinator.py`
+- `backend/app/services/search_branch_runner.py`
+- `backend/app/services/search_diagnostics_service.py`
+- `backend/app/services/search_cache.py`
+- `backend/app/services/concept_search_recall.py`
+- `backend/app/services/query_profile_service.py`
+- `backend/app/services/search_service.py`
+- `backend/app/services/search_ranking_service.py`
+- `backend/app/services/meilisearch_recall_service.py`
+- `backend/app/services/embedding_recall_service.py`
+- `backend/app/repositories/image_repository.py`
+- `backend/app/services/search_index.py`
+- `backend/app/models/search_log.py`
+- `backend/tests/test_phase4_search_orchestration.py`
+- `client/src/pages/AdminSearchOps/components/SearchOpsSections.tsx`
+
+### 数据迁移
+
+- 新增 `20260715_0012_search_orchestration_metrics.py`。
+- `search_logs` 增加素材组结果、总耗时、超时、缓存、Reranker、降级来源和各分支状态字段。
+- 数据库副本完成 `0011 → 0012 → 0011 → 0012` 往返验证。
+- 实际本地数据库已升级至 `20260715_0012 (head)`。
+
+### 测试结果
+
+- 后端 Ruff：通过。
+- 后端 Pyright：0 error。
+- 后端 Pytest：`106 passed`（含编排分层与文件体量护栏）。
+- 前端 OpenAPI 类型：已重新生成。
+- 前端 TypeScript、ESLint、Vitest、production build：全部通过。
+- Meilisearch 文档重建：dry-run 通过；本机服务未运行，未正式提交索引重建。
+- 当前本地精准评测：15 条查询，P95 `49.7ms`，无超时、无降级、无禁止素材。
+
+### 遗留问题
+
+- 当前只有 1 条查询绑定真实素材，无法完成跨概念误判率业务验收。
+- 尚未在真实 Meilisearch、Embedding、查询理解模型和 Reranker 全部开启时执行端到端 P95 压测。
+- Phase 4 工程完成，但真实数据验收继续标记为 `partial`。
+
+### 下一步
+
+1. 补充 2～5 张代表素材与负责人关系。
+2. 将 10～20 条真实查询绑定到素材组。
+3. 启动 Meilisearch 后执行正式全量索引重建。
+4. 开启真实外部 Provider，完成并发、故障和 P95 压测。
+5. 验收通过后再进入 Phase 5。
+
+---
+
+## 2026-07-15：完成 Phase 5 两个使用端改造
+
+### 本轮目标
+
+- 设计师可以先上传一张主图，再在素材详情中维护业务关系、延展尺寸和主图版本。
+- 普通业务人员只面对一个搜索框，可选六大体系筛选，并按素材组选择合适尺寸下载。
+- 保持页面、hooks、API、Service、Repository 分层，避免上传页或搜索入口成为新的大模块。
+
+### 完成内容
+
+设计师端：
+
+- 上传弹窗改为只强制选择图片，标题由文件名兜底；渠道、主要表达概念和搜索话术均可选。
+- 素材详情新增版本工作区，可追加延展图、备选图和修订版，也可替换正式主图。
+- 素材详情新增业务概念关系审核，支持逐条或批量接受 AI 建议，并保持人工关系不被 AI 重跑覆盖。
+- 素材详情新增素材级搜索话术审核，继续复用素材组继承关系。
+- 追加延展图后同步派生索引；替换主图时旧主图退为历史版本并删除旧索引，新主图写入索引。
+
+业务端：
+
+- 删除普通用户可见的“精准/智能”切换，统一为一个业务搜索框。
+- 增加六大体系快捷筛选；只有显式选择时才执行硬过滤，默认允许跨体系结果。
+- 搜索结果卡改为素材组级展示，提供正式主图、当前延展尺寸、渠道和版本选择。
+- 卡片展示可解释的匹配原因、主要表达概念和可以支持概念，不暴露内部搜索模式和等级分组。
+- 增加单卡“不相关”反馈，反馈能追溯到具体图片和素材组，但不会修改审批与人工关系。
+- 外部 Provider 未配置或超时时仍展示数据库可用结果和简洁降级提示。
+
+分层处理：
+
+- 前端请求集中到 `client/src/api/asset.ts`，查询和 mutation 集中到 `client/src/features/assets/` hooks。
+- 版本维护、概念审核、话术审核和搜索结果卡保持独立组件；页面文件只做编排。
+- 后端用 `SearchSystemFilter` 管显式体系过滤，用 `SearchAssetPresenter` 组装业务展示字段；搜索编排器只调用它们，不吸收具体展示逻辑。
+- 素材组业务继续由 `AssetService` 和 `AssetRelationService` 分工，API 不直接写数据库。
+
+### 主要修改文件
+
+- `backend/app/api/v1/assets.py`
+- `backend/app/services/asset_service.py`
+- `backend/app/services/asset_relation_service.py`
+- `backend/app/services/search_system_filter.py`
+- `backend/app/services/search_asset_presenter.py`
+- `backend/app/services/search_orchestrator.py`
+- `backend/app/schemas/asset.py`
+- `backend/app/schemas/image.py`
+- `backend/app/models/search_feedback.py`
+- `backend/tests/test_phase5_endpoints.py`
+- `client/src/api/asset.ts`
+- `client/src/features/assets/`
+- `client/src/pages/ImageHome/UploadDialog.tsx`
+- `client/src/pages/ImageHome/GlobalImageSearch.tsx`
+- `client/src/pages/ImageHome/SemanticSearchResult/`
+- `client/src/pages/ImageDetail/asset/`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+
+### 数据迁移
+
+- 新增 `20260715_0013_result_feedback_targets.py`。
+- `search_feedback_events` 增加可空的 `result_image_id` 与 `asset_group_id` 外键和索引。
+- 数据库副本完成 `0012 → 0013 → 0012 → 0013` 往返验证。
+- 实际本地数据库已升级到 `20260715_0013 (head)`。
+
+### 测试结果
+
+- 后端 Ruff：`app/tests/scripts` 与本轮迁移通过。
+- 后端 Pyright：0 error。
+- 后端 Pytest：`109 passed`。
+- 前端 TypeScript、ESLint：通过。
+- 前端 Vitest：2 个测试文件、3 个测试通过。
+- 前端 production build：通过。
+- OpenAPI 类型：已从当前后端重新生成。
+- `git diff --check`：通过。
+- 隔离临时数据库页面走查：登录、单搜索框、六体系可选筛选、无外部 Provider 降级和简化上传弹窗正常；浏览器控制台无错误。
+
+### 遗留问题
+
+- Phase 0 仍缺 2～5 张已审核代表图、负责人关系确认和 10～20 条真实查询绑定。
+- Phase 4 仍需在真实 Meilisearch、Embedding、查询理解和 Reranker 全部开启后完成 P95 压测。
+- 当前真实数据不足，Phase 5 完成表示工作流和工程验收通过，不表示搜索质量业务验收已经通过。
+- 后端兼容搜索模式参数和旧标签读取仍保留，统一放到 Phase 6 双读核查后下线。
+
+### 下一步
+
+1. 补齐代表素材、负责人确认关系和真实查询绑定。
+2. 启动真实搜索增强服务并重建派生索引，完成端到端压测。
+3. 开始 Phase 6 前更新总纲接力区，明确双读范围、迁移校验和回滚开关。
+4. 对比新旧搜索结果、修复迁移遗漏，再逐步下线旧字段职责。
+
+---
+
+## 2026-07-15：清空旧图片数据，从空素材库重新录入
+
+### 本轮决定
+
+- 用户明确舍弃全部旧图片及其业务数据，不再迁移旧素材。
+- 保留账号、六大体系标签、版本化业务概念和概念搜索表达，作为新素材录入基础。
+- Phase 6 取消旧图片数据迁移和基于旧素材的新旧搜索双读；保留新链路验证、配置回滚和旧代码职责下线。
+
+### 清理前数据
+
+- 图片：2。
+- 素材组：2。
+- 素材概念关系：1。
+- 图片标签关系：2。
+- 图片分类：2。
+- AI 内容标签：29。
+- 旧二级分类结果：4。
+- 旧图片业务标签：1。
+- 本地原图：2 个，缩略图：2 个。
+
+### 已清理内容
+
+- `images`、`asset_groups`。
+- 素材概念关系和素材搜索话术。
+- 图片标签、分类、内容标签、旧二级分类和旧业务标签。
+- 图片分析记录和 Embedding。
+- 搜索日志及搜索反馈，避免旧数据影响新素材运营指标。
+- `storage/images` 中的原图、缩略图、暂存文件和回收站文件；目录结构及 `.gitkeep` 保留。
+
+### 保留内容
+
+- 用户账号：3。
+- 标签体系节点：22。
+- 业务概念：16。
+- 概念搜索表达：433。
+- 概念体系关系和概念间关系。
+- 数据库结构、迁移版本和 Phase 0～5 工程代码。
+
+### 验证结果
+
+- 图片及所有图片关联业务表：均为 0。
+- 素材组及素材关系表：均为 0。
+- 搜索日志和反馈：均为 0。
+- 本地图片文件：0。
+- SQLite `foreign_key_check`：无异常。
+- 数据库迁移版本仍为 `20260715_0013 (head)`。
+- 当前 `SEARCH_BACKEND=database`，Meilisearch 未配置，因此不存在需要清理的外部派生索引。
+
+### 后续录入方式
+
+1. 从 1 张已审核主图开始上传，不要求一次补齐全部素材。
+2. 在素材详情确认“主要表达/可以支持/不适用”关系。
+3. 延展尺寸和替换主图后续按需追加。
+4. 累积 3～6 张代表素材后重新建立 Phase 0 基线；累积 10～20 条真实查询后再评价搜索质量。
+
+---
+
+## 2026-07-15：Phase 6 空库旧代码职责下线
+
+### 本轮目标
+
+- 在用户明确舍弃全部旧图片、从空库重新录入的前提下，删除旧图片标签与分类职责。
+- 保持模块分层：体系地图、业务概念、素材关系、客观画面语义、搜索编排分别归属独立模块。
+- 删除端侧兼容入口和旧搜索模式，保证后续维护不需要同时理解两套业务模型。
+
+### 完成内容
+
+- 删除 `ImageTag`、`ImageCategory`、`ImageLevel2Category`、`ImageBusinessLabel` Model 及对应 Repository、Service、API 写入/读取逻辑。
+- 删除旧标签管理、图片标签编辑、旧业务标签审核、旧分类筛选、标签树浏览和 `/tag/:tagId` 页面。
+- `tags` 运行数据由 22 个旧树节点收口为 6 个稳定体系节点；16 个业务概念、21 条体系关系、433 条概念表达继续独立存在。
+- 图片 AI 分析契约删除 `image_type`、旧 `secondary_labels` 和重复负向字段，统一为 Semantic Profile V2、客观内容标签和 `concept_suggestions`。
+- 搜索理解契约删除一级标签/二级分类命名，统一为 `expanded_terms`、`matched_business_concepts`、`excluded_concepts`。
+- 删除 `precise/smart/configured` 请求模式、`search_logs.requested_mode` 和相关运营统计；保留的 `search_mode` 只描述实际搜索来源。
+- 删除不再使用的生成式图片摘要裁判 Service、模型任务和项目 Skill；在线候选仍最多执行一次 Reranker。
+- 搜索运营页切换为 AI 概念关系审核池、业务概念健康度和命中概念统计。
+- OpenAPI 前端类型从当前后端重新生成。
+
+### 主要修改文件
+
+- 数据与模型：`backend/app/models/image.py`、`tag.py`、`search_log.py`、`models/__init__.py`。
+- 数据访问：`image_repository.py`、`tag_repository.py`、`search_ops_repository.py`。
+- 工作流：`image_service.py`、`image_analysis_service.py`、`image_semantic_profile_service.py`、`asset_relation_service.py`、`search_*` 系列服务。
+- API 与契约：`api/v1/images.py`、`api/v1/tags.py`、`schemas/image.py`、`schemas/ai.py`、`schemas/search_ops.py`。
+- 前端：首页、图片详情、搜索结果、搜索运营页、`features/images` hooks、`api/image.ts` 和类型文件。
+- 删除文件：旧标签工作流、旧强标签过滤器、旧图片摘要裁判，以及前端标签面板、筛选弹窗、标签树与标签浏览页。
+
+### 数据迁移
+
+- 新增 `20260715_0014_remove_legacy_image_semantics.py`。
+- 删除 `image_tags`、`image_categories`、`image_level2_categories`、`image_business_labels`。
+- 删除 `search_logs.requested_mode`，将 `matched_category` 重命名为 `matched_concept`。
+- 删除 `tags` 中非体系节点；业务概念数据不删除。
+- 在数据库副本完成 `0013 → 0014 → 0013 → 0014`，旧空结构可降级恢复，再升级结果一致。
+- 正式本地数据库已升级到 `0014`；迁移前备份：`data/piancton.db.before-phase6-cleanup-20260715`。
+- 升级后数据：账号 3、图片 0、体系节点 6、业务概念 16、概念表达 433；SQLite 外键检查无异常。
+
+### 测试结果
+
+- 后端 Ruff：通过。
+- 后端 Pyright：0 error、0 warning。
+- 后端 Pytest：`82 passed`。
+- 前端 TypeScript：通过。
+- 前端 ESLint：通过。
+- 前端 Vitest：1 个测试文件、`2 passed`。
+- 前端 production build：通过。
+- 空库首图上传、预览、下载、回收站、统一搜索日志、AI 内容分析及概念建议均有接口回归测试。
+- `git diff --check`：通过。
+
+### 遗留问题
+
+- 当前正式素材仍为 0；Phase 0/4 的真实搜索质量验收仍是 `partial`，不能用纯工程测试宣称搜索质量完成。
+- Meilisearch、Embedding、查询理解 Provider 和 Reranker 全开启后的真实 P95 仍待新代表素材建立后压测。
+- 数据库降级只恢复空旧兼容结构，不恢复已舍弃的旧图片或旧标签树数据。
+
+### 下一步
+
+1. 从 1 张已审核主图开始重新录入，在素材详情确认主要表达/可以支持/不适用关系。
+2. 累积 3～6 张代表图后重建 Phase 0 基线。
+3. 累积 10～20 条真实查询并启用实际外部 Provider 后，完成 Phase 4 全链路质量与时延验收。
+
+---
+
+## 后续日志模板
+
+后续每次改造在本文末尾追加以下内容：
+
+```markdown
+## YYYY-MM-DD：本轮标题
+
+### 本轮目标
+
+### 完成内容
+
+### 修改文件
+
+### 数据迁移
+
+### 测试结果
+
+### 遗留问题
+
+### 下一步
+```

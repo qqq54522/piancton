@@ -36,11 +36,11 @@ function SearchUnderstandingPanel({ understanding, onKeywordClick }: SearchUnder
         </p>
       )}
 
-      {understanding.expandedLevel1Tags.length > 0 && (
+      {understanding.expandedTerms.length > 0 && (
         <div className="space-y-1.5">
-          <span className="text-xs font-medium text-foreground/70">扩展标签</span>
+          <span className="text-xs font-medium text-foreground/70">扩展检索词</span>
           {(['exact', 'strong', 'medium', 'weak'] as const).map((relation) => {
-            const tagsOfRelation = understanding.expandedLevel1Tags.filter((t) => t.relation === relation);
+            const tagsOfRelation = understanding.expandedTerms.filter((t) => t.relation === relation);
             if (tagsOfRelation.length === 0) return null;
             return (
               <div key={relation} className="flex flex-wrap items-center gap-1.5">
@@ -52,12 +52,12 @@ function SearchUnderstandingPanel({ understanding, onKeywordClick }: SearchUnder
                 </Badge>
                 {tagsOfRelation.map((et) => (
                   <button
-                    key={et.tag}
-                    onClick={() => onKeywordClick(et.tag)}
+                    key={et.term}
+                    onClick={() => onKeywordClick(et.term)}
                     className="rounded-md border border-border bg-background px-2 py-0.5 text-xs text-foreground transition-colors hover:bg-accent"
                     title={et.reason}
                   >
-                    {et.tag}
+                    {et.term}
                     <span className="ml-1 text-[10px] text-muted-foreground">{Math.round(et.weight * 100)}</span>
                   </button>
                 ))}
@@ -67,11 +67,11 @@ function SearchUnderstandingPanel({ understanding, onKeywordClick }: SearchUnder
         </div>
       )}
 
-      {understanding.matchedLevel2Categories.length > 0 && (
+      {understanding.matchedBusinessConcepts.length > 0 && (
         <div className="space-y-1.5">
-          <span className="text-xs font-medium text-foreground/70">匹配大类</span>
+          <span className="text-xs font-medium text-foreground/70">匹配业务概念</span>
           {(['direct', 'related', 'fallback'] as const).map((relation) => {
-            const catsOfRelation = understanding.matchedLevel2Categories.filter((c) => c.relation === relation);
+            const catsOfRelation = understanding.matchedBusinessConcepts.filter((c) => c.relation === relation);
             if (catsOfRelation.length === 0) return null;
             return (
               <div key={relation} className="flex flex-wrap items-center gap-1.5">
@@ -83,11 +83,11 @@ function SearchUnderstandingPanel({ understanding, onKeywordClick }: SearchUnder
                 </Badge>
                 {catsOfRelation.map((mc) => (
                   <span
-                    key={mc.category}
+                    key={mc.concept}
                     className="rounded-md bg-purple-50 px-2 py-0.5 text-xs text-purple-700"
                     title={mc.reason}
                   >
-                    {mc.category}
+                    {mc.concept}
                   </span>
                 ))}
               </div>
@@ -96,10 +96,10 @@ function SearchUnderstandingPanel({ understanding, onKeywordClick }: SearchUnder
         </div>
       )}
 
-      {understanding.excludeTags.length > 0 && (
+      {understanding.excludedConcepts.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium text-red-500">排除</span>
-          {understanding.excludeTags.map((tag) => (
+          {understanding.excludedConcepts.map((tag) => (
             <span key={tag} className="rounded-md bg-red-50 px-2 py-0.5 text-xs text-red-400 line-through">
               {tag}
             </span>

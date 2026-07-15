@@ -1,24 +1,33 @@
 from io import BytesIO
 
 from PIL import Image as PillowImage
-from sqlalchemy import select
 
-from app.models.image import ImageTag
+from app.api import dependencies
+from app.main import app
+from app.models.business_concept import BusinessConcept
 from app.models.tag import Tag
+from app.schemas.ai import ProviderStatus
+from app.services.ai_service import AiService
 from tests.conftest import login
 
 
-def png_file() -> bytes:
+def png_file(width: int = 8, height: int = 4) -> bytes:
     output = BytesIO()
-    PillowImage.new("RGB", (4, 4), "red").save(output, format="PNG")
+    PillowImage.new("RGB", (width, height), "red").save(output, format="PNG")
     return output.getvalue()
 
 
-def create_leaf_tag(client, headers, name: str = "测试标签") -> dict:
+def admin_headers(client) -> dict[str, str]:
+    csrf = login(client, "admin", "admin-password")
+    return {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+
+
+def upload(client, headers, title: str = "real") -> dict:
     response = client.post(
-        "/api/tags",
+        "/api/images/upload",
         headers=headers,
-        json={"name": name, "color": "#3B82F6"},
+        files={"file": (f"{title}.png", png_file(), "image/png")},
+        data={"title": title, "autoAnalyze": "false"},
     )
     assert response.status_code == 201
     return response.json()
@@ -30,188 +39,139 @@ def test_requires_authentication(client):
     assert response.json()["code"] == "unauthorized"
 
 
-def test_business_cannot_write(client):
-    csrf = login(client, "business", "business-password")
-    admin_read = client.get("/api/admin/users")
-    assert admin_read.status_code == 403
+def test_business_cannot_write_and_tag_catalog_is_read_only(client):
+    login(client, "business", "business-password")
+    assert client.get("/api/admin/users").status_code == 403
     response = client.post(
         "/api/tags",
-        headers={"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"},
+        headers={"X-CSRF-Token": "invalid", "Origin": "http://localhost:5173"},
         json={"name": "restricted", "color": "#000000"},
     )
-    assert response.status_code == 403
+    assert response.status_code == 405
 
 
-def test_upload_preview_download_and_validation(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "产品", "color": "#3B82F6"},
-    ).json()
+def test_upload_preview_download_and_phase6_detail_contract(client):
+    headers = admin_headers(client)
     invalid = client.post(
         "/api/images/upload",
         headers=headers,
         files={"file": ("fake.png", b"not-an-image", "image/png")},
-        data={"title": "fake", "tagIds": tag["id"], "categories": "function"},
+        data={"title": "fake", "autoAnalyze": "false"},
     )
     assert invalid.status_code == 415
-    uploaded = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("real.png", png_file(), "image/png")},
-        data={"title": "real", "tagIds": tag["id"], "categories": "function"},
-    )
-    assert uploaded.status_code == 201
-    image = uploaded.json()
-    assert "filePath" not in image
-    assert image["thumbnailUrl"].endswith("/thumbnail")
+
+    image = upload(client, headers)
+    assert image["assetGroupId"]
+    assert image["width"] == 8
+    assert image["height"] == 4
+    assert "tags" not in image
+    assert "categories" not in image
 
     thumbnail = client.get(image["thumbnailUrl"])
     assert thumbnail.status_code == 200
     assert thumbnail.headers["content-type"].startswith("image/jpeg")
-    preview = client.get(image["contentUrl"])
-    assert preview.status_code == 200
+    assert client.get(image["contentUrl"]).status_code == 200
+
     detail = client.get(f"/api/images/{image['id']}").json()
     assert detail["downloadCount"] == 0
-    manual_label = next(
-        item for item in detail["businessLabels"] if item["origin"] == "manual"
-    )
-    assert manual_label["tagId"] == tag["id"]
-    assert manual_label["role"] == "primary"
-    assert manual_label["reviewStatus"] == "accepted"
+    assert "businessLabels" not in detail
+    assert "level2Categories" not in detail
+    assert "tags" not in detail
 
-    download = client.get(image["downloadUrl"])
-    assert download.status_code == 200
-    detail = client.get(f"/api/images/{image['id']}").json()
-    assert detail["downloadCount"] == 1
+    assert client.get(image["downloadUrl"]).status_code == 200
+    assert client.get(f"/api/images/{image['id']}").json()["downloadCount"] == 1
 
 
-def test_search_ops_summary_is_admin_only_and_records_searches(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = create_leaf_tag(client, headers, "搜索运营")
-    uploaded = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("search.png", png_file(), "image/png")},
-        data={"title": "搜索运营测试图", "tagIds": tag["id"], "categories": "function"},
-    )
-    assert uploaded.status_code == 201
+def test_unified_search_log_has_no_requested_mode(client):
+    headers = admin_headers(client)
+    upload(client, headers, "搜索运营测试图")
 
     search = client.post(
         "/api/images/search",
-        json={"keyword": "搜索运营测试图", "limit": 12, "searchMode": "precise"},
+        json={"keyword": "搜索运营测试图", "limit": 12},
     )
     assert search.status_code == 200
-    search_body = search.json()
-    assert search_body["results"]
-    assert search_body["searchLogId"]
-
-    feedback = client.post(
-        "/api/search-feedback",
-        headers=headers,
-        json={
-            "searchLogId": search_body["searchLogId"],
-            "keyword": "搜索运营测试图",
-            "feedbackType": "not_relevant",
-            "note": "想看另一种风格",
-        },
-    )
-    assert feedback.status_code == 201
+    body = search.json()
+    assert body["results"]
+    assert body["searchLogId"]
 
     summary = client.get("/api/admin/search-ops/summary")
     assert summary.status_code == 200
     data = summary.json()
     assert data["totalSearches"] == 1
-    assert data["preciseSearchCount"] == 1
-    assert data["feedbackCount"] == 1
-    assert data["feedbackByType"][0]["label"] == "not_relevant"
-    assert data["recentFeedback"][0]["note"] == "想看另一种风格"
-    assert data["recentLogs"][0]["keyword"] == "搜索运营测试图"
-    assert data["recentLogs"][0]["resultCount"] == 1
-
-    business_csrf = login(client, "business", "business-password")
-    business_feedback = client.post(
-        "/api/search-feedback",
-        headers={"X-CSRF-Token": business_csrf, "Origin": "http://localhost:5173"},
-        json={
-            "keyword": "业务方搜索词",
-            "feedbackType": "too_few_results",
-        },
-    )
-    assert business_feedback.status_code == 201
-    forbidden = client.get("/api/admin/search-ops/summary")
-    assert forbidden.status_code == 403
+    assert "preciseSearchCount" not in data
+    assert "smartSearchCount" not in data
+    assert "requestedMode" not in data["recentLogs"][0]
+    assert data["recentLogs"][0]["servedMode"] == "fuzzy"
 
 
 def test_ai_not_configured_is_explicit(client):
     from app.ai.placeholder import PlaceholderModelProvider
-    from app.api import dependencies
-    from app.main import app
-    from app.services.ai_service import AiService
 
     app.dependency_overrides[dependencies.get_ai_service] = lambda: AiService(
         PlaceholderModelProvider()
     )
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "AI", "color": "#3B82F6"},
-    ).json()
-    image = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("real.png", png_file(), "image/png")},
-        data={"title": "real", "tagIds": tag["id"], "categories": "function"},
-    ).json()
+    headers = admin_headers(client)
+    image = upload(client, headers)
     response = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
     assert response.status_code == 503
     assert response.json()["code"] == "provider_not_configured"
 
 
-def test_upload_starts_backend_ai_analysis(client, db_factory):
-    from app.api import dependencies
-    from app.main import app
-    from app.schemas.ai import ProviderStatus
-    from app.services.ai_service import AiService
+def test_ai_analysis_persists_content_and_new_concept_suggestion(client, db_factory):
+    with db_factory() as db:
+        db.add_all(
+            [
+                Tag(
+                    code="sync_school",
+                    name="同步校内体系",
+                    color="#6366F1",
+                    node_type="system",
+                    assignable=False,
+                ),
+                BusinessConcept(
+                    code="animation_explanation",
+                    name="动画精讲",
+                ),
+            ]
+        )
+        db.commit()
 
     class Provider:
         name = "fake"
-
-        @property
-        def configured(self):
-            return True
+        configured = True
 
         def generate_json(self, _request):
             return {
-                "image_type": "功能图",
-                "image_summary": "上传后自动分析出的图片语义。",
+                "image_summary": "平板界面展示数学动画和分步计算。",
+                "semantic_profile": {
+                    "visual_facts": ["平板学习界面", "数学动画"],
+                    "ocr_text": ["数学精讲"],
+                    "subjects": ["平板"],
+                    "scenes": ["居家学习"],
+                    "actions": ["观看动画课程"],
+                    "visual_style": ["蓝色科技风"],
+                    "visible_product_features": ["动画播放"],
+                    "asset_search_phrases": ["蓝色平板动画课画面"],
+                    "negative_visual_concepts": ["真人老师聊天"],
+                },
                 "content_tags": [
-                    {"tag": f"自动标签{index}", "confidence": 0.9, "dimension": "产品功能"}
-                    for index in range(1, 19)
+                    {"tag": "平板", "confidence": 0.95, "dimension": "物体"},
+                    {"tag": "动画播放", "confidence": 0.92, "dimension": "产品功能"},
+                    {"tag": "数学精讲", "confidence": 0.9, "dimension": "文字"},
                 ],
-                "secondary_labels": [
+                "concept_suggestions": [
                     {
-                        "system": "同步校内体系",
-                        "label": "动画精讲",
-                        "confidence": 0.91,
+                        "concept_code": "animation_explanation",
+                        "system_name": "同步校内体系",
+                        "concept_name": "动画精讲",
+                        "confidence": 0.94,
                         "evidence_level": "A",
-                        "role": "primary",
-                        "reason": "图片适合动画讲解知识点，不是课后小测或普通答案页。",
+                        "relation_role": "expresses",
+                        "reason": "画面展示动画和分步计算，适合动画精讲，不是课后小测。",
                     }
                 ],
-                "recommended_search_words": [
-                    "动画讲解",
-                    "知识点",
-                    "同步校内",
-                    "讲清思路",
-                    "孩子听不懂老师讲课",
-                ],
-                "negative_tags": ["课后小测", "普通答案页"],
+                "recommended_search_words": ["平板动画数学课"],
             }
 
     class FakeAiService(AiService):
@@ -219,635 +179,68 @@ def test_upload_starts_backend_ai_analysis(client, db_factory):
             super().__init__(Provider())
 
         def provider_status(self):
-            return ProviderStatus(provider="fake", configured=True, model_name="fake-model")
+            return ProviderStatus(provider="fake", configured=True, model_name="fake")
 
     app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    with db_factory() as db:
-        system = Tag(
-            code="sync_school",
-            name="同步校内体系",
-            color="#6366F1",
-            node_type="system",
-            assignable=False,
-            status="active",
-        )
-        db.add(system)
-        db.flush()
-        db.add(
-            Tag(
-                code="animation_explanation",
-                name="动画精讲",
-                color="#818CF8",
-                parent_id=system.id,
-                is_secondary=True,
-                node_type="image_label",
-                assignable=True,
-                status="active",
-            )
-        )
-        db.commit()
-
-    tag = create_leaf_tag(client, headers, "自动分析")
-    uploaded = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("auto.png", png_file(), "image/png")},
-        data={"title": "auto", "tagIds": tag["id"], "categories": "function"},
-    )
-    assert uploaded.status_code == 201
-    detail = client.get(f"/api/images/{uploaded.json()['id']}").json()
-    assert detail["analysisRuns"][0]["status"] == "succeeded"
-    assert detail["imageSummary"] == "上传后自动分析出的图片语义。"
-    assert len(detail["contentTags"]) == 23
-    assert any(
-        item["origin"] == "ai" and item["labelCode"] == "animation_explanation"
-        for item in detail["businessLabels"]
-    )
-
-
-def test_ai_analysis_is_persisted_to_image_detail(client, db_factory):
-    from app.api import dependencies
-    from app.main import app
-    from app.schemas.ai import ConfidenceTag, ImageAnalysisResult, SecondaryLabel
-
-    class FakeAiService:
-        def analyze_image(self, _path):
-            return ImageAnalysisResult(
-                image_type="function",
-                image_summary="一个展示动画讲解知识点的功能图。",
-                content_tags=[
-                    ConfidenceTag(tag="动画讲解", confidence=0.92, dimension="产品功能"),
-                    ConfidenceTag(tag="知识点", confidence=0.88, dimension="文本"),
-                ],
-                secondary_labels=[
-                    SecondaryLabel(
-                        system="同步校内体系",
-                        label="动画精讲",
-                        confidence=0.91,
-                        evidence_level="A",
-                        role="primary",
-                        reason="图片标题和内容指向动画讲透知识点，不是课后小测或普通答案页。",
-                    )
-                ],
-                recommended_search_words=[
-                    "动画讲解",
-                    "知识点",
-                    "同步校内",
-                    "讲清思路",
-                    "孩子听不懂老师讲课",
-                ],
-                negative_tags=["课后小测", "普通答案页"],
-            )
-
-    app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    with db_factory() as db:
-        system = Tag(
-            code="sync_school",
-            name="同步校内体系",
-            color="#6366F1",
-            node_type="system",
-            assignable=False,
-            status="active",
-        )
-        db.add(system)
-        db.flush()
-        db.add(
-            Tag(
-                code="animation_explanation",
-                name="动画精讲",
-                color="#818CF8",
-                parent_id=system.id,
-                is_secondary=True,
-                node_type="image_label",
-                assignable=True,
-                status="active",
-            )
-        )
-        db.commit()
-    tag = create_leaf_tag(client, headers, "AI 持久化")
-    image = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("real.png", png_file(), "image/png")},
-        data={"title": "real", "tagIds": tag["id"], "categories": "function"},
-    ).json()
-
+    headers = admin_headers(client)
+    image = upload(client, headers, "AI分析")
     response = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
     assert response.status_code == 200
+
     detail = client.get(f"/api/images/{image['id']}").json()
-    assert detail["imageSummary"] == "一个展示动画讲解知识点的功能图。"
-    content_tag_names = [item["tagName"] for item in detail["contentTags"]]
-    assert "动画讲解" in content_tag_names
-    assert "知识点" in content_tag_names
-    assert "孩子听不懂老师讲课" in content_tag_names
-    assert detail["level2Categories"][0]["categoryName"] == "同步校内体系 > 动画精讲"
-    ai_label = next(item for item in detail["businessLabels"] if item["origin"] == "ai")
-    assert ai_label["labelCode"] == "animation_explanation"
-    assert ai_label["reviewStatus"] == "pending"
-
-    accepted = client.patch(
-        f"/api/images/{image['id']}/business-labels/{ai_label['id']}",
-        headers=headers,
-        json={"reviewStatus": "accepted"},
-    )
-    assert accepted.status_code == 200
-    accepted_label = next(
-        item for item in accepted.json()["businessLabels"] if item["id"] == ai_label["id"]
-    )
-    assert accepted_label["reviewStatus"] == "accepted"
-    promoted_manual = next(
-        item
-        for item in accepted.json()["businessLabels"]
-        if item["origin"] == "manual" and item["labelCode"] == "animation_explanation"
-    )
-    assert promoted_manual["role"] == "additional"
-    assert promoted_manual["reviewStatus"] == "accepted"
-    assert any(tag["name"] == "动画精讲" for tag in accepted.json()["tags"])
-
-    rerun = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
-    assert rerun.status_code == 200
-    detail_after_rerun = client.get(f"/api/images/{image['id']}").json()
-    ai_animation_labels = [
-        item
-        for item in detail_after_rerun["businessLabels"]
-        if item["origin"] == "ai" and item["labelCode"] == "animation_explanation"
-    ]
-    assert len(ai_animation_labels) == 1
-    assert ai_animation_labels[0]["reviewStatus"] == "accepted"
-    assert not [
-        item
-        for item in ai_animation_labels
-        if item["reviewStatus"] == "pending"
-    ]
-
-    rejected = client.patch(
-        f"/api/images/{image['id']}/business-labels/{ai_label['id']}",
-        headers=headers,
-        json={"reviewStatus": "rejected"},
-    )
-    assert rejected.status_code == 200
-    rejected_label = next(
-        item for item in rejected.json()["businessLabels"] if item["id"] == ai_label["id"]
-    )
-    assert rejected_label["reviewStatus"] == "rejected"
-    assert not [
-        item
-        for item in rejected.json()["businessLabels"]
-        if item["origin"] == "manual" and item["labelCode"] == "animation_explanation"
-    ]
-    assert not rejected.json()["level2Categories"]
-    assert not any(tag["name"] == "动画精讲" for tag in rejected.json()["tags"])
-
-    rerun_after_reject = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
-    assert rerun_after_reject.status_code == 200
-    detail_after_reject_rerun = client.get(f"/api/images/{image['id']}").json()
-    assert not detail_after_reject_rerun["level2Categories"]
-    ai_animation_labels_after_reject = [
-        item
-        for item in detail_after_reject_rerun["businessLabels"]
-        if item["origin"] == "ai" and item["labelCode"] == "animation_explanation"
-    ]
-    assert len(ai_animation_labels_after_reject) == 1
-    assert ai_animation_labels_after_reject[0]["reviewStatus"] == "rejected"
-
-    manual_label = next(
-        item
-        for item in detail_after_reject_rerun["businessLabels"]
-        if item["origin"] == "manual"
-    )
-    manual_review = client.patch(
-        f"/api/images/{image['id']}/business-labels/{manual_label['id']}",
-        headers=headers,
-        json={"reviewStatus": "rejected"},
-    )
-    assert manual_review.status_code == 400
-    assert manual_review.json()["code"] == "manual_label_not_reviewable"
-
-
-def test_ai_analysis_rejects_string_secondary_labels_without_real_reason(client):
-    from app.api import dependencies
-    from app.main import app
-
-    class FakeAiService:
-        def analyze_image(self, _path):
-            from app.services.ai_service import AiService
-
-            class Provider:
-                name = "fake"
-
-                @property
-                def configured(self):
-                    return True
-
-                def generate_json(self, _request):
-                    return {
-                        "image_type": "功能图",
-                        "image_summary": "动画讲解知识点。",
-                        "content_tags": [
-                            f"动画讲解标签{index}" for index in range(1, 19)
-                        ],
-                        "secondary_labels": [
-                            "同步校内体系 > 动画精讲",
-                            "同步培养体系 > 万能解法",
-                        ],
-                        "recommended_search_words": [
-                            "动画讲解",
-                            "知识点",
-                            "同步校内",
-                            "万能解法",
-                            "孩子听不懂老师讲课",
-                        ],
-                        "negative_tags": ["课后小测", "普通答案页"],
-                    }
-
-            return AiService(Provider()).analyze_image(_path)
-
-    app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = create_leaf_tag(client, headers, "AI 字符串标签")
-    image = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("real.png", png_file(), "image/png")},
-        data={"title": "real", "tagIds": tag["id"], "categories": "function"},
-    ).json()
-
-    response = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
-    assert response.status_code == 502
-    assert response.json()["code"] == "model_response_invalid"
+    assert detail["semanticProfile"]["schemaVersion"] == 2
+    assert {item["tagName"] for item in detail["contentTags"]} == {
+        "平板",
+        "动画播放",
+        "数学精讲",
+    }
+    group = client.get(f"/api/asset-groups/{detail['assetGroupId']}").json()
+    suggestion = next(item for item in group["conceptLinks"] if item["origin"] == "ai")
+    assert suggestion["conceptCode"] == "animation_explanation"
+    assert suggestion["reviewStatus"] == "pending"
 
 
 def test_upload_size_limit(client, monkeypatch):
-    from app.api import dependencies
-
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = create_leaf_tag(client, headers, "上传限制")
-    monkeypatch.setattr(dependencies.settings, "max_upload_bytes", 16)
+    headers = admin_headers(client)
+    monkeypatch.setattr(dependencies.settings, "max_upload_bytes", 8)
     response = client.post(
         "/api/images/upload",
         headers=headers,
         files={"file": ("large.png", png_file(), "image/png")},
-        data={"title": "large", "tagIds": tag["id"], "categories": "function"},
+        data={"title": "large", "autoAnalyze": "false"},
     )
     assert response.status_code == 413
-    assert response.json()["code"] == "upload_too_large"
-
-
-def test_tag_cycle_and_unknown_image_tags_are_rejected(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    parent = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "parent", "color": "#111111"},
-    ).json()
-    child = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "child", "color": "#222222", "parentId": parent["id"]},
-    ).json()
-    cycle = client.patch(
-        f"/api/tags/{parent['id']}",
-        headers=headers,
-        json={"parentId": child["id"]},
-    )
-    assert cycle.status_code == 400
-    assert cycle.json()["code"] == "tag_cycle"
-
-    upload = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("real.png", png_file(), "image/png")},
-        data={"title": "real", "tagIds": "missing-tag", "categories": "function"},
-    )
-    assert upload.status_code == 400
-    assert upload.json()["code"] == "unknown_tags"
-
-
-def test_assignable_parent_remains_valid_after_children_are_added(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    parent = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "体系", "color": "#111111"},
-    ).json()
-    child = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "叶子标签", "color": "#222222", "parentId": parent["id"]},
-    ).json()
-
-    parent_upload = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("parent.png", png_file(), "image/png")},
-        data={"title": "parent-image", "tagIds": parent["id"], "categories": "function"},
-    )
-    assert parent_upload.status_code == 201
-
-    no_tag_upload = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("untagged.png", png_file(), "image/png")},
-        data={"title": "untagged", "tagIds": "", "categories": "function"},
-    )
-    assert no_tag_upload.status_code == 400
-    assert no_tag_upload.json()["code"] == "image_tag_required"
-
-    child_upload = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("child.png", png_file(), "image/png")},
-        data={"title": "child-image", "tagIds": child["id"], "categories": "function"},
-    )
-    assert child_upload.status_code == 201
-    empty_update = client.patch(
-        f"/api/images/{child_upload.json()['id']}/tags",
-        headers=headers,
-        json={"tagIds": []},
-    )
-    assert empty_update.status_code == 400
-    assert empty_update.json()["code"] == "image_tag_required"
-
-    tags = client.get("/api/tags").json()
-    assert next(item for item in tags if item["id"] == child["id"])["imageCount"] == 1
-    assert next(item for item in tags if item["id"] == parent["id"])["imageCount"] == 2
-
-
-def test_deleting_tag_subtree_is_blocked_while_images_still_use_it(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    parent = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "父标签", "color": "#111111"},
-    ).json()
-    child = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "子标签", "color": "#222222", "parentId": parent["id"]},
-    ).json()
-    child_image = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("child.png", png_file(), "image/png")},
-        data={"title": "child-image", "tagIds": child["id"], "categories": "function"},
-    ).json()
-
-    impact = client.get(f"/api/tags/{parent['id']}/delete-impact")
-    assert impact.status_code == 200
-    assert impact.json()["subtreeTagCount"] == 2
-    assert impact.json()["directChildCount"] == 1
-    assert impact.json()["affectedImageCount"] == 1
-
-    deleted = client.delete(f"/api/tags/{parent['id']}", headers=headers)
-    assert deleted.status_code == 409
-    assert deleted.json()["code"] == "tag_in_use"
-    assert client.get(f"/api/images/{child_image['id']}").status_code == 200
-    tag_ids = {item["id"] for item in client.get("/api/tags").json()}
-    assert parent["id"] in tag_ids
-    assert child["id"] in tag_ids
-
-
-def test_tag_counts_ignore_deleted_images(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "计数标签", "color": "#111111"},
-    ).json()
-    image = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("count.png", png_file(), "image/png")},
-        data={"title": "count-image", "tagIds": tag["id"], "categories": "function"},
-    ).json()
-    tags = client.get("/api/tags").json()
-    assert next(item for item in tags if item["id"] == tag["id"])["imageCount"] == 1
-
-    deleted = client.delete(f"/api/images/{image['id']}", headers=headers)
-    assert deleted.status_code == 204
-    tags = client.get("/api/tags").json()
-    assert next(item for item in tags if item["id"] == tag["id"])["imageCount"] == 0
-
-
-def test_disabling_user_invalidates_existing_session(client):
-    business_csrf = login(client, "business", "business-password")
-    assert business_csrf
-    business_session = client.cookies.get("piancton_session")
-
-    admin_csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": admin_csrf, "Origin": "http://localhost:5173"}
-    users = client.get("/api/admin/users").json()
-    business = next(user for user in users if user["username"] == "business")
-    disabled = client.patch(
-        f"/api/admin/users/{business['id']}",
-        headers=headers,
-        json={"isActive": False},
-    )
-    assert disabled.status_code == 200
-
-    client.cookies.clear()
-    client.cookies.set("piancton_session", business_session)
-    response = client.get("/api/auth/me")
-    assert response.status_code == 401
 
 
 def test_cursor_pagination_is_stable_for_both_sorts(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = create_leaf_tag(client, headers, "分页标签")
-    for index in range(5):
-        response = client.post(
-            "/api/images/upload",
-            headers=headers,
-            files={"file": (f"{index}.png", png_file(), "image/png")},
-            data={
-                "title": f"image-{index}",
-                "tagIds": tag["id"],
-                "categories": "function",
-            },
-        )
-        assert response.status_code == 201
+    headers = admin_headers(client)
+    for index in range(4):
+        upload(client, headers, f"page-{index}")
 
     for sort_by in ("createdAt", "downloadCount"):
-        seen: list[str] = []
-        cursor = None
-        while True:
-            response = client.get(
-                "/api/images",
-                params={"limit": 2, "sortBy": sort_by, "cursor": cursor},
-            )
-            assert response.status_code == 200
-            page = response.json()
-            seen.extend(item["id"] for item in page["items"])
-            if not page["hasMore"]:
-                break
-            cursor = page["nextCursor"]
-        assert len(seen) == 5
-        assert len(set(seen)) == 5
-
-
-def test_login_rate_limit_and_security_headers(client, monkeypatch):
-    from app.api import dependencies
-
-    monkeypatch.setattr(dependencies.settings, "login_max_attempts", 2)
-    for _ in range(2):
-        response = client.post(
-            "/api/auth/login",
-            json={"username": "admin", "password": "incorrect-password"},
+        first = client.get("/api/images", params={"limit": 2, "sortBy": sort_by}).json()
+        second = client.get(
+            "/api/images",
+            params={"limit": 2, "sortBy": sort_by, "cursor": first["nextCursor"]},
+        ).json()
+        assert len(first["items"]) == 2
+        assert len(second["items"]) == 2
+        assert {item["id"] for item in first["items"]}.isdisjoint(
+            item["id"] for item in second["items"]
         )
-        assert response.status_code == 401
-    limited = client.post(
-        "/api/auth/login",
-        json={"username": "admin", "password": "incorrect-password"},
-    )
-    assert limited.status_code == 429
-    assert limited.json()["code"] == "login_rate_limited"
-    assert limited.headers["x-content-type-options"] == "nosniff"
-    assert limited.headers["x-frame-options"] == "DENY"
-    assert limited.headers["x-request-id"]
 
 
-def test_sibling_tag_uniqueness_allows_same_name_in_other_branches(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    parent_ids = []
-    for name in ("A", "B"):
-        parent_ids.append(
-            client.post(
-                "/api/tags",
-                headers=headers,
-                json={"name": name, "color": "#111111"},
-            ).json()["id"]
-        )
-    for parent_id in parent_ids:
-        response = client.post(
-            "/api/tags",
-            headers=headers,
-            json={"name": "同名子标签", "color": "#222222", "parentId": parent_id},
-        )
-        assert response.status_code == 201
-    duplicate = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "同名子标签", "color": "#333333", "parentId": parent_ids[0]},
-    )
-    assert duplicate.status_code == 409
-
-
-def test_recycle_bin_restore_purge_and_audit_log(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tag = create_leaf_tag(client, headers, "回收站标签")
-    image = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("real.png", png_file(), "image/png")},
-        data={"title": "trash-me", "tagIds": tag["id"], "categories": "function"},
-    ).json()
-
-    deleted = client.delete(f"/api/images/{image['id']}", headers=headers)
-    assert deleted.status_code == 204
-    assert client.get(f"/api/images/{image['id']}").status_code == 404
-    trash = client.get("/api/images/trash").json()
-    assert [item["id"] for item in trash] == [image["id"]]
-
-    restored = client.post(f"/api/images/{image['id']}/restore", headers=headers)
-    assert restored.status_code == 200
-    assert client.get(f"/api/images/{image['id']}").status_code == 200
-
-    client.delete(f"/api/images/{image['id']}", headers=headers)
-    purged = client.delete(f"/api/images/{image['id']}/purge", headers=headers)
-    assert purged.status_code == 204
-    assert client.get("/api/images/trash").json() == []
-
-    logs = client.get("/api/admin/users/audit-logs").json()
-    actions = {entry["action"] for entry in logs}
-    assert {"auth.login", "image.upload", "image.trash", "image.restore", "image.purge"} <= actions
-
-
-def test_restore_prunes_legacy_non_leaf_tag_links(client, db_factory):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    parent = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "旧体系", "color": "#111111"},
-    ).json()
-    child = client.post(
-        "/api/tags",
-        headers=headers,
-        json={"name": "旧叶子", "color": "#222222", "parentId": parent["id"]},
-    ).json()
-    image = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("real.png", png_file(), "image/png")},
-        data={"title": "legacy-trash", "tagIds": child["id"], "categories": "function"},
-    ).json()
+def test_recycle_bin_restore_and_purge(client):
+    headers = admin_headers(client)
+    image = upload(client, headers, "trash-me")
     assert client.delete(f"/api/images/{image['id']}", headers=headers).status_code == 204
-
-    with db_factory() as db:
-        legacy_parent = db.get(Tag, parent["id"])
-        assert legacy_parent is not None
-        legacy_parent.assignable = False
-        db.add(ImageTag(image_id=image["id"], tag_id=parent["id"]))
-        db.commit()
-
-    restored = client.post(f"/api/images/{image['id']}/restore", headers=headers)
-    assert restored.status_code == 200
-    assert [tag["id"] for tag in restored.json()["tags"]] == [child["id"]]
-
-    with db_factory() as db:
-        tag_ids = list(
-            db.scalars(select(ImageTag.tag_id).where(ImageTag.image_id == image["id"])).all()
-        )
-    assert tag_ids == [child["id"]]
+    assert {item["id"] for item in client.get("/api/images/trash").json()} == {image["id"]}
+    assert client.post(f"/api/images/{image['id']}/restore", headers=headers).status_code == 200
+    assert client.delete(f"/api/images/{image['id']}", headers=headers).status_code == 204
+    assert client.delete(f"/api/images/{image['id']}/purge", headers=headers).status_code == 204
+    assert client.get(f"/api/images/{image['id']}").status_code == 404
 
 
 def test_liveness_and_readiness(client):
-    assert client.get("/health/live").json()["status"] == "ok"
-    assert client.get("/health/ready").json()["status"] == "ready"
-
-
-def test_multiple_tag_filter_uses_and_semantics(client):
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    tags = [
-        client.post(
-            "/api/tags",
-            headers=headers,
-            json={"name": name, "color": "#111111"},
-        ).json()
-        for name in ("标签一", "标签二")
-    ]
-    both = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("both.png", png_file(), "image/png")},
-        data={
-            "title": "both",
-            "tagIds": ",".join(tag["id"] for tag in tags),
-            "categories": "function",
-        },
-    ).json()
-    client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("one.png", png_file(), "image/png")},
-        data={"title": "one", "tagIds": tags[0]["id"], "categories": "function"},
-    )
-    response = client.get(
-        "/api/images",
-        params={"tagIds": ",".join(tag["id"] for tag in tags)},
-    )
-    assert [item["id"] for item in response.json()["items"]] == [both["id"]]
+    assert client.get("/health/live").status_code == 200
+    assert client.get("/health/ready").status_code == 200

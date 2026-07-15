@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+from math import ceil
 
 from app.models.search_feedback import SearchFeedbackEvent
 from app.models.search_log import SearchLog
-from app.models.tag import Tag
 from app.repositories.search_feedback_repository import SearchFeedbackRepository
 from app.repositories.search_log_repository import SearchLogRepository
 from app.repositories.search_ops_repository import SearchOpsRepository
 from app.schemas.search_ops import (
-    AiReviewQueueItem,
+    AiConceptReviewQueueItem,
     AssetGapItem,
-    LabelHealthItem,
+    ConceptHealthItem,
     SearchMetricItem,
     SearchOpsIssueRead,
     SearchOpsSummary,
@@ -38,13 +38,25 @@ class SearchOpsService:
         logs = self.logs.list_since(since, limit=limit)
         feedback_events = self.feedback.list_since(since, limit=limit)
         total = len(logs)
+        durations = sorted(
+            item.duration_ms
+            for item in logs
+            if item.duration_ms is not None
+        )
         return SearchOpsSummary(
             total_searches=total,
             zero_result_count=sum(1 for item in logs if item.result_count == 0),
             fallback_count=sum(1 for item in logs if item.fallback),
+            timed_out_count=sum(1 for item in logs if item.timed_out),
+            cache_hit_count=sum(1 for item in logs if item.cache_hit),
+            reranker_used_count=sum(1 for item in logs if item.reranker_used),
+            average_duration_ms=(
+                round(sum(durations) / len(durations), 2)
+                if durations
+                else 0.0
+            ),
+            p95_duration_ms=_percentile_95(durations),
             ai_understood_count=sum(1 for item in logs if item.normalized_query),
-            smart_search_count=sum(1 for item in logs if item.requested_mode == "smart"),
-            precise_search_count=sum(1 for item in logs if item.requested_mode == "precise"),
             top_queries=self._top_items(item.keyword for item in logs if item.keyword),
             zero_result_queries=self._top_items(
                 item.keyword for item in logs if item.keyword and item.result_count == 0
@@ -52,8 +64,8 @@ class SearchOpsService:
             top_normalized_queries=self._top_items(
                 item.normalized_query for item in logs if item.normalized_query
             ),
-            top_matched_categories=self._top_items(
-                item.matched_category for item in logs if item.matched_category
+            top_matched_concepts=self._top_items(
+                item.matched_concept for item in logs if item.matched_concept
             ),
             feedback_count=len(feedback_events),
             feedback_by_type=self._top_items(
@@ -68,7 +80,7 @@ class SearchOpsService:
             recent_logs=[log_read(item) for item in logs[:50]],
             search_issues=self._search_issues(logs, feedback_events),
             ai_review_queue=self._ai_review_queue(),
-            label_health=self._label_health(logs),
+            concept_health=self._concept_health(logs),
             asset_gaps=self._asset_gaps(logs, feedback_events),
         )
 
@@ -116,7 +128,7 @@ class SearchOpsService:
                     issue_type="zero_result",
                     source="search_log",
                     reason="用户搜索没有返回素材",
-                    suggested_action="先判断是素材缺口、标签缺失，还是业务话术没有进入意图词库",
+                    suggested_action="先判断是素材缺口、概念关系缺失，还是业务话术没有进入意图词库",
                     created_at=log.created_at,
                     severity="high",
                 )
@@ -197,60 +209,71 @@ class SearchOpsService:
             reverse=False,
         )[:50]
 
-    def _ai_review_queue(self, limit: int = 50) -> list[AiReviewQueueItem]:
-        return [
-            AiReviewQueueItem(
-                id=label.id,
-                image_id=label.image_id,
-                image_title=label.image.title,
-                thumbnail_url=f"/api/images/{label.image_id}/thumbnail",
-                label_code=label.label_code,
-                label_name=label.tag.name,
-                system_name=label.tag.parent.name if label.tag.parent else None,
-                role=label.role,
-                confidence=label.confidence,
-                evidence_level=label.evidence_level,
-                reason=label.reason,
-                created_at=label.created_at,
+    def _ai_review_queue(self, limit: int = 50) -> list[AiConceptReviewQueueItem]:
+        rows: list[AiConceptReviewQueueItem] = []
+        for link in self.ops.pending_ai_concept_links(limit=limit):
+            image_id = link.asset_group.primary_image_id
+            if not image_id:
+                continue
+            rows.append(
+                AiConceptReviewQueueItem(
+                    id=link.id,
+                    asset_group_id=link.asset_group_id,
+                    image_id=image_id,
+                    image_title=link.asset_group.title,
+                    thumbnail_url=f"/api/images/{image_id}/thumbnail",
+                    concept_code=link.concept.code,
+                    concept_name=link.concept.name,
+                    system_names=[
+                        item.system_tag.name
+                        for item in link.concept.system_links
+                        if item.status == "active"
+                    ],
+                    relation_role=link.relation_role,
+                    confidence=link.confidence,
+                    reason=link.evidence_reason,
+                    created_at=link.created_at,
+                )
             )
-            for label in self.ops.pending_ai_labels(limit=limit)
-        ]
+        return rows
 
-    def _label_health(self, logs: list[SearchLog]) -> list[LabelHealthItem]:
-        tags = self.ops.assignable_tags()
-        image_counts = self.ops.image_counts_by_tag()
-        label_rows = self.ops.active_business_labels()
+    def _concept_health(self, logs: list[SearchLog]) -> list[ConceptHealthItem]:
+        concepts = self.ops.active_concepts()
+        asset_counts = self.ops.asset_counts_by_concept()
+        links = self.ops.active_concept_links()
         manual_counts: Counter[str] = Counter()
         ai_pending_counts: Counter[str] = Counter()
         ai_accepted_counts: Counter[str] = Counter()
         ai_rejected_counts: Counter[str] = Counter()
-        for label in label_rows:
-            if label.origin == "manual":
-                manual_counts[label.tag_id] += 1
-            elif label.review_status == "pending":
-                ai_pending_counts[label.tag_id] += 1
-            elif label.review_status == "accepted":
-                ai_accepted_counts[label.tag_id] += 1
-            elif label.review_status == "rejected":
-                ai_rejected_counts[label.tag_id] += 1
+        for link in links:
+            if link.origin in {"manual", "migrated"}:
+                manual_counts[link.concept_id] += 1
+            elif link.review_status == "pending":
+                ai_pending_counts[link.concept_id] += 1
+            elif link.review_status == "accepted":
+                ai_accepted_counts[link.concept_id] += 1
+            elif link.review_status == "rejected":
+                ai_rejected_counts[link.concept_id] += 1
 
         search_counts: Counter[str] = Counter()
         for log in logs:
-            for tag in tags:
-                display = self._tag_display_name(tag)
-                if log.matched_category == display or log.normalized_query == tag.name:
-                    search_counts[tag.id] += 1
+            for concept in concepts:
+                if (
+                    log.matched_concept == concept.name
+                    or log.normalized_query == concept.name
+                ):
+                    search_counts[concept.id] += 1
 
-        rows: list[LabelHealthItem] = []
-        for tag in tags:
-            image_count = int(image_counts.get(tag.id, 0))
-            pending = ai_pending_counts[tag.id]
-            manual = manual_counts[tag.id]
-            accepted = ai_accepted_counts[tag.id]
-            search_count = search_counts[tag.id]
+        rows: list[ConceptHealthItem] = []
+        for concept in concepts:
+            image_count = int(asset_counts.get(concept.id, 0))
+            pending = ai_pending_counts[concept.id]
+            manual = manual_counts[concept.id]
+            accepted = ai_accepted_counts[concept.id]
+            search_count = search_counts[concept.id]
             if image_count == 0 and search_count > 0:
                 level = "needs_assets"
-                recommendation = "有搜索需求但没有可用素材，优先补图或检查标签归档"
+                recommendation = "有搜索需求但没有可用素材，优先补图或检查概念关系"
             elif pending >= max(2, manual + accepted):
                 level = "needs_review"
                 recommendation = "AI 待审核量偏高，优先批量确认或拒绝"
@@ -259,18 +282,22 @@ class SearchOpsService:
                 recommendation = "有搜索需求但素材覆盖偏少，建议继续观察并补充"
             else:
                 level = "healthy"
-                recommendation = "当前标签供给和审核状态基本正常"
+                recommendation = "当前概念供给和审核状态基本正常"
             rows.append(
-                LabelHealthItem(
-                    tag_id=tag.id,
-                    label_code=tag.code,
-                    label_name=tag.name,
-                    system_name=tag.parent.name if tag.parent else None,
+                ConceptHealthItem(
+                    concept_id=concept.id,
+                    concept_code=concept.code,
+                    concept_name=concept.name,
+                    system_names=[
+                        item.system_tag.name
+                        for item in concept.system_links
+                        if item.status == "active"
+                    ],
                     image_count=image_count,
                     manual_count=manual,
                     ai_pending_count=pending,
                     ai_accepted_count=accepted,
-                    ai_rejected_count=ai_rejected_counts[tag.id],
+                    ai_rejected_count=ai_rejected_counts[concept.id],
                     search_count=search_count,
                     health_level=level,
                     recommendation=recommendation,
@@ -283,7 +310,7 @@ class SearchOpsService:
                 rank[item.health_level],
                 -item.search_count,
                 item.image_count,
-                item.label_name,
+                item.concept_name,
             ),
         )[:80]
 
@@ -294,7 +321,7 @@ class SearchOpsService:
     ) -> list[AssetGapItem]:
         demand: Counter[str] = Counter()
         source: dict[str, set[str]] = {}
-        suggested_label: dict[str, str] = {}
+        suggested_concept: dict[str, str] = {}
         for log in logs:
             if log.result_count == 0:
                 demand[log.keyword] += 2
@@ -302,8 +329,8 @@ class SearchOpsService:
             elif log.result_count < 3:
                 demand[log.keyword] += 1
                 source.setdefault(log.keyword, set()).add("结果少")
-            if log.matched_category or log.normalized_query:
-                suggested_label[log.keyword] = log.matched_category or log.normalized_query or ""
+            if log.matched_concept or log.normalized_query:
+                suggested_concept[log.keyword] = log.matched_concept or log.normalized_query or ""
         for event in feedback_events:
             if event.feedback_type in {"asset_request", "too_few_results", "need_different_style"}:
                 demand[event.keyword] += 2 if event.feedback_type == "asset_request" else 1
@@ -312,7 +339,7 @@ class SearchOpsService:
             AssetGapItem(
                 keyword=keyword,
                 demand_count=count,
-                suggested_label=suggested_label.get(keyword) or None,
+                suggested_concept=suggested_concept.get(keyword) or None,
                 reason="高频需求未被现有素材充分满足",
                 source="、".join(sorted(source.get(keyword, {"搜索"}))),
             )
@@ -327,7 +354,8 @@ class SearchOpsService:
             for label, count in Counter(values).most_common(10)
         ]
 
-    def _tag_display_name(self, tag: Tag) -> str:
-        if tag.parent:
-            return f"{tag.parent.name} > {tag.name}"
-        return tag.name
+def _percentile_95(values: list[int]) -> int:
+    if not values:
+        return 0
+    index = max(0, min(len(values) - 1, ceil(0.95 * len(values)) - 1))
+    return values[index]

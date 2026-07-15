@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     reranker_model_name: str = ""
     reranker_timeout_seconds: float = 5.0
     reranker_top_n: int = 50
+    search_total_timeout_seconds: float = 2.5
+    search_meilisearch_timeout_seconds: float = 0.2
+    search_embedding_timeout_seconds: float = 0.65
+    search_understanding_timeout_seconds: float = 0.9
+    search_reranker_timeout_seconds: float = 0.7
+    search_candidate_limit: int = 20
+    search_cache_ttl_seconds: float = 300.0
+    search_cache_max_entries: int = 512
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

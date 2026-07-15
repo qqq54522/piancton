@@ -243,7 +243,92 @@ export interface paths {
         patch: operations["update_image_title_api_images__image_id__title_patch"];
         trace?: never;
     };
-    "/api/images/{image_id}/tags": {
+    "/api/asset-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Asset Groups */
+        get: operations["list_asset_groups_api_asset_groups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Asset Group */
+        get: operations["get_asset_group_api_asset_groups__group_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Asset Variant */
+        post: operations["add_asset_variant_api_asset_groups__group_id__images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/primary-image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace Asset Primary */
+        post: operations["replace_asset_primary_api_asset_groups__group_id__primary_image_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/concept-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Asset Concept */
+        post: operations["confirm_asset_concept_api_asset_groups__group_id__concept_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/concept-links/{link_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -256,8 +341,129 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Image Tags */
-        patch: operations["update_image_tags_api_images__image_id__tags_patch"];
+        /** Review Asset Concept Suggestion */
+        patch: operations["review_asset_concept_suggestion_api_asset_groups__group_id__concept_links__link_id__patch"];
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/concept-links/review-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Asset Concept Suggestions */
+        post: operations["review_asset_concept_suggestions_api_asset_groups__group_id__concept_links_review_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/search-phrases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Asset Search Phrase */
+        post: operations["add_asset_search_phrase_api_asset_groups__group_id__search_phrases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/search-phrases/{phrase_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Review Asset Search Phrase */
+        patch: operations["review_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__patch"];
+        trace?: never;
+    };
+    "/api/business-concepts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Business Concepts */
+        get: operations["list_business_concepts_api_business_concepts_get"];
+        put?: never;
+        /** Create Business Concept */
+        post: operations["create_business_concept_api_business_concepts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/business-concepts/{concept_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Business Concept */
+        get: operations["get_business_concept_api_business_concepts__concept_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Business Concept */
+        patch: operations["update_business_concept_api_business_concepts__concept_id__patch"];
+        trace?: never;
+    };
+    "/api/business-concepts/{concept_id}/search-phrases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Concept Search Phrase */
+        post: operations["add_concept_search_phrase_api_business_concepts__concept_id__search_phrases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/business-concepts/{concept_id}/relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Concept Relation */
+        post: operations["add_concept_relation_api_business_concepts__concept_id__relations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/tags": {
@@ -270,30 +476,11 @@ export interface paths {
         /** List Tags */
         get: operations["list_tags_api_tags_get"];
         put?: never;
-        /** Create Tag */
-        post: operations["create_tag_api_tags_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/tags/{tag_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Tag */
-        delete: operations["delete_tag_api_tags__tag_id__delete"];
-        options?: never;
-        head?: never;
-        /** Update Tag */
-        patch: operations["update_tag_api_tags__tag_id__patch"];
         trace?: never;
     };
     "/api/ai/provider": {
@@ -433,6 +620,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/search-ops/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Ops Summary */
+        get: operations["search_ops_summary_api_admin_search_ops_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Search Feedback */
+        post: operations["create_search_feedback_api_search_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -488,65 +709,35 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AuditLogRead */
-        AuditLogRead: {
+        /** AiConceptReviewQueueItem */
+        AiConceptReviewQueueItem: {
             /** Id */
             id: string;
-            /** Actoruserid */
-            actorUserId?: string | null;
-            /** Action */
-            action: string;
-            /** Targettype */
-            targetType: string;
-            /** Targetid */
-            targetId?: string | null;
-            /** Details */
-            details: {
-                [key: string]: unknown;
-            };
-            /** Requestid */
-            requestId?: string | null;
+            /** Assetgroupid */
+            assetGroupId: string;
+            /** Imageid */
+            imageId: string;
+            /** Imagetitle */
+            imageTitle: string;
+            /** Thumbnailurl */
+            thumbnailUrl: string;
+            /** Conceptcode */
+            conceptCode: string;
+            /** Conceptname */
+            conceptName: string;
+            /** Systemnames */
+            systemNames: string[];
+            /** Relationrole */
+            relationRole: string;
+            /** Confidence */
+            confidence?: number | null;
+            /** Reason */
+            reason?: string | null;
             /**
              * Createdat
              * Format: date-time
              */
             createdAt: string;
-        };
-        /** Body_upload_image_api_images_upload_post */
-        Body_upload_image_api_images_upload_post: {
-            /**
-             * File
-             * Format: binary
-             */
-            file: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * Tag Ids
-             * @default
-             */
-            tag_ids: string;
-            /**
-             * Primary Tag Id
-             * @default
-             */
-            primary_tag_id: string;
-            /**
-             * Categories
-             * @default
-             */
-            categories: string;
-        };
-        /** ConfidenceTag */
-        ConfidenceTag: {
-            /** Tag */
-            tag: string;
-            /** Confidence */
-            confidence: number;
-            /** Dimension */
-            dimension?: string | null;
-            /** Reason */
-            reason?: string | null;
         };
         /** AnalysisRunRead */
         AnalysisRunRead: {
@@ -571,6 +762,515 @@ export interface components {
              */
             createdAt: string;
         };
+        /** AssetConceptBatchReview */
+        AssetConceptBatchReview: {
+            /** Linkids */
+            linkIds: string[];
+            /**
+             * Reviewstatus
+             * @enum {string}
+             */
+            reviewStatus: "accepted" | "rejected";
+        };
+        /** AssetConceptConfirmation */
+        AssetConceptConfirmation: {
+            /** Conceptid */
+            conceptId: string;
+            /**
+             * Relationrole
+             * @enum {string}
+             */
+            relationRole: "expresses" | "supports" | "visual_related" | "excludes";
+            /** Evidencereason */
+            evidenceReason?: string | null;
+        };
+        /** AssetConceptLinkRead */
+        AssetConceptLinkRead: {
+            /** Id */
+            id: string;
+            /** Conceptid */
+            conceptId: string;
+            /** Conceptcode */
+            conceptCode: string;
+            /** Conceptname */
+            conceptName: string;
+            /** Relationrole */
+            relationRole: string;
+            /** Origin */
+            origin: string;
+            /** Reviewstatus */
+            reviewStatus: string;
+            /** Confidence */
+            confidence?: number | null;
+            /** Evidencereason */
+            evidenceReason?: string | null;
+            /** Sourceref */
+            sourceRef?: string | null;
+        };
+        /** AssetConceptReview */
+        AssetConceptReview: {
+            /**
+             * Reviewstatus
+             * @enum {string}
+             */
+            reviewStatus: "accepted" | "rejected";
+            /** Relationrole */
+            relationRole?: ("expresses" | "supports" | "visual_related" | "excludes") | null;
+        };
+        /** AssetGapItem */
+        AssetGapItem: {
+            /** Keyword */
+            keyword: string;
+            /** Demandcount */
+            demandCount: number;
+            /** Suggestedconcept */
+            suggestedConcept?: string | null;
+            /** Reason */
+            reason: string;
+            /** Source */
+            source: string;
+        };
+        /** AssetGroupRead */
+        AssetGroupRead: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Primaryimageid */
+            primaryImageId?: string | null;
+            /** Approvalstatus */
+            approvalStatus: string;
+            /** Publishstatus */
+            publishStatus: string;
+            /** Createdby */
+            createdBy: string;
+            /** Images */
+            images?: components["schemas"]["AssetImageRead"][];
+            /** Conceptlinks */
+            conceptLinks?: components["schemas"]["AssetConceptLinkRead"][];
+            /** Searchphrases */
+            searchPhrases?: components["schemas"]["AssetSearchPhraseRead"][];
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** AssetImageRead */
+        AssetImageRead: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            fileName: string;
+            /** Thumbnailurl */
+            thumbnailUrl: string;
+            /** Contenturl */
+            contentUrl: string;
+            /** Downloadurl */
+            downloadUrl: string;
+            /** Assetrole */
+            assetRole: string;
+            /** Width */
+            width?: number | null;
+            /** Height */
+            height?: number | null;
+            /** Aspectratio */
+            aspectRatio?: number | null;
+            /** Channel */
+            channel?: string | null;
+            /** Versionno */
+            versionNo: number;
+            /** Iscurrent */
+            isCurrent: boolean;
+        };
+        /** AssetSearchPhraseCreate */
+        AssetSearchPhraseCreate: {
+            /** Phrase */
+            phrase: string;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+        };
+        /** AssetSearchPhraseRead */
+        AssetSearchPhraseRead: {
+            /** Id */
+            id: string;
+            /** Phrase */
+            phrase: string;
+            /** Origin */
+            origin: string;
+            /** Reviewstatus */
+            reviewStatus: string;
+            /** Weight */
+            weight: number;
+        };
+        /** AssetSearchPhraseReview */
+        AssetSearchPhraseReview: {
+            /**
+             * Reviewstatus
+             * @enum {string}
+             */
+            reviewStatus: "accepted" | "rejected";
+        };
+        /** AuditLogRead */
+        AuditLogRead: {
+            /** Id */
+            id: string;
+            /** Actoruserid */
+            actorUserId?: string | null;
+            /** Action */
+            action: string;
+            /** Targettype */
+            targetType: string;
+            /** Targetid */
+            targetId?: string | null;
+            /** Details */
+            details: {
+                [key: string]: unknown;
+            };
+            /** Requestid */
+            requestId?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** Body_add_asset_variant_api_asset_groups__group_id__images_post */
+        Body_add_asset_variant_api_asset_groups__group_id__images_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * Asset Role
+             * @enum {string}
+             */
+            asset_role: "derivative" | "alternative" | "revision";
+            /** Channel */
+            channel?: string | null;
+            /**
+             * Auto Analyze
+             * @default true
+             */
+            auto_analyze: boolean;
+        };
+        /** Body_replace_asset_primary_api_asset_groups__group_id__primary_image_post */
+        Body_replace_asset_primary_api_asset_groups__group_id__primary_image_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+            /** Title */
+            title?: string | null;
+            /** Channel */
+            channel?: string | null;
+            /**
+             * Auto Analyze
+             * @default true
+             */
+            auto_analyze: boolean;
+        };
+        /** Body_upload_image_api_images_upload_post */
+        Body_upload_image_api_images_upload_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * Expected Search Words
+             * @default
+             */
+            expected_search_words: string;
+            /** Channel */
+            channel?: string | null;
+            /**
+             * Auto Analyze
+             * @default true
+             */
+            auto_analyze: boolean;
+        };
+        /** BusinessConceptCreate */
+        BusinessConceptCreate: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /**
+             * Concepttype
+             * @default business_term
+             */
+            conceptType: string;
+            /** Definition */
+            definition?: string | null;
+            /** Systemlinks */
+            systemLinks?: components["schemas"]["ConceptSystemLinkInput"][];
+        };
+        /** BusinessConceptRead */
+        BusinessConceptRead: {
+            /** Id */
+            id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Concepttype */
+            conceptType: string;
+            /** Definition */
+            definition?: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+            /** Replacedbyconceptid */
+            replacedByConceptId?: string | null;
+            /** Systemlinks */
+            systemLinks?: components["schemas"]["ConceptSystemLinkRead"][];
+            /** Searchphrases */
+            searchPhrases?: components["schemas"]["ConceptSearchPhraseRead"][];
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** BusinessConceptUpdate */
+        BusinessConceptUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Concepttype */
+            conceptType?: string | null;
+            /** Definition */
+            definition?: string | null;
+            /** Status */
+            status?: ("draft" | "active" | "deprecated" | "merged") | null;
+            /** Replacedbyconceptid */
+            replacedByConceptId?: string | null;
+            /** Systemlinks */
+            systemLinks?: components["schemas"]["ConceptSystemLinkInput"][] | null;
+        };
+        /** ConceptHealthItem */
+        ConceptHealthItem: {
+            /** Conceptid */
+            conceptId: string;
+            /** Conceptcode */
+            conceptCode: string;
+            /** Conceptname */
+            conceptName: string;
+            /** Systemnames */
+            systemNames: string[];
+            /** Imagecount */
+            imageCount: number;
+            /** Manualcount */
+            manualCount: number;
+            /** Aipendingcount */
+            aiPendingCount: number;
+            /** Aiacceptedcount */
+            aiAcceptedCount: number;
+            /** Airejectedcount */
+            aiRejectedCount: number;
+            /** Searchcount */
+            searchCount: number;
+            /**
+             * Healthlevel
+             * @enum {string}
+             */
+            healthLevel: "healthy" | "needs_assets" | "needs_review" | "watch";
+            /** Recommendation */
+            recommendation: string;
+        };
+        /** ConceptRelationCreate */
+        ConceptRelationCreate: {
+            /** Targetconceptid */
+            targetConceptId: string;
+            /**
+             * Relationtype
+             * @enum {string}
+             */
+            relationType: "broader_than" | "narrower_than" | "supports" | "similar_to" | "distinguishes_from" | "conflicts_with";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ConceptRelationRead */
+        ConceptRelationRead: {
+            /** Targetconceptid */
+            targetConceptId: string;
+            /**
+             * Relationtype
+             * @enum {string}
+             */
+            relationType: "broader_than" | "narrower_than" | "supports" | "similar_to" | "distinguishes_from" | "conflicts_with";
+            /** Reason */
+            reason?: string | null;
+            /** Id */
+            id: string;
+            /** Sourceconceptid */
+            sourceConceptId: string;
+            /** Status */
+            status: string;
+        };
+        /** ConceptSearchPhraseCreate */
+        ConceptSearchPhraseCreate: {
+            /** Phrase */
+            phrase: string;
+            /**
+             * Phrasetype
+             * @default alias
+             * @enum {string}
+             */
+            phraseType: "official" | "alias" | "pain" | "outcome" | "scenario" | "colloquial" | "typo";
+            /**
+             * Origin
+             * @default manual
+             * @enum {string}
+             */
+            origin: "source_document" | "manual" | "ai" | "search_feedback" | "migrated";
+            /**
+             * Reviewstatus
+             * @default accepted
+             * @enum {string}
+             */
+            reviewStatus: "pending" | "accepted" | "rejected";
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+            /** Sourceref */
+            sourceRef?: string | null;
+        };
+        /** ConceptSearchPhraseRead */
+        ConceptSearchPhraseRead: {
+            /** Phrase */
+            phrase: string;
+            /**
+             * Phrasetype
+             * @default alias
+             * @enum {string}
+             */
+            phraseType: "official" | "alias" | "pain" | "outcome" | "scenario" | "colloquial" | "typo";
+            /**
+             * Origin
+             * @default manual
+             * @enum {string}
+             */
+            origin: "source_document" | "manual" | "ai" | "search_feedback" | "migrated";
+            /**
+             * Reviewstatus
+             * @default accepted
+             * @enum {string}
+             */
+            reviewStatus: "pending" | "accepted" | "rejected";
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+            /** Sourceref */
+            sourceRef?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** ConceptSuggestion */
+        ConceptSuggestion: {
+            /** Conceptcode */
+            conceptCode?: string | null;
+            /** Systemname */
+            systemName: string;
+            /** Conceptname */
+            conceptName: string;
+            /** Confidence */
+            confidence: number;
+            /**
+             * Evidencelevel
+             * @enum {string}
+             */
+            evidenceLevel: "A" | "B" | "C";
+            /**
+             * Relationrole
+             * @enum {string}
+             */
+            relationRole: "expresses" | "supports";
+            /** Reason */
+            reason: string;
+        };
+        /** ConceptSystemLinkInput */
+        ConceptSystemLinkInput: {
+            /** Systemtagid */
+            systemTagId: string;
+            /**
+             * Role
+             * @default core
+             * @enum {string}
+             */
+            role: "core" | "support" | "evidence" | "related";
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ConceptSystemLinkRead */
+        ConceptSystemLinkRead: {
+            /** Systemtagid */
+            systemTagId: string;
+            /**
+             * Role
+             * @default core
+             * @enum {string}
+             */
+            role: "core" | "support" | "evidence" | "related";
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+            /** Reason */
+            reason?: string | null;
+            /** Systemname */
+            systemName: string;
+            /** Status */
+            status: string;
+        };
+        /** ConfidenceTag */
+        ConfidenceTag: {
+            /** Tag */
+            tag: string;
+            /** Confidence */
+            confidence: number;
+            /** Dimension */
+            dimension?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
         /** ContentTagRead */
         ContentTagRead: {
             /** Id */
@@ -582,32 +1282,10 @@ export interface components {
             /** Dimension */
             dimension?: string | null;
         };
-        /** ImageSemanticProfile */
-        ImageSemanticProfile: {
-            /** Visualfacts */
-            visualFacts?: string[];
-            /** Businessintent */
-            businessIntent?: string;
-            /** Searchphrases */
-            searchPhrases?: string[];
-            /** Exclusionboundaries */
-            exclusionBoundaries?: string[];
-        };
-        /** SemanticProfileRead */
-        SemanticProfileRead: {
-            /** Visualfacts */
-            visualFacts?: string[];
-            /** Businessintent */
-            businessIntent?: string;
-            /** Searchphrases */
-            searchPhrases?: string[];
-            /** Exclusionboundaries */
-            exclusionBoundaries?: string[];
-        };
-        /** ExpandedSearchTag */
-        ExpandedSearchTag: {
-            /** Tag */
-            tag: string;
+        /** ExpandedSearchTerm */
+        ExpandedSearchTerm: {
+            /** Term */
+            term: string;
             /**
              * Relation
              * @enum {string}
@@ -625,82 +1303,15 @@ export interface components {
         };
         /** ImageAnalysisResult */
         ImageAnalysisResult: {
-            /**
-             * Imagetype
-             * @enum {string}
-             */
-            imageType: "function" | "scene_emotion" | "scene_functional";
             /** Imagesummary */
             imageSummary: string;
-            /** Semanticprofile */
             semanticProfile?: components["schemas"]["ImageSemanticProfile"];
             /** Contenttags */
             contentTags?: components["schemas"]["ConfidenceTag"][];
-            /** Secondarylabels */
-            secondaryLabels?: components["schemas"]["SecondaryLabel"][];
+            /** Conceptsuggestions */
+            conceptSuggestions?: components["schemas"]["ConceptSuggestion"][];
             /** Recommendedsearchwords */
             recommendedSearchWords?: string[];
-            /** Negativetags */
-            negativeTags?: string[];
-        };
-        /** BusinessLabelRead */
-        BusinessLabelRead: {
-            /** Id */
-            id: string;
-            /** Labelcode */
-            labelCode: string;
-            /** Tagid */
-            tagId: string;
-            /** Tagname */
-            tagName: string;
-            /** Systemname */
-            systemName?: string | null;
-            /** Origin */
-            origin: string;
-            /** Role */
-            role: string;
-            /** Reviewstatus */
-            reviewStatus: string;
-            /** Confidence */
-            confidence?: number | null;
-            /** Evidencelevel */
-            evidenceLevel?: string | null;
-            /** Reason */
-            reason?: string | null;
-        };
-        /** BusinessLabelReviewUpdate */
-        BusinessLabelReviewUpdate: {
-            /** Reviewstatus */
-            reviewStatus: "accepted" | "pending" | "rejected";
-        };
-        /** SearchFeedbackCreate */
-        SearchFeedbackCreate: {
-            /** Searchlogid */
-            searchLogId?: string | null;
-            /** Keyword */
-            keyword: string;
-            /** Feedbacktype */
-            feedbackType: "not_relevant" | "too_few_results" | "need_different_style" | "asset_request";
-            /** Note */
-            note?: string | null;
-        };
-        /** SearchFeedbackRead */
-        SearchFeedbackRead: {
-            /** Id */
-            id: string;
-            /** Searchlogid */
-            searchLogId?: string | null;
-            /** Keyword */
-            keyword: string;
-            /** Feedbacktype */
-            feedbackType: string;
-            /** Note */
-            note?: string | null;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
         };
         /** ImageDetailRead */
         ImageDetailRead: {
@@ -724,8 +1335,6 @@ export interface components {
             uploader: string;
             /** Downloadcount */
             downloadCount: number;
-            /** Categories */
-            categories: string[];
             /**
              * Createdat
              * Format: date-time
@@ -733,20 +1342,43 @@ export interface components {
             createdAt: string;
             /** Deletedat */
             deletedAt?: string | null;
-            /** Tags */
-            tags: components["schemas"]["TagRead"][];
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /**
+             * Assetrole
+             * @default primary
+             */
+            assetRole: string;
+            /** Width */
+            width?: number | null;
+            /** Height */
+            height?: number | null;
+            /** Aspectratio */
+            aspectRatio?: number | null;
+            /** Channel */
+            channel?: string | null;
+            /**
+             * Versionno
+             * @default 1
+             */
+            versionNo: number;
+            /**
+             * Iscurrent
+             * @default true
+             */
+            isCurrent: boolean;
+            /**
+             * Variantcount
+             * @default 1
+             */
+            variantCount: number;
             /** Imagesummary */
             imageSummary?: string | null;
-            /** Semanticprofile */
             semanticProfile?: components["schemas"]["SemanticProfileRead"] | null;
             /** Relatedimages */
             relatedImages?: components["schemas"]["ImageRead"][];
             /** Contenttags */
             contentTags?: components["schemas"]["ContentTagRead"][];
-            /** Level2Categories */
-            level2Categories?: components["schemas"]["Level2CategoryRead"][];
-            /** Businesslabels */
-            businessLabels?: components["schemas"]["BusinessLabelRead"][];
             /** Analysisruns */
             analysisRuns?: components["schemas"]["AnalysisRunRead"][];
         };
@@ -781,8 +1413,6 @@ export interface components {
             uploader: string;
             /** Downloadcount */
             downloadCount: number;
-            /** Categories */
-            categories: string[];
             /**
              * Createdat
              * Format: date-time
@@ -790,31 +1420,68 @@ export interface components {
             createdAt: string;
             /** Deletedat */
             deletedAt?: string | null;
-            /** Tags */
-            tags: components["schemas"]["TagRead"][];
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /**
+             * Assetrole
+             * @default primary
+             */
+            assetRole: string;
+            /** Width */
+            width?: number | null;
+            /** Height */
+            height?: number | null;
+            /** Aspectratio */
+            aspectRatio?: number | null;
+            /** Channel */
+            channel?: string | null;
+            /**
+             * Versionno
+             * @default 1
+             */
+            versionNo: number;
+            /**
+             * Iscurrent
+             * @default true
+             */
+            isCurrent: boolean;
+            /**
+             * Variantcount
+             * @default 1
+             */
+            variantCount: number;
         };
-        /** ImageTagsUpdate */
-        ImageTagsUpdate: {
-            /** Tagids */
-            tagIds: string[];
-            /** Primarytagid */
-            primaryTagId?: string | null;
+        /** ImageSemanticProfile */
+        ImageSemanticProfile: {
+            /**
+             * Schemaversion
+             * @default 2
+             * @constant
+             */
+            schemaVersion: 2;
+            /** Visualfacts */
+            visualFacts?: string[];
+            /** Ocrtext */
+            ocrText?: string[];
+            /** Subjects */
+            subjects?: string[];
+            /** Scenes */
+            scenes?: string[];
+            /** Actions */
+            actions?: string[];
+            /** Visualstyle */
+            visualStyle?: string[];
+            /** Visibleproductfeatures */
+            visibleProductFeatures?: string[];
+            /** Assetsearchphrases */
+            assetSearchPhrases?: string[];
+            /** Negativevisualconcepts */
+            negativeVisualConcepts?: string[];
         };
         /** ImageTitleUpdate */
         ImageTitleUpdate: {
             /** Title */
             title: string;
-        };
-        /** Level2CategoryRead */
-        Level2CategoryRead: {
-            /** Id */
-            id: string;
-            /** Categoryname */
-            categoryName: string;
-            /** Confidence */
-            confidence: number;
-            /** Reason */
-            reason?: string | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -858,15 +1525,52 @@ export interface components {
             finalScore: number;
             /** Matchreasons */
             matchReasons: string[];
-            /** Matchedlevel1Tags */
-            matchedLevel1Tags: string[];
-            /** Matchedlevel2Categories */
-            matchedLevel2Categories: string[];
+            /** Matchedcontentterms */
+            matchedContentTerms: string[];
+            /** Matchedbusinessconcepts */
+            matchedBusinessConcepts: string[];
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /** Assettitle */
+            assetTitle?: string | null;
+            /** Availablevariants */
+            availableVariants?: components["schemas"]["AssetImageRead"][];
+            /** Expressedconcepts */
+            expressedConcepts?: string[];
+            /** Supportedconcepts */
+            supportedConcepts?: string[];
         };
-        /** SearchCategoryMatch */
-        SearchCategoryMatch: {
-            /** Category */
-            category: string;
+        /** SearchBranchStatusRead */
+        SearchBranchStatusRead: {
+            /** Source */
+            source: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "skipped" | "timed_out" | "failed";
+            /**
+             * Durationms
+             * @default 0
+             */
+            durationMs: number;
+            /**
+             * Resultcount
+             * @default 0
+             */
+            resultCount: number;
+            /**
+             * Cachehit
+             * @default false
+             */
+            cacheHit: boolean;
+            /** Detail */
+            detail?: string | null;
+        };
+        /** SearchConceptMatch */
+        SearchConceptMatch: {
+            /** Concept */
+            concept: string;
             /**
              * Relation
              * @enum {string}
@@ -877,10 +1581,209 @@ export interface components {
             /** Weight */
             weight: number;
         };
+        /** SearchDiagnosticsRead */
+        SearchDiagnosticsRead: {
+            /**
+             * Totaldurationms
+             * @default 0
+             */
+            totalDurationMs: number;
+            /**
+             * Timedout
+             * @default false
+             */
+            timedOut: boolean;
+            /**
+             * Rerankerused
+             * @default false
+             */
+            rerankerUsed: boolean;
+            /**
+             * Cachehit
+             * @default false
+             */
+            cacheHit: boolean;
+            /** Degradedsources */
+            degradedSources?: string[];
+            /** Branches */
+            branches?: components["schemas"]["SearchBranchStatusRead"][];
+        };
+        /** SearchFeedbackCreate */
+        SearchFeedbackCreate: {
+            /** Searchlogid */
+            searchLogId?: string | null;
+            /** Keyword */
+            keyword: string;
+            /**
+             * Feedbacktype
+             * @enum {string}
+             */
+            feedbackType: "not_relevant" | "too_few_results" | "need_different_style" | "asset_request";
+            /** Note */
+            note?: string | null;
+            /** Resultimageid */
+            resultImageId?: string | null;
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+        };
+        /** SearchFeedbackRead */
+        SearchFeedbackRead: {
+            /** Id */
+            id: string;
+            /** Searchlogid */
+            searchLogId?: string | null;
+            /** Keyword */
+            keyword: string;
+            /** Feedbacktype */
+            feedbackType: string;
+            /** Note */
+            note?: string | null;
+            /** Resultimageid */
+            resultImageId?: string | null;
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
         /** SearchIntentRequest */
         SearchIntentRequest: {
             /** Keyword */
             keyword: string;
+        };
+        /** SearchLogRead */
+        SearchLogRead: {
+            /** Id */
+            id: string;
+            /** Keyword */
+            keyword: string;
+            /** Servedmode */
+            servedMode: string;
+            /** Fallback */
+            fallback: boolean;
+            /** Fallbackreason */
+            fallbackReason?: string | null;
+            /** Resultcount */
+            resultCount: number;
+            /** Normalizedquery */
+            normalizedQuery?: string | null;
+            /** Querytype */
+            queryType?: string | null;
+            /** Matchedconcept */
+            matchedConcept?: string | null;
+            /** Topimageids */
+            topImageIds: string[];
+            /** Topassetgroupids */
+            topAssetGroupIds: string[];
+            /** Matchreasons */
+            matchReasons: string[];
+            /** Durationms */
+            durationMs?: number | null;
+            /**
+             * Timedout
+             * @default false
+             */
+            timedOut: boolean;
+            /**
+             * Cachehit
+             * @default false
+             */
+            cacheHit: boolean;
+            /**
+             * Rerankerused
+             * @default false
+             */
+            rerankerUsed: boolean;
+            /** Degradedsources */
+            degradedSources: string[];
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** SearchMetricItem */
+        SearchMetricItem: {
+            /** Label */
+            label: string;
+            /** Count */
+            count: number;
+        };
+        /** SearchOpsIssueRead */
+        SearchOpsIssueRead: {
+            /** Id */
+            id: string;
+            /** Keyword */
+            keyword: string;
+            /** Issuetype */
+            issueType: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "high" | "medium" | "low";
+            /** Source */
+            source: string;
+            /** Count */
+            count: number;
+            /** Reason */
+            reason: string;
+            /** Suggestedaction */
+            suggestedAction: string;
+            /**
+             * Latestat
+             * Format: date-time
+             */
+            latestAt: string;
+        };
+        /** SearchOpsSummary */
+        SearchOpsSummary: {
+            /** Totalsearches */
+            totalSearches: number;
+            /** Zeroresultcount */
+            zeroResultCount: number;
+            /** Fallbackcount */
+            fallbackCount: number;
+            /** Timedoutcount */
+            timedOutCount: number;
+            /** Cachehitcount */
+            cacheHitCount: number;
+            /** Rerankerusedcount */
+            rerankerUsedCount: number;
+            /** Averagedurationms */
+            averageDurationMs: number;
+            /** P95Durationms */
+            p95DurationMs: number;
+            /** Aiunderstoodcount */
+            aiUnderstoodCount: number;
+            /** Topqueries */
+            topQueries: components["schemas"]["SearchMetricItem"][];
+            /** Zeroresultqueries */
+            zeroResultQueries: components["schemas"]["SearchMetricItem"][];
+            /** Topnormalizedqueries */
+            topNormalizedQueries: components["schemas"]["SearchMetricItem"][];
+            /** Topmatchedconcepts */
+            topMatchedConcepts: components["schemas"]["SearchMetricItem"][];
+            /** Feedbackcount */
+            feedbackCount: number;
+            /** Feedbackbytype */
+            feedbackByType: components["schemas"]["SearchMetricItem"][];
+            /** Feedbackqueries */
+            feedbackQueries: components["schemas"]["SearchMetricItem"][];
+            /** Recentfeedback */
+            recentFeedback: components["schemas"]["SearchFeedbackRead"][];
+            /** Recentlogs */
+            recentLogs: components["schemas"]["SearchLogRead"][];
+            /** Searchissues */
+            searchIssues: components["schemas"]["SearchOpsIssueRead"][];
+            /** Aireviewqueue */
+            aiReviewQueue: components["schemas"]["AiConceptReviewQueueItem"][];
+            /** Concepthealth */
+            conceptHealth: components["schemas"]["ConceptHealthItem"][];
+            /** Assetgaps */
+            assetGaps: components["schemas"]["AssetGapItem"][];
         };
         /** SearchRequest */
         SearchRequest: {
@@ -891,6 +1794,8 @@ export interface components {
              * @default 12
              */
             limit: number;
+            /** Systemcode */
+            systemCode?: string | null;
         };
         /** SearchResponse */
         SearchResponse: {
@@ -904,6 +1809,7 @@ export interface components {
             /**
              * Searchmode
              * @default fuzzy
+             * @enum {string}
              */
             searchMode: "fuzzy" | "meilisearch";
             /**
@@ -915,6 +1821,8 @@ export interface components {
             fallbackReason?: string | null;
             /** Searchlogid */
             searchLogId?: string | null;
+            searchUnderstanding?: components["schemas"]["SearchUnderstanding"] | null;
+            searchDiagnostics?: components["schemas"]["SearchDiagnosticsRead"] | null;
             /** Matchsummary */
             matchSummary: string;
         };
@@ -928,38 +1836,17 @@ export interface components {
             searchIntent: string;
             /** Querytype */
             queryType: string;
-            /** Expandedlevel1Tags */
-            expandedLevel1Tags?: components["schemas"]["ExpandedSearchTag"][];
-            /** Matchedlevel2Categories */
-            matchedLevel2Categories?: components["schemas"]["SearchCategoryMatch"][];
-            /** Excludetags */
-            excludeTags?: string[];
+            /** Expandedterms */
+            expandedTerms?: components["schemas"]["ExpandedSearchTerm"][];
+            /** Matchedbusinessconcepts */
+            matchedBusinessConcepts?: components["schemas"]["SearchConceptMatch"][];
+            /** Excludedconcepts */
+            excludedConcepts?: string[];
             /**
              * Searchstrategy
              * @default
              */
             searchStrategy: string;
-        };
-        /** SecondaryLabel */
-        SecondaryLabel: {
-            /** System */
-            system: string;
-            /** Label */
-            label: string;
-            /** Confidence */
-            confidence: number;
-            /**
-             * Evidencelevel
-             * @enum {string}
-             */
-            evidenceLevel: "A" | "B" | "C";
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "primary" | "secondary";
-            /** Reason */
-            reason: string;
         };
         /** SellingPoint */
         SellingPoint: {
@@ -996,27 +1883,32 @@ export interface components {
             /** Points */
             points: components["schemas"]["SellingPoint"][];
         };
-        /** TagCreate */
-        TagCreate: {
-            /** Name */
-            name: string;
+        /** SemanticProfileRead */
+        SemanticProfileRead: {
             /**
-             * Color
-             * @default #6B7280
+             * Schemaversion
+             * @default 2
+             * @constant
              */
-            color: string;
-            /** Parentid */
-            parentId?: string | null;
-            /**
-             * Issecondary
-             * @default false
-             */
-            isSecondary: boolean;
-            /**
-             * Assignable
-             * @default true
-             */
-            assignable: boolean;
+            schemaVersion: 2;
+            /** Visualfacts */
+            visualFacts?: string[];
+            /** Ocrtext */
+            ocrText?: string[];
+            /** Subjects */
+            subjects?: string[];
+            /** Scenes */
+            scenes?: string[];
+            /** Actions */
+            actions?: string[];
+            /** Visualstyle */
+            visualStyle?: string[];
+            /** Visibleproductfeatures */
+            visibleProductFeatures?: string[];
+            /** Assetsearchphrases */
+            assetSearchPhrases?: string[];
+            /** Negativevisualconcepts */
+            negativeVisualConcepts?: string[];
         };
         /** TagRead */
         TagRead: {
@@ -1064,21 +1956,6 @@ export interface components {
              * @default 0
              */
             imageCount: number;
-        };
-        /** TagUpdate */
-        TagUpdate: {
-            /** Name */
-            name?: string | null;
-            /** Color */
-            color?: string | null;
-            /** Parentid */
-            parentId?: string | null;
-            /** Issecondary */
-            isSecondary?: boolean | null;
-            /** Assignable */
-            assignable?: boolean | null;
-            /** Status */
-            status?: string | null;
         };
         /** UserCreate */
         UserCreate: {
@@ -1236,11 +2113,9 @@ export interface operations {
         parameters: {
             query?: {
                 keyword?: string | null;
-                tagIds?: string | null;
                 cursor?: string | null;
                 limit?: number;
                 sortBy?: string;
-                category?: string | null;
             };
             header?: never;
             path?: never;
@@ -1650,25 +2525,16 @@ export interface operations {
             };
         };
     };
-    update_image_tags_api_images__image_id__tags_patch: {
+    list_asset_groups_api_asset_groups_get: {
         parameters: {
             query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                image_id: string;
-            };
+            header?: never;
+            path?: never;
             cookie?: {
-                piancton_csrf?: string | null;
                 piancton_session?: string | null;
             };
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImageTagsUpdate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1676,7 +2542,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImageRead"];
+                    "application/json": components["schemas"]["AssetGroupRead"][];
                 };
             };
             /** @description Validation Error */
@@ -1690,15 +2556,47 @@ export interface operations {
             };
         };
     };
-    review_business_label_api_images__image_id__business_labels__label_id__patch: {
+    get_asset_group_api_asset_groups__group_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_asset_variant_api_asset_groups__group_id__images_post: {
         parameters: {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
             };
             path: {
-                image_id: string;
-                label_id: string;
+                group_id: string;
             };
             cookie?: {
                 piancton_csrf?: string | null;
@@ -1707,7 +2605,87 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BusinessLabelReviewUpdate"];
+                "multipart/form-data": components["schemas"]["Body_add_asset_variant_api_asset_groups__group_id__images_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_asset_primary_api_asset_groups__group_id__primary_image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_replace_asset_primary_api_asset_groups__group_id__primary_image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_asset_concept_api_asset_groups__group_id__concept_links_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetConceptConfirmation"];
             };
         };
         responses: {
@@ -1717,7 +2695,393 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImageDetailRead"];
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_asset_concept_suggestion_api_asset_groups__group_id__concept_links__link_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+                link_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetConceptReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_asset_concept_suggestions_api_asset_groups__group_id__concept_links_review_batch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetConceptBatchReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_asset_search_phrase_api_asset_groups__group_id__search_phrases_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetSearchPhraseCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+                phrase_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetSearchPhraseReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_business_concepts_api_business_concepts_get: {
+        parameters: {
+            query?: {
+                includeInactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessConceptRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_business_concept_api_business_concepts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessConceptCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessConceptRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_business_concept_api_business_concepts__concept_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concept_id: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessConceptRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_business_concept_api_business_concepts__concept_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                concept_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessConceptUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessConceptRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_concept_search_phrase_api_business_concepts__concept_id__search_phrases_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                concept_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConceptSearchPhraseCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessConceptRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_concept_relation_api_business_concepts__concept_id__relations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                concept_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConceptRelationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptRelationRead"];
                 };
             };
             /** @description Validation Error */
@@ -1749,118 +3113,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TagRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_tag_api_tags_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TagCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TagRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_tag_api_tags__tag_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                tag_id: string;
-            };
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_tag_api_tags__tag_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                tag_id: string;
-            };
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TagUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TagRead"];
                 };
             };
             /** @description Validation Error */
@@ -2185,6 +3437,77 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_ops_summary_api_admin_search_ops_summary_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOpsSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_search_feedback_api_search_feedback_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchFeedbackCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchFeedbackRead"];
+                };
             };
             /** @description Validation Error */
             422: {

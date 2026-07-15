@@ -4,21 +4,12 @@ from typing import List, Literal, Optional
 from pydantic import Field
 
 from app.schemas.ai import SearchUnderstanding
+from app.schemas.asset import AssetImageRead
 from app.schemas.base import ApiModel
-from app.schemas.tag import TagRead
 
 
 class ImageTitleUpdate(ApiModel):
     title: str = Field(min_length=1, max_length=255)
-
-
-class ImageTagsUpdate(ApiModel):
-    tag_ids: List[str]
-    primary_tag_id: Optional[str] = None
-
-
-class BusinessLabelReviewUpdate(ApiModel):
-    review_status: Literal["accepted", "pending", "rejected"]
 
 
 class ContentTagRead(ApiModel):
@@ -28,32 +19,17 @@ class ContentTagRead(ApiModel):
     dimension: Optional[str] = None
 
 
-class Level2CategoryRead(ApiModel):
-    id: str
-    category_name: str
-    confidence: float
-    reason: Optional[str] = None
-
-
 class SemanticProfileRead(ApiModel):
+    schema_version: Literal[2] = 2
     visual_facts: List[str] = Field(default_factory=list)
-    business_intent: str = ""
-    search_phrases: List[str] = Field(default_factory=list)
-    exclusion_boundaries: List[str] = Field(default_factory=list)
-
-
-class BusinessLabelRead(ApiModel):
-    id: str
-    label_code: str
-    tag_id: str
-    tag_name: str
-    system_name: Optional[str] = None
-    origin: str
-    role: str
-    review_status: str
-    confidence: Optional[float] = None
-    evidence_level: Optional[str] = None
-    reason: Optional[str] = None
+    ocr_text: List[str] = Field(default_factory=list)
+    subjects: List[str] = Field(default_factory=list)
+    scenes: List[str] = Field(default_factory=list)
+    actions: List[str] = Field(default_factory=list)
+    visual_style: List[str] = Field(default_factory=list)
+    visible_product_features: List[str] = Field(default_factory=list)
+    asset_search_phrases: List[str] = Field(default_factory=list)
+    negative_visual_concepts: List[str] = Field(default_factory=list)
 
 
 class AnalysisRunRead(ApiModel):
@@ -77,10 +53,17 @@ class ImageRead(ApiModel):
     size_bytes: int
     uploader: str
     download_count: int
-    categories: List[str]
     created_at: datetime
     deleted_at: Optional[datetime] = None
-    tags: List[TagRead]
+    asset_group_id: Optional[str] = None
+    asset_role: str = "primary"
+    width: Optional[int] = None
+    height: Optional[int] = None
+    aspect_ratio: Optional[float] = None
+    channel: Optional[str] = None
+    version_no: int = 1
+    is_current: bool = True
+    variant_count: int = 1
 
 
 class ImageDetailRead(ImageRead):
@@ -88,8 +71,6 @@ class ImageDetailRead(ImageRead):
     semantic_profile: Optional[SemanticProfileRead] = None
     related_images: List[ImageRead] = Field(default_factory=list)
     content_tags: List[ContentTagRead] = Field(default_factory=list)
-    level2_categories: List[Level2CategoryRead] = Field(default_factory=list)
-    business_labels: List[BusinessLabelRead] = Field(default_factory=list)
     analysis_runs: List[AnalysisRunRead] = Field(default_factory=list)
 
 
@@ -102,7 +83,7 @@ class ImageListResponse(ApiModel):
 class SearchRequest(ApiModel):
     keyword: str = Field(min_length=1, max_length=200)
     limit: int = Field(default=12, ge=1, le=50)
-    search_mode: Literal["configured", "precise", "smart"] = "precise"
+    system_code: Optional[str] = Field(default=None, max_length=100)
 
 
 class ScoredImage(ApiModel):
@@ -110,8 +91,31 @@ class ScoredImage(ApiModel):
     match_level: Literal["S", "A", "B", "C"]
     final_score: float
     match_reasons: List[str]
-    matched_level1_tags: List[str]
-    matched_level2_categories: List[str]
+    matched_content_terms: List[str]
+    matched_business_concepts: List[str]
+    asset_group_id: Optional[str] = None
+    asset_title: Optional[str] = None
+    available_variants: List[AssetImageRead] = Field(default_factory=list)
+    expressed_concepts: List[str] = Field(default_factory=list)
+    supported_concepts: List[str] = Field(default_factory=list)
+
+
+class SearchBranchStatusRead(ApiModel):
+    source: str
+    status: Literal["ok", "skipped", "timed_out", "failed"]
+    duration_ms: int = 0
+    result_count: int = 0
+    cache_hit: bool = False
+    detail: Optional[str] = None
+
+
+class SearchDiagnosticsRead(ApiModel):
+    total_duration_ms: int = 0
+    timed_out: bool = False
+    reranker_used: bool = False
+    cache_hit: bool = False
+    degraded_sources: List[str] = Field(default_factory=list)
+    branches: List[SearchBranchStatusRead] = Field(default_factory=list)
 
 
 class SearchResponse(ApiModel):
@@ -122,4 +126,5 @@ class SearchResponse(ApiModel):
     fallback_reason: Optional[str] = None
     search_log_id: Optional[str] = None
     search_understanding: Optional[SearchUnderstanding] = None
+    search_diagnostics: Optional[SearchDiagnosticsRead] = None
     match_summary: str

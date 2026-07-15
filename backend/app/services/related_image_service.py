@@ -37,16 +37,16 @@ class RelatedImageService:
 
     def _candidate_images(self, image: Image, limit: int) -> list[Image]:
         candidates_by_id: dict[str, Image] = {}
+        concept_ids = self._concept_ids(image)
+        for candidate in self.repo.search_by_concept_ids(concept_ids, limit=limit):
+            candidates_by_id[candidate.id] = candidate
         for term in self._candidate_terms(image):
             for candidate in self.repo.search(term, limit):
                 candidates_by_id[candidate.id] = candidate
             if len(candidates_by_id) >= limit:
                 break
         if len(candidates_by_id) < limit:
-            tag_ids = [link.tag_id for link in image.tag_links]
             for candidate in self.repo.list(
-                None,
-                tag_ids,
                 None,
                 None,
                 None,
@@ -57,17 +57,7 @@ class RelatedImageService:
         return list(candidates_by_id.values())
 
     def _candidate_terms(self, image: Image) -> list[str]:
-        labels = self.semantic_profile.searchable_business_labels(image)
-        trusted_labels = [
-            label
-            for label in labels
-            if self.semantic_profile.label_policy.is_trusted(label)
-        ]
-        pending_labels = [
-            label
-            for label in labels
-            if self.semantic_profile.label_policy.is_pending_ai(label)
-        ]
+        links = self._concept_links(image)
         content_tags = sorted(
             image.content_tags,
             key=lambda item: item.confidence,
@@ -75,66 +65,58 @@ class RelatedImageService:
         )
         return unique(
             [
-                *self._label_terms(trusted_labels),
-                *self._label_terms(pending_labels),
-                *(link.tag.name for link in image.tag_links),
-                *(item.category_name for item in image.level2_categories),
+                *(link.concept.name for link in links),
+                *(link.concept.code for link in links),
                 *(item.tag_name for item in content_tags[:8]),
             ]
         )
 
-    def _label_terms(self, labels) -> list[str]:
-        terms: list[str] = []
-        for label in labels:
-            terms.extend(
-                [
-                    label.label_code,
-                    label.tag.name,
-                    self.semantic_profile.business_label_name(label),
-                ]
-            )
-        return terms
-
     def _similarity_score(self, source: Image, candidate: Image) -> float:
-        source_labels = self.semantic_profile.searchable_business_labels(source)
-        candidate_labels = self.semantic_profile.searchable_business_labels(candidate)
-        source_label_codes = {label.label_code for label in source_labels}
-        candidate_label_codes = {label.label_code for label in candidate_labels}
-        shared_codes = source_label_codes & candidate_label_codes
+        source_links = self._concept_links(source)
+        candidate_links = self._concept_links(candidate)
+        source_concepts = {link.concept_id for link in source_links}
+        candidate_concepts = {link.concept_id for link in candidate_links}
+        shared_concepts = source_concepts & candidate_concepts
         score = 0.0
-        if shared_codes:
-            candidate_weight = max(
-                self.semantic_profile.label_policy.label_weight(label)
-                for label in candidate_labels
-                if label.label_code in shared_codes
+        if shared_concepts:
+            trusted = any(
+                link.concept_id in shared_concepts
+                and link.review_status == "accepted"
+                and link.origin in {"manual", "migrated"}
+                for link in candidate_links
             )
-            score += 1.0 * candidate_weight
+            score += 1.0 if trusted else 0.72
 
         source_systems = {
-            label.tag.parent.code
-            for label in source_labels
-            if label.tag.parent and label.tag.parent.code
+            system.system_tag_id
+            for link in source_links
+            for system in link.concept.system_links
+            if system.status == "active"
         }
         candidate_systems = {
-            label.tag.parent.code
-            for label in candidate_labels
-            if label.tag.parent and label.tag.parent.code
+            system.system_tag_id
+            for link in candidate_links
+            for system in link.concept.system_links
+            if system.status == "active"
         }
         if source_systems & candidate_systems:
             score += 0.18
-
-        source_tag_ids = {link.tag_id for link in source.tag_links}
-        candidate_tag_ids = {link.tag_id for link in candidate.tag_links}
-        if source_tag_ids & candidate_tag_ids:
-            score += 0.32
 
         source_content = {item.tag_name for item in source.content_tags}
         candidate_content = {item.tag_name for item in candidate.content_tags}
         shared_content_count = len(source_content & candidate_content)
         score += min(shared_content_count * 0.04, 0.28)
 
-        source_categories = {item.name for item in source.categories}
-        candidate_categories = {item.name for item in candidate.categories}
-        if source_categories & candidate_categories:
+        if source.channel and source.channel == candidate.channel:
             score += 0.08
         return score
+
+    def _concept_links(self, image: Image):
+        return [
+            link
+            for link in (image.asset_group.concept_links if image.asset_group else [])
+            if link.review_status != "rejected" and link.relation_role != "excludes"
+        ]
+
+    def _concept_ids(self, image: Image) -> list[str]:
+        return list(dict.fromkeys(link.concept_id for link in self._concept_links(image)))

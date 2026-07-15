@@ -27,6 +27,8 @@ class StagedUpload:
     thumbnail_storage_key: str
     media_type: str
     size_bytes: int
+    width: int
+    height: int
 
 
 class StorageProvider(Protocol):
@@ -125,6 +127,8 @@ class LocalStorageProvider:
                 thumbnail_storage_key=f"{uuid.uuid4()}.jpg",
                 media_type=media_type,
                 size_bytes=size,
+                width=width,
+                height=height,
             )
         except Exception:
             temp_path.unlink(missing_ok=True)

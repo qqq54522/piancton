@@ -7,13 +7,11 @@ from app.models.image import (
     AnalysisRun,
     ContentTag,
     Image,
-    ImageBusinessLabel,
-    ImageLevel2Category,
 )
 from app.repositories.image_repository import ImageRepository
-from app.repositories.tag_repository import TagRepository
 from app.schemas.ai import ImageAnalysisResult
 from app.schemas.image import ImageDetailRead
+from app.services.asset_relation_service import AssetRelationService
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
 from app.services.related_image_service import RelatedImageService
@@ -32,11 +30,11 @@ class ImageAnalysisService:
         embedding_index: EmbeddingIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
-        self.tags = TagRepository(db)
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
         self.semantic_profile = ImageSemanticProfileService()
+        self.asset_relations = AssetRelationService(db)
         self.related_images = RelatedImageService(self.images)
 
     def create_analysis_run(self, image_id: str) -> AnalysisRun:
@@ -73,44 +71,11 @@ class ImageAnalysisService:
     ) -> ImageDetailRead:
         image = self._get(image_id)
         catalog = load_taxonomy_catalog()
-        label_codes = self._secondary_label_codes(result)
-        rejected_ai_codes = {
-            label.label_code
-            for label in image.business_labels
-            if label.origin == "ai" and label.review_status == "rejected"
-        }
-        reviewed_ai_codes = {
-            label.label_code
-            for label in image.business_labels
-            if label.origin == "ai" and label.review_status in {"accepted", "rejected"}
-        }
-        manual_codes = {
-            label.label_code
-            for label in image.business_labels
-            if label.origin == "manual"
-        }
+        concept_codes = self._concept_suggestion_codes(result)
+        for item, concept_code in zip(result.concept_suggestions, concept_codes):
+            if concept_code:
+                item.concept_code = concept_code
         content_tags = self._content_tags_from_analysis(result)
-        level2_categories = [
-            ImageLevel2Category(
-                category_name=(
-                    f"{item.system} > {item.label}" if item.system.strip() else item.label
-                ),
-                confidence=item.confidence,
-                reason=item.reason,
-            )
-            for item, label_code in zip(result.secondary_labels, label_codes)
-            if item.label.strip() and label_code not in rejected_ai_codes
-        ]
-
-        business_label_inputs = []
-        for item, label_code in zip(result.secondary_labels, label_codes):
-            if not label_code:
-                continue
-            if label_code in reviewed_ai_codes or label_code in manual_codes:
-                continue
-            tag = self.tags.get_by_code(label_code)
-            if tag:
-                business_label_inputs.append((item, label_code, tag))
 
         settings = get_settings()
         if analysis_run_id:
@@ -128,38 +93,27 @@ class ImageAnalysisService:
                 model_name=settings.model_name,
             )
 
-        business_labels: list[ImageBusinessLabel] = []
-        for item, label_code, tag in business_label_inputs:
-            business_labels.append(
-                ImageBusinessLabel(
-                    image=image,
-                    tag=tag,
-                    label_code=label_code,
-                    origin="ai",
-                    role=item.role,
-                    review_status="pending",
-                    confidence=item.confidence,
-                    evidence_level=item.evidence_level,
-                    reason=item.reason,
-                    analysis_run=analysis_run,
-                )
-            )
-
         self.images.replace_ai_profile(
             image,
             summary=result.image_summary.strip(),
             semantic_profile_json=self.semantic_profile.profile_json_from_analysis(result),
             content_tags=content_tags,
-            level2_categories=level2_categories,
             analysis_run=analysis_run,
-            business_labels=business_labels,
         )
+        if image.asset_group_id:
+            group = self.asset_relations.assets.get(image.asset_group_id)
+            if group:
+                self.asset_relations.replace_analysis_suggestions(
+                    group,
+                    result,
+                    source_ref=analysis_run.id,
+                )
         self.embedding_index.upsert_image(self.images, image)
         self.uow.commit()
         self._sync_index(image.id)
         return self._detail(image.id)
 
-    def _secondary_label_codes(self, result: ImageAnalysisResult) -> list[str | None]:
+    def _concept_suggestion_codes(self, result: ImageAnalysisResult) -> list[str | None]:
         catalog = load_taxonomy_catalog()
         node_by_name = {
             (catalog.node_by_code[node.parent_code].name, node.name): node.code
@@ -168,10 +122,10 @@ class ImageAnalysisService:
         }
         valid_codes = set(catalog.node_by_code)
         return [
-            item.label_code
-            if item.label_code in valid_codes
-            else node_by_name.get((item.system.strip(), item.label.strip()))
-            for item in result.secondary_labels
+            item.concept_code
+            if item.concept_code in valid_codes
+            else node_by_name.get((item.system_name.strip(), item.concept_name.strip()))
+            for item in result.concept_suggestions
         ]
 
     def _content_tags_from_analysis(
@@ -193,18 +147,6 @@ class ImageAnalysisService:
                 )
             )
 
-        for word in result.recommended_search_words:
-            name = word.strip()
-            if not name or name in seen:
-                continue
-            seen.add(name)
-            content_tags.append(
-                ContentTag(
-                    tag_name=name[:100],
-                    confidence=0.72,
-                    dimension="业务卖点",
-                )
-            )
         return content_tags
 
     def _detail(self, image_id: str) -> ImageDetailRead:

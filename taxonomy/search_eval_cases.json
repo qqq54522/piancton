@@ -1,5 +1,6 @@
 {
-  "version": "2026.06.1",
+  "version": "2026.07.1",
+  "dataset_status": "partial",
   "cases": [
     {
       "id": "SE001",
@@ -56,6 +57,12 @@
       "true_intent": "找用动画或可视化讲透课堂知识点的图片",
       "expected_system_code": "sync_school",
       "expected_label_code": "animation_explanation",
+      "strong_relevant_asset_ids": ["96979cb2-ac96-4612-8934-55206f8f2e59"],
+      "acceptable_asset_ids": [],
+      "forbidden_asset_ids": [],
+      "expected_concept_codes": ["animation_explanation"],
+      "ambiguity": [],
+      "allow_few_results": true,
       "strong_relevant_images": ["动画课程播放页", "知识点可视化讲解页", "故事化讲解图"],
       "disallowed_images": ["静态题目页", "测试结果页", "拍题解题页"],
       "scoring": {

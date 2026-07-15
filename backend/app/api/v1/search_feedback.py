@@ -30,5 +30,7 @@ def create_search_feedback(
         keyword=payload.keyword,
         feedback_type=payload.feedback_type,
         note=payload.note,
+        result_image_id=payload.result_image_id,
+        asset_group_id=payload.asset_group_id,
         created_at=datetime.now(timezone.utc),
     )

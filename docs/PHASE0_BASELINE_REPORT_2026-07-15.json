@@ -1,0 +1,346 @@
+{
+  "version": "2026.07.1",
+  "batch": 1,
+  "caseCount": 15,
+  "datasetStatus": "partial",
+  "realBoundCaseCount": 1,
+  "missingBindingCaseIds": [
+    "SE001",
+    "SE002",
+    "SE003",
+    "SE005",
+    "SE006",
+    "SE007",
+    "SE008",
+    "SE009",
+    "SE010",
+    "SE011",
+    "SE012",
+    "SE013",
+    "SE014",
+    "SE015"
+  ],
+  "top3HitRate": 0.06666666666666667,
+  "p95LatencyMs": 37.26,
+  "disallowedCaseIds": [],
+  "results": [
+    {
+      "id": "SE001",
+      "query": "整理错题费功夫又容易忘",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_error_book",
+        "displayName": "同步自学体系 > AI错题本"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 10.61,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE002",
+      "query": "孩子拍题只抄答案考试不会",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.86,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE003",
+      "query": "出卷人编教材的人设计课程",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "expert_planning",
+        "displayName": "同步培养体系 > 专家规划"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.34,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE004",
+      "query": "孩子听不懂老师讲课",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "animation_explanation",
+        "displayName": "同步校内体系 > 动画精讲"
+      },
+      "topIds": [
+        "96979cb2-ac96-4612-8934-55206f8f2e59"
+      ],
+      "topAssetIds": [
+        "96979cb2-ac96-4612-8934-55206f8f2e59"
+      ],
+      "topTitles": [
+        "02-同步校内体系-卖点二-动画讲透知识点"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": null,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 62.93,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE005",
+      "query": "教材版本要和学校一致",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "school_sync",
+        "displayName": "同步校内体系 > 同步校内"
+      },
+      "topIds": [
+        "96979cb2-ac96-4612-8934-55206f8f2e59"
+      ],
+      "topAssetIds": [
+        "96979cb2-ac96-4612-8934-55206f8f2e59"
+      ],
+      "topTitles": [
+        "02-同步校内体系-卖点二-动画讲透知识点"
+      ],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 37.26,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE006",
+      "query": "学完马上知道孩子掌握没掌握",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "instant_quiz",
+        "displayName": "同步校内体系 > 课后小测"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.33,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE007",
+      "query": "换个题型还是错",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "transfer_practice",
+        "displayName": "同步考点体系 > 举一反三"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.46,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE008",
+      "query": "考前抓重点提分",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "focused_excellence",
+        "displayName": "同步考点体系 > 专项培优"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.32,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE009",
+      "query": "新中考题型变化怎么准备",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "new_curriculum_prediction",
+        "displayName": "同步考点体系 > 新课标新考法预测"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 20.0,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE010",
+      "query": "小升初怕孩子跟不上",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "stage_transition",
+        "displayName": "同步培养体系 > 学段衔接"
+      },
+      "topIds": [
+        "96979cb2-ac96-4612-8934-55206f8f2e59"
+      ],
+      "topAssetIds": [
+        "96979cb2-ac96-4612-8934-55206f8f2e59"
+      ],
+      "topTitles": [
+        "02-同步校内体系-卖点二-动画讲透知识点"
+      ],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 22.98,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE011",
+      "query": "孩子只会死记硬背换题就不会",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "universal_method",
+        "displayName": "同步培养体系 > 万能解法"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.31,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE012",
+      "query": "离中考还有一个月怎么规划",
+      "expected": {
+        "systemCode": "sync_planning",
+        "labelCode": "ai_learning_plan",
+        "displayName": "同步规划体系 > AI定制学习方案"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.83,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE013",
+      "query": "孩子晚上写题卡住没人教",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_tutor_qa",
+        "displayName": "同步自学体系 > AI私教答疑"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 16.88,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE014",
+      "query": "孩子叫不动管不住一管就吵架",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "human_teacher_supervision",
+        "displayName": "同步伴学体系 > 真人老师督学"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 18.59,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    },
+    {
+      "id": "SE015",
+      "query": "家长想知道孩子每天学了什么",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "learning_report",
+        "displayName": "同步伴学体系 > 学情报告反馈"
+      },
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 1.33,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null
+    }
+  ]
+}

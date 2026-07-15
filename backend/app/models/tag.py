@@ -1,13 +1,10 @@
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-
-if TYPE_CHECKING:
-    from app.models.image import ImageTag
 
 
 class Tag(Base):
@@ -46,6 +43,3 @@ class Tag(Base):
 
     parent: Mapped[Optional["Tag"]] = relationship(remote_side=[id], back_populates="children")
     children: Mapped[list["Tag"]] = relationship(back_populates="parent")
-    image_links: Mapped[list["ImageTag"]] = relationship(
-        back_populates="tag", cascade="all, delete-orphan"
-    )

@@ -5,7 +5,6 @@ import uuid
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
-from app.domain.taxonomy_catalog import load_taxonomy_catalog
 from app.repositories.image_repository import ImageRepository
 from app.services.meilisearch_client import MeilisearchClient
 from app.services.search_index import image_to_search_document
@@ -28,13 +27,12 @@ def verify(limit: int, keyword: str | None, cleanup: bool) -> None:
     health = client.health()
     print(f"Meilisearch health: {health}")
 
-    catalog = load_taxonomy_catalog()
     with SessionLocal() as db:
         repo = ImageRepository(db)
         images = repo.list_for_search_index(offset=0, limit=limit)
         if not images:
             raise SystemExit("当前数据库没有可索引图片，无法验证真实搜索结果")
-        documents = [image_to_search_document(image, catalog=catalog) for image in images]
+        documents = [image_to_search_document(image) for image in images]
         query = keyword or documents[0]["title"]
 
         try:

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.core.errors import AppError, NotFoundError
+from app.core.errors import NotFoundError
 from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
-from app.repositories.tag_repository import TagRepository
 from app.schemas.image import ImageRead
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_read
@@ -21,7 +20,6 @@ class ImageLifecycleService:
         search_index: SearchIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
-        self.tags = TagRepository(db)
         self.storage = storage
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
@@ -38,12 +36,6 @@ class ImageLifecycleService:
 
     def restore(self, image_id: str) -> ImageRead:
         image = self._get_deleted(image_id)
-        non_leaf_ids = self.tags.non_assignable_ids([link.tag_id for link in image.tag_links])
-        remaining_tag_ids = [
-            link.tag_id for link in image.tag_links if link.tag_id not in set(non_leaf_ids)
-        ]
-        self._ensure_assignable_tags(remaining_tag_ids)
-        self.images.remove_tag_links(image, non_leaf_ids)
         image.deleted_at = None
         self.images.save(image)
         self.uow.commit()
@@ -58,18 +50,6 @@ class ImageLifecycleService:
         self.storage.delete_key(image.storage_key)
         if image.thumbnail_storage_key:
             self.storage.delete_key(image.thumbnail_storage_key, thumbnail=True)
-
-    def _ensure_assignable_tags(self, tag_ids: list[str]) -> None:
-        unique_ids = list(dict.fromkeys(tag_ids))
-        if not unique_ids:
-            raise AppError("image_tag_required", "图片必须至少选择一个可打标标签")
-        non_assignable_ids = self.tags.non_assignable_ids(unique_ids)
-        if non_assignable_ids:
-            raise AppError(
-                "tag_not_assignable",
-                "图片只能选择已启用且允许打标的标签",
-                details=non_assignable_ids,
-            )
 
     def _sync_index(self, image_id: str) -> None:
         image = self.images.get(image_id)

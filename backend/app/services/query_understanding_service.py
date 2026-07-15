@@ -11,7 +11,7 @@ from app.domain.business_intents import (
     target_label,
 )
 from app.domain.search_policy import SearchPolicyCatalog, load_search_policy
-from app.schemas.ai import SearchCategoryMatch, SearchUnderstanding
+from app.schemas.ai import SearchConceptMatch, SearchUnderstanding
 from app.services.ai_service import AiService
 
 
@@ -68,6 +68,38 @@ class QueryUnderstandingService:
             return None
         return self._understanding_from_match(query, matches[0])
 
+    def should_use_model(
+        self,
+        keyword: str,
+        local_understanding: SearchUnderstanding | None,
+    ) -> bool:
+        if not self.ai_service or not self.ai_service.provider.configured:
+            return False
+        if local_understanding is None:
+            return True
+        matches = self._local_matches(keyword.strip())
+        return not self._should_trust_local(keyword, matches)
+
+    def understand_with_model(self, keyword: str) -> SearchUnderstanding | None:
+        query = keyword.strip()
+        if not query or not self.ai_service or not self.ai_service.provider.configured:
+            return None
+        return self.ai_service.understand_search(query)
+
+    def weak_local_fallback(self, keyword: str) -> SearchUnderstanding | None:
+        query = keyword.strip()
+        if not query:
+            return None
+        matches = self._local_matches(query)
+        if not matches:
+            return None
+        return self._understanding_from_match(
+            query,
+            matches[0],
+            confidence=min(matches[0].confidence, UNCERTAIN_FALLBACK_CONFIDENCE),
+            fallback_reason="本地意图不确定，模型不可用，使用本地弱兜底",
+        )
+
     def _local_matches(self, query: str) -> list[IntentMatch]:
         return sorted(
             (
@@ -122,17 +154,17 @@ class QueryUnderstandingService:
             normalized_query=label.name,
             search_intent=f"用户在找“{match.intent.name}”相关素材",
             query_type="business_intent_search",
-            expanded_level1_tags=[],
-            matched_level2_categories=[
-                SearchCategoryMatch(
-                    category=target_display_name(match.intent),
+            expanded_terms=[],
+            matched_business_concepts=[
+                SearchConceptMatch(
+                    concept=target_display_name(match.intent),
                     relation="direct",
                     reason="；".join(reasons),
                     weight=weight,
                 )
             ],
-            exclude_tags=list(match.intent.exclude_concepts),
-            search_strategy=f"优先按{match.intent.name}对应业务标签召回",
+            excluded_concepts=list(match.intent.exclude_concepts),
+            search_strategy=f"优先按{match.intent.name}对应业务概念召回",
         )
 
     def _match_intent(

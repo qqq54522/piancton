@@ -3,30 +3,34 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, cast
 
-from sqlalchemy import and_, desc, func, literal, or_, select
-from sqlalchemy.orm import Session, aliased, selectinload
+from sqlalchemy import and_, desc, literal, or_, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.domain.search_query_expansion import expand_search_terms
+from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
+from app.models.business_concept import BusinessConcept, ConceptSystemLink
 from app.models.image import (
     AnalysisRun,
     ContentTag,
     Image,
-    ImageBusinessLabel,
-    ImageCategory,
     ImageEmbedding,
-    ImageLevel2Category,
-    ImageTag,
 )
-from app.models.tag import Tag
 
 IMAGE_LOAD_OPTIONS = (
-    selectinload(Image.tag_links).selectinload(ImageTag.tag).selectinload(Tag.parent),
-    selectinload(Image.categories),
     selectinload(Image.content_tags),
-    selectinload(Image.level2_categories),
-    selectinload(Image.business_labels).selectinload(ImageBusinessLabel.tag).selectinload(Tag.parent),
     selectinload(Image.embedding),
     selectinload(Image.analysis_runs),
+    selectinload(Image.asset_group).selectinload(AssetGroup.images),
+    selectinload(Image.asset_group).selectinload(AssetGroup.search_phrases),
+    selectinload(Image.asset_group)
+    .selectinload(AssetGroup.concept_links)
+    .selectinload(AssetConceptLink.concept)
+    .selectinload(BusinessConcept.search_phrases),
+    selectinload(Image.asset_group)
+    .selectinload(AssetGroup.concept_links)
+    .selectinload(AssetConceptLink.concept)
+    .selectinload(BusinessConcept.system_links)
+    .selectinload(ConceptSystemLink.system_tag),
 )
 
 
@@ -50,8 +54,6 @@ class ImageRepository:
     def list(
         self,
         keyword: Optional[str],
-        tag_ids: list[str],
-        category: Optional[str],
         cursor_value: str | int | datetime | None,
         cursor_id: str | None,
         limit: int,
@@ -61,8 +63,6 @@ class ImageRepository:
         if keyword:
             keyword_terms = expand_search_terms(keyword)[:30]
             patterns = [f"%{term}%" for term in keyword_terms if term.strip()]
-            manual_tag = aliased(Tag)
-            business_tag = aliased(Tag)
             keyword_conditions = []
             for pattern in patterns:
                 keyword_conditions.extend(
@@ -73,39 +73,21 @@ class ImageRepository:
                         literal(keyword).ilike(
                             literal("%") + Image.image_summary + literal("%")
                         ),
-                        manual_tag.name.ilike(pattern),
                         ContentTag.tag_name.ilike(pattern),
-                        ImageLevel2Category.category_name.ilike(pattern),
-                        ImageBusinessLabel.label_code.ilike(pattern),
-                        ImageBusinessLabel.reason.ilike(pattern),
-                        business_tag.name.ilike(pattern),
+                        AssetSearchPhrase.phrase.ilike(pattern),
                     ]
                 )
             stmt = (
                 stmt.outerjoin(ContentTag, ContentTag.image_id == Image.id)
-                .outerjoin(ImageLevel2Category, ImageLevel2Category.image_id == Image.id)
-                .outerjoin(ImageTag, ImageTag.image_id == Image.id)
-                .outerjoin(manual_tag, ImageTag.tag_id == manual_tag.id)
                 .outerjoin(
-                    ImageBusinessLabel,
+                    AssetSearchPhrase,
                     and_(
-                        ImageBusinessLabel.image_id == Image.id,
-                        ImageBusinessLabel.review_status != "rejected",
+                        AssetSearchPhrase.asset_group_id == Image.asset_group_id,
+                        AssetSearchPhrase.review_status != "rejected",
                     ),
                 )
-                .outerjoin(business_tag, ImageBusinessLabel.tag_id == business_tag.id)
                 .where(or_(*keyword_conditions))
             )
-        if tag_ids:
-            matching_images = (
-                select(ImageTag.image_id)
-                .where(ImageTag.tag_id.in_(tag_ids))
-                .group_by(ImageTag.image_id)
-                .having(func.count(func.distinct(ImageTag.tag_id)) == len(set(tag_ids)))
-            )
-            stmt = stmt.where(Image.id.in_(matching_images))
-        if category:
-            stmt = stmt.join(ImageCategory).where(ImageCategory.name == category)
 
         if cursor_value is not None and cursor_id:
             if sort_by == "downloadCount":
@@ -133,33 +115,33 @@ class ImageRepository:
 
     def search(self, keyword: str, limit: int) -> list[Image]:
         pattern = f"%{keyword}%"
-        business_tag = aliased(Tag)
         stmt = (
             select(Image)
-            .outerjoin(ImageTag)
-            .outerjoin(Tag)
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
             .outerjoin(ContentTag)
-            .outerjoin(ImageLevel2Category)
             .outerjoin(
-                ImageBusinessLabel,
+                AssetSearchPhrase,
                 and_(
-                    ImageBusinessLabel.image_id == Image.id,
-                    ImageBusinessLabel.review_status != "rejected",
+                    AssetSearchPhrase.asset_group_id == Image.asset_group_id,
+                    AssetSearchPhrase.review_status != "rejected",
                 ),
             )
-            .outerjoin(business_tag, ImageBusinessLabel.tag_id == business_tag.id)
             .where(
                 Image.deleted_at.is_(None),
+                or_(
+                    Image.asset_group_id.is_(None),
+                    and_(
+                        AssetGroup.publish_status == "published",
+                        Image.is_current.is_(True),
+                    ),
+                ),
                 or_(
                     Image.title.ilike(pattern),
                     literal(keyword).ilike(literal("%") + Image.title + literal("%")),
                     Image.image_summary.ilike(pattern),
                     literal(keyword).ilike(literal("%") + Image.image_summary + literal("%")),
-                    Tag.name.ilike(pattern),
                     ContentTag.tag_name.ilike(pattern),
-                    ImageLevel2Category.category_name.ilike(pattern),
-                    ImageBusinessLabel.label_code.ilike(pattern),
-                    business_tag.name.ilike(pattern),
+                    AssetSearchPhrase.phrase.ilike(pattern),
                 )
             )
             .options(*IMAGE_LOAD_OPTIONS)
@@ -173,17 +155,67 @@ class ImageRepository:
             return []
         stmt = (
             select(Image)
-            .where(Image.id.in_(image_ids), Image.deleted_at.is_(None))
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .where(
+                Image.id.in_(image_ids),
+                Image.deleted_at.is_(None),
+                or_(
+                    Image.asset_group_id.is_(None),
+                    and_(
+                        AssetGroup.publish_status == "published",
+                        Image.is_current.is_(True),
+                    ),
+                ),
+            )
             .options(*IMAGE_LOAD_OPTIONS)
         )
         images_by_id = {image.id: image for image in self.db.scalars(stmt).all()}
         return [images_by_id[image_id] for image_id in image_ids if image_id in images_by_id]
 
+    def search_by_concept_ids(
+        self,
+        concept_ids: list[str],
+        *,
+        limit: int,
+    ) -> list[Image]:
+        if not concept_ids:
+            return []
+        stmt = (
+            select(Image)
+            .join(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .join(
+                AssetConceptLink,
+                AssetConceptLink.asset_group_id == AssetGroup.id,
+            )
+            .where(
+                Image.deleted_at.is_(None),
+                Image.is_current.is_(True),
+                AssetGroup.publish_status == "published",
+                AssetConceptLink.concept_id.in_(concept_ids),
+                AssetConceptLink.review_status != "rejected",
+                AssetConceptLink.relation_role != "excludes",
+            )
+            .options(*IMAGE_LOAD_OPTIONS)
+            .distinct()
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())
+
     def list_embeddings(self, *, model_name: str | None = None) -> list[ImageEmbedding]:
         stmt = (
             select(ImageEmbedding)
             .join(Image, Image.id == ImageEmbedding.image_id)
-            .where(Image.deleted_at.is_(None))
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .where(
+                Image.deleted_at.is_(None),
+                or_(
+                    Image.asset_group_id.is_(None),
+                    and_(
+                        AssetGroup.publish_status == "published",
+                        Image.is_current.is_(True),
+                    ),
+                ),
+            )
         )
         if model_name:
             stmt = stmt.where(ImageEmbedding.model_name == model_name)
@@ -212,16 +244,6 @@ class ImageRepository:
         self.db.add(embedding)
         self.db.flush()
         return embedding
-
-    def get_business_label(self, image_id: str, label_id: str) -> Optional[ImageBusinessLabel]:
-        return self.db.scalar(
-            select(ImageBusinessLabel)
-            .where(
-                ImageBusinessLabel.id == label_id,
-                ImageBusinessLabel.image_id == image_id,
-            )
-            .options(selectinload(ImageBusinessLabel.tag).selectinload(Tag.parent))
-        )
 
     def get_analysis_run(self, image_id: str, run_id: str) -> Optional[AnalysisRun]:
         return self.db.scalar(
@@ -279,22 +301,6 @@ class ImageRepository:
         self.db.flush()
         return len(rows)
 
-    def replace_tags(self, image: Image, tags: list[Tag]) -> Image:
-        image.tag_links.clear()
-        image.tag_links.extend(ImageTag(tag=tag) for tag in tags)
-        self.db.flush()
-        return image
-
-    def remove_tag_links(self, image: Image, tag_ids: list[str]) -> Image:
-        if not tag_ids:
-            return image
-        blocked = set(tag_ids)
-        image.tag_links[:] = [
-            link for link in image.tag_links if link.tag_id not in blocked
-        ]
-        self.db.flush()
-        return image
-
     def replace_ai_profile(
         self,
         image: Image,
@@ -302,38 +308,16 @@ class ImageRepository:
         summary: str,
         semantic_profile_json: str | None,
         content_tags: list[ContentTag],
-        level2_categories: list[ImageLevel2Category],
         analysis_run: AnalysisRun | None = None,
-        business_labels: list[ImageBusinessLabel] | None = None,
     ) -> Image:
-        preserved_content_tags = [
-            item
-            for item in image.content_tags
-            if item.dimension == "用户预期搜索词"
-        ]
-        seen_content_tag_names = {item.tag_name for item in content_tags}
-        content_tags.extend(
-            item
-            for item in preserved_content_tags
-            if item.tag_name not in seen_content_tag_names
-        )
         image.image_summary = summary
         image.semantic_profile_json = semantic_profile_json
         image.content_tags.clear()
         image.content_tags.extend(content_tags)
-        image.level2_categories.clear()
-        image.level2_categories.extend(level2_categories)
-        image.business_labels[:] = [
-            label
-            for label in image.business_labels
-            if label.origin != "ai" or label.review_status in {"accepted", "rejected"}
-        ]
         if analysis_run is not None and all(
             existing.id != analysis_run.id for existing in image.analysis_runs
         ):
             image.analysis_runs.append(analysis_run)
-        if business_labels:
-            image.business_labels.extend(business_labels)
         self.db.flush()
         return image
 

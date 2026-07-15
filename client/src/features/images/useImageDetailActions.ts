@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -6,19 +6,11 @@ import { toast } from 'sonner';
 import * as imageApi from '@client/src/api/image';
 import { getApiError } from '@client/src/api/client';
 import { imageDetailQueryKey } from '@client/src/features/images/useImageDetail';
-import { tagQueryKey } from '@client/src/features/tags/useTags';
-import type {
-  ImageDetail,
-} from '@client/src/types/api';
+import type { ImageDetail } from '@client/src/types/api';
 
-
-export function useImageDetailActions(
-  detail: ImageDetail | null,
-) {
+export function useImageDetailActions(detail: ImageDetail | null) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [editingTags, setEditingTags] = useState(false);
-  const [editTagIds, setEditTagIds] = useState<string[]>([]);
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -27,40 +19,17 @@ export function useImageDetailActions(
     if (!detail) return;
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: imageDetailQueryKey(detail.id) }),
-      queryClient.invalidateQueries({ queryKey: tagQueryKey }),
       queryClient.invalidateQueries({ queryKey: ['images'] }),
+      detail.assetGroupId
+        ? queryClient.invalidateQueries({ queryKey: ['asset-group', detail.assetGroupId] })
+        : Promise.resolve(),
     ]);
   };
-
   const titleMutation = useMutation({
     mutationFn: (title: string) => imageApi.updateImageTitle(detail!.id, { title }),
-    onSuccess: async () => {
-      setEditingTitle(false);
-      await refresh();
-      toast.success('图片名称已更新');
-    },
+    onSuccess: async () => { setEditingTitle(false); await refresh(); toast.success('图片名称已更新'); },
     onError: (error) => toast.error(getApiError(error).message),
   });
-
-  const tagMutation = useMutation({
-    mutationFn: () => {
-      const currentPrimary = detail?.businessLabels.find(
-        (label) => label.origin === 'manual' && label.role === 'primary',
-      )?.tagId;
-      const primaryTagId =
-        currentPrimary && editTagIds.includes(currentPrimary)
-          ? currentPrimary
-          : editTagIds[0] ?? null;
-      return imageApi.updateImageTags(detail!.id, { tagIds: editTagIds, primaryTagId });
-    },
-    onSuccess: async () => {
-      setEditingTags(false);
-      await refresh();
-      toast.success('标签已更新');
-    },
-    onError: (error) => toast.error(getApiError(error).message),
-  });
-
   const deleteMutation = useMutation({
     mutationFn: () => imageApi.deleteImage(detail!.id),
     onSuccess: async () => {
@@ -71,65 +40,22 @@ export function useImageDetailActions(
     onError: (error) => toast.error(getApiError(error).message),
     onSettled: () => setShowDeleteDialog(false),
   });
-
   const analyzeMutation = useMutation({
     mutationFn: () => imageApi.analyzeContentTags(detail!.id),
-    onSuccess: async () => {
-      await refresh();
-      toast.success('分析完成');
-    },
+    onSuccess: async () => { await refresh(); toast.success('分析完成'); },
     onError: (error) => toast.error(getApiError(error).message),
   });
-
-  const reviewBusinessLabelMutation = useMutation({
-    mutationFn: ({
-      labelId,
-      reviewStatus,
-    }: {
-      labelId: string;
-      reviewStatus: 'accepted' | 'pending' | 'rejected';
-    }) => imageApi.reviewBusinessLabel(detail!.id, labelId, reviewStatus),
-    onSuccess: async () => {
-      await refresh();
-      toast.success('AI 建议状态已更新');
-    },
-    onError: (error) => toast.error(getApiError(error).message),
-  });
-
-  const toggleEditTag = (tagId: string) => {
-    setEditTagIds((current) => {
-      if (current.includes(tagId)) {
-        return current.filter((id) => id !== tagId);
-      }
-      return [...current, tagId];
-    });
-  };
-
-  const beginTagEditing = () => {
-    setEditTagIds(detail?.tags.map((tag) => tag.id) ?? []);
-    setEditingTags(true);
-  };
-
-  const cancelTagEditing = () => {
-    setEditTagIds(detail?.tags.map((tag) => tag.id) ?? []);
-    setEditingTags(false);
-  };
 
   const beginTitleEditing = () => {
     setEditTitle(detail?.title ?? '');
     setEditingTitle(true);
   };
-
   const saveTitle = () => {
     const title = editTitle.trim();
     if (!detail || !title) return;
-    if (title === detail.title) {
-      setEditingTitle(false);
-      return;
-    }
+    if (title === detail.title) return setEditingTitle(false);
     titleMutation.mutate(title);
   };
-
   const download = async () => {
     if (!detail) return;
     try {
@@ -150,44 +76,20 @@ export function useImageDetailActions(
     }
   };
 
-  const flatDisplayTags = useMemo(() => {
-    const childParentIds = new Set(
-      detail?.tags.filter((tag) => tag.parentId).map((tag) => tag.parentId!) ?? [],
-    );
-    return (detail?.tags ?? [])
-      .filter((tag) => tag.parentId || !childParentIds.has(tag.id))
-      .map((tag) => ({
-        ...tag,
-        imageCount: 0,
-        children: [],
-        depth: 0,
-      }));
-  }, [detail?.tags]);
-
   return {
     analyze: analyzeMutation.mutate,
     analyzing: analyzeMutation.isPending,
-    beginTagEditing,
     beginTitleEditing,
-    cancelTagEditing,
     deleting: deleteMutation.isPending,
     download,
-    editTagIds,
     editTitle,
-    editingTags,
     editingTitle,
-    flatDisplayTags,
-    saveTags: tagMutation.mutate,
+    remove: deleteMutation.mutate,
     saveTitle,
-    savingTags: tagMutation.isPending,
     savingTitle: titleMutation.isPending,
     setEditTitle,
     setEditingTitle,
     setShowDeleteDialog,
     showDeleteDialog,
-    remove: deleteMutation.mutate,
-    reviewBusinessLabel: reviewBusinessLabelMutation.mutate,
-    reviewingBusinessLabel: reviewBusinessLabelMutation.isPending,
-    toggleEditTag,
   };
 }

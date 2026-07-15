@@ -4,7 +4,6 @@ import argparse
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
-from app.domain.taxonomy_catalog import load_taxonomy_catalog
 from app.repositories.image_repository import ImageRepository
 from app.services.meilisearch_client import MeilisearchClient
 from app.services.search_index import image_to_search_document
@@ -12,7 +11,6 @@ from app.services.search_index import image_to_search_document
 
 def rebuild(batch_size: int, dry_run: bool) -> int:
     settings = get_settings()
-    catalog = load_taxonomy_catalog()
     client = MeilisearchClient(
         url=settings.meilisearch_url,
         api_key=settings.meilisearch_api_key,
@@ -30,10 +28,7 @@ def rebuild(batch_size: int, dry_run: bool) -> int:
             images = repo.list_for_search_index(offset=offset, limit=batch_size)
             if not images:
                 break
-            documents = [
-                image_to_search_document(image, catalog=catalog)
-                for image in images
-            ]
+            documents = [image_to_search_document(image) for image in images]
             if dry_run:
                 for document in documents[:3]:
                     print(document)
@@ -56,4 +51,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

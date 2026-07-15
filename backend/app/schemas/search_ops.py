@@ -12,16 +12,21 @@ class SearchMetricItem(ApiModel):
 class SearchLogRead(ApiModel):
     id: str
     keyword: str
-    requested_mode: str
     served_mode: str
     fallback: bool
     fallback_reason: Optional[str] = None
     result_count: int
     normalized_query: Optional[str] = None
     query_type: Optional[str] = None
-    matched_category: Optional[str] = None
+    matched_concept: Optional[str] = None
     top_image_ids: list[str]
+    top_asset_group_ids: list[str]
     match_reasons: list[str]
+    duration_ms: Optional[int] = None
+    timed_out: bool = False
+    cache_hit: bool = False
+    reranker_used: bool = False
+    degraded_sources: list[str]
     created_at: datetime
 
 
@@ -35,6 +40,8 @@ class SearchFeedbackCreate(ApiModel):
         "asset_request",
     ]
     note: Optional[str] = None
+    result_image_id: Optional[str] = None
+    asset_group_id: Optional[str] = None
 
 
 class SearchFeedbackRead(ApiModel):
@@ -43,6 +50,8 @@ class SearchFeedbackRead(ApiModel):
     keyword: str
     feedback_type: str
     note: Optional[str] = None
+    result_image_id: Optional[str] = None
+    asset_group_id: Optional[str] = None
     created_at: datetime
 
 
@@ -58,26 +67,26 @@ class SearchOpsIssueRead(ApiModel):
     latest_at: datetime
 
 
-class AiReviewQueueItem(ApiModel):
+class AiConceptReviewQueueItem(ApiModel):
     id: str
+    asset_group_id: str
     image_id: str
     image_title: str
     thumbnail_url: str
-    label_code: str
-    label_name: str
-    system_name: Optional[str] = None
-    role: str
+    concept_code: str
+    concept_name: str
+    system_names: list[str]
+    relation_role: str
     confidence: Optional[float] = None
-    evidence_level: Optional[str] = None
     reason: Optional[str] = None
     created_at: datetime
 
 
-class LabelHealthItem(ApiModel):
-    tag_id: str
-    label_code: Optional[str] = None
-    label_name: str
-    system_name: Optional[str] = None
+class ConceptHealthItem(ApiModel):
+    concept_id: str
+    concept_code: str
+    concept_name: str
+    system_names: list[str]
     image_count: int
     manual_count: int
     ai_pending_count: int
@@ -91,7 +100,7 @@ class LabelHealthItem(ApiModel):
 class AssetGapItem(ApiModel):
     keyword: str
     demand_count: int
-    suggested_label: Optional[str] = None
+    suggested_concept: Optional[str] = None
     reason: str
     source: str
 
@@ -100,19 +109,22 @@ class SearchOpsSummary(ApiModel):
     total_searches: int
     zero_result_count: int
     fallback_count: int
+    timed_out_count: int
+    cache_hit_count: int
+    reranker_used_count: int
+    average_duration_ms: float
+    p95_duration_ms: int
     ai_understood_count: int
-    smart_search_count: int
-    precise_search_count: int
     top_queries: list[SearchMetricItem]
     zero_result_queries: list[SearchMetricItem]
     top_normalized_queries: list[SearchMetricItem]
-    top_matched_categories: list[SearchMetricItem]
+    top_matched_concepts: list[SearchMetricItem]
     feedback_count: int
     feedback_by_type: list[SearchMetricItem]
     feedback_queries: list[SearchMetricItem]
     recent_feedback: list[SearchFeedbackRead]
     recent_logs: list[SearchLogRead]
     search_issues: list[SearchOpsIssueRead]
-    ai_review_queue: list[AiReviewQueueItem]
-    label_health: list[LabelHealthItem]
+    ai_review_queue: list[AiConceptReviewQueueItem]
+    concept_health: list[ConceptHealthItem]
     asset_gaps: list[AssetGapItem]

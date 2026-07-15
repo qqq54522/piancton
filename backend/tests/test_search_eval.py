@@ -53,6 +53,6 @@ def test_search_eval_queries_map_to_expected_local_business_intents():
         understanding = service.understand_locally(case.query)
 
         assert understanding is not None, case.id
-        assert understanding.matched_level2_categories[0].category == expected_display_name(
+        assert understanding.matched_business_concepts[0].concept == expected_display_name(
             case
         ), case.id

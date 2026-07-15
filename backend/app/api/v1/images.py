@@ -21,7 +21,6 @@ from app.api.dependencies import (
     get_image_analysis_service,
     get_image_lifecycle_service,
     get_image_service,
-    get_image_tagging_service,
     get_search_log_service,
     get_search_service,
     require_roles,
@@ -29,11 +28,9 @@ from app.api.dependencies import (
 )
 from app.models.user import User
 from app.schemas.image import (
-    BusinessLabelReviewUpdate,
     ImageDetailRead,
     ImageListResponse,
     ImageRead,
-    ImageTagsUpdate,
     ImageTitleUpdate,
     SearchRequest,
     SearchResponse,
@@ -44,7 +41,6 @@ from app.services.audit_service import AuditService
 from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
-from app.services.image_tagging_service import ImageTaggingService
 from app.services.search_log_service import SearchLogService
 from app.services.search_service import SearchService
 
@@ -54,7 +50,6 @@ router = APIRouter(prefix="/images", tags=["images"])
 @router.get("", response_model=ImageListResponse)
 def list_images(
     keyword: Optional[str] = None,
-    tag_ids: Optional[str] = Query(default=None, alias="tagIds"),
     cursor: Optional[str] = None,
     limit: int = Query(default=12, ge=1, le=50),
     sort_by: str = Query(
@@ -62,28 +57,28 @@ def list_images(
         alias="sortBy",
         pattern="^(createdAt|downloadCount)$",
     ),
-    category: Optional[str] = None,
     _: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
 ):
-    return service.list_images(
-        keyword, tag_ids.split(",") if tag_ids else [], cursor, limit, sort_by, category
-    )
+    return service.list_images(keyword, cursor, limit, sort_by)
 
 
 @router.post("/search", response_model=SearchResponse)
-def semantic_search(
+async def semantic_search(
     payload: SearchRequest,
     request: Request,
     user: User = Depends(get_current_user),
     service: SearchService = Depends(get_search_service),
     analytics: SearchLogService = Depends(get_search_log_service),
 ):
-    response = service.search(payload.keyword, payload.limit, payload.search_mode)
+    response = await service.search_async(
+        payload.keyword,
+        payload.limit,
+        payload.system_code,
+    )
     response.search_log_id = analytics.record_search(
         actor_user_id=user.id,
         keyword=payload.keyword,
-        requested_mode=payload.search_mode,
         response=response,
         request_id=request.state.request_id,
     )
@@ -96,10 +91,8 @@ def upload_image(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = Form(default=None),
-    tag_ids: str = Form(default="", alias="tagIds"),
-    primary_tag_id: str = Form(default="", alias="primaryTagId"),
-    categories: str = Form(default=""),
     expected_search_words: str = Form(default="", alias="expectedSearchWords"),
+    channel: Optional[str] = Form(default=None),
     auto_analyze: bool = Form(default=True, alias="autoAnalyze"),
     user: User = Depends(require_write_role),
     service: ImageService = Depends(get_image_service),
@@ -113,11 +106,9 @@ def upload_image(
         file.file,
         original_name,
         title or original_name.rsplit(".", 1)[0],
-        [item for item in tag_ids.split(",") if item],
-        primary_tag_id or None,
-        [item for item in categories.split(",") if item],
         user.username,
         [item for item in expected_search_words.split("\n") if item.strip()],
+        channel,
     )
     audit.record(
         actor_user_id=user.id,
@@ -247,56 +238,6 @@ def update_image_title(
         action="image.update_title",
         target_type="image",
         target_id=image_id,
-        request_id=request.state.request_id,
-    )
-    return image
-
-
-@router.patch("/{image_id}/tags", response_model=ImageRead)
-def update_image_tags(
-    image_id: str,
-    payload: ImageTagsUpdate,
-    request: Request,
-    user: User = Depends(require_write_role),
-    service: ImageTaggingService = Depends(get_image_tagging_service),
-    audit: AuditService = Depends(get_audit_service),
-):
-    image = service.update_tags(image_id, payload.tag_ids, payload.primary_tag_id)
-    audit.record(
-        actor_user_id=user.id,
-        action="image.update_tags",
-        target_type="image",
-        target_id=image_id,
-        details={"tagIds": payload.tag_ids},
-        request_id=request.state.request_id,
-    )
-    return image
-
-
-@router.patch(
-    "/{image_id}/business-labels/{label_id}",
-    response_model=ImageDetailRead,
-)
-def review_business_label(
-    image_id: str,
-    label_id: str,
-    payload: BusinessLabelReviewUpdate,
-    request: Request,
-    user: User = Depends(require_write_role),
-    service: ImageTaggingService = Depends(get_image_tagging_service),
-    audit: AuditService = Depends(get_audit_service),
-):
-    image = service.review_business_label(
-        image_id,
-        label_id,
-        payload.review_status,
-    )
-    audit.record(
-        actor_user_id=user.id,
-        action="image.review_business_label",
-        target_type="image",
-        target_id=image_id,
-        details={"labelId": label_id, "reviewStatus": payload.review_status},
         request_id=request.state.request_id,
     )
     return image

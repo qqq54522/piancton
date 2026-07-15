@@ -6,20 +6,18 @@ import { ROLE_SUBJECT, useAuth } from '@client/src/lib/auth';
 import { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
 import { useImageDetail } from '@client/src/features/images/useImageDetail';
 import { useImageDetailActions } from '@client/src/features/images/useImageDetailActions';
-import { useTags } from '@client/src/features/tags/useTags';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
 import ImageDeleteDialog from './ImageDeleteDialog';
 import ImageDetailInfoPanel from './ImageDetailInfoPanel';
 import RelatedImagesStrip from './RelatedImagesStrip';
+import AssetWorkspacePanel from './asset/AssetWorkspacePanel';
 
 const ImageDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const detailQuery = useImageDetail(id);
-  const tagsQuery = useTags();
   const detail = detailQuery.data ?? null;
-  const allTags = tagsQuery.data ?? [];
-  const loading = detailQuery.isLoading || tagsQuery.isLoading;
+  const loading = detailQuery.isLoading;
   const mainImageUrl = useImageUrl(detail?.contentUrl ?? '');
   const canDesign = useAuth();
   const isDesigner = !canDesign.isLoading && canDesign.ability.can('designer', ROLE_SUBJECT);
@@ -70,7 +68,6 @@ const ImageDetail = () => {
         <div className="flex-1 lg:max-w-[35%]">
           <ImageDetailInfoPanel
             detail={detail}
-            allTags={allTags}
             isDesigner={isDesigner}
             provider={provider}
             actions={actions}
@@ -79,6 +76,14 @@ const ImageDetail = () => {
       </div>
 
       <RelatedImagesStrip images={detail.relatedImages} />
+
+      {detail.assetGroupId && (
+        <AssetWorkspacePanel
+          groupId={detail.assetGroupId}
+          editable={isDesigner}
+          onPrimaryChanged={(imageId) => navigate(`/image/${imageId}`, { replace: true })}
+        />
+      )}
 
       <ImageDeleteDialog
         title={detail.title}

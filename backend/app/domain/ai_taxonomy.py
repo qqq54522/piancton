@@ -3,13 +3,13 @@ from app.domain.taxonomy_catalog import load_taxonomy_catalog
 _catalog = load_taxonomy_catalog()
 _node_by_code = _catalog.node_by_code
 
-SECONDARY_LABEL_CATALOG = {
+BUSINESS_CONCEPT_CATALOG = {
     (_node_by_code[node.parent_code].name, node.name)
     for node in _catalog.image_label_nodes
     if node.parent_code
 }
 
-SECONDARY_LABEL_CODES = {node.code for node in _catalog.image_label_nodes}
+BUSINESS_CONCEPT_CODES = {node.code for node in _catalog.image_label_nodes}
 
 CONTENT_TAG_DIMENSIONS = {
     "人物",

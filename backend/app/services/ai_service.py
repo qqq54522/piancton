@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import TypeVar
 
@@ -15,13 +14,12 @@ from app.ai.skill_loader import build_task_prompt
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.domain.ai_taxonomy import (
+    BUSINESS_CONCEPT_CATALOG,
+    BUSINESS_CONCEPT_CODES,
     CONTENT_TAG_DIMENSIONS,
-    SECONDARY_LABEL_CATALOG,
-    SECONDARY_LABEL_CODES,
 )
 from app.schemas.ai import (
     ImageAnalysisResult,
-    ImageSummaryMatchResult,
     ProviderStatus,
     SearchUnderstanding,
     SellingPointMatchResult,
@@ -86,16 +84,6 @@ class AiService:
             SellingPointMatchResult,
         )
 
-    def match_image_summaries(self, payload: dict) -> ImageSummaryMatchResult:
-        return self._run(
-            ModelRequest(
-                task="image_summary_match",
-                prompt=build_task_prompt("image_summary_match"),
-                input_text=json.dumps(payload, ensure_ascii=False),
-            ),
-            ImageSummaryMatchResult,
-        )
-
     def _run(self, request: ModelRequest, result_type: type[ResultModel]) -> ResultModel:
         try:
             payload = self.provider.generate_json(request)
@@ -130,12 +118,11 @@ class AiService:
             )
 
         tag_names = [item.tag.strip() for item in result.content_tags if item.tag.strip()]
-        if not 18 <= len(tag_names) <= 22:
+        if not tag_names:
             raise AppError(
                 "model_response_invalid",
-                "模型必须返回 18 到 22 个隐形内容标签",
+                "模型至少需要返回一个有检索价值的客观内容标签",
                 status_code=502,
-                details={"contentTagCount": len(tag_names)},
             )
         if len(set(tag_names)) != len(tag_names):
             raise AppError(
@@ -159,40 +146,58 @@ class AiService:
                 details={"dimensions": unknown_dimensions},
             )
 
-        unknown_labels = sorted(
-            f"{item.system} > {item.label}"
-            for item in result.secondary_labels
-            if (
-                item.label_code not in SECONDARY_LABEL_CODES
-                and (item.system.strip(), item.label.strip()) not in SECONDARY_LABEL_CATALOG
-            )
-        )
-        if unknown_labels:
-            raise AppError(
-                "unknown_secondary_labels",
-                "模型返回了封闭目录之外的自动匹配标签",
-                status_code=502,
-                details={"labels": unknown_labels},
-            )
-
-        primary_count = sum(item.role == "primary" for item in result.secondary_labels)
-        if primary_count > 1 or len(result.secondary_labels) > 3:
+        coverage = {item.dimension for item in result.content_tags if item.dimension}
+        profile = result.semantic_profile
+        if profile.visual_facts:
+            coverage.add("画面事实")
+        if profile.ocr_text:
+            coverage.add("OCR")
+        if any([profile.subjects, profile.scenes, profile.actions, profile.visual_style]):
+            coverage.add("结构化视觉")
+        if len(coverage) < 2:
             raise AppError(
                 "model_response_invalid",
-                "自动匹配最多包含一个主标签和两个副标签",
+                "图片分析需要覆盖至少两个客观语义维度",
+                status_code=502,
+                details={"coveredDimensions": sorted(coverage)},
+            )
+
+        unknown_concepts = sorted(
+            f"{item.system_name} > {item.concept_name}"
+            for item in result.concept_suggestions
+            if (
+                item.concept_code not in BUSINESS_CONCEPT_CODES
+                and (item.system_name.strip(), item.concept_name.strip())
+                not in BUSINESS_CONCEPT_CATALOG
+            )
+        )
+        if unknown_concepts:
+            raise AppError(
+                "unknown_concept_suggestions",
+                "模型返回了封闭目录之外的业务概念建议",
+                status_code=502,
+                details={"concepts": unknown_concepts},
+            )
+
+        primary_count = sum(
+            item.relation_role == "expresses" for item in result.concept_suggestions
+        )
+        if primary_count > 1 or len(result.concept_suggestions) > 3:
+            raise AppError(
+                "model_response_invalid",
+                "业务概念建议最多包含一个主要表达和两个可以支持",
                 status_code=502,
             )
 
         self._validate_recommended_search_words(result)
-        self._validate_negative_tags(result)
-        self._validate_secondary_label_reasons(result)
+        self._validate_concept_suggestion_reasons(result)
 
     def _validate_recommended_search_words(self, result: ImageAnalysisResult) -> None:
         words = [word.strip() for word in result.recommended_search_words if word.strip()]
-        if not 5 <= len(words) <= 10:
+        if len(words) > 12:
             raise AppError(
                 "model_response_invalid",
-                "模型必须返回 5 到 10 个推荐搜索词",
+                "模型返回的素材搜索短语不能超过 12 个",
                 status_code=502,
                 details={"recommendedSearchWordCount": len(words)},
             )
@@ -208,41 +213,19 @@ class AiService:
                 "推荐搜索词应保持为可检索的短词或短语",
                 status_code=502,
             )
-        if not any(len(word) >= 8 for word in words):
-            raise AppError(
-                "model_response_invalid",
-                "推荐搜索词必须包含至少一个真实痛点长短语",
-                status_code=502,
-            )
 
-    def _validate_negative_tags(self, result: ImageAnalysisResult) -> None:
-        tags = [tag.strip() for tag in result.negative_tags if tag.strip()]
-        if not 1 <= len(tags) <= 8:
-            raise AppError(
-                "model_response_invalid",
-                "模型必须返回 1 到 8 个负向相邻标签",
-                status_code=502,
-                details={"negativeTagCount": len(tags)},
-            )
-        if len(set(tags)) != len(tags):
-            raise AppError(
-                "model_response_invalid",
-                "模型返回了重复的负向相邻标签",
-                status_code=502,
-            )
-
-    def _validate_secondary_label_reasons(self, result: ImageAnalysisResult) -> None:
+    def _validate_concept_suggestion_reasons(self, result: ImageAnalysisResult) -> None:
         weak_reasons = [
-            f"{item.system} > {item.label}"
-            for item in result.secondary_labels
+            f"{item.system_name} > {item.concept_name}"
+            for item in result.concept_suggestions
             if not self._has_boundary_reason(item.reason)
         ]
         if weak_reasons:
             raise AppError(
                 "model_response_invalid",
-                "自动匹配标签理由必须说明适配证据和相邻标签排除边界",
+                "业务概念建议理由必须说明适配证据和相邻概念排除边界",
                 status_code=502,
-                details={"secondaryLabels": weak_reasons},
+                details={"conceptSuggestions": weak_reasons},
             )
 
     def _has_boundary_reason(self, reason: str) -> bool:

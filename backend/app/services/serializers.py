@@ -4,11 +4,9 @@ from typing import Literal, cast
 from app.models.image import Image
 from app.schemas.image import (
     AnalysisRunRead,
-    BusinessLabelRead,
     ContentTagRead,
     ImageDetailRead,
     ImageRead,
-    Level2CategoryRead,
     SemanticProfileRead,
 )
 from app.schemas.tag import TagRead
@@ -53,10 +51,27 @@ def image_to_read(image: Image) -> ImageRead:
         size_bytes=image.size_bytes,
         uploader=image.uploader,
         download_count=image.download_count,
-        categories=[item.name for item in image.categories],
         created_at=image.created_at,
         deleted_at=image.deleted_at,
-        tags=[tag_to_read(link.tag) for link in image.tag_links],
+        asset_group_id=image.asset_group_id,
+        asset_role=image.asset_role,
+        width=image.width,
+        height=image.height,
+        aspect_ratio=image.aspect_ratio,
+        channel=image.channel,
+        version_no=image.version_no,
+        is_current=image.is_current,
+        variant_count=(
+            len(
+                [
+                    item
+                    for item in image.asset_group.images
+                    if item.is_current and item.deleted_at is None
+                ]
+            )
+            if image.asset_group
+            else 1
+        ),
     )
 
 
@@ -81,7 +96,9 @@ def image_to_detail(image: Image, related: list[Image]) -> ImageDetailRead:
         **image_to_read(image).model_dump(),
         image_summary=image.image_summary,
         semantic_profile=(
-            SemanticProfileRead.model_validate(semantic_profile.model_dump())
+            SemanticProfileRead(
+                **semantic_profile.model_dump(),
+            )
             if semantic_profile
             else None
         ),
@@ -94,31 +111,6 @@ def image_to_detail(image: Image, related: list[Image]) -> ImageDetailRead:
                 dimension=item.dimension,
             )
             for item in image.content_tags
-        ],
-        level2_categories=[
-            Level2CategoryRead(
-                id=item.id,
-                category_name=item.category_name,
-                confidence=item.confidence,
-                reason=item.reason,
-            )
-            for item in image.level2_categories
-        ],
-        business_labels=[
-            BusinessLabelRead(
-                id=item.id,
-                label_code=item.label_code,
-                tag_id=item.tag_id,
-                tag_name=item.tag.name,
-                system_name=item.tag.parent.name if item.tag.parent else None,
-                origin=item.origin,
-                role=item.role,
-                review_status=item.review_status,
-                confidence=item.confidence,
-                evidence_level=item.evidence_level,
-                reason=item.reason,
-            )
-            for item in image.business_labels
         ],
         analysis_runs=[
             AnalysisRunRead(

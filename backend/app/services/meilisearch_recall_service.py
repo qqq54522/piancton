@@ -5,7 +5,11 @@ import json
 import httpx
 
 from app.repositories.image_repository import ImageRepository
-from app.services.search_models import SearchHit, SearchUnavailable
+from app.services.search_models import (
+    ExternalSearchCandidate,
+    SearchHit,
+    SearchUnavailable,
+)
 
 
 class MeilisearchRecallService:
@@ -29,6 +33,13 @@ class MeilisearchRecallService:
         return bool(self.url)
 
     def search(self, keyword: str, limit: int) -> list[SearchHit]:
+        return self.hydrate(self.recall_candidates(keyword, limit))
+
+    def recall_candidates(
+        self,
+        keyword: str,
+        limit: int,
+    ) -> list[ExternalSearchCandidate]:
         if not self.url:
             raise SearchUnavailable("Meilisearch URL 未配置")
 
@@ -41,6 +52,7 @@ class MeilisearchRecallService:
             "limit": limit,
             "attributesToRetrieve": ["id"],
             "showRankingScore": True,
+            "filter": "status = active",
         }
         try:
             with httpx.Client(timeout=self.timeout_seconds, trust_env=False) as client:
@@ -67,12 +79,26 @@ class MeilisearchRecallService:
             if isinstance(score, (int, float)):
                 score_by_id[image_id] = max(0.0, min(float(score), 1.0))
 
-        images = self.repo.get_many_by_ids(ids)
+        return [
+            ExternalSearchCandidate(
+                image_id=image_id,
+                score=score_by_id.get(image_id, 0.9),
+                reasons=("Meilisearch 匹配",),
+            )
+            for image_id in ids
+        ]
+
+    def hydrate(
+        self,
+        candidates: list[ExternalSearchCandidate],
+    ) -> list[SearchHit]:
+        images = self.repo.get_many_by_ids([item.image_id for item in candidates])
+        by_id = {item.image_id: item for item in candidates}
         return [
             SearchHit(
                 image=image,
-                score=score_by_id.get(image.id, 0.9),
-                reasons=("Meilisearch 匹配",),
+                score=by_id[image.id].score,
+                reasons=by_id[image.id].reasons,
             )
             for image in images
         ]

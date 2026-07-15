@@ -25,6 +25,10 @@ class SearchEvalResultRecord:
     status: str
     screenshot: str
     notes: str
+    top_asset_ids: tuple[str, ...] = ()
+    latency_ms: float | None = None
+    error: str = ""
+    recorded_at: str = ""
 
 
 @dataclass(frozen=True)
@@ -37,6 +41,12 @@ class SearchEvalCase:
     expected_label_code: str
     strong_relevant_images: tuple[str, ...]
     disallowed_images: tuple[str, ...]
+    strong_relevant_asset_ids: tuple[str, ...]
+    acceptable_asset_ids: tuple[str, ...]
+    forbidden_asset_ids: tuple[str, ...]
+    expected_concept_codes: tuple[str, ...]
+    ambiguity: tuple[str, ...]
+    allow_few_results: bool
     scoring: SearchEvalScoring
     result_record: SearchEvalResultRecord
 
@@ -44,6 +54,7 @@ class SearchEvalCase:
 @dataclass(frozen=True)
 class SearchEvalCatalog:
     version: str
+    dataset_status: str
     cases: tuple[SearchEvalCase, ...]
 
     def cases_for_batch(self, batch: int) -> tuple[SearchEvalCase, ...]:
@@ -72,6 +83,14 @@ def _result_record(payload: dict[str, Any]) -> SearchEvalResultRecord:
         status=str(payload.get("status") or "").strip(),
         screenshot=str(payload.get("screenshot") or "").strip(),
         notes=str(payload.get("notes") or "").strip(),
+        top_asset_ids=_strings(payload.get("top_asset_ids")),
+        latency_ms=(
+            float(payload["latency_ms"])
+            if payload.get("latency_ms") is not None
+            else None
+        ),
+        error=str(payload.get("error") or "").strip(),
+        recorded_at=str(payload.get("recorded_at") or "").strip(),
     )
 
 
@@ -85,6 +104,12 @@ def _case(payload: dict[str, Any]) -> SearchEvalCase:
         expected_label_code=str(payload["expected_label_code"]).strip(),
         strong_relevant_images=_strings(payload.get("strong_relevant_images")),
         disallowed_images=_strings(payload.get("disallowed_images")),
+        strong_relevant_asset_ids=_strings(payload.get("strong_relevant_asset_ids")),
+        acceptable_asset_ids=_strings(payload.get("acceptable_asset_ids")),
+        forbidden_asset_ids=_strings(payload.get("forbidden_asset_ids")),
+        expected_concept_codes=_strings(payload.get("expected_concept_codes")),
+        ambiguity=_strings(payload.get("ambiguity")),
+        allow_few_results=bool(payload.get("allow_few_results", False)),
         scoring=_scoring(payload.get("scoring") or {}),
         result_record=_result_record(payload.get("result_record") or {}),
     )
@@ -93,6 +118,8 @@ def _case(payload: dict[str, Any]) -> SearchEvalCase:
 def _validate(catalog: SearchEvalCatalog) -> None:
     if not catalog.version:
         raise ValueError("搜索评测集缺少版本")
+    if catalog.dataset_status not in {"template", "partial", "ready"}:
+        raise ValueError("搜索评测集 dataset_status 无效")
     if len(catalog.cases) != EXPECTED_CUMULATIVE_BATCH_COUNTS[3]:
         raise ValueError("搜索评测集必须包含 50 条评测 query")
 
@@ -128,6 +155,8 @@ def _validate(catalog: SearchEvalCatalog) -> None:
             raise ValueError(f"搜索评测案例缺少评分标准：{case.id}")
         if case.result_record.status not in {"not_run", "recorded"}:
             raise ValueError(f"搜索评测案例结果记录状态无效：{case.id}")
+        if catalog.dataset_status == "ready" and not case.strong_relevant_asset_ids:
+            raise ValueError(f"ready 评测案例必须绑定真实素材组 ID：{case.id}")
 
 
 @lru_cache
@@ -135,6 +164,7 @@ def load_search_eval_cases(path: Path = SEARCH_EVAL_CASES_PATH) -> SearchEvalCat
     raw = json.loads(path.read_text(encoding="utf-8"))
     catalog = SearchEvalCatalog(
         version=str(raw.get("version") or "").strip(),
+        dataset_status=str(raw.get("dataset_status") or "template").strip(),
         cases=tuple(_case(item) for item in raw.get("cases", [])),
     )
     _validate(catalog)

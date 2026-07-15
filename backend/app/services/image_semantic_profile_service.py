@@ -3,52 +3,77 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.models.image import Image, ImageBusinessLabel
+from app.models.image import Image
 from app.schemas.ai import ImageAnalysisResult, ImageSemanticProfile
-from app.services.business_label_policy import BusinessLabelPolicy
 from app.services.query_expansion_service import unique
 
 
 class ImageSemanticProfileService:
-    def __init__(self, label_policy: BusinessLabelPolicy | None = None):
-        self.label_policy = label_policy or BusinessLabelPolicy()
-
     def rerank_document(self, image: Image) -> str:
         profile = self.profile_from_image(image)
+        group = image.asset_group
+        concept_links = [
+            link
+            for link in (group.concept_links if group else [])
+            if link.review_status != "rejected" and link.relation_role != "excludes"
+        ]
+        accepted_concepts = [
+            link.concept
+            for link in concept_links
+            if link.review_status == "accepted"
+        ]
+        pending_concepts = [
+            link.concept
+            for link in concept_links
+            if link.review_status == "pending"
+        ]
         parts = [
             f"标题：{image.title}",
             f"语义总结：{image.image_summary}" if image.image_summary else "",
             self._profile_document(profile),
             "隐形标签：" + "、".join(item.tag_name for item in image.content_tags),
-            "业务标签："
+            "已确认业务概念："
             + "、".join(
-                self.business_label_name(label)
-                for label in image.business_labels
-                if label.review_status != "rejected"
+                dict.fromkeys(
+                    value
+                    for concept in accepted_concepts
+                    for value in (concept.name, concept.code)
+                )
             ),
-            "人工标签：" + "、".join(link.tag.name for link in image.tag_links),
+            "已确认概念搜索表达："
+            + "、".join(
+                dict.fromkeys(
+                    phrase.phrase
+                    for concept in accepted_concepts
+                    for phrase in concept.search_phrases
+                    if phrase.review_status == "accepted"
+                )
+            ),
+            "AI待审核概念："
+            + "、".join(dict.fromkeys(concept.name for concept in pending_concepts)),
+            "素材独有搜索表达："
+            + "、".join(
+                phrase.phrase
+                for phrase in (group.search_phrases if group else [])
+                if phrase.review_status != "rejected"
+            ),
         ]
         return "\n".join(part for part in parts if part.strip() and not part.endswith("："))
-
-    def business_label_name(self, label: ImageBusinessLabel) -> str:
-        return self.label_policy.display_name(label)
-
-    def searchable_business_labels(self, image: Image) -> list[ImageBusinessLabel]:
-        return [
-            label for label in image.business_labels if self.label_policy.is_searchable(label)
-        ]
 
     def profile_completeness(self, image: Image) -> int:
         score = 0
         if image.title.strip():
             score += 1
-        if image.tag_links:
+        if image.semantic_profile_json:
             score += 1
         if image.image_summary and image.image_summary.strip():
             score += 1
         if image.content_tags:
             score += 1
-        if self.searchable_business_labels(image):
+        if image.asset_group and any(
+            link.review_status == "accepted"
+            for link in image.asset_group.concept_links
+        ):
             score += 1
         if image.embedding:
             score += 1
@@ -64,20 +89,25 @@ class ImageSemanticProfileService:
 
     def profile_from_analysis(self, result: ImageAnalysisResult) -> ImageSemanticProfile:
         profile = result.semantic_profile
-        business_intent = profile.business_intent.strip() or self._analysis_business_intent(result)
         return ImageSemanticProfile(
+            schema_version=2,
             visual_facts=self._clean_list(
                 [*profile.visual_facts] or [result.image_summary],
-                limit=6,
-            ),
-            business_intent=business_intent,
-            search_phrases=self._clean_list(
-                [*profile.search_phrases, *result.recommended_search_words],
                 limit=12,
             ),
-            exclusion_boundaries=self._clean_list(
-                [*profile.exclusion_boundaries, *result.negative_tags],
-                limit=10,
+            ocr_text=self._clean_list(profile.ocr_text, limit=30),
+            subjects=self._clean_list(profile.subjects, limit=12),
+            scenes=self._clean_list(profile.scenes, limit=12),
+            actions=self._clean_list(profile.actions, limit=12),
+            visual_style=self._clean_list(profile.visual_style, limit=12),
+            visible_product_features=self._clean_list(
+                profile.visible_product_features, limit=15
+            ),
+            asset_search_phrases=self._clean_list(
+                [*profile.asset_search_phrases, *result.recommended_search_words], limit=20
+            ),
+            negative_visual_concepts=self._clean_list(
+                profile.negative_visual_concepts, limit=12
             ),
         )
 
@@ -91,9 +121,10 @@ class ImageSemanticProfileService:
         return self.fallback_profile_from_image(image)
 
     def fallback_profile_from_image(self, image: Image) -> ImageSemanticProfile | None:
-        if not any([image.image_summary, image.content_tags, image.business_labels]):
+        if not any([image.image_summary, image.content_tags]):
             return None
         return ImageSemanticProfile(
+            schema_version=2,
             visual_facts=self._clean_list(
                 [
                     image.image_summary or "",
@@ -101,20 +132,54 @@ class ImageSemanticProfileService:
                 ],
                 limit=6,
             ),
-            business_intent=self._image_business_intent(image),
-            search_phrases=self._clean_list(
+            ocr_text=self._clean_list(
+                [item.tag_name for item in image.content_tags if item.dimension == "文字"],
+                limit=30,
+            ),
+            subjects=self._clean_list(
                 [
-                    *(item.tag_name for item in image.content_tags if item.dimension == "业务卖点"),
-                    *(item.tag_name for item in image.content_tags[:8]),
+                    item.tag_name
+                    for item in image.content_tags
+                    if item.dimension in {"人物", "物体"}
                 ],
                 limit=12,
             ),
-            exclusion_boundaries=self._clean_list(
+            scenes=self._clean_list(
+                [item.tag_name for item in image.content_tags if item.dimension == "场景"],
+                limit=12,
+            ),
+            actions=self._clean_list(
+                [item.tag_name for item in image.content_tags if item.dimension == "动作"],
+                limit=12,
+            ),
+            visual_style=self._clean_list(
                 [
-                    label.reason or ""
-                    for label in self.searchable_business_labels(image)
-                    if label.reason
+                    item.tag_name
+                    for item in image.content_tags
+                    if item.dimension in {"视觉风格", "颜色"}
                 ],
+                limit=12,
+            ),
+            visible_product_features=self._clean_list(
+                [item.tag_name for item in image.content_tags if item.dimension == "产品功能"],
+                limit=15,
+            ),
+            asset_search_phrases=self._clean_list(
+                [
+                    *(
+                        [
+                            item.phrase
+                            for item in image.asset_group.search_phrases
+                            if item.review_status != "rejected"
+                        ]
+                        if image.asset_group
+                        else []
+                    ),
+                ],
+                limit=20,
+            ),
+            negative_visual_concepts=self._clean_list(
+                [],
                 limit=6,
             ),
         )
@@ -126,30 +191,31 @@ class ImageSemanticProfileService:
         return unique(
             [
                 *profile.visual_facts,
-                profile.business_intent,
-                *profile.search_phrases,
-                *profile.exclusion_boundaries,
+                *profile.ocr_text,
+                *profile.subjects,
+                *profile.scenes,
+                *profile.actions,
+                *profile.visual_style,
+                *profile.visible_product_features,
+                *profile.asset_search_phrases,
+                *profile.negative_visual_concepts,
             ]
         )
 
-    def _analysis_business_intent(self, result: ImageAnalysisResult) -> str:
-        labels = [
-            item for item in result.secondary_labels if item.role == "primary"
-        ] or result.secondary_labels[:1]
-        if not labels:
+    def business_intent_from_image(self, image: Image) -> str:
+        group = image.asset_group
+        if not group:
             return ""
-        label = labels[0]
-        return f"{label.system} > {label.label}" if label.system.strip() else label.label
-
-    def _image_business_intent(self, image: Image) -> str:
-        labels = self.searchable_business_labels(image)
-        primary = [
-            label for label in labels if label.role == "primary"
-        ] or labels[:1]
-        if primary:
-            return self.business_label_name(primary[0])
-        if image.level2_categories:
-            return image.level2_categories[0].category_name
+        accepted = [
+            link
+            for link in group.concept_links
+            if link.review_status == "accepted"
+            and link.relation_role in {"expresses", "supports"}
+        ]
+        primary = [link for link in accepted if link.relation_role == "expresses"]
+        selected = primary or accepted
+        if selected:
+            return selected[0].concept.name
         return ""
 
     def _profile_document(self, profile: ImageSemanticProfile | None) -> str:
@@ -157,9 +223,14 @@ class ImageSemanticProfileService:
             return ""
         parts = [
             "画像事实：" + "、".join(profile.visual_facts),
-            f"画像业务意图：{profile.business_intent}" if profile.business_intent else "",
-            "画像适配搜索：" + "、".join(profile.search_phrases),
-            "画像排除边界：" + "、".join(profile.exclusion_boundaries),
+            "OCR文字：" + "、".join(profile.ocr_text),
+            "主体：" + "、".join(profile.subjects),
+            "场景：" + "、".join(profile.scenes),
+            "动作：" + "、".join(profile.actions),
+            "视觉风格：" + "、".join(profile.visual_style),
+            "可见产品功能：" + "、".join(profile.visible_product_features),
+            "素材搜索表达：" + "、".join(profile.asset_search_phrases),
+            "画面排除边界：" + "、".join(profile.negative_visual_concepts),
         ]
         return "\n".join(part for part in parts if part.strip() and not part.endswith("："))
 

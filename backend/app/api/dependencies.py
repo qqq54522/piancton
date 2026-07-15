@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from math import ceil
 
 from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy.orm import Session
@@ -11,17 +12,20 @@ from app.core.errors import ForbiddenError
 from app.db.session import SessionLocal, get_db
 from app.models.user import User, UserSession
 from app.services.ai_service import AiService
+from app.services.asset_relation_service import AssetRelationService
+from app.services.asset_service import AssetService
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
+from app.services.business_concept_service import BusinessConceptService
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
-from app.services.image_tagging_service import ImageTaggingService
+from app.services.search_cache import shared_search_caches
 from app.services.search_log_service import SearchLogService
 from app.services.search_ops_service import SearchOpsService
 from app.services.search_service import SearchService
-from app.services.semantic_search_clients import RerankerClient
+from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
 from app.services.storage_service import LocalStorageProvider
 from app.services.tag_service import TagService
 from app.services.user_service import UserService
@@ -54,12 +58,28 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
     )
 
 
+def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
+    return AssetService(
+        db,
+        LocalStorageProvider(settings.storage_dir),
+        settings.max_upload_bytes,
+        settings.max_image_pixels,
+        settings.thumbnail_max_size,
+    )
+
+
+def get_asset_relation_service(db: Session = Depends(get_db)) -> AssetRelationService:
+    return AssetRelationService(db)
+
+
+def get_business_concept_service(
+    db: Session = Depends(get_db),
+) -> BusinessConceptService:
+    return BusinessConceptService(db)
+
+
 def get_image_lifecycle_service(db: Session = Depends(get_db)) -> ImageLifecycleService:
     return ImageLifecycleService(db, LocalStorageProvider(settings.storage_dir))
-
-
-def get_image_tagging_service(db: Session = Depends(get_db)) -> ImageTaggingService:
-    return ImageTaggingService(db, embedding_index=EmbeddingIndexSync.from_settings())
 
 
 def get_image_analysis_service(db: Session = Depends(get_db)) -> ImageAnalysisService:
@@ -77,17 +97,40 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
         meilisearch_url=settings.meilisearch_url,
         meilisearch_api_key=settings.meilisearch_api_key,
         meilisearch_index=settings.meilisearch_index,
-        search_timeout_seconds=settings.search_timeout_seconds,
-        ai_service=get_ai_service(),
-        embedding_client=EmbeddingIndexSync.from_settings().client,
+        search_timeout_seconds=settings.search_meilisearch_timeout_seconds,
+        ai_service=get_search_ai_service(),
+        embedding_client=EmbeddingClient(
+            base_url=settings.embedding_base_url,
+            api_key=settings.embedding_api_key,
+            model_name=settings.embedding_model_name,
+            timeout_seconds=min(
+                settings.embedding_timeout_seconds,
+                settings.search_embedding_timeout_seconds,
+            ),
+        ),
         embedding_top_n=settings.embedding_top_n,
         reranker=RerankerClient(
             base_url=settings.reranker_base_url,
             api_key=settings.reranker_api_key,
             model_name=settings.reranker_model_name,
-            timeout_seconds=settings.reranker_timeout_seconds,
+            timeout_seconds=min(
+                settings.reranker_timeout_seconds,
+                settings.search_reranker_timeout_seconds,
+            ),
         ),
         reranker_top_n=settings.reranker_top_n,
+        total_timeout_seconds=settings.search_total_timeout_seconds,
+        meilisearch_timeout_seconds=settings.search_meilisearch_timeout_seconds,
+        embedding_timeout_seconds=settings.search_embedding_timeout_seconds,
+        understanding_timeout_seconds=settings.search_understanding_timeout_seconds,
+        reranker_timeout_seconds=settings.search_reranker_timeout_seconds,
+        candidate_limit=settings.search_candidate_limit,
+        cache_ttl_seconds=settings.search_cache_ttl_seconds,
+        cache_max_entries=settings.search_cache_max_entries,
+        caches=shared_search_caches(
+            settings.search_cache_ttl_seconds,
+            settings.search_cache_max_entries,
+        ),
     )
 
 
@@ -101,6 +144,14 @@ def get_search_ops_service(db: Session = Depends(get_db)) -> SearchOpsService:
 
 def get_ai_service() -> AiService:
     return AiService(get_model_provider())
+
+
+def get_search_ai_service() -> AiService:
+    return AiService(
+        get_model_provider(
+            timeout_seconds=max(1, ceil(settings.search_understanding_timeout_seconds))
+        )
+    )
 
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:

@@ -4,14 +4,17 @@ from typing import Literal
 
 from app.models.image import Image
 from app.schemas.image import ScoredImage
-from app.services.image_semantic_profile_service import ImageSemanticProfileService
 from app.services.query_expansion_service import unique
+from app.services.search_asset_presenter import SearchAssetPresenter
 from app.services.serializers import image_to_read
 
 
 class SearchScorer:
-    def __init__(self, semantic_profile: ImageSemanticProfileService | None = None):
-        self.semantic_profile = semantic_profile or ImageSemanticProfileService()
+    def __init__(
+        self,
+        asset_presenter: SearchAssetPresenter | None = None,
+    ):
+        self.asset_presenter = asset_presenter or SearchAssetPresenter()
 
     def build_scored_image(
         self,
@@ -20,64 +23,60 @@ class SearchScorer:
         external_score: float | None,
         external_reasons: list[str],
     ) -> ScoredImage:
-        tag_names = [link.tag.name for link in image.tag_links]
         content_tag_names = [item.tag_name for item in image.content_tags]
-        category_names = [item.category_name for item in image.level2_categories]
-        business_labels = self.semantic_profile.searchable_business_labels(image)
+        concept_links = [
+            link
+            for link in (image.asset_group.concept_links if image.asset_group else [])
+            if link.review_status != "rejected" and link.relation_role != "excludes"
+        ]
 
         title = image.title.lower()
         exact_title = bool(needle and (needle in title or title in needle))
         summary = image.image_summary.lower() if image.image_summary else ""
-        summary_match = bool(
-            needle
-            and summary
-            and (needle in summary or summary in needle)
-        )
-        matched_tags = self._matching_names(needle, tag_names + content_tag_names)
-        matched_level2_categories = self._matching_names(needle, category_names)
-        matched_business_labels = self._matching_business_labels(
-            needle,
-            business_labels,
-        )
-        matched_categories = unique([*matched_level2_categories, *matched_business_labels])
+        summary_match = bool(needle and summary and (needle in summary or summary in needle))
+        matched_content = self._matching_names(needle, content_tag_names)
+        matched_concepts = self._matching_concepts(needle, concept_links)
 
         reasons = list(external_reasons)
         if exact_title:
             reasons.append("标题匹配")
-        if matched_tags:
-            reasons.append("标签匹配")
-        if matched_level2_categories:
-            reasons.append("AI 二级分类匹配")
-        if matched_business_labels:
-            reasons.append("业务标签匹配")
+        if matched_content:
+            reasons.append("画面内容匹配")
+        if matched_concepts:
+            reasons.append("业务概念匹配")
         if summary_match:
             reasons.append("图片摘要匹配")
         if not reasons:
             reasons.append("搜索索引匹配")
 
-        business_label_score = self._business_label_score(needle, business_labels)
+        concept_score = self._concept_score(needle, concept_links)
         score_candidates = [
             score
             for score in (
                 external_score,
                 1.0 if exact_title else None,
                 0.9 if summary_match else None,
-                business_label_score,
-                0.8 if matched_level2_categories else None,
-                0.8 if matched_tags else None,
+                concept_score,
+                0.8 if matched_content else None,
             )
             if score is not None
         ]
         score = max(score_candidates) if score_candidates else 0.65
         score = max(0.0, min(score, 1.0))
 
+        asset = self.asset_presenter.present(image)
         return ScoredImage(
             image=image_to_read(image),
             match_level=self.match_level(score),
             final_score=score,
             match_reasons=unique(reasons),
-            matched_level1_tags=matched_tags,
-            matched_level2_categories=matched_categories,
+            matched_content_terms=matched_content,
+            matched_business_concepts=matched_concepts,
+            asset_group_id=asset.group_id,
+            asset_title=asset.title,
+            available_variants=list(asset.variants),
+            expressed_concepts=list(asset.expressed_concepts),
+            supported_concepts=list(asset.supported_concepts),
         )
 
     def match_level(self, score: float) -> Literal["S", "A", "B", "C"]:
@@ -94,31 +93,44 @@ class SearchScorer:
             return []
         return unique([name for name in names if needle in name.lower()])
 
-    def _matching_business_labels(self, needle: str, labels) -> list[str]:
+    def _matching_concepts(self, needle: str, links) -> list[str]:
         if not needle:
             return []
         matched: list[str] = []
-        for label in labels:
+        for link in links:
             names = [
-                label.label_code,
-                label.tag.name,
-                self.semantic_profile.business_label_name(label),
+                link.concept.code,
+                link.concept.name,
+                *(
+                    phrase.phrase
+                    for phrase in link.concept.search_phrases
+                    if phrase.review_status == "accepted"
+                ),
             ]
             if any(needle in name.lower() for name in names if name):
-                matched.append(self.semantic_profile.business_label_name(label))
+                matched.append(link.concept.name)
         return unique(matched)
 
-    def _business_label_score(self, needle: str, labels) -> float | None:
+    def _concept_score(self, needle: str, links) -> float | None:
         if not needle:
             return None
         scores: list[float] = []
-        for label in labels:
+        for link in links:
             names = [
-                label.label_code,
-                label.tag.name,
-                self.semantic_profile.business_label_name(label),
+                link.concept.code,
+                link.concept.name,
+                *(
+                    phrase.phrase
+                    for phrase in link.concept.search_phrases
+                    if phrase.review_status == "accepted"
+                ),
             ]
             if not any(needle in name.lower() for name in names if name):
                 continue
-            scores.append(0.92 * self.semantic_profile.label_policy.label_weight(label))
+            if link.review_status == "accepted" and link.origin in {"manual", "migrated"}:
+                scores.append(0.96 if link.relation_role == "expresses" else 0.9)
+            elif link.review_status == "accepted":
+                scores.append(0.85)
+            else:
+                scores.append(0.72)
         return max(scores) if scores else None

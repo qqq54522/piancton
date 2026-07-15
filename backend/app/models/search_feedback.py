@@ -24,6 +24,12 @@ class SearchFeedbackEvent(Base):
     actor_user_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    result_image_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("images.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    asset_group_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("asset_groups.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     keyword: Mapped[str] = mapped_column(String(200), index=True)
     feedback_type: Mapped[str] = mapped_column(String(40), index=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import {
   Activity,
   AlertCircle,
-  BarChart3,
   Brain,
   Search,
   ShieldAlert,
@@ -11,9 +10,9 @@ import {
 
 import { Badge } from '@client/src/components/ui/badge';
 import type {
-  AiReviewQueueItem,
+  AiConceptReviewQueueItem,
   AssetGapItem,
-  LabelHealthItem,
+  ConceptHealthItem,
   SearchFeedbackItem,
   SearchLogItem,
   SearchMetricItem,
@@ -112,12 +111,15 @@ export function MetricList({
 export function OverviewSection({ data }: { data: SearchOpsSummary }) {
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <MetricCard label="总搜索" value={data.totalSearches} icon={Search} />
         <MetricCard label="空结果" value={data.zeroResultCount} icon={AlertCircle} />
         <MetricCard label="降级次数" value={data.fallbackCount} icon={ShieldAlert} />
+        <MetricCard label="超时次数" value={data.timedOutCount} icon={ShieldAlert} />
+        <MetricCard label="P95 耗时(ms)" value={data.p95DurationMs} icon={Activity} />
+        <MetricCard label="缓存命中" value={data.cacheHitCount} icon={Activity} />
+        <MetricCard label="Reranker 使用" value={data.rerankerUsedCount} icon={Sparkles} />
         <MetricCard label="AI理解" value={data.aiUnderstoodCount} icon={Brain} />
-        <MetricCard label="智能搜索" value={data.smartSearchCount} icon={BarChart3} />
         <MetricCard label="用户反馈" value={data.feedbackCount} icon={Activity} />
       </div>
 
@@ -125,7 +127,7 @@ export function OverviewSection({ data }: { data: SearchOpsSummary }) {
         <MetricList title="高频搜索词" items={data.topQueries} emptyText="暂无搜索词。" />
         <MetricList title="高频空结果" items={data.zeroResultQueries} emptyText="暂未发现空结果搜索。" />
         <MetricList title="AI归一意图" items={data.topNormalizedQueries} emptyText="暂无 AI 意图归一记录。" />
-        <MetricList title="命中业务标签" items={data.topMatchedCategories} emptyText="暂无业务标签命中记录。" />
+        <MetricList title="命中业务概念" items={data.topMatchedConcepts} emptyText="暂无业务概念命中记录。" />
         <MetricList
           title="反馈类型"
           items={data.feedbackByType.map((item) => ({
@@ -174,10 +176,10 @@ export function IssuesSection({ issues }: { issues: SearchOpsIssue[] }) {
   );
 }
 
-export function ReviewQueueSection({ items }: { items: AiReviewQueueItem[] }) {
+export function ReviewQueueSection({ items }: { items: AiConceptReviewQueueItem[] }) {
   return (
     <section className="overflow-hidden border border-border bg-card">
-      <SectionHeader title="AI 标签审核池" description="优先处理高置信度和主标签建议，审核后会反哺归档与搜索。" />
+      <SectionHeader title="AI 概念关系审核池" description="在素材详情中确认主要表达、可以支持或排除关系。" />
       {items.length ? (
         <div className="divide-y divide-border">
           {items.map((item) => (
@@ -192,9 +194,9 @@ export function ReviewQueueSection({ items }: { items: AiReviewQueueItem[] }) {
                   {item.imageTitle}
                 </Link>
                 <div className="mt-1 flex flex-wrap gap-1.5">
-                  <Badge variant="outline">{item.systemName ? `${item.systemName} > ${item.labelName}` : item.labelName}</Badge>
-                  <Badge variant="outline">{item.role === 'primary' ? '主标签' : '副标签'}</Badge>
-                  {item.evidenceLevel && <Badge variant="outline">证据 {item.evidenceLevel}</Badge>}
+                  <Badge variant="outline">{item.conceptName}</Badge>
+                  <Badge variant="outline">{item.relationRole}</Badge>
+                  {item.systemNames.map((name) => <Badge key={name} variant="outline">{name}</Badge>)}
                 </div>
                 {item.reason && <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{item.reason}</p>}
               </div>
@@ -208,22 +210,22 @@ export function ReviewQueueSection({ items }: { items: AiReviewQueueItem[] }) {
           ))}
         </div>
       ) : (
-        <EmptyText text="暂无待审核 AI 标签。" />
+        <EmptyText text="暂无待审核 AI 概念关系。" />
       )}
     </section>
   );
 }
 
-export function LabelHealthSection({ items }: { items: LabelHealthItem[] }) {
+export function ConceptHealthSection({ items }: { items: ConceptHealthItem[] }) {
   return (
     <section className="overflow-hidden border border-border bg-card">
-      <SectionHeader title="标签健康度" description="按素材供给、搜索需求和 AI 审核压力判断标签治理优先级。" />
+      <SectionHeader title="业务概念健康度" description="按素材供给、搜索需求和 AI 审核压力判断概念治理优先级。" />
       {items.length ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">标签</th>
+                <th className="px-4 py-3 font-medium">业务概念</th>
                 <th className="px-4 py-3 font-medium">状态</th>
                 <th className="px-4 py-3 font-medium">素材</th>
                 <th className="px-4 py-3 font-medium">人工</th>
@@ -235,10 +237,10 @@ export function LabelHealthSection({ items }: { items: LabelHealthItem[] }) {
             </thead>
             <tbody className="divide-y divide-border">
               {items.map((item) => (
-                <tr key={item.tagId}>
+                <tr key={item.conceptId}>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-foreground">{item.labelName}</div>
-                    {item.systemName && <div className="text-xs text-muted-foreground">{item.systemName}</div>}
+                    <div className="font-medium text-foreground">{item.conceptName}</div>
+                    <div className="text-xs text-muted-foreground">{item.systemNames.join('、') || item.conceptCode}</div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant="outline" className={healthClass[item.healthLevel]}>
@@ -257,7 +259,7 @@ export function LabelHealthSection({ items }: { items: LabelHealthItem[] }) {
           </table>
         </div>
       ) : (
-        <EmptyText text="暂无标签健康数据。" />
+        <EmptyText text="暂无业务概念健康数据。" />
       )}
     </section>
   );
@@ -276,7 +278,7 @@ export function AssetGapsSection({ items }: { items: AssetGapItem[] }) {
                 <p className="mt-1 text-xs text-muted-foreground">{item.reason}</p>
               </div>
               <div className="text-xs text-muted-foreground">
-                {item.suggestedLabel || '待管理员归类'}
+                {item.suggestedConcept || '待管理员归类'}
               </div>
               <Badge variant="outline" className="h-fit w-fit">
                 <Sparkles className="mr-1 size-3" />
@@ -334,7 +336,7 @@ export function FeedbackSection({
                   <div className="truncate font-medium text-foreground">{log.keyword}</div>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {log.normalizedQuery && <Badge variant="outline" className="text-[11px]">{log.normalizedQuery}</Badge>}
-                    {log.matchedCategory && <Badge variant="outline" className="text-[11px]">{log.matchedCategory}</Badge>}
+                    {log.matchedConcept && <Badge variant="outline" className="text-[11px]">{log.matchedConcept}</Badge>}
                     {log.fallback && <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[11px] text-amber-700">已降级</Badge>}
                   </div>
                 </div>

@@ -38,29 +38,29 @@ class QueryExpansionService:
                     ("AI 意图理解：标准化查询",),
                 )
             )
-        for item in understanding.expanded_level1_tags:
-            if not item.tag.strip():
+        for item in understanding.expanded_terms:
+            if not item.term.strip():
                 continue
             queries.append(
                 ExpandedQuery(
-                    item.tag,
+                    item.term,
                     max(0.65, min(item.weight, 0.95)),
-                    (f"AI 意图扩展：{item.tag}",),
+                    (f"AI 意图扩展：{item.term}",),
                 )
             )
-        for item in understanding.matched_level2_categories:
-            if not item.category.strip():
+        for item in understanding.matched_business_concepts:
+            if not item.concept.strip():
                 continue
             queries.append(
                 ExpandedQuery(
-                    item.category,
+                    item.concept,
                     max(0.62, min(item.weight, 0.92)),
-                    (f"AI 二级标签理解：{item.category}",),
+                    (f"AI 业务概念理解：{item.concept}",),
                 )
             )
         return queries
 
-    def smart_keyword(
+    def external_keyword(
         self,
         keyword: str,
         expanded_queries: list[ExpandedQuery],

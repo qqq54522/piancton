@@ -114,13 +114,9 @@ def test_image_service_does_not_own_lifecycle_or_tagging_workflows():
     path = ROOT / "services" / "image_service.py"
     tree = ast.parse(path.read_text(encoding="utf-8"))
     class_node = next(
-        node
-        for node in tree.body
-        if isinstance(node, ast.ClassDef) and node.name == "ImageService"
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "ImageService"
     )
-    method_names = {
-        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
-    }
+    method_names = {node.name for node in class_node.body if isinstance(node, ast.FunctionDef)}
 
     assert {
         "delete",
@@ -147,9 +143,7 @@ def test_search_service_keeps_ranking_and_query_expansion_outside_orchestrator()
         for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "SearchService"
     )
-    method_names = {
-        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
-    }
+    method_names = {node.name for node in class_node.body if isinstance(node, ast.FunctionDef)}
 
     assert {
         "_build_response",
@@ -176,9 +170,7 @@ def test_search_service_keeps_recall_backends_outside_orchestrator():
         for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "SearchService"
     )
-    method_names = {
-        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
-    }
+    method_names = {node.name for node in class_node.body if isinstance(node, ast.FunctionDef)}
 
     assert {
         "_search_meilisearch",
@@ -191,6 +183,37 @@ def test_search_service_keeps_recall_backends_outside_orchestrator():
     assert "repo.list_embeddings" not in source
 
 
+def test_phase4_search_orchestration_stays_split_and_bounded():
+    facade = ROOT / "services" / "search_service.py"
+    orchestrator = ROOT / "services" / "search_orchestrator.py"
+    facade_source = facade.read_text(encoding="utf-8")
+    orchestrator_source = orchestrator.read_text(encoding="utf-8")
+    tree = ast.parse(orchestrator_source)
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "AsyncSearchOrchestrator"
+    )
+    method_names = {
+        node.name
+        for node in class_node.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+    assert len(facade_source.splitlines()) <= 150
+    assert len(orchestrator_source.splitlines()) <= 300
+    assert "app.services.search_external_branches" in imported_modules(facade)
+    assert "app.services.search_rerank_coordinator" in imported_modules(facade)
+    assert {
+        "_start_meilisearch",
+        "_start_embedding",
+        "_start_understanding",
+        "_hydrate_meilisearch",
+        "_hydrate_embedding",
+        "_rerank_with_deadline",
+    }.isdisjoint(method_names)
+
+
 def test_search_boundary_services_do_not_depend_on_repositories():
     boundary_files = [
         ROOT / "services" / "query_expansion_service.py",
@@ -200,8 +223,6 @@ def test_search_boundary_services_do_not_depend_on_repositories():
         ROOT / "services" / "search_scorer.py",
         ROOT / "services" / "search_response_builder.py",
         ROOT / "services" / "semantic_rerank_service.py",
-        ROOT / "services" / "strict_intent_filter.py",
-        ROOT / "services" / "image_summary_match_service.py",
     ]
     violations = []
     for path in boundary_files:
@@ -220,9 +241,7 @@ def test_search_ranking_service_stays_as_orchestrator():
         for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "SearchRankingService"
     )
-    method_names = {
-        node.name for node in class_node.body if isinstance(node, ast.FunctionDef)
-    }
+    method_names = {node.name for node in class_node.body if isinstance(node, ast.FunctionDef)}
 
     assert {
         "build_scored_image",
@@ -252,14 +271,50 @@ def test_search_service_calls_query_understanding_without_owning_intent_config()
 def test_business_intents_domain_does_not_depend_on_services_or_repositories():
     imports = imported_modules(ROOT / "domain" / "business_intents.py")
 
-    assert not any(
-        module.startswith(("app.services", "app.repositories")) for module in imports
-    )
+    assert not any(module.startswith(("app.services", "app.repositories")) for module in imports)
 
 
 def test_search_eval_domain_does_not_depend_on_services_or_repositories():
     imports = imported_modules(ROOT / "domain" / "search_eval.py")
 
+    assert not any(module.startswith(("app.services", "app.repositories")) for module in imports)
+
+
+def test_phase_1_to_3_workflows_keep_domain_boundaries_separate():
+    concept_service = ROOT / "services" / "business_concept_service.py"
+    asset_service = ROOT / "services" / "asset_service.py"
+    relation_service = ROOT / "services" / "asset_relation_service.py"
+    analysis_service = ROOT / "services" / "image_analysis_service.py"
+
+    assert "app.models.image" not in imported_modules(concept_service)
+    assert "app.models.business_concept" not in imported_modules(asset_service)
+    assert "app.services.asset_relation_service" in imported_modules(analysis_service)
+    assert "AssetConceptLink" not in analysis_service.read_text(encoding="utf-8")
+    assert "ImageBusinessLabel" not in relation_service.read_text(encoding="utf-8")
+
+
+def test_phase4_async_orchestrator_keeps_io_and_database_boundaries_separate():
+    facade = ROOT / "services" / "search_service.py"
+    orchestrator = ROOT / "services" / "search_orchestrator.py"
+    api = ROOT / "api" / "v1" / "images.py"
+
+    assert len(facade.read_text(encoding="utf-8").splitlines()) < 150
+    assert "AsyncSearchOrchestrator" in facade.read_text(encoding="utf-8")
+    assert "ImageSummaryMatchService" not in facade.read_text(encoding="utf-8")
     assert not any(
-        module.startswith(("app.services", "app.repositories")) for module in imports
+        module.startswith(("app.repositories", "sqlalchemy", "httpx"))
+        for module in imported_modules(orchestrator)
     )
+    assert "async def search" in orchestrator.read_text(encoding="utf-8")
+    assert "async def semantic_search" in api.read_text(encoding="utf-8")
+
+
+def test_phase4_external_recall_returns_lightweight_candidates_before_hydration():
+    meili = (ROOT / "services" / "meilisearch_recall_service.py").read_text(encoding="utf-8")
+    embedding = (ROOT / "services" / "embedding_recall_service.py").read_text(encoding="utf-8")
+
+    assert "def recall_candidates" in meili
+    assert "ExternalSearchCandidate" in meili
+    assert "def query_vector" in embedding
+    assert "def score_candidates" in embedding
+    assert "ExternalSearchCandidate" in embedding

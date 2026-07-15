@@ -3,64 +3,72 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.image import Image, ImageBusinessLabel, ImageTag
-from app.models.tag import Tag
+from app.models.asset import AssetConceptLink, AssetGroup
+from app.models.business_concept import BusinessConcept, ConceptSystemLink
 
 
 class SearchOpsRepository:
-    """Read-only aggregate queries backing the search operations dashboard.
-
-    Keeps the search-ops SQLAlchemy access out of the service layer so the
-    analytics service only orchestrates aggregation over plain ORM rows.
-    """
+    """Read-only aggregates for concept-based search operations."""
 
     def __init__(self, db: Session):
         self.db = db
 
-    def pending_ai_labels(self, *, limit: int = 50) -> list[ImageBusinessLabel]:
+    def pending_ai_concept_links(self, *, limit: int = 50) -> list[AssetConceptLink]:
         stmt = (
-            select(ImageBusinessLabel)
-            .join(Image, Image.id == ImageBusinessLabel.image_id)
+            select(AssetConceptLink)
+            .join(AssetGroup, AssetGroup.id == AssetConceptLink.asset_group_id)
             .where(
-                Image.deleted_at.is_(None),
-                ImageBusinessLabel.origin == "ai",
-                ImageBusinessLabel.review_status == "pending",
+                AssetGroup.publish_status == "published",
+                AssetConceptLink.origin == "ai",
+                AssetConceptLink.review_status == "pending",
             )
             .options(
-                selectinload(ImageBusinessLabel.image),
-                selectinload(ImageBusinessLabel.tag).selectinload(Tag.parent),
+                selectinload(AssetConceptLink.asset_group),
+                selectinload(AssetConceptLink.concept)
+                .selectinload(BusinessConcept.system_links)
+                .selectinload(ConceptSystemLink.system_tag),
             )
             .order_by(
-                ImageBusinessLabel.confidence.desc().nullslast(),
-                ImageBusinessLabel.created_at.desc(),
+                AssetConceptLink.confidence.desc().nullslast(),
+                AssetConceptLink.created_at.desc(),
             )
             .limit(limit)
         )
         return list(self.db.scalars(stmt).all())
 
-    def assignable_tags(self) -> list[Tag]:
+    def active_concepts(self) -> list[BusinessConcept]:
         stmt = (
-            select(Tag)
-            .where(Tag.assignable.is_(True), Tag.status == "active")
-            .options(selectinload(Tag.parent))
-            .order_by(Tag.sort_order.asc(), Tag.name.asc())
+            select(BusinessConcept)
+            .where(BusinessConcept.status == "active")
+            .options(
+                selectinload(BusinessConcept.system_links).selectinload(
+                    ConceptSystemLink.system_tag
+                )
+            )
+            .order_by(BusinessConcept.name.asc())
         )
         return list(self.db.scalars(stmt).all())
 
-    def image_counts_by_tag(self) -> dict[str, int]:
+    def asset_counts_by_concept(self) -> dict[str, int]:
         rows = self.db.execute(
-            select(ImageTag.tag_id, func.count(func.distinct(ImageTag.image_id)))
-            .join(Image, Image.id == ImageTag.image_id)
-            .where(Image.deleted_at.is_(None))
-            .group_by(ImageTag.tag_id)
+            select(
+                AssetConceptLink.concept_id,
+                func.count(func.distinct(AssetConceptLink.asset_group_id)),
+            )
+            .join(AssetGroup, AssetGroup.id == AssetConceptLink.asset_group_id)
+            .where(
+                AssetGroup.publish_status == "published",
+                AssetConceptLink.review_status != "rejected",
+                AssetConceptLink.relation_role != "excludes",
+            )
+            .group_by(AssetConceptLink.concept_id)
         ).all()
-        return {tag_id: int(count) for tag_id, count in rows}
+        return {concept_id: int(count) for concept_id, count in rows}
 
-    def active_business_labels(self) -> list[ImageBusinessLabel]:
+    def active_concept_links(self) -> list[AssetConceptLink]:
         stmt = (
-            select(ImageBusinessLabel)
-            .join(Image, Image.id == ImageBusinessLabel.image_id)
-            .where(Image.deleted_at.is_(None))
-            .options(selectinload(ImageBusinessLabel.tag).selectinload(Tag.parent))
+            select(AssetConceptLink)
+            .join(AssetGroup, AssetGroup.id == AssetConceptLink.asset_group_id)
+            .where(AssetGroup.publish_status == "published")
         )
         return list(self.db.scalars(stmt).all())

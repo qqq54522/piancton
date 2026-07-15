@@ -12,7 +12,6 @@ const ImageDetail = lazy(() => import('./pages/ImageDetail/ImageDetail'));
 const ImageHome = lazy(() => import('./pages/ImageHome/ImageHome'));
 const Login = lazy(() => import('./pages/Login/Login'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
-const TagExplorePage = lazy(() => import('./pages/TagExplorePage/TagExplorePage'));
 const Trash = lazy(() => import('./pages/Trash/Trash'));
 
 const PageFallback = () => (
@@ -28,7 +27,6 @@ const RoutesComponent = () => (
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route index element={<ImageHome />} />
-          <Route path="tag/:tagId" element={<TagExplorePage />} />
           <Route path="image/:id" element={<ImageDetail />} />
           <Route element={<DesignerRoute />}>
             <Route path="trash" element={<Trash />} />

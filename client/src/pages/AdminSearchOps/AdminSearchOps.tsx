@@ -8,7 +8,7 @@ import {
   AssetGapsSection,
   FeedbackSection,
   IssuesSection,
-  LabelHealthSection,
+  ConceptHealthSection,
   OverviewSection,
   ReviewQueueSection,
 } from './components/SearchOpsSections';
@@ -19,7 +19,7 @@ const tabs = [
   { id: 'overview', label: '总览' },
   { id: 'issues', label: '问题队列' },
   { id: 'review', label: 'AI 审核池' },
-  { id: 'health', label: '标签健康度' },
+  { id: 'health', label: '概念健康度' },
   { id: 'gaps', label: '素材缺口' },
   { id: 'records', label: '反馈记录' },
 ] as const;
@@ -41,7 +41,7 @@ export default function AdminSearchOps() {
         <div>
           <h1 className="text-2xl font-semibold">搜索运营</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            管理员用于治理搜索质量、AI 建议、标签健康度和素材缺口。
+            管理员用于治理搜索质量、AI 概念关系、概念健康度和素材缺口。
           </p>
         </div>
         <div className="inline-flex w-fit border border-border bg-card p-1">
@@ -81,7 +81,7 @@ export default function AdminSearchOps() {
           {activeTab === 'overview' && <OverviewSection data={data} />}
           {activeTab === 'issues' && <IssuesSection issues={data.searchIssues} />}
           {activeTab === 'review' && <ReviewQueueSection items={data.aiReviewQueue} />}
-          {activeTab === 'health' && <LabelHealthSection items={data.labelHealth} />}
+          {activeTab === 'health' && <ConceptHealthSection items={data.conceptHealth} />}
           {activeTab === 'gaps' && <AssetGapsSection items={data.assetGaps} />}
           {activeTab === 'records' && (
             <FeedbackSection feedback={data.recentFeedback} logs={data.recentLogs} />
