@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Upload, X } from 'lucide-react';
+import { Loader2, Plus, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as assetApi from '@client/src/api/asset';
@@ -23,12 +23,19 @@ interface UploadDialogProps {
   onSuccess: () => void;
 }
 
+const MAX_SEARCH_PHRASES = 5;
+
+export function normalizeExpectedSearchWords(values: string[]): string[] {
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))]
+    .slice(0, MAX_SEARCH_PHRASES);
+}
+
 const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
   const [channel, setChannel] = useState('');
   const [conceptId, setConceptId] = useState('');
-  const [expectedSearchWords, setExpectedSearchWords] = useState('');
+  const [expectedSearchWords, setExpectedSearchWords] = useState(['']);
   const [uploading, setUploading] = useState(false);
   const provider = useProviderStatus(open);
   const concepts = useBusinessConcepts(open);
@@ -46,7 +53,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     setTitle('');
     setChannel('');
     setConceptId('');
-    setExpectedSearchWords('');
+    setExpectedSearchWords(['']);
   };
   const close = () => {
     reset();
@@ -65,11 +72,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
           file,
           title: fileTitle,
           channel,
-          expectedSearchWords: expectedSearchWords
-            .split('\n')
-            .map((item) => item.trim())
-            .filter(Boolean)
-            .slice(0, 5),
+          expectedSearchWords: normalizeExpectedSearchWords(expectedSearchWords),
           autoAnalyze: true,
         });
         if (conceptId && image.assetGroupId) {
@@ -150,7 +153,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
             />
           </label>
           <label className="space-y-2 text-sm font-medium">
-            <span>主要表达概念（可选）</span>
+            <span>主要表达卖点（业务概念，可选）</span>
             <select
               value={conceptId}
               onChange={(event) => setConceptId(event.target.value)}
@@ -161,19 +164,64 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                 <option key={concept.id} value={concept.id}>{concept.name}</option>
               ))}
             </select>
+            <span className="block text-xs font-normal text-muted-foreground">
+              这是具体卖点，不是六大体系；体系关系由概念配置自动复用。
+            </span>
           </label>
         </div>
 
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium">业务人员可能怎么搜索（可选）</span>
-          <textarea
-            value={expectedSearchWords}
-            onChange={(event) => setExpectedSearchWords(event.target.value)}
-            className="min-h-20 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            placeholder={'每行一句，例如：\n孩子拍题只抄答案怎么办\n整理错题太费时间'}
-            maxLength={500}
-          />
-        </label>
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">这张素材独有的搜索话术（可选）</span>
+            <span className="text-xs text-muted-foreground">最多 {MAX_SEARCH_PHRASES} 条</span>
+          </div>
+          <div className="mt-2 space-y-2">
+            {expectedSearchWords.map((value, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                  {index + 1}
+                </span>
+                <Input
+                  value={value}
+                  onChange={(event) => setExpectedSearchWords((items) => (
+                    items.map((item, itemIndex) => (
+                      itemIndex === index ? event.target.value : item
+                    ))
+                  ))}
+                  aria-label={`搜索话术 ${index + 1}`}
+                  placeholder={index === 0 ? '例如：孩子拍题只抄答案怎么办' : '再补充一种可能的搜索说法'}
+                  maxLength={300}
+                />
+                {expectedSearchWords.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`删除第 ${index + 1} 条搜索话术`}
+                    onClick={() => setExpectedSearchWords((items) => (
+                      items.filter((_, itemIndex) => itemIndex !== index)
+                    ))}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => setExpectedSearchWords((items) => [...items, ''])}
+            disabled={expectedSearchWords.length >= MAX_SEARCH_PHRASES}
+          >
+            <Plus className="mr-1.5 size-4" />添加一条
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            通用业务话术跟随上方卖点复用；这里只补充这张图片独有的画面、文案或使用场景表达。
+          </p>
+        </div>
 
         <p className="text-xs text-muted-foreground">
           {provider.isLoading

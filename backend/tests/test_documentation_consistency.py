@@ -72,4 +72,6 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "状态：Phase 0～6 工程完成" in master
     assert "当前范围：Phase 0～Phase 6" in project_log
     assert "D026" in master
+    assert "D028" in master
     assert "文档一致性自动测试" in master
+    assert "素材独有搜索话术采用最多 5 条的逐条添加交互" in master
