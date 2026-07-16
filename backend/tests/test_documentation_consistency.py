@@ -87,6 +87,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     concept_phrase_presentation = _read(
         "client/src/features/assets/conceptPhrasePresentation.ts"
     )
+    asset_phrase_presentation = _read(
+        "client/src/features/assets/assetPhrasePresentation.ts"
+    )
     asset_concept_panel = _read(
         "client/src/pages/ImageDetail/asset/AssetConceptReviewPanel.tsx"
     )
@@ -123,6 +126,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D039" in master
     assert "D040" in master
     assert "D041" in master
+    assert "D042" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -152,6 +156,12 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "link.origin === 'manual'" in concept_phrase_presentation
     assert "AI 待确认候选" in asset_phrase_panel
     assert "overflow-y-auto" in asset_phrase_panel
+    assert "splitAssetSearchPhrases" in asset_phrase_panel
+    assert 'data-testid="accepted-asset-phrase-row"' in asset_phrase_panel
+    assert "snap-y" in asset_phrase_panel
+    assert "item.reviewStatus !== 'accepted'" in asset_phrase_presentation
+    assert "item.origin === 'ai'" in asset_phrase_presentation
+    assert "acceptedKeys" in asset_phrase_presentation
     assert 'role="switch"' in asset_concept_panel
     assert "需要为这张素材补充其他卖点关系时再开启" in asset_concept_panel
     assert "image.id !== group.primaryImageId" in asset_versions_panel

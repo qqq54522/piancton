@@ -10,6 +10,7 @@ import { Input } from '@client/src/components/ui/input';
 import type { AssetGroup } from '@client/src/types/api';
 import type { BusinessConcept } from '@client/src/types/api';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
+import { splitAssetSearchPhrases } from '@client/src/features/assets/assetPhrasePresentation';
 import {
   selectInheritedConcepts,
   splitAcceptedConceptPhrases,
@@ -29,10 +30,7 @@ function AssetPhraseReviewPanel({
 }) {
   const { user } = useAuth();
   const [phrase, setPhrase] = useState('');
-  const accepted = group.searchPhrases.filter((item) => item.reviewStatus === 'accepted');
-  const pending = group.searchPhrases.filter(
-    (item) => item.origin === 'ai' && item.reviewStatus === 'pending',
-  );
+  const { accepted, pendingAi } = splitAssetSearchPhrases(group.searchPhrases);
   const inherited = selectInheritedConcepts(group.conceptLinks, concepts);
 
   const addPhrase = async () => {
@@ -107,8 +105,8 @@ function AssetPhraseReviewPanel({
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
           <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">已确认 {accepted.length}</span>
-          {pending.length > 0 && (
-            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] text-primary">待确认 {pending.length}</span>
+          {pendingAi.length > 0 && (
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] text-primary">待确认 {pendingAi.length}</span>
           )}
         </div>
       </div>
@@ -118,25 +116,38 @@ function AssetPhraseReviewPanel({
           <span className="text-[11px] text-muted-foreground">在框内上下滚动查看更多</span>
         </div>
         <div
-          className="compact-scrollbar max-h-[22rem] overflow-y-auto overscroll-contain p-3 pr-2"
+          className="compact-scrollbar max-h-[22rem] snap-y snap-proximity overflow-y-auto overscroll-contain p-3 pr-2"
           role="region"
           aria-label="素材独有话术列表"
           tabIndex={0}
         >
-          <div className="flex min-h-8 flex-wrap gap-2">
+          <div className="min-h-8 space-y-2">
             {accepted.length > 0
-              ? accepted.map((item) => <Badge key={item.id} variant="secondary">{item.phrase}</Badge>)
+              ? accepted.map((item, index) => (
+                <div
+                  key={item.id}
+                  data-testid="accepted-asset-phrase-row"
+                  className="flex snap-start items-start gap-3 rounded-xl border border-border/75 bg-card px-3.5 py-3"
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm leading-6 text-foreground">
+                    {item.phrase}
+                  </span>
+                </div>
+              ))
               : <span className="text-xs text-muted-foreground">暂无已确认的素材独有搜索语</span>}
           </div>
-          {pending.length > 0 && (
-            <div className="mt-4">
+          {pendingAi.length > 0 && (
+            <div className="mt-4 border-t border-border/70 pt-4">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <span>AI 待确认候选</span>
-                <span className="rounded-full bg-card px-2 py-0.5">{pending.length} 条</span>
+                <span className="rounded-full bg-card px-2 py-0.5">{pendingAi.length} 条</span>
               </div>
               <div className="space-y-2">
-                {pending.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 rounded-xl border bg-card px-3 py-2.5">
+                {pendingAi.map((item) => (
+                  <div key={item.id} className="flex snap-start items-center gap-2 rounded-xl border bg-card px-3 py-2.5">
                     <span className="min-w-0 flex-1 text-sm leading-5">{item.phrase}</span>
                     <Button
                       variant="ghost"
