@@ -7,6 +7,8 @@ from app.models.business_concept import (
 from app.models.image import ContentTag, Image
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
+from app.schemas.asset import AssetSearchPhraseReview
+from app.services.asset_relation_service import AssetRelationService
 from app.services.database_search_recall import database_match_score
 from app.services.related_image_service import RelatedImageService
 from app.services.search_service import SearchService
@@ -172,6 +174,74 @@ def test_asset_specific_phrase_recalls_only_its_group(db_factory):
     ids = [item.image.id for item in response.results]
     assert first.id in ids
     assert second.id not in ids
+
+
+def test_pending_ai_asset_phrase_does_not_enter_direct_recall(db_factory):
+    with db_factory() as db:
+        image = create_concept_image(
+            db,
+            code="pending-asset-phrase",
+            name="无关业务概念",
+            title="无关标题",
+            summary="无关画面摘要",
+            phrase="无关公共话术",
+        )
+        image.asset_group.search_phrases.append(
+            AssetSearchPhrase(
+                phrase="待审蓝紫横版几何纹理",
+                origin="ai",
+                review_status="pending",
+            )
+        )
+        db.commit()
+
+        score = database_match_score(image, "待审蓝紫横版几何纹理")
+        response = SearchService(db).search("待审蓝紫横版几何纹理", 12)
+
+    assert score == 0.65
+    assert image.id not in {item.image.id for item in response.results}
+
+
+def test_accepting_ai_asset_phrase_refreshes_derived_indexes(db_factory):
+    class RecordingSearchIndex:
+        def __init__(self):
+            self.image_ids: list[str] = []
+
+        def upsert_image(self, image):
+            self.image_ids.append(image.id)
+
+    class RecordingEmbeddingIndex:
+        def __init__(self):
+            self.image_ids: list[str] = []
+
+        def upsert_image(self, _repo, image):
+            self.image_ids.append(image.id)
+
+    with db_factory() as db:
+        image = create_concept_image(db, code="reviewed-asset-phrase")
+        phrase = AssetSearchPhrase(
+            phrase="审核后进入高优先级",
+            origin="ai",
+            review_status="pending",
+        )
+        image.asset_group.search_phrases.append(phrase)
+        db.commit()
+        search_index = RecordingSearchIndex()
+        embedding_index = RecordingEmbeddingIndex()
+        service = AssetRelationService(
+            db,
+            search_index=search_index,
+            embedding_index=embedding_index,
+        )
+
+        service.review_phrase(
+            image.asset_group.id,
+            phrase.id,
+            AssetSearchPhraseReview(review_status="accepted"),
+        )
+
+    assert search_index.image_ids == [image.id]
+    assert embedding_index.image_ids == [image.id]
 
 
 def test_confirmed_business_language_outweighs_objective_content_tags(db_factory):

@@ -6,6 +6,7 @@ from app.core.errors import AppError, NotFoundError
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.repositories.asset_repository import AssetRepository
 from app.repositories.business_concept_repository import BusinessConceptRepository
+from app.repositories.image_repository import ImageRepository
 from app.schemas.ai import ImageAnalysisResult
 from app.schemas.asset import (
     AssetConceptBatchReview,
@@ -16,15 +17,26 @@ from app.schemas.asset import (
     AssetSearchPhraseReview,
 )
 from app.services.asset_serializers import asset_group_to_read
+from app.services.embedding_index import EmbeddingIndexSync
+from app.services.search_index_sync import SearchIndexSync
 from app.services.unit_of_work import UnitOfWork
 
 
 class AssetRelationService:
     """Separates AI suggestions from owner-confirmed business truth."""
 
-    def __init__(self, db):
+    def __init__(
+        self,
+        db,
+        *,
+        search_index: SearchIndexSync | None = None,
+        embedding_index: EmbeddingIndexSync | None = None,
+    ):
         self.assets = AssetRepository(db)
         self.concepts = BusinessConceptRepository(db)
+        self.images = ImageRepository(db)
+        self.search_index = search_index or SearchIndexSync.from_settings()
+        self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
         self.uow = UnitOfWork(db)
 
     def replace_analysis_suggestions(
@@ -96,6 +108,7 @@ class AssetRelationService:
         )
         self.assets.save(group)
         self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(self._group(group_id))
 
     def review_suggestions(
@@ -131,12 +144,13 @@ class AssetRelationService:
                 )
         self.assets.save(group)
         self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(self._group(group_id))
 
     def review_suggestion(
         self, group_id: str, link_id: str, payload: AssetConceptReview
     ) -> AssetGroupRead:
-        self._group(group_id)
+        group = self._group(group_id)
         link = self.assets.get_concept_link(group_id, link_id)
         if not link:
             raise NotFoundError("asset_concept_link_not_found", "素材业务关系不存在")
@@ -146,28 +160,19 @@ class AssetRelationService:
         if payload.relation_role:
             link.relation_role = payload.relation_role
         if payload.review_status == "accepted":
-            self.confirm(
-                group_id,
-                AssetConceptConfirmation(
-                    concept_id=link.concept_id,
-                    relation_role=cast(
-                        Literal["expresses", "supports", "visual_related", "excludes"],
-                        link.relation_role,
-                    ),
-                    evidence_reason=("负责人接受 AI 建议：" + (link.evidence_reason or "")).rstrip(
-                        "："
-                    ),
+            self._upsert_manual_link(
+                group,
+                link.concept,
+                cast(
+                    Literal["expresses", "supports", "visual_related", "excludes"],
+                    link.relation_role,
                 ),
+                ("负责人接受 AI 建议：" + (link.evidence_reason or "")).rstrip("："),
             )
-            # confirm commits; reload the suggestion and persist its accepted state.
-            link = self.assets.get_concept_link(group_id, link_id)
-            if link:
-                link.review_status = "accepted"
-                self.assets.save(link)
-                self.uow.commit()
-        else:
-            self.assets.save(link)
-            self.uow.commit()
+            self.assets.save(group)
+        self.assets.save(link)
+        self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(self._group(group_id))
 
     def add_phrase(self, group_id: str, payload: AssetSearchPhraseCreate) -> AssetGroupRead:
@@ -195,6 +200,7 @@ class AssetRelationService:
             )
         self.assets.save(group)
         self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(self._group(group_id))
 
     def review_phrase(
@@ -208,7 +214,18 @@ class AssetRelationService:
         phrase.review_status = payload.review_status
         self.assets.save(phrase)
         self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(self._group(group_id))
+
+    def _sync_primary(self, group_id: str) -> None:
+        group = self._group(group_id)
+        if not group.primary_image_id:
+            return
+        image = self.images.get(group.primary_image_id)
+        if not image:
+            return
+        self.search_index.upsert_image(image)
+        self.embedding_index.upsert_image(self.images, image)
 
     def _group(self, group_id: str) -> AssetGroup:
         group = self.assets.get(group_id)

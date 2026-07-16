@@ -30,7 +30,10 @@ class ImageSemanticProfileService:
         parts = [
             f"标题：{image.title}",
             f"语义总结：{image.image_summary}" if image.image_summary else "",
-            self._profile_document(profile),
+            self._profile_document(
+                profile,
+                search_phrases=self.semantic_search_phrases(image, profile=profile),
+            ),
             "隐形标签：" + "、".join(item.tag_name for item in image.content_tags),
             "已确认业务概念："
             + "、".join(
@@ -55,7 +58,7 @@ class ImageSemanticProfileService:
             + "、".join(
                 phrase.phrase
                 for phrase in (group.search_phrases if group else [])
-                if phrase.review_status != "rejected"
+                if phrase.review_status == "accepted"
             ),
         ]
         return "\n".join(part for part in parts if part.strip() and not part.endswith("："))
@@ -197,10 +200,34 @@ class ImageSemanticProfileService:
                 *profile.actions,
                 *profile.visual_style,
                 *profile.visible_product_features,
-                *profile.asset_search_phrases,
+                *self.semantic_search_phrases(image, profile=profile),
                 *profile.negative_visual_concepts,
             ]
         )
+
+    def semantic_search_phrases(
+        self,
+        image: Image,
+        *,
+        profile: ImageSemanticProfile | None = None,
+    ) -> list[str]:
+        resolved = profile or self.profile_from_image(image)
+        if not resolved:
+            return []
+        rejected = {
+            item.phrase.strip().casefold()
+            for item in (
+                image.asset_group.search_phrases
+                if image.asset_group
+                else []
+            )
+            if item.review_status == "rejected"
+        }
+        return [
+            phrase
+            for phrase in resolved.asset_search_phrases
+            if phrase.strip().casefold() not in rejected
+        ]
 
     def business_intent_from_image(self, image: Image) -> str:
         group = image.asset_group
@@ -218,7 +245,12 @@ class ImageSemanticProfileService:
             return selected[0].concept.name
         return ""
 
-    def _profile_document(self, profile: ImageSemanticProfile | None) -> str:
+    def _profile_document(
+        self,
+        profile: ImageSemanticProfile | None,
+        *,
+        search_phrases: list[str] | None = None,
+    ) -> str:
         if not profile:
             return ""
         parts = [
@@ -229,7 +261,12 @@ class ImageSemanticProfileService:
             "动作：" + "、".join(profile.actions),
             "视觉风格：" + "、".join(profile.visual_style),
             "可见产品功能：" + "、".join(profile.visible_product_features),
-            "素材搜索表达：" + "、".join(profile.asset_search_phrases),
+            "素材搜索表达："
+            + "、".join(
+                profile.asset_search_phrases
+                if search_phrases is None
+                else search_phrases
+            ),
             "画面排除边界：" + "、".join(profile.negative_visual_concepts),
         ]
         return "\n".join(part for part in parts if part.strip() and not part.endswith("："))

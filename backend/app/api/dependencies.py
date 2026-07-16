@@ -22,6 +22,7 @@ from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
 from app.services.search_cache import shared_search_caches
+from app.services.search_index_sync import SearchIndexSync
 from app.services.search_log_service import SearchLogService
 from app.services.search_ops_service import SearchOpsService
 from app.services.search_service import SearchService
@@ -69,7 +70,11 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
 
 
 def get_asset_relation_service(db: Session = Depends(get_db)) -> AssetRelationService:
-    return AssetRelationService(db)
+    return AssetRelationService(
+        db,
+        search_index=SearchIndexSync.from_settings(),
+        embedding_index=EmbeddingIndexSync.from_settings(),
+    )
 
 
 def get_business_concept_service(

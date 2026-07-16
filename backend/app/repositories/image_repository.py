@@ -83,7 +83,7 @@ class ImageRepository:
                     AssetSearchPhrase,
                     and_(
                         AssetSearchPhrase.asset_group_id == Image.asset_group_id,
-                        AssetSearchPhrase.review_status != "rejected",
+                        AssetSearchPhrase.review_status == "accepted",
                     ),
                 )
                 .where(or_(*keyword_conditions))
@@ -123,7 +123,7 @@ class ImageRepository:
                 AssetSearchPhrase,
                 and_(
                     AssetSearchPhrase.asset_group_id == Image.asset_group_id,
-                    AssetSearchPhrase.review_status != "rejected",
+                    AssetSearchPhrase.review_status == "accepted",
                 ),
             )
             .where(

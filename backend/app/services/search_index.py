@@ -68,13 +68,13 @@ def image_to_search_document(image: Image) -> dict[str, Any]:
     asset_phrases = _unique(
         phrase.phrase
         for phrase in (group.search_phrases if group else [])
-        if phrase.review_status != "rejected"
+        if phrase.review_status == "accepted"
     )
     content_tags = _unique(item.tag_name for item in image.content_tags)
     content_dimensions = _unique(item.dimension for item in image.content_tags)
     profile_visual_facts = profile.visual_facts if profile else []
     profile_ocr_text = profile.ocr_text if profile else []
-    profile_search_phrases = profile.asset_search_phrases if profile else []
+    profile_search_phrases = semantic.semantic_search_phrases(image, profile=profile)
     profile_exclusions = profile.negative_visual_concepts if profile else []
     profile_structured_visual = (
         [

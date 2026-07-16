@@ -1136,6 +1136,50 @@ Model：数据结构和关系
 
 ---
 
+## 2026-07-16：待审核 AI 话术退出高优先级搜索
+
+### 本轮目标
+
+- 人工新增和负责人采纳后的 AI 话术进入高优先级图片话术。
+- AI 待审核话术只保留为低优先级语义辅助；客观标签继续辅助画面召回，不能压过人工业务事实。
+
+### 完成内容
+
+- Meilisearch 的 `assetSearchPhrases` 和数据库素材话术直接召回改为只读取 `reviewStatus=accepted`。
+- AI pending 话术不再以素材话术 `0.90` 命中；分析产生的原始语义表达继续位于 Semantic Profile、Embedding 和 Reranker 文档，用于模糊语义候选和 Top 20 重排。
+- AI rejected 话术会从 Semantic Profile 搜索表达投影中排除，不再继续进入模糊索引、Embedding 或重排文档。
+- 人工新增、AI 话术审核及卖点关系确认后按主图刷新 Meilisearch 和 Embedding；派生服务失败仍不影响数据库事实保存。
+- 新增 D043，并同步搜索说明、架构、开发护栏、UX/UI 规范和文档一致性测试。
+
+### 修改文件
+
+- 后端：数据库素材召回、图片 Repository、搜索文档、语义档案投影、素材关系服务及依赖装配。
+- 测试：搜索服务、搜索索引和文档一致性回归。
+- 文档：改造总纲、项目日志、搜索说明、架构、开发护栏和 UX/UI 规范。
+
+### 数据迁移
+
+- 无数据库结构或真实素材数据迁移。
+- 当前 PostgreSQL 确认为 0 张图片；Meilisearch 和 Embedding 按新规则执行重建，结果均为 0 条，符合当前空素材库状态。
+
+### 测试结果
+
+- 失败优先回归：旧实现会把 AI pending 素材话术写入高优先级 `assetSearchPhrases` 并给出 `0.90` 数据库分数，两项新增断言修改前均失败；修正后搜索/索引/端点专项 `25 passed`。
+- 派生同步回归：AI 话术从 pending 变为 accepted 后，确认主图的 Meilisearch 与 Embedding 均收到刷新调用。
+- `make check`：后端 `94 passed`、Ruff、Pyright；前端 TypeScript、ESLint、Vitest（5 个文件、`6 passed`）和 production build 全部通过。
+- Docker production build：后端和 Web 镜像重建通过，PostgreSQL、Meilisearch、后端和 Web 容器均健康，`/health` 返回 `ready`。
+- 浏览器验收：首页正确显示“素材库还是空的”和上传入口，页面无控制台错误；未向正式库写入测试图片。
+
+### 遗留问题
+
+- 当前没有真实图片，无法进行多素材排序体验验收；优先级规则已由分层单元测试和索引文档测试锁定。
+
+### 下一步
+
+1. 上传首批 3～6 张真实主图后，用“公共话术命中 / 图片独有话术命中 / 仅客观标签命中 / 待审核 AI 话术命中”四类查询做一次真实排序对照。
+
+---
+
 ## 后续日志模板
 
 后续每次改造在本文末尾追加以下内容：

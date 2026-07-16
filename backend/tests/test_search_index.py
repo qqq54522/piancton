@@ -1,3 +1,5 @@
+import json
+
 from app.db.base import Base
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import (
@@ -40,7 +42,12 @@ def create_indexed_image(db) -> Image:
                 phrase="蓝色平板动画课画面",
                 origin="manual",
                 review_status="accepted",
-            )
+            ),
+            AssetSearchPhrase(
+                phrase="AI自动语义候选",
+                origin="ai",
+                review_status="pending",
+            ),
         ],
         concept_links=[
             AssetConceptLink(
@@ -68,6 +75,21 @@ def create_indexed_image(db) -> Image:
         size_bytes=100,
         uploader="designer",
         image_summary="学生正在观看动画讲解。",
+        semantic_profile_json=json.dumps(
+            {
+                "schema_version": 2,
+                "visual_facts": ["学生正在观看动画讲解"],
+                "ocr_text": [],
+                "subjects": ["学生"],
+                "scenes": ["学习页面"],
+                "actions": ["观看课程"],
+                "visual_style": ["蓝色界面"],
+                "visible_product_features": ["动画讲解"],
+                "asset_search_phrases": ["AI自动语义候选"],
+                "negative_visual_concepts": [],
+            },
+            ensure_ascii=False,
+        ),
         asset_group=group,
     )
     image.content_tags.append(
@@ -90,6 +112,8 @@ def test_phase6_search_document_uses_only_new_semantic_sources(db_factory):
     assert document["pendingAiConceptCodes"] == ["instant_quiz"]
     assert document["acceptedConceptSystems"] == ["sync_school"]
     assert document["contentTags"] == ["学生"]
+    assert document["assetSearchPhrases"] == ["蓝色平板动画课画面"]
+    assert document["semanticProfileSearchPhrases"] == ["AI自动语义候选"]
     assert "孩子听不懂老师讲课" in document["searchableText"]
     assert "蓝色平板动画课画面" in document["searchableText"]
     assert not {
@@ -143,6 +167,8 @@ def test_embedding_index_uses_the_same_phase6_semantic_document(db_factory):
         def embed(self, inputs: list[str]):
             assert "已确认业务概念：动画精讲" in inputs[0]
             assert "素材独有搜索表达：蓝色平板动画课画面" in inputs[0]
+            assert "素材搜索表达：AI自动语义候选" in inputs[0]
+            assert "素材独有搜索表达：AI自动语义候选" not in inputs[0]
             return [[0.1, 0.2, 0.3]]
 
     with db_factory() as db:

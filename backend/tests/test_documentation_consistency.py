@@ -107,6 +107,13 @@ def test_master_and_project_log_publish_the_same_current_phase():
     asset_api = _read("backend/app/api/v1/assets.py")
     ai_api = _read("backend/app/api/v1/ai.py")
     image_analysis_service = _read("backend/app/services/image_analysis_service.py")
+    asset_relation_service = _read("backend/app/services/asset_relation_service.py")
+    database_search_recall = _read("backend/app/services/database_search_recall.py")
+    image_repository = _read("backend/app/repositories/image_repository.py")
+    image_semantic_profile = _read(
+        "backend/app/services/image_semantic_profile_service.py"
+    )
+    search_index = _read("backend/app/services/search_index.py")
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -127,6 +134,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D040" in master
     assert "D041" in master
     assert "D042" in master
+    assert "D043" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -175,6 +183,12 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert 'if asset_role != "derivative"' in asset_api
     assert "derivative_analysis_not_required" in ai_api
     assert "group.primary_image_id == image.id" in image_analysis_service
+    assert 'if phrase.review_status == "accepted"' in search_index
+    assert 'if item.review_status == "accepted"' in database_search_recall
+    assert 'AssetSearchPhrase.review_status == "accepted"' in image_repository
+    assert "semantic_search_phrases" in image_semantic_profile
+    assert 'if item.review_status == "rejected"' in image_semantic_profile
+    assert "self._sync_primary(group_id)" in asset_relation_service
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme

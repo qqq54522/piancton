@@ -65,7 +65,7 @@ def database_match_score(image: Image, term: str) -> float:
         phrase_match = any(
             needle in item.phrase.lower()
             for item in group.search_phrases
-            if item.review_status != "rejected"
+            if item.review_status == "accepted"
         )
         if phrase_match:
             return 0.9

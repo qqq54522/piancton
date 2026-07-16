@@ -41,7 +41,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 外部搜索分支不得共享请求 SQLAlchemy Session；ORM 实体只由请求主会话水合。
 - 候选融合后最多执行一次 Reranker，生成式图片摘要裁判不得回到在线链路。
 - 公共搜索话术属于业务概念，素材详情只保存当前图片独有话术；公共话术编辑/停用必须经过管理员接口和概念版本更新。
-- Meilisearch 字段优先级必须保持已确认业务语言高于素材独有话术、素材独有话术高于客观内容标签。
+- Meilisearch 字段优先级必须保持已确认业务语言高于已确认素材独有话术、已确认素材独有话术高于客观内容标签；AI 待审核素材话术只能作为低优先级语义辅助，拒绝后退出所有搜索投影。
 - `derivative` 尺寸/渠道延展只执行安全上传、缩略图和尺寸识别，不进入 AI 分析队列；只有正式主图的分析结果可以刷新素材组级 AI 关系和候选话术。
 
 这些约束由 `backend/tests/test_architecture.py` 和 CI 检查。

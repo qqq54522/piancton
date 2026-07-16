@@ -45,6 +45,7 @@ AI 可以补充客观内容标签和业务概念关系建议，但负责人确�
 - 六大体系稳定 code 以体系源文件和 `tags` 六个节点为准；可变化业务概念、概念搜索表达和素材关系以数据库概念层为准。
 - AI 输出必须经过 normalizer、schema 和 taxonomy 校验后才能写入。
 - 人工事实与 AI 建议不能混用：继续保留 `origin=manual/ai` 和 `review_status=pending/accepted/rejected` 的边界。
+- 素材独有话术只有 `accepted` 项可以进入高优先级数据库/Meilisearch 直接召回；AI `pending` 只允许作为低优先级语义辅助，`rejected` 必须从 Semantic Profile、Embedding 和 Reranker 搜索投影排除。
 - 新增打标规则时，优先沉淀到 taxonomy、skills 或独立规则服务，不要写成散落在上传流程里的特殊判断。
 - 真实图片评测前，不要为了“看起来更聪明”重新引入图片直挂标签或固定二级树。
 
