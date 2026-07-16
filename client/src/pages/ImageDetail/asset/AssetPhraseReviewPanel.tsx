@@ -10,7 +10,10 @@ import { Input } from '@client/src/components/ui/input';
 import type { AssetGroup } from '@client/src/types/api';
 import type { BusinessConcept } from '@client/src/types/api';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
-import { splitAcceptedConceptPhrases } from '@client/src/features/assets/conceptPhrasePresentation';
+import {
+  selectInheritedConcepts,
+  splitAcceptedConceptPhrases,
+} from '@client/src/features/assets/conceptPhrasePresentation';
 import { useAuth } from '@client/src/lib/auth';
 
 type AssetActions = ReturnType<typeof useAssetActions>;
@@ -30,10 +33,7 @@ function AssetPhraseReviewPanel({
   const pending = group.searchPhrases.filter(
     (item) => item.origin === 'ai' && item.reviewStatus === 'pending',
   );
-  const inherited = group.conceptLinks
-    .filter((link) => link.reviewStatus === 'accepted' && link.relationRole !== 'excludes')
-    .map((link) => concepts.find((concept) => concept.id === link.conceptId))
-    .filter((concept): concept is BusinessConcept => Boolean(concept));
+  const inherited = selectInheritedConcepts(group.conceptLinks, concepts);
 
   const addPhrase = async () => {
     if (!phrase.trim()) return;

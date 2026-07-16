@@ -1,4 +1,22 @@
-import type { ConceptSearchPhrase } from '@client/src/types/api';
+import type {
+  AssetConceptLink,
+  BusinessConcept,
+  ConceptSearchPhrase,
+} from '@client/src/types/api';
+
+export function selectInheritedConcepts(
+  links: AssetConceptLink[],
+  concepts: BusinessConcept[],
+): BusinessConcept[] {
+  const inheritedIds = new Set(
+    links
+      .filter((link) => (
+        link.reviewStatus === 'accepted' && link.relationRole !== 'excludes'
+      ))
+      .map((link) => link.conceptId),
+  );
+  return concepts.filter((concept) => inheritedIds.has(concept.id));
+}
 
 export function isAuxiliaryKeyword(phrase: ConceptSearchPhrase): boolean {
   return [...phrase.phrase.replace(/\s/g, '')].length < 4;
