@@ -57,9 +57,6 @@ def database_match_score(image: Image, term: str) -> float:
     summary = image.image_summary.lower() if image.image_summary else ""
     if summary and (needle in summary or summary in needle):
         return 0.9
-    content_tags = [item.tag_name.lower() for item in image.content_tags]
-    if any(needle in name for name in content_tags):
-        return 0.8
     group = image.asset_group
     if group:
         phrase_match = any(

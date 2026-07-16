@@ -9,7 +9,6 @@ from app.models.business_concept import BusinessConcept
 from app.models.tag import Tag
 from app.schemas.ai import (
     ConceptSuggestion,
-    ConfidenceTag,
     ImageAnalysisResult,
     ImageSemanticProfile,
 )
@@ -207,20 +206,9 @@ def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_fact
                 image_summary="平板界面展示数学动画和分步计算，顶部可见课程标题。",
                 semantic_profile=ImageSemanticProfile(
                     visual_facts=["平板学习界面", "数学动画", "分步计算"],
-                    ocr_text=["数学精讲", "下一步"],
-                    subjects=["平板", "课程界面"],
                     scenes=["居家学习"],
-                    actions=["观看动画课程"],
-                    visual_style=["蓝色科技风"],
-                    visible_product_features=["动画播放", "分步计算"],
                     asset_search_phrases=["蓝色平板动画课画面"],
-                    negative_visual_concepts=["真人老师聊天"],
                 ),
-                content_tags=[
-                    ConfidenceTag(tag="平板", confidence=0.95, dimension="物体"),
-                    ConfidenceTag(tag="动画播放", confidence=0.92, dimension="产品功能"),
-                    ConfidenceTag(tag="数学精讲", confidence=0.9, dimension="文字"),
-                ],
                 concept_suggestions=[
                     ConceptSuggestion(
                         concept_code="animation_explanation",
@@ -232,7 +220,6 @@ def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_fact
                         reason="画面展示动画和分步计算，适合动画精讲，不是课后小测。",
                     )
                 ],
-                recommended_search_words=["平板动画数学课"],
             )
 
     app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
@@ -252,8 +239,9 @@ def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_fact
     analyzed = client.post(f"/api/ai/images/{uploaded['id']}/analyze", headers=headers)
     assert analyzed.status_code == 200
     detail = client.get(f"/api/images/{uploaded['id']}").json()
-    assert detail["semanticProfile"]["schemaVersion"] == 2
-    assert detail["semanticProfile"]["ocrText"] == ["数学精讲", "下一步"]
+    assert detail["semanticProfile"]["schemaVersion"] == 3
+    assert detail["semanticProfile"]["scenes"] == ["居家学习"]
+    assert "contentTags" not in detail
 
     group_id = detail["assetGroupId"]
     group = client.get(f"/api/asset-groups/{group_id}").json()

@@ -15,7 +15,7 @@
 - 本地持久化图片卷，可替换 Storage Provider
 - AI Provider 稳定接口；未配置时明确返回 `503 provider_not_configured`
 - 已支持 OpenAI-compatible 多模态模型接入，API Key 只放后端环境变量
-- 模型 Provider 已配置时，上传成功后自动排队 OCR、客观语义分析和业务概念关系建议
+- 模型 Provider 已配置时，上传成功后自动生成语义总结、画面事实、场景、素材独有表达和业务概念关系建议；不再生成固定客观标签
 - AI 建议与负责人确认严格区分来源和审核状态，不覆盖人工确认事实
 - 卖点公共话术集中管理并由关联素材继承，单张图片只维护独有画面和场景说法
 - 一个业务搜索框、六大体系可选筛选、数据库/Meilisearch/Embedding 并行召回和一次 Reranker

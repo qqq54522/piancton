@@ -16,7 +16,6 @@ from app.core.errors import AppError
 from app.domain.ai_taxonomy import (
     BUSINESS_CONCEPT_CATALOG,
     BUSINESS_CONCEPT_CODES,
-    CONTENT_TAG_DIMENSIONS,
 )
 from app.schemas.ai import (
     ImageAnalysisResult,
@@ -117,50 +116,22 @@ class AiService:
                 status_code=502,
             )
 
-        tag_names = [item.tag.strip() for item in result.content_tags if item.tag.strip()]
-        if not tag_names:
-            raise AppError(
-                "model_response_invalid",
-                "模型至少需要返回一个有检索价值的客观内容标签",
-                status_code=502,
-            )
-        if len(set(tag_names)) != len(tag_names):
-            raise AppError(
-                "model_response_invalid",
-                "模型返回了重复的隐形内容标签",
-                status_code=502,
-            )
-
-        unknown_dimensions = sorted(
-            {
-                item.dimension
-                for item in result.content_tags
-                if item.dimension and item.dimension not in CONTENT_TAG_DIMENSIONS
-            }
-        )
-        if unknown_dimensions:
-            raise AppError(
-                "model_response_invalid",
-                "模型返回了未知的隐形标签维度",
-                status_code=502,
-                details={"dimensions": unknown_dimensions},
-            )
-
-        coverage = {item.dimension for item in result.content_tags if item.dimension}
         profile = result.semantic_profile
-        if profile.visual_facts:
-            coverage.add("画面事实")
-        if profile.ocr_text:
-            coverage.add("OCR")
-        if any([profile.subjects, profile.scenes, profile.actions, profile.visual_style]):
-            coverage.add("结构化视觉")
-        if len(coverage) < 2:
+        visual_facts = [item.strip() for item in profile.visual_facts if item.strip()]
+        if not visual_facts:
             raise AppError(
                 "model_response_invalid",
-                "图片分析需要覆盖至少两个客观语义维度",
+                "模型至少需要返回一条可检索的画面事实",
                 status_code=502,
-                details={"coveredDimensions": sorted(coverage)},
             )
+        self._validate_profile_items("画面事实", visual_facts, limit=6)
+        self._validate_profile_items("场景", profile.scenes, limit=4)
+        self._validate_profile_items(
+            "素材独有搜索表达",
+            profile.asset_search_phrases,
+            limit=8,
+            max_length=80,
+        )
 
         unknown_concepts = sorted(
             f"{item.system_name} > {item.concept_name}"
@@ -189,28 +160,34 @@ class AiService:
                 status_code=502,
             )
 
-        self._validate_recommended_search_words(result)
         self._validate_concept_suggestion_reasons(result)
 
-    def _validate_recommended_search_words(self, result: ImageAnalysisResult) -> None:
-        words = [word.strip() for word in result.recommended_search_words if word.strip()]
-        if len(words) > 12:
+    def _validate_profile_items(
+        self,
+        label: str,
+        values: list[str],
+        *,
+        limit: int,
+        max_length: int = 120,
+    ) -> None:
+        cleaned = [value.strip() for value in values if value.strip()]
+        if len(cleaned) > limit:
             raise AppError(
                 "model_response_invalid",
-                "模型返回的素材搜索短语不能超过 12 个",
+                f"模型返回的{label}不能超过 {limit} 条",
                 status_code=502,
-                details={"recommendedSearchWordCount": len(words)},
+                details={"count": len(cleaned)},
             )
-        if len(set(words)) != len(words):
+        if len(set(cleaned)) != len(cleaned):
             raise AppError(
                 "model_response_invalid",
-                "模型返回了重复的推荐搜索词",
+                f"模型返回了重复的{label}",
                 status_code=502,
             )
-        if any(len(word) > 40 for word in words):
+        if any(len(value) > max_length for value in cleaned):
             raise AppError(
                 "model_response_invalid",
-                "推荐搜索词应保持为可检索的短词或短语",
+                f"{label}应保持简洁、可检索",
                 status_code=502,
             )
 

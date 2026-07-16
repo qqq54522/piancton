@@ -7,7 +7,7 @@ from app.main import app
 from app.models.asset import AssetConceptLink, AssetGroup
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
 from app.models.tag import Tag
-from app.schemas.ai import ConfidenceTag, ImageAnalysisResult, ImageSemanticProfile
+from app.schemas.ai import ImageAnalysisResult, ImageSemanticProfile
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from tests.conftest import login
@@ -142,11 +142,7 @@ def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
                 visual_facts=["主图画面"],
                 asset_search_phrases=["正确主图候选"],
             ),
-            content_tags=[
-                ConfidenceTag(tag="主图", confidence=0.9, dimension="画面"),
-            ],
             concept_suggestions=[],
-            recommended_search_words=[],
         )
     }
 
@@ -187,11 +183,7 @@ def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
             visual_facts=["错误延展画面"],
             asset_search_phrases=["错误延展候选"],
         ),
-        content_tags=[
-            ConfidenceTag(tag="错误延展", confidence=0.9, dimension="画面"),
-        ],
         concept_suggestions=[],
-        recommended_search_words=[],
     )
     alternative_analysis = client.post(
         f"/api/ai/images/{variant_id}/analyze",

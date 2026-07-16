@@ -100,7 +100,7 @@ def test_search_reuses_versioned_business_phrase(db_factory):
     assert any("动画精讲" in reason for reason in response.results[0].match_reasons)
 
 
-def test_search_uses_objective_content_and_summary_without_old_tags(db_factory):
+def test_search_uses_summary_but_ignores_legacy_objective_content_tags(db_factory):
     with db_factory() as db:
         group = AssetGroup(title="规划页", created_by="designer")
         image = Image(
@@ -126,7 +126,7 @@ def test_search_uses_objective_content_and_summary_without_old_tags(db_factory):
         content_response = SearchService(db).search("进度条", 12)
 
     assert summary_response.results[0].image.id == image.id
-    assert content_response.results[0].image.id == image.id
+    assert content_response.results == []
 
 
 def test_rejected_or_excluded_concepts_do_not_recall_assets(db_factory):
@@ -293,7 +293,7 @@ def test_removing_accepted_asset_phrase_soft_deletes_and_can_restore(db_factory)
     assert embedding_index.image_ids == [image.id, image.id]
 
 
-def test_confirmed_business_language_outweighs_objective_content_tags(db_factory):
+def test_confirmed_business_language_ignores_legacy_objective_content_tags(db_factory):
     with db_factory() as db:
         image = create_concept_image(
             db,
@@ -316,7 +316,7 @@ def test_confirmed_business_language_outweighs_objective_content_tags(db_factory
 
     assert concept_phrase_score == 0.95
     assert asset_phrase_score == 0.9
-    assert content_tag_score == 0.8
+    assert content_tag_score == 0.65
 
 
 def test_related_images_prioritize_shared_concepts_and_exclude_same_group_versions(

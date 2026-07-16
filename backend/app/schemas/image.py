@@ -12,24 +12,11 @@ class ImageTitleUpdate(ApiModel):
     title: str = Field(min_length=1, max_length=255)
 
 
-class ContentTagRead(ApiModel):
-    id: str
-    tag_name: str
-    confidence: float
-    dimension: Optional[str] = None
-
-
 class SemanticProfileRead(ApiModel):
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     visual_facts: List[str] = Field(default_factory=list)
-    ocr_text: List[str] = Field(default_factory=list)
-    subjects: List[str] = Field(default_factory=list)
     scenes: List[str] = Field(default_factory=list)
-    actions: List[str] = Field(default_factory=list)
-    visual_style: List[str] = Field(default_factory=list)
-    visible_product_features: List[str] = Field(default_factory=list)
     asset_search_phrases: List[str] = Field(default_factory=list)
-    negative_visual_concepts: List[str] = Field(default_factory=list)
 
 
 class AnalysisRunRead(ApiModel):
@@ -70,7 +57,6 @@ class ImageDetailRead(ImageRead):
     image_summary: Optional[str] = None
     semantic_profile: Optional[SemanticProfileRead] = None
     related_images: List[ImageRead] = Field(default_factory=list)
-    content_tags: List[ContentTagRead] = Field(default_factory=list)
     analysis_runs: List[AnalysisRunRead] = Field(default_factory=list)
 
 

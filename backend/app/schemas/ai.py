@@ -11,13 +11,6 @@ class ProviderStatus(ApiModel):
     model_name: str = ""
 
 
-class ConfidenceTag(ApiModel):
-    tag: str
-    confidence: float = Field(ge=0, le=1)
-    dimension: Optional[str] = None
-    reason: Optional[str] = None
-
-
 class ConceptSuggestion(ApiModel):
     concept_code: Optional[str] = None
     system_name: str
@@ -29,23 +22,15 @@ class ConceptSuggestion(ApiModel):
 
 
 class ImageSemanticProfile(ApiModel):
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     visual_facts: List[str] = Field(default_factory=list)
-    ocr_text: List[str] = Field(default_factory=list)
-    subjects: List[str] = Field(default_factory=list)
     scenes: List[str] = Field(default_factory=list)
-    actions: List[str] = Field(default_factory=list)
-    visual_style: List[str] = Field(default_factory=list)
-    visible_product_features: List[str] = Field(default_factory=list)
     asset_search_phrases: List[str] = Field(default_factory=list)
-    negative_visual_concepts: List[str] = Field(default_factory=list)
 
 class ImageAnalysisResult(ApiModel):
     image_summary: str
     semantic_profile: ImageSemanticProfile = Field(default_factory=ImageSemanticProfile)
-    content_tags: List[ConfidenceTag] = Field(default_factory=list)
     concept_suggestions: List[ConceptSuggestion] = Field(default_factory=list)
-    recommended_search_words: List[str] = Field(default_factory=list)
 
 
 class SearchIntentRequest(ApiModel):

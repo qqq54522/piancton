@@ -11,13 +11,11 @@ from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
 from app.models.image import (
     AnalysisRun,
-    ContentTag,
     Image,
     ImageEmbedding,
 )
 
 IMAGE_LOAD_OPTIONS = (
-    selectinload(Image.content_tags),
     selectinload(Image.embedding),
     selectinload(Image.analysis_runs),
     selectinload(Image.asset_group).selectinload(AssetGroup.images),
@@ -73,13 +71,11 @@ class ImageRepository:
                         literal(keyword).ilike(
                             literal("%") + Image.image_summary + literal("%")
                         ),
-                        ContentTag.tag_name.ilike(pattern),
                         AssetSearchPhrase.phrase.ilike(pattern),
                     ]
                 )
             stmt = (
-                stmt.outerjoin(ContentTag, ContentTag.image_id == Image.id)
-                .outerjoin(
+                stmt.outerjoin(
                     AssetSearchPhrase,
                     and_(
                         AssetSearchPhrase.asset_group_id == Image.asset_group_id,
@@ -118,7 +114,6 @@ class ImageRepository:
         stmt = (
             select(Image)
             .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
-            .outerjoin(ContentTag)
             .outerjoin(
                 AssetSearchPhrase,
                 and_(
@@ -140,7 +135,6 @@ class ImageRepository:
                     literal(keyword).ilike(literal("%") + Image.title + literal("%")),
                     Image.image_summary.ilike(pattern),
                     literal(keyword).ilike(literal("%") + Image.image_summary + literal("%")),
-                    ContentTag.tag_name.ilike(pattern),
                     AssetSearchPhrase.phrase.ilike(pattern),
                 )
             )
@@ -307,13 +301,14 @@ class ImageRepository:
         *,
         summary: str,
         semantic_profile_json: str | None,
-        content_tags: list[ContentTag],
         analysis_run: AnalysisRun | None = None,
     ) -> Image:
         image.image_summary = summary
         image.semantic_profile_json = semantic_profile_json
+        # Legacy content tags are deliberately cleared on the next main-image
+        # analysis. The table remains for rollback compatibility but is no
+        # longer populated or read by active search paths.
         image.content_tags.clear()
-        image.content_tags.extend(content_tags)
         if analysis_run is not None and all(
             existing.id != analysis_run.id for existing in image.analysis_runs
         ):

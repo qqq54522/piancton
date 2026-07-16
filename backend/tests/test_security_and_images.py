@@ -146,20 +146,9 @@ def test_ai_analysis_persists_content_and_new_concept_suggestion(client, db_fact
                 "image_summary": "平板界面展示数学动画和分步计算。",
                 "semantic_profile": {
                     "visual_facts": ["平板学习界面", "数学动画"],
-                    "ocr_text": ["数学精讲"],
-                    "subjects": ["平板"],
                     "scenes": ["居家学习"],
-                    "actions": ["观看动画课程"],
-                    "visual_style": ["蓝色科技风"],
-                    "visible_product_features": ["动画播放"],
                     "asset_search_phrases": ["蓝色平板动画课画面"],
-                    "negative_visual_concepts": ["真人老师聊天"],
                 },
-                "content_tags": [
-                    {"tag": "平板", "confidence": 0.95, "dimension": "物体"},
-                    {"tag": "动画播放", "confidence": 0.92, "dimension": "产品功能"},
-                    {"tag": "数学精讲", "confidence": 0.9, "dimension": "文字"},
-                ],
                 "concept_suggestions": [
                     {
                         "concept_code": "animation_explanation",
@@ -171,7 +160,6 @@ def test_ai_analysis_persists_content_and_new_concept_suggestion(client, db_fact
                         "reason": "画面展示动画和分步计算，适合动画精讲，不是课后小测。",
                     }
                 ],
-                "recommended_search_words": ["平板动画数学课"],
             }
 
     class FakeAiService(AiService):
@@ -188,12 +176,9 @@ def test_ai_analysis_persists_content_and_new_concept_suggestion(client, db_fact
     assert response.status_code == 200
 
     detail = client.get(f"/api/images/{image['id']}").json()
-    assert detail["semanticProfile"]["schemaVersion"] == 2
-    assert {item["tagName"] for item in detail["contentTags"]} == {
-        "平板",
-        "动画播放",
-        "数学精讲",
-    }
+    assert detail["semanticProfile"]["schemaVersion"] == 3
+    assert detail["semanticProfile"]["scenes"] == ["居家学习"]
+    assert "contentTags" not in detail
     group = client.get(f"/api/asset-groups/{detail['assetGroupId']}").json()
     suggestion = next(item for item in group["conceptLinks"] if item["origin"] == "ai")
     assert suggestion["conceptCode"] == "animation_explanation"

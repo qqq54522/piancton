@@ -1263,6 +1263,53 @@ Model：数据结构和关系
 
 ---
 
+## 2026-07-16：图片分析与搜索信号收口为 Semantic Profile V3
+
+### 本轮目标
+
+- 按用户进一步确认，把详情页隐藏升级为真正的分析契约收口。
+- 停止生成、写入和搜索使用 OCR、主体、动作、视觉风格、可见功能、排除边界和客观内容标签，减少固定词堆积、模型输出和搜索压力。
+
+### 完成内容
+
+- 图片分析契约升级为 Semantic Profile V3，只保留语义总结、画面事实、场景、素材独有搜索表达及独立的业务概念关系建议。
+- 单次分析上限收口为 6 条画面事实、4 条场景和 8 条素材独有搜索表达；模型误返回的 V2 旧字段、`content_tags` 或 `recommended_search_words` 会由 normalizer 丢弃。
+- 新分析不再写入 `content_tags`；主图再次分析时清空该图旧标签。详情 API 与 OpenAPI 类型删除客观标签和 V2 旧字段。
+- Meilisearch、数据库兜底召回、Embedding/Reranker 文档、结果匹配解释和相关素材排序全部退出旧标签；V2 存量 JSON 只兼容读取画面事实、场景和素材独有表达。
+- 数据库旧表和旧 JSON 不做物理删除，作为代码回滚存量保留，但运行时不读取、不返回、不写入新数据。
+- 新增 D046，明确取代 D045 中“旧字段继续作为后台搜索辅助”的过渡口径，并同步 README、架构、AI 说明、开发护栏、UX/UI 规范和模型 Skill。
+
+### 修改文件
+
+- 后端：AI schema/normalizer/校验、分析持久化、详情序列化、Semantic Profile 服务、数据库召回、搜索文档、Meilisearch 配置、Embedding/Reranker 文档、结果评分和相关素材服务。
+- 前端：OpenAPI 类型、应用类型别名和 V3 展示测试。
+- 测试与规则：AI 分析、搜索索引、数据库召回、端点、文档一致性测试及 `analyze-image-content` Skill。
+- 文档：改造总纲、项目日志、README、架构、开发护栏、搜索与 AI 说明和 UX/UI 规范。
+
+### 数据迁移
+
+- 无数据库结构迁移，也未物理删除正式库旧分析数据。
+- 当前 1 张正式主图的 Meilisearch 文档和 Embedding 已按 V3 投影重建，旧字段不再影响在线搜索。
+
+### 测试结果
+
+- `make check`：后端 Pytest `96 passed`、Ruff、Pyright；前端 TypeScript、ESLint、Vitest（6 个文件、`8 passed`）和 production build 全部通过。
+- Docker：后端和 Web 镜像构建通过，PostgreSQL、Meilisearch、后端和 Web 容器均健康。
+- 派生索引：Meilisearch `submitted 1 image search documents`；Embedding `rebuilt 1 image embeddings`。
+- 浏览器验收：真实素材详情保留语义总结、画面事实、场景、素材独有搜索表达；OCR、主体、动作、视觉风格、可见功能、排除边界和客观内容标签均未出现，控制台无 warning/error。
+
+### 遗留问题
+
+- 数据库仍保留休眠的 `content_tags` 表及旧 V2 JSON，供当前代码版本回滚；确认不再需要回滚后，可另建可降级迁移物理删除。
+- 当前只有 1 张正式素材，无法据此评估多素材排序质量；分析和索引压力已从字段数量层面收口，仍需在 3～6 张代表主图后重新跑真实查询评测。
+
+### 下一步
+
+1. 新上传或重新分析下一张正式主图，确认 Provider 实际只返回 V3 字段，并观察 6/4/8 上限下的内容质量。
+2. 累积 3～6 张代表主图后，使用公共话术、已确认素材话术、画面事实/场景和模糊表达四类查询做一次排序对照。
+
+---
+
 ## 后续日志模板
 
 后续每次改造在本文末尾追加以下内容：

@@ -70,23 +70,9 @@ def image_to_search_document(image: Image) -> dict[str, Any]:
         for phrase in (group.search_phrases if group else [])
         if phrase.review_status == "accepted"
     )
-    content_tags = _unique(item.tag_name for item in image.content_tags)
-    content_dimensions = _unique(item.dimension for item in image.content_tags)
     profile_visual_facts = profile.visual_facts if profile else []
-    profile_ocr_text = profile.ocr_text if profile else []
+    profile_scenes = profile.scenes if profile else []
     profile_search_phrases = semantic.semantic_search_phrases(image, profile=profile)
-    profile_exclusions = profile.negative_visual_concepts if profile else []
-    profile_structured_visual = (
-        [
-            *profile.subjects,
-            *profile.scenes,
-            *profile.actions,
-            *profile.visual_style,
-            *profile.visible_product_features,
-        ]
-        if profile
-        else []
-    )
     business_intent = semantic.business_intent_from_image(image)
     searchable_text = " \n".join(
         _unique(
@@ -96,11 +82,8 @@ def image_to_search_document(image: Image) -> dict[str, Any]:
                 image.image_summary,
                 image.channel,
                 *profile_visual_facts,
-                *profile_ocr_text,
-                *profile_structured_visual,
+                *profile_scenes,
                 *profile_search_phrases,
-                *profile_exclusions,
-                *content_tags,
                 *accepted_concept_names,
                 *accepted_concept_codes,
                 *accepted_concept_phrases,
@@ -123,10 +106,9 @@ def image_to_search_document(image: Image) -> dict[str, Any]:
         "height": image.height,
         "aspectRatio": image.aspect_ratio,
         "semanticProfileVisualFacts": profile_visual_facts,
-        "semanticProfileOcrText": profile_ocr_text,
+        "semanticProfileScenes": profile_scenes,
         "semanticProfileBusinessIntent": business_intent,
         "semanticProfileSearchPhrases": profile_search_phrases,
-        "semanticProfileExclusionBoundaries": profile_exclusions,
         "manualConceptCodes": _unique(link.concept.code for link in manual_links),
         "acceptedAiConceptCodes": _unique(
             link.concept.code for link in accepted_ai_links
@@ -143,8 +125,6 @@ def image_to_search_document(image: Image) -> dict[str, Any]:
             if link.relation_role == "excludes" and link.review_status == "accepted"
         ),
         "assetSearchPhrases": asset_phrases,
-        "contentTags": content_tags,
-        "contentDimensions": content_dimensions,
         "searchableText": searchable_text,
         "downloadCount": image.download_count,
         "status": (

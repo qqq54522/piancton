@@ -406,7 +406,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Remove Asset Search Phrase */
+        delete: operations["remove_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__delete"];
         options?: never;
         head?: never;
         /** Review Asset Search Phrase */
@@ -1307,28 +1308,6 @@ export interface components {
             /** Status */
             status: string;
         };
-        /** ConfidenceTag */
-        ConfidenceTag: {
-            /** Tag */
-            tag: string;
-            /** Confidence */
-            confidence: number;
-            /** Dimension */
-            dimension?: string | null;
-            /** Reason */
-            reason?: string | null;
-        };
-        /** ContentTagRead */
-        ContentTagRead: {
-            /** Id */
-            id: string;
-            /** Tagname */
-            tagName: string;
-            /** Confidence */
-            confidence: number;
-            /** Dimension */
-            dimension?: string | null;
-        };
         /** ExpandedSearchTerm */
         ExpandedSearchTerm: {
             /** Term */
@@ -1353,12 +1332,8 @@ export interface components {
             /** Imagesummary */
             imageSummary: string;
             semanticProfile?: components["schemas"]["ImageSemanticProfile"];
-            /** Contenttags */
-            contentTags?: components["schemas"]["ConfidenceTag"][];
             /** Conceptsuggestions */
             conceptSuggestions?: components["schemas"]["ConceptSuggestion"][];
-            /** Recommendedsearchwords */
-            recommendedSearchWords?: string[];
         };
         /** ImageDetailRead */
         ImageDetailRead: {
@@ -1424,8 +1399,6 @@ export interface components {
             semanticProfile?: components["schemas"]["SemanticProfileRead"] | null;
             /** Relatedimages */
             relatedImages?: components["schemas"]["ImageRead"][];
-            /** Contenttags */
-            contentTags?: components["schemas"]["ContentTagRead"][];
             /** Analysisruns */
             analysisRuns?: components["schemas"]["AnalysisRunRead"][];
         };
@@ -1502,28 +1475,16 @@ export interface components {
         ImageSemanticProfile: {
             /**
              * Schemaversion
-             * @default 2
+             * @default 3
              * @constant
              */
-            schemaVersion: 2;
+            schemaVersion: 3;
             /** Visualfacts */
             visualFacts?: string[];
-            /** Ocrtext */
-            ocrText?: string[];
-            /** Subjects */
-            subjects?: string[];
             /** Scenes */
             scenes?: string[];
-            /** Actions */
-            actions?: string[];
-            /** Visualstyle */
-            visualStyle?: string[];
-            /** Visibleproductfeatures */
-            visibleProductFeatures?: string[];
             /** Assetsearchphrases */
             assetSearchPhrases?: string[];
-            /** Negativevisualconcepts */
-            negativeVisualConcepts?: string[];
         };
         /** ImageTitleUpdate */
         ImageTitleUpdate: {
@@ -1934,28 +1895,16 @@ export interface components {
         SemanticProfileRead: {
             /**
              * Schemaversion
-             * @default 2
+             * @default 3
              * @constant
              */
-            schemaVersion: 2;
+            schemaVersion: 3;
             /** Visualfacts */
             visualFacts?: string[];
-            /** Ocrtext */
-            ocrText?: string[];
-            /** Subjects */
-            subjects?: string[];
             /** Scenes */
             scenes?: string[];
-            /** Actions */
-            actions?: string[];
-            /** Visualstyle */
-            visualStyle?: string[];
-            /** Visibleproductfeatures */
-            visibleProductFeatures?: string[];
             /** Assetsearchphrases */
             assetSearchPhrases?: string[];
-            /** Negativevisualconcepts */
-            negativeVisualConcepts?: string[];
         };
         /** TagRead */
         TagRead: {
@@ -2893,6 +2842,43 @@ export interface operations {
                 "application/json": components["schemas"]["AssetSearchPhraseCreate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+                phrase_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

@@ -62,16 +62,11 @@ class RelatedImageService:
 
     def _candidate_terms(self, image: Image) -> list[str]:
         links = self._concept_links(image)
-        content_tags = sorted(
-            image.content_tags,
-            key=lambda item: item.confidence,
-            reverse=True,
-        )
         return unique(
             [
                 *(link.concept.name for link in links),
                 *(link.concept.code for link in links),
-                *(item.tag_name for item in content_tags[:8]),
+                *self._semantic_terms(image),
             ]
         )
 
@@ -106,10 +101,10 @@ class RelatedImageService:
         if source_systems & candidate_systems:
             score += 0.18
 
-        source_content = {item.tag_name for item in source.content_tags}
-        candidate_content = {item.tag_name for item in candidate.content_tags}
-        shared_content_count = len(source_content & candidate_content)
-        score += min(shared_content_count * 0.04, 0.28)
+        source_semantics = set(self._semantic_terms(source))
+        candidate_semantics = set(self._semantic_terms(candidate))
+        shared_semantic_count = len(source_semantics & candidate_semantics)
+        score += min(shared_semantic_count * 0.04, 0.28)
 
         if source.channel and source.channel == candidate.channel:
             score += 0.08
@@ -124,3 +119,16 @@ class RelatedImageService:
 
     def _concept_ids(self, image: Image) -> list[str]:
         return list(dict.fromkeys(link.concept_id for link in self._concept_links(image)))
+
+    def _semantic_terms(self, image: Image) -> list[str]:
+        group = image.asset_group
+        return unique(
+            [
+                *self.semantic_profile.profile_terms(image),
+                *(
+                    item.phrase
+                    for item in (group.search_phrases if group else [])
+                    if item.review_status == "accepted"
+                ),
+            ]
+        )

@@ -34,16 +34,9 @@ def normalize_model_payload(
     normalized["semantic_profile"] = _normalize_semantic_profile(
         normalized.get("semantic_profile"),
         normalized.get("image_summary"),
-        normalized.get("recommended_search_words"),
     )
-
-    content_tags = normalized.get("content_tags")
-    if isinstance(content_tags, list):
-        normalized["content_tags"] = [
-            _normalize_content_tag(item)
-            for item in content_tags
-            if item
-        ]
+    normalized.pop("content_tags", None)
+    normalized.pop("recommended_search_words", None)
 
     concept_suggestions = normalized.get("concept_suggestions")
     if isinstance(concept_suggestions, list):
@@ -62,7 +55,6 @@ def normalize_model_payload(
 def _normalize_semantic_profile(
     value: Any,
     image_summary: Any,
-    recommended_words: Any,
 ) -> dict[str, Any]:
     old = dict(value) if isinstance(value, dict) else {}
     visual_facts = old.get("visual_facts")
@@ -70,29 +62,12 @@ def _normalize_semantic_profile(
         visual_facts = [str(image_summary).strip()] if str(image_summary or "").strip() else []
     asset_phrases = old.get("asset_search_phrases")
     if not isinstance(asset_phrases, list):
-        asset_phrases = recommended_words if isinstance(recommended_words, list) else []
-    negative_visual = old.get("negative_visual_concepts")
-    if not isinstance(negative_visual, list):
-        negative_visual = []
+        asset_phrases = []
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "visual_facts": visual_facts,
-        "ocr_text": old.get("ocr_text") if isinstance(old.get("ocr_text"), list) else [],
-        "subjects": old.get("subjects") if isinstance(old.get("subjects"), list) else [],
         "scenes": old.get("scenes") if isinstance(old.get("scenes"), list) else [],
-        "actions": old.get("actions") if isinstance(old.get("actions"), list) else [],
-        "visual_style": (
-            old.get("visual_style")
-            if isinstance(old.get("visual_style"), list)
-            else []
-        ),
-        "visible_product_features": (
-            old.get("visible_product_features")
-            if isinstance(old.get("visible_product_features"), list)
-            else []
-        ),
         "asset_search_phrases": asset_phrases,
-        "negative_visual_concepts": negative_visual,
     }
 
 
@@ -157,27 +132,6 @@ def _display_name_from_code(code: str, node_by_code: dict[str, Any]) -> str | No
         parent = node_by_code[node.parent_code]
         return f"{parent.name} > {node.name}"
     return node.name
-
-
-def _normalize_content_tag(value: Any) -> Any:
-    if isinstance(value, str):
-        return {"tag": value.strip(), "confidence": 0.75, "dimension": "其他"}
-    if isinstance(value, dict):
-        normalized = dict(value)
-        if "tag" not in normalized:
-            candidate = (
-                normalized.get("tag_name")
-                or normalized.get("name")
-                or normalized.get("label")
-            )
-            if candidate:
-                normalized["tag"] = str(candidate).strip()
-        normalized["confidence"] = normalized.get("confidence", 0.75)
-        normalized["dimension"] = _normalize_content_dimension(
-            normalized.get("dimension")
-        )
-        return normalized
-    return value
 
 
 def _normalize_concept_suggestion(value: Any) -> Any:
@@ -256,38 +210,3 @@ def _concept_suggestion_from_code(
         ),
         "reason": str(reason or DEFAULT_CONCEPT_SUGGESTION_REASON),
     }
-
-
-def _normalize_content_dimension(value: Any) -> str:
-    aliases = {
-        "person": "人物",
-        "people": "人物",
-        "人物": "人物",
-        "relationship": "人物",
-        "relation": "人物",
-        "关系": "人物",
-        "scene": "场景",
-        "场景": "场景",
-        "object": "物体",
-        "物体": "物体",
-        "action": "动作",
-        "动作": "动作",
-        "emotion": "情绪",
-        "情绪": "情绪",
-        "text": "文字",
-        "文字": "文字",
-        "style": "视觉风格",
-        "visual_style": "视觉风格",
-        "视觉风格": "视觉风格",
-        "color": "颜色",
-        "颜色": "颜色",
-        "product_function": "产品功能",
-        "function": "产品功能",
-        "产品功能": "产品功能",
-        "selling_point": "业务卖点",
-        "business_selling_point": "业务卖点",
-        "业务卖点": "业务卖点",
-        "other": "其他",
-        "其他": "其他",
-    }
-    return aliases.get(str(value or "").strip().lower(), "其他")

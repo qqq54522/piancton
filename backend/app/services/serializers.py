@@ -4,7 +4,6 @@ from typing import Literal, cast
 from app.models.image import Image
 from app.schemas.image import (
     AnalysisRunRead,
-    ContentTagRead,
     ImageDetailRead,
     ImageRead,
     SemanticProfileRead,
@@ -103,15 +102,6 @@ def image_to_detail(image: Image, related: list[Image]) -> ImageDetailRead:
             else None
         ),
         related_images=[image_to_read(item) for item in related],
-        content_tags=[
-            ContentTagRead(
-                id=item.id,
-                tag_name=item.tag_name,
-                confidence=item.confidence,
-                dimension=item.dimension,
-            )
-            for item in image.content_tags
-        ],
         analysis_runs=[
             AnalysisRunRead(
                 id=item.id,

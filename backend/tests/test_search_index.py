@@ -79,21 +79,21 @@ def create_indexed_image(db) -> Image:
             {
                 "schema_version": 2,
                 "visual_facts": ["学生正在观看动画讲解"],
-                "ocr_text": [],
-                "subjects": ["学生"],
+                "ocr_text": ["旧OCR词"],
+                "subjects": ["旧主体词"],
                 "scenes": ["学习页面"],
-                "actions": ["观看课程"],
-                "visual_style": ["蓝色界面"],
-                "visible_product_features": ["动画讲解"],
+                "actions": ["旧动作词"],
+                "visual_style": ["旧风格词"],
+                "visible_product_features": ["旧可见功能词"],
                 "asset_search_phrases": ["AI自动语义候选"],
-                "negative_visual_concepts": [],
+                "negative_visual_concepts": ["旧排除边界词"],
             },
             ensure_ascii=False,
         ),
         asset_group=group,
     )
     image.content_tags.append(
-        ContentTag(tag_name="学生", confidence=0.9, dimension="人物")
+        ContentTag(tag_name="旧客观内容标签", confidence=0.9, dimension="人物")
     )
     db.add(image)
     db.flush()
@@ -111,16 +111,23 @@ def test_phase6_search_document_uses_only_new_semantic_sources(db_factory):
     assert document["acceptedConceptNames"] == ["动画精讲"]
     assert document["pendingAiConceptCodes"] == ["instant_quiz"]
     assert document["acceptedConceptSystems"] == ["sync_school"]
-    assert document["contentTags"] == ["学生"]
     assert document["assetSearchPhrases"] == ["蓝色平板动画课画面"]
     assert document["semanticProfileSearchPhrases"] == ["AI自动语义候选"]
+    assert document["semanticProfileScenes"] == ["学习页面"]
     assert "孩子听不懂老师讲课" in document["searchableText"]
     assert "蓝色平板动画课画面" in document["searchableText"]
+    assert "旧客观内容标签" not in document["searchableText"]
+    assert "旧OCR词" not in document["searchableText"]
+    assert "旧风格词" not in document["searchableText"]
     assert not {
         "manualLabelCodes",
         "businessLabelCodes",
         "level2Categories",
         "tagIds",
+        "contentTags",
+        "contentDimensions",
+        "semanticProfileOcrText",
+        "semanticProfileExclusionBoundaries",
     }.intersection(document)
 
 
@@ -193,10 +200,15 @@ def test_phase6_metadata_no_longer_declares_legacy_image_semantic_tables():
     }.isdisjoint(Base.metadata.tables)
 
 
-def test_meilisearch_prioritizes_confirmed_language_over_objective_tags():
+def test_meilisearch_prioritizes_confirmed_language_over_streamlined_ai_semantics():
     priorities = list(MEILISEARCH_SEARCHABLE_ATTRIBUTES)
 
     assert priorities.index("acceptedConceptPhrases") < priorities.index("assetSearchPhrases")
-    assert priorities.index("assetSearchPhrases") < priorities.index("contentTags")
-    assert priorities.index("contentTags") < priorities.index("pendingConceptNames")
-    assert priorities.index("searchableText") > priorities.index("contentTags")
+    assert priorities.index("assetSearchPhrases") < priorities.index("semanticProfileVisualFacts")
+    assert priorities.index("semanticProfileScenes") < priorities.index(
+        "semanticProfileSearchPhrases"
+    )
+    assert priorities.index("semanticProfileSearchPhrases") < priorities.index(
+        "pendingConceptNames"
+    )
+    assert "contentTags" not in priorities

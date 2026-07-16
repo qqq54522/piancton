@@ -131,7 +131,6 @@ class ImageService:
             channel=(channel or "").strip() or None,
             version_no=1,
             is_current=True,
-            content_tags=[],
         )
         try:
             self.images.add(image)

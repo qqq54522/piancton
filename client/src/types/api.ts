@@ -2,7 +2,6 @@ export type {
   ApiErrorBody,
   AnalysisRun,
   AuditLog,
-  ContentTag,
   ImageSemanticProfile,
   ImageDetail,
   ImageItem,

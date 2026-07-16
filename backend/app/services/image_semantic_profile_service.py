@@ -34,7 +34,6 @@ class ImageSemanticProfileService:
                 profile,
                 search_phrases=self.semantic_search_phrases(image, profile=profile),
             ),
-            "隐形标签：" + "、".join(item.tag_name for item in image.content_tags),
             "已确认业务概念："
             + "、".join(
                 dict.fromkeys(
@@ -71,8 +70,6 @@ class ImageSemanticProfileService:
             score += 1
         if image.image_summary and image.image_summary.strip():
             score += 1
-        if image.content_tags:
-            score += 1
         if image.asset_group and any(
             link.review_status == "accepted"
             for link in image.asset_group.concept_links
@@ -93,24 +90,15 @@ class ImageSemanticProfileService:
     def profile_from_analysis(self, result: ImageAnalysisResult) -> ImageSemanticProfile:
         profile = result.semantic_profile
         return ImageSemanticProfile(
-            schema_version=2,
+            schema_version=3,
             visual_facts=self._clean_list(
                 [*profile.visual_facts] or [result.image_summary],
-                limit=12,
+                limit=6,
             ),
-            ocr_text=self._clean_list(profile.ocr_text, limit=30),
-            subjects=self._clean_list(profile.subjects, limit=12),
-            scenes=self._clean_list(profile.scenes, limit=12),
-            actions=self._clean_list(profile.actions, limit=12),
-            visual_style=self._clean_list(profile.visual_style, limit=12),
-            visible_product_features=self._clean_list(
-                profile.visible_product_features, limit=15
-            ),
+            scenes=self._clean_list(profile.scenes, limit=4),
             asset_search_phrases=self._clean_list(
-                [*profile.asset_search_phrases, *result.recommended_search_words], limit=20
-            ),
-            negative_visual_concepts=self._clean_list(
-                profile.negative_visual_concepts, limit=12
+                profile.asset_search_phrases,
+                limit=8,
             ),
         )
 
@@ -118,72 +106,31 @@ class ImageSemanticProfileService:
         if image.semantic_profile_json:
             try:
                 payload = json.loads(image.semantic_profile_json)
-                return ImageSemanticProfile.model_validate(payload)
+                if isinstance(payload, dict):
+                    return self._profile_from_payload(payload, image.image_summary)
             except (TypeError, ValueError, json.JSONDecodeError):
                 pass
         return self.fallback_profile_from_image(image)
 
     def fallback_profile_from_image(self, image: Image) -> ImageSemanticProfile | None:
-        if not any([image.image_summary, image.content_tags]):
+        group = image.asset_group
+        ai_phrases = [
+            item.phrase
+            for item in (group.search_phrases if group else [])
+            if item.origin == "ai" and item.review_status != "rejected"
+        ]
+        if not any([image.image_summary, ai_phrases]):
             return None
         return ImageSemanticProfile(
-            schema_version=2,
+            schema_version=3,
             visual_facts=self._clean_list(
-                [
-                    image.image_summary or "",
-                    *(item.tag_name for item in image.content_tags[:6]),
-                ],
+                [image.image_summary or ""],
                 limit=6,
             ),
-            ocr_text=self._clean_list(
-                [item.tag_name for item in image.content_tags if item.dimension == "文字"],
-                limit=30,
-            ),
-            subjects=self._clean_list(
-                [
-                    item.tag_name
-                    for item in image.content_tags
-                    if item.dimension in {"人物", "物体"}
-                ],
-                limit=12,
-            ),
-            scenes=self._clean_list(
-                [item.tag_name for item in image.content_tags if item.dimension == "场景"],
-                limit=12,
-            ),
-            actions=self._clean_list(
-                [item.tag_name for item in image.content_tags if item.dimension == "动作"],
-                limit=12,
-            ),
-            visual_style=self._clean_list(
-                [
-                    item.tag_name
-                    for item in image.content_tags
-                    if item.dimension in {"视觉风格", "颜色"}
-                ],
-                limit=12,
-            ),
-            visible_product_features=self._clean_list(
-                [item.tag_name for item in image.content_tags if item.dimension == "产品功能"],
-                limit=15,
-            ),
+            scenes=[],
             asset_search_phrases=self._clean_list(
-                [
-                    *(
-                        [
-                            item.phrase
-                            for item in image.asset_group.search_phrases
-                            if item.review_status != "rejected"
-                        ]
-                        if image.asset_group
-                        else []
-                    ),
-                ],
-                limit=20,
-            ),
-            negative_visual_concepts=self._clean_list(
-                [],
-                limit=6,
+                ai_phrases,
+                limit=8,
             ),
         )
 
@@ -194,14 +141,8 @@ class ImageSemanticProfileService:
         return unique(
             [
                 *profile.visual_facts,
-                *profile.ocr_text,
-                *profile.subjects,
                 *profile.scenes,
-                *profile.actions,
-                *profile.visual_style,
-                *profile.visible_product_features,
                 *self.semantic_search_phrases(image, profile=profile),
-                *profile.negative_visual_concepts,
             ]
         )
 
@@ -254,22 +195,40 @@ class ImageSemanticProfileService:
         if not profile:
             return ""
         parts = [
-            "画像事实：" + "、".join(profile.visual_facts),
-            "OCR文字：" + "、".join(profile.ocr_text),
-            "主体：" + "、".join(profile.subjects),
+            "画面事实：" + "、".join(profile.visual_facts),
             "场景：" + "、".join(profile.scenes),
-            "动作：" + "、".join(profile.actions),
-            "视觉风格：" + "、".join(profile.visual_style),
-            "可见产品功能：" + "、".join(profile.visible_product_features),
             "素材搜索表达："
             + "、".join(
                 profile.asset_search_phrases
                 if search_phrases is None
                 else search_phrases
             ),
-            "画面排除边界：" + "、".join(profile.negative_visual_concepts),
         ]
         return "\n".join(part for part in parts if part.strip() and not part.endswith("："))
+
+    def _profile_from_payload(
+        self,
+        payload: dict[str, Any],
+        image_summary: str | None,
+    ) -> ImageSemanticProfile:
+        visual_facts = payload.get("visual_facts")
+        scenes = payload.get("scenes")
+        asset_search_phrases = payload.get("asset_search_phrases")
+        return ImageSemanticProfile(
+            schema_version=3,
+            visual_facts=self._clean_list(
+                visual_facts if isinstance(visual_facts, list) else [image_summary or ""],
+                limit=6,
+            ),
+            scenes=self._clean_list(
+                scenes if isinstance(scenes, list) else [],
+                limit=4,
+            ),
+            asset_search_phrases=self._clean_list(
+                asset_search_phrases if isinstance(asset_search_phrases, list) else [],
+                limit=8,
+            ),
+        )
 
     def _clean_list(self, values: list[Any], *, limit: int) -> list[str]:
         cleaned = [

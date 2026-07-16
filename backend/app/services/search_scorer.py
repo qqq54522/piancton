@@ -4,6 +4,7 @@ from typing import Literal
 
 from app.models.image import Image
 from app.schemas.image import ScoredImage
+from app.services.image_semantic_profile_service import ImageSemanticProfileService
 from app.services.query_expansion_service import unique
 from app.services.search_asset_presenter import SearchAssetPresenter
 from app.services.serializers import image_to_read
@@ -15,6 +16,7 @@ class SearchScorer:
         asset_presenter: SearchAssetPresenter | None = None,
     ):
         self.asset_presenter = asset_presenter or SearchAssetPresenter()
+        self.semantic_profile = ImageSemanticProfileService()
 
     def build_scored_image(
         self,
@@ -23,7 +25,7 @@ class SearchScorer:
         external_score: float | None,
         external_reasons: list[str],
     ) -> ScoredImage:
-        content_tag_names = [item.tag_name for item in image.content_tags]
+        semantic_terms = self.semantic_profile.profile_terms(image)
         concept_links = [
             link
             for link in (image.asset_group.concept_links if image.asset_group else [])
@@ -34,14 +36,14 @@ class SearchScorer:
         exact_title = bool(needle and (needle in title or title in needle))
         summary = image.image_summary.lower() if image.image_summary else ""
         summary_match = bool(needle and summary and (needle in summary or summary in needle))
-        matched_content = self._matching_names(needle, content_tag_names)
+        matched_content = self._matching_names(needle, semantic_terms)
         matched_concepts = self._matching_concepts(needle, concept_links)
 
         reasons = list(external_reasons)
         if exact_title:
             reasons.append("标题匹配")
         if matched_content:
-            reasons.append("画面内容匹配")
+            reasons.append("素材语义匹配")
         if matched_concepts:
             reasons.append("业务概念匹配")
         if summary_match:

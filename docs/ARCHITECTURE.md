@@ -41,7 +41,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 外部搜索分支不得共享请求 SQLAlchemy Session；ORM 实体只由请求主会话水合。
 - 候选融合后最多执行一次 Reranker，生成式图片摘要裁判不得回到在线链路。
 - 公共搜索话术属于业务概念，素材详情只保存当前图片独有话术；公共话术编辑/停用必须经过管理员接口和概念版本更新。
-- Meilisearch 字段优先级必须保持已确认业务语言高于已确认素材独有话术、已确认素材独有话术高于客观内容标签；AI 待审核素材话术只能作为低优先级语义辅助，拒绝后退出所有搜索投影。
+- Meilisearch 字段优先级必须保持已确认业务语言高于已确认素材独有话术，再高于语义总结、画面事实和场景；AI 待审核素材话术只能作为低优先级语义辅助，拒绝后退出所有搜索投影。
 - `derivative` 尺寸/渠道延展只执行安全上传、缩略图和尺寸识别，不进入 AI 分析队列；只有正式主图的分析结果可以刷新素材组级 AI 关系和候选话术。
 
 这些约束由 `backend/tests/test_architecture.py` 和 CI 检查。
@@ -60,7 +60,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 1. 尺寸/渠道延展直接继承素材组业务关系和搜索话术，不创建独立 AI 分析任务。
 2. 对 `derivative` 手动发起完整分析时接口明确拒绝，避免重复成本和语义污染。
-3. 备选图可以保留自己的客观画面分析，但非主图分析不得改写素材组级 AI 候选；替换后的正式主图可以刷新候选。
+3. 备选图可以保留自己的 Semantic Profile V3，但非主图分析不得改写素材组级 AI 候选；替换后的正式主图可以刷新候选。
 
 删除流程：
 
@@ -73,7 +73,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 相关素材流程：
 
-1. `RelatedImageService` 可以按人工概念、体系和客观内容生成候选，但在评分前排除当前图片以及同一 `asset_group_id` 的所有版本。
+1. `RelatedImageService` 可以按人工概念、体系、画面事实、场景和已确认素材话术生成候选，但在评分前排除当前图片以及同一 `asset_group_id` 的所有版本。
 2. Repository 统一排除 `deleted_at` 非空图片；回收站图片不会进入相关素材。
 3. 前端版本变更成功后同时刷新素材组、图片列表和图片详情缓存，避免“版本与尺寸”与“相关素材”短暂不一致。
 
@@ -104,7 +104,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - Phase 0～6 工程改造和旧职责清理完成，数据库 revision 为 `20260715_0014`。
 - `tags` 只保留 6 个稳定体系节点；可变化业务语义位于 `business_concepts`、概念关系、概念搜索表达和素材概念关系。
 - 首次上传自动建立素材组；主图可先发布，延展、备选和修订版本可后续追加。
-- 图片客观语义使用 Semantic Profile V2 与 `content_tags`；AI 业务判断写入待审核素材概念关系建议。
+- 图片语义使用 Semantic Profile V3，只保存画面事实、场景和素材独有搜索表达；AI 业务判断写入待审核素材概念关系建议。旧 V2 与 `content_tags` 运行时不再读取或参与搜索。
 - 在线搜索只有一条自动编排，不再向普通用户或 API 暴露搜索模式选择。
 - 本地正式素材库已有 1 张已审核代表主图并完成“主要表达”关系确认；Phase 0/4 真实质量验收仍需再补充 2～5 张代表素材，并累计 10～20 条真实查询后重新建立。
 - Phase 0～6 回滚提交已在 GitHub Actions 的 PostgreSQL 17 环境完成从零迁移、后端检查和前端检查。

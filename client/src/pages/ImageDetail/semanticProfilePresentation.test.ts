@@ -5,16 +5,10 @@ import { visibleSemanticProfileGroups } from './semanticProfilePresentation';
 describe('visibleSemanticProfileGroups', () => {
   it('only exposes the three high-value groups on the image detail page', () => {
     const groups = visibleSemanticProfileGroups({
-      schemaVersion: 2,
+      schemaVersion: 3,
       visualFacts: ['手机章节与课本目录对应'],
-      ocrText: ['数学 八年级 下册'],
-      subjects: ['手机学习应用界面'],
       scenes: ['教材章节对照场景'],
-      actions: ['切换学习章节'],
-      visualStyle: ['左右对照构图'],
-      visibleProductFeatures: ['章节切换列表'],
       assetSearchPhrases: ['手机章节切换对照课本目录'],
-      negativeVisualConcepts: ['没有人物学习场景'],
     });
 
     expect(groups).toEqual([
@@ -29,6 +23,6 @@ describe('visibleSemanticProfileGroups', () => {
   });
 
   it('omits empty visible groups', () => {
-    expect(visibleSemanticProfileGroups({ schemaVersion: 2 })).toEqual([]);
+    expect(visibleSemanticProfileGroups({ schemaVersion: 3 })).toEqual([]);
   });
 });

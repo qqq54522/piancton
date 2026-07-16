@@ -117,6 +117,10 @@ def test_master_and_project_log_publish_the_same_current_phase():
     image_semantic_profile = _read(
         "backend/app/services/image_semantic_profile_service.py"
     )
+    ai_schema = _read("backend/app/schemas/ai.py")
+    image_schema = _read("backend/app/schemas/image.py")
+    ai_rules = _read("skills/analyze-image-content/RULES.md")
+    meilisearch_client = _read("backend/app/services/meilisearch_client.py")
     search_index = _read("backend/app/services/search_index.py")
     html = _read("client/index.html")
 
@@ -141,6 +145,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D043" in master
     assert "D044" in master
     assert "D045" in master
+    assert "D046" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -214,6 +219,19 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert 'AssetSearchPhrase.review_status == "accepted"' in image_repository
     assert "semantic_search_phrases" in image_semantic_profile
     assert 'if item.review_status == "rejected"' in image_semantic_profile
+    assert "schema_version: Literal[3] = 3" in ai_schema
+    assert "class ConfidenceTag" not in ai_schema
+    assert "content_tags:" not in ai_schema
+    assert "recommended_search_words:" not in ai_schema
+    assert "schema_version: Literal[3] = 3" in image_schema
+    assert "class ContentTagRead" not in image_schema
+    assert "content_tags:" not in image_schema
+    assert '"schema_version": 3' in ai_rules
+    assert '"ocr_text"' not in ai_rules
+    assert '"content_tags"' not in ai_rules
+    assert '"contentTags"' not in search_index
+    assert '"contentDimensions"' not in search_index
+    assert '"contentTags"' not in meilisearch_client
     assert "self._sync_primary(group_id)" in asset_relation_service
     assert "def remove_phrase" in asset_relation_service
     assert "和学校课程一致" in master

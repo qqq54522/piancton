@@ -79,7 +79,7 @@ class AssetRelationService:
                 weight=0.72,
             )
             for phrase in _unique_phrases(
-                [*result.semantic_profile.asset_search_phrases, *result.recommended_search_words]
+                result.semantic_profile.asset_search_phrases
             )
         ]
         self.assets.replace_pending_ai_phrases(group, phrases)

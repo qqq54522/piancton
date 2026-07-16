@@ -5,7 +5,6 @@ from app.core.errors import NotFoundError
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
 from app.models.image import (
     AnalysisRun,
-    ContentTag,
     Image,
 )
 from app.repositories.image_repository import ImageRepository
@@ -75,8 +74,6 @@ class ImageAnalysisService:
         for item, concept_code in zip(result.concept_suggestions, concept_codes):
             if concept_code:
                 item.concept_code = concept_code
-        content_tags = self._content_tags_from_analysis(result)
-
         settings = get_settings()
         if analysis_run_id:
             analysis_run = self._get_analysis_run(image_id, analysis_run_id)
@@ -97,7 +94,6 @@ class ImageAnalysisService:
             image,
             summary=result.image_summary.strip(),
             semantic_profile_json=self.semantic_profile.profile_json_from_analysis(result),
-            content_tags=content_tags,
             analysis_run=analysis_run,
         )
         if image.asset_group_id:
@@ -127,27 +123,6 @@ class ImageAnalysisService:
             else node_by_name.get((item.system_name.strip(), item.concept_name.strip()))
             for item in result.concept_suggestions
         ]
-
-    def _content_tags_from_analysis(
-        self,
-        result: ImageAnalysisResult,
-    ) -> list[ContentTag]:
-        content_tags: list[ContentTag] = []
-        seen: set[str] = set()
-        for item in result.content_tags:
-            name = item.tag.strip()
-            if not name or name in seen:
-                continue
-            seen.add(name)
-            content_tags.append(
-                ContentTag(
-                    tag_name=name,
-                    confidence=item.confidence,
-                    dimension=item.dimension,
-                )
-            )
-
-        return content_tags
 
     def _detail(self, image_id: str) -> ImageDetailRead:
         image = self._get(image_id)
