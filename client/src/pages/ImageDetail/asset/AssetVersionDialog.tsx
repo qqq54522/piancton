@@ -55,7 +55,9 @@ function AssetVersionDialog({
         <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           {mode === 'replace'
             ? '新图将成为正式主图，旧主图保留为历史修订版；已确认的素材组概念关系和搜索语不会丢失。'
-            : '延展版本自动继承素材组关系，搜索结果仍只占一个位置。'}
+            : role === 'derivative'
+              ? '尺寸/渠道延展只上传文件并识别尺寸，不运行 AI 分析；自动继承主图关系和话术，搜索结果仍只占一个位置。'
+              : '同主题备选图会单独分析画面，但不会改动素材组已确认关系和话术。'}
         </div>
         <label className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-6 text-sm text-muted-foreground hover:bg-muted/50">
           <Upload className="mr-2 size-4" />

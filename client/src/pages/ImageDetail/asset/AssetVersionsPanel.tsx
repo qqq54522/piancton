@@ -40,7 +40,11 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
         return;
       }
       await actions.addVariant.mutateAsync(input);
-      toast.success('延展版本已添加，正在后台分析');
+      toast.success(
+        input.role === 'derivative'
+          ? '延展版本已添加，已继承主图业务信息'
+          : '备选版本已添加，正在后台分析画面',
+      );
       setDialogMode(null);
     } catch (error) {
       toast.error(getApiError(error).message);

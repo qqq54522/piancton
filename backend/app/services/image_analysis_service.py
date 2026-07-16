@@ -102,7 +102,7 @@ class ImageAnalysisService:
         )
         if image.asset_group_id:
             group = self.asset_relations.assets.get(image.asset_group_id)
-            if group:
+            if group and group.primary_image_id == image.id:
                 self.asset_relations.replace_analysis_suggestions(
                     group,
                     result,

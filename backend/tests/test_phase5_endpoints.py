@@ -2,9 +2,12 @@ from io import BytesIO
 
 from PIL import Image as PillowImage
 
+from app.api import dependencies
+from app.main import app
 from app.models.asset import AssetConceptLink, AssetGroup
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
 from app.models.tag import Tag
+from app.schemas.ai import ConfidenceTag, ImageAnalysisResult, ImageSemanticProfile
 from app.services.search_index_sync import SearchIndexSync
 from tests.conftest import login
 
@@ -84,6 +87,126 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
         ("delete", image["id"]),
         ("upsert", group["primaryImageId"]),
     ]
+
+
+def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
+    from app.api.v1 import assets as assets_api
+
+    queued_image_ids: list[str] = []
+    monkeypatch.setattr(
+        assets_api,
+        "_queue_analysis",
+        lambda image_id, **_kwargs: queued_image_ids.append(image_id),
+    )
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={"title": "主图", "autoAnalyze": "false"},
+    ).json()
+
+    variant = client.post(
+        f"/api/asset-groups/{primary['assetGroupId']}/images",
+        headers=headers,
+        files={"file": ("vertical.png", png_file("green"), "image/png")},
+        data={
+            "title": "竖版尺寸延展",
+            "assetRole": "derivative",
+            "autoAnalyze": "true",
+        },
+    )
+
+    assert variant.status_code == 201
+    assert queued_image_ids == []
+    variant_id = next(
+        item["id"]
+        for item in variant.json()["images"]
+        if item["id"] != primary["id"]
+    )
+    manual_analysis = client.post(
+        f"/api/ai/images/{variant_id}/analyze",
+        headers=headers,
+    )
+    assert manual_analysis.status_code == 400
+    assert manual_analysis.json()["code"] == "derivative_analysis_not_required"
+
+
+def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
+    result = {
+        "value": ImageAnalysisResult(
+            image_summary="主图画面",
+            semantic_profile=ImageSemanticProfile(
+                visual_facts=["主图画面"],
+                asset_search_phrases=["正确主图候选"],
+            ),
+            content_tags=[
+                ConfidenceTag(tag="主图", confidence=0.9, dimension="画面"),
+            ],
+            concept_suggestions=[],
+            recommended_search_words=[],
+        )
+    }
+
+    class FakeAiService:
+        def analyze_image(self, _path):
+            return result["value"]
+
+    app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={"title": "主图", "autoAnalyze": "false"},
+    ).json()
+    group_id = primary["assetGroupId"]
+    analyzed = client.post(f"/api/ai/images/{primary['id']}/analyze", headers=headers)
+    assert analyzed.status_code == 200
+
+    variant_group = client.post(
+        f"/api/asset-groups/{group_id}/images",
+        headers=headers,
+        files={"file": ("vertical.png", png_file("green"), "image/png")},
+        data={
+            "title": "同主题备选图",
+            "assetRole": "alternative",
+            "autoAnalyze": "false",
+        },
+    ).json()
+    variant_id = next(
+        item["id"] for item in variant_group["images"] if item["id"] != primary["id"]
+    )
+
+    result["value"] = ImageAnalysisResult(
+        image_summary="错误延展画面",
+        semantic_profile=ImageSemanticProfile(
+            visual_facts=["错误延展画面"],
+            asset_search_phrases=["错误延展候选"],
+        ),
+        content_tags=[
+            ConfidenceTag(tag="错误延展", confidence=0.9, dimension="画面"),
+        ],
+        concept_suggestions=[],
+        recommended_search_words=[],
+    )
+    alternative_analysis = client.post(
+        f"/api/ai/images/{variant_id}/analyze",
+        headers=headers,
+    )
+    assert alternative_analysis.status_code == 200
+
+    phrases = client.get(f"/api/asset-groups/{group_id}", headers=headers).json()[
+        "searchPhrases"
+    ]
+    ai_phrases = {
+        item["phrase"]
+        for item in phrases
+        if item["origin"] == "ai" and item["reviewStatus"] == "pending"
+    }
+    assert ai_phrases == {"正确主图候选"}
 
 
 def test_phase5_designer_can_trash_variant_but_not_primary(client, monkeypatch):

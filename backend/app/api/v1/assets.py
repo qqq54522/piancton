@@ -78,14 +78,17 @@ def add_asset_variant(
         user.username,
     )
     image_id = max(group.images, key=lambda item: item.version_no).id
-    _queue_analysis(
-        image_id,
-        auto_analyze=auto_analyze,
-        background_tasks=background_tasks,
-        analysis=analysis,
-        ai=ai,
-        session_factory=session_factory,
-    )
+    # A derivative is only a size/channel adaptation of the same visual. It
+    # inherits group semantics and must never create a competing AI analysis.
+    if asset_role != "derivative":
+        _queue_analysis(
+            image_id,
+            auto_analyze=auto_analyze,
+            background_tasks=background_tasks,
+            analysis=analysis,
+            ai=ai,
+            session_factory=session_factory,
+        )
     return group
 
 

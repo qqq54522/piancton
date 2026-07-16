@@ -7,6 +7,7 @@ from app.api.dependencies import (
     require_roles,
     require_write_role,
 )
+from app.core.errors import AppError
 from app.models.user import User
 from app.schemas.ai import (
     ImageAnalysisResult,
@@ -57,7 +58,12 @@ def analyze_image(
     images: ImageService = Depends(get_image_service),
     analysis: ImageAnalysisService = Depends(get_image_analysis_service),
 ):
-    path, _image = images.content(image_id)
+    path, image = images.content(image_id)
+    if image.asset_role == "derivative":
+        raise AppError(
+            "derivative_analysis_not_required",
+            "尺寸延展版本继承主图业务信息，无需重复 AI 分析",
+        )
     result = service.analyze_image(path)
     analysis.save_ai_analysis(image_id, result)
     return result

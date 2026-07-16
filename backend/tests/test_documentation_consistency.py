@@ -93,11 +93,17 @@ def test_master_and_project_log_publish_the_same_current_phase():
     asset_versions_panel = _read(
         "client/src/pages/ImageDetail/asset/AssetVersionsPanel.tsx"
     )
+    asset_version_dialog = _read(
+        "client/src/pages/ImageDetail/asset/AssetVersionDialog.tsx"
+    )
     asset_variant_delete_dialog = _read(
         "client/src/pages/ImageDetail/asset/AssetVariantDeleteDialog.tsx"
     )
     asset_actions = _read("client/src/features/assets/useAssetActions.ts")
     related_image_service = _read("backend/app/services/related_image_service.py")
+    asset_api = _read("backend/app/api/v1/assets.py")
+    ai_api = _read("backend/app/api/v1/ai.py")
+    image_analysis_service = _read("backend/app/services/image_analysis_service.py")
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -116,6 +122,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D038" in master
     assert "D039" in master
     assert "D040" in master
+    assert "D041" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -149,10 +156,15 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "需要为这张素材补充其他卖点关系时再开启" in asset_concept_panel
     assert "image.id !== group.primaryImageId" in asset_versions_panel
     assert "删除版本" in asset_versions_panel
+    assert "已继承主图业务信息" in asset_versions_panel
+    assert "不运行 AI 分析" in asset_version_dialog
     assert "移入回收站" in asset_variant_delete_dialog
     assert "只会移除这个版本" in asset_variant_delete_dialog
     assert "queryKey: ['image-detail']" in asset_actions
     assert "candidate.asset_group_id != image.asset_group_id" in related_image_service
+    assert 'if asset_role != "derivative"' in asset_api
+    assert "derivative_analysis_not_required" in ai_api
+    assert "group.primary_image_id == image.id" in image_analysis_service
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme
