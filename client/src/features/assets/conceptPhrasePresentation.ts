@@ -20,6 +20,23 @@ export function selectInheritedConcepts(
   return concepts.filter((concept) => inheritedIds.has(concept.id));
 }
 
+export function selectPendingConceptSuggestions(
+  links: AssetConceptLink[],
+): AssetConceptLink[] {
+  const confirmedIds = new Set(
+    links
+      .filter((link) => (
+        link.origin === 'manual' && link.reviewStatus === 'accepted'
+      ))
+      .map((link) => link.conceptId),
+  );
+  return links.filter((link) => (
+    link.origin === 'ai'
+    && link.reviewStatus === 'pending'
+    && !confirmedIds.has(link.conceptId)
+  ));
+}
+
 export function isAuxiliaryKeyword(phrase: ConceptSearchPhrase): boolean {
   return [...phrase.phrase.replace(/\s/g, '')].length < 4;
 }

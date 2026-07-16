@@ -146,6 +146,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D044" in master
     assert "D045" in master
     assert "D046" in master
+    assert "D047" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -200,6 +201,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
         assert hidden_group not in image_ai_panel
         assert hidden_group not in semantic_profile_presentation
     assert 'role="switch"' in asset_concept_panel
+    assert "selectPendingConceptSuggestions" in asset_concept_panel
     assert "需要为这张素材补充其他卖点关系时再开启" in asset_concept_panel
     assert "image.id !== group.primaryImageId" in asset_versions_panel
     assert "删除版本" in asset_versions_panel
@@ -234,6 +236,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert '"contentTags"' not in meilisearch_client
     assert "self._sync_primary(group_id)" in asset_relation_service
     assert "def remove_phrase" in asset_relation_service
+    assert "_reject_shadowed_ai_suggestions" in asset_relation_service
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme

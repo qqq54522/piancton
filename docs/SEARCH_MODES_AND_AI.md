@@ -82,7 +82,7 @@ Provider 未配置或分析失败不影响图片上传、预览、下载和人�
 - 关系为 `expresses` 或 `supports`；
 - 必须给出证据与相邻概念排除边界。
 
-负责人确认后形成 `origin=manual`、`review_status=accepted` 的业务事实。AI 重跑不得覆盖人工确认或人工拒绝结果。
+负责人确认后形成 `origin=manual`、`review_status=accepted` 的业务事实。AI 重跑不得覆盖人工确认或人工拒绝结果；同一卖点已有人工 accepted 关系时，对应 AI pending 建议会自动软拒绝，后续分析也不再重新生成该待审核项。已接受 AI 记录仍可保留为审计来源，但不会再次要求用户审核。
 
 ## 业务概念与搜索语言
 

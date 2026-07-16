@@ -35,6 +35,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - AI 业务只依赖 `ModelProvider`；未配置 Provider 时必须失败，不能返回空结果冒充成功。
 - AI 输出必须先经过 normalizer、Pydantic schema 和 taxonomy catalog 校验，才能写入业务数据。
 - 素材概念关系必须区分人工事实与 AI 建议：`origin=manual/ai`；AI 建议通过 `review_status=pending/accepted/rejected` 流转。
+- 同卖点人工 `accepted` 关系会在服务层软拒绝 AI `pending` 建议，分析重跑也必须在持久化前排除该卖点；序列化和前端只做防御性过滤，不能代替后端事实约束。
 - 数据库是图片、业务概念、素材关系、AI 分析和审核状态的事实源；Meilisearch 只是可重建的派生索引。
 - Meilisearch 不可用时搜索必须降级到数据库路径，不能阻断上传、详情或基础搜索。
 - 普通业务用户只有一个搜索框；六大体系只有在用户显式选择时才是硬过滤。

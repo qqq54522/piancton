@@ -46,6 +46,8 @@ class AssetRelationService:
         *,
         source_ref: str | None,
     ) -> None:
+        confirmed_concept_ids = self._manual_accepted_concept_ids(group)
+        self._reject_shadowed_ai_suggestions(group, confirmed_concept_ids)
         codes = [
             item.concept_code
             for item in result.concept_suggestions
@@ -56,7 +58,7 @@ class AssetRelationService:
         links = []
         for suggestion in result.concept_suggestions:
             concept = by_code.get(suggestion.concept_code or "")
-            if not concept:
+            if not concept or concept.id in confirmed_concept_ids:
                 continue
             links.append(
                 AssetConceptLink(
@@ -106,6 +108,7 @@ class AssetRelationService:
             payload.relation_role,
             payload.evidence_reason,
         )
+        self._reject_shadowed_ai_suggestions(group, {concept.id})
         self.assets.save(group)
         self.uow.commit()
         self._sync_primary(group_id)
@@ -124,6 +127,7 @@ class AssetRelationService:
                 "asset_concept_link_not_found",
                 "部分素材业务关系不存在",
             )
+        confirmed_concept_ids = self._manual_accepted_concept_ids(group)
         for link_id in dict.fromkeys(payload.link_ids):
             link = links_by_id[link_id]
             if link.origin != "ai":
@@ -131,6 +135,12 @@ class AssetRelationService:
                     "manual_relation_not_reviewable",
                     "人工确认关系不需要审核",
                 )
+            if (
+                payload.review_status == "accepted"
+                and link.concept_id in confirmed_concept_ids
+            ):
+                link.review_status = "rejected"
+                continue
             link.review_status = payload.review_status
             if payload.review_status == "accepted":
                 self._upsert_manual_link(
@@ -142,6 +152,8 @@ class AssetRelationService:
                     ),
                     ("负责人接受 AI 建议：" + (link.evidence_reason or "")).rstrip("："),
                 )
+                confirmed_concept_ids.add(link.concept_id)
+        self._reject_shadowed_ai_suggestions(group, confirmed_concept_ids)
         self.assets.save(group)
         self.uow.commit()
         self._sync_primary(group_id)
@@ -156,6 +168,16 @@ class AssetRelationService:
             raise NotFoundError("asset_concept_link_not_found", "素材业务关系不存在")
         if link.origin != "ai":
             raise AppError("manual_relation_not_reviewable", "人工确认关系不需要审核")
+        confirmed_concept_ids = self._manual_accepted_concept_ids(group)
+        if (
+            payload.review_status == "accepted"
+            and link.concept_id in confirmed_concept_ids
+        ):
+            link.review_status = "rejected"
+            self.assets.save(link)
+            self.uow.commit()
+            self._sync_primary(group_id)
+            return asset_group_to_read(self._group(group_id))
         link.review_status = payload.review_status
         if payload.relation_role:
             link.relation_role = payload.relation_role
@@ -169,6 +191,7 @@ class AssetRelationService:
                 ),
                 ("负责人接受 AI 建议：" + (link.evidence_reason or "")).rstrip("："),
             )
+            self._reject_shadowed_ai_suggestions(group, {link.concept_id})
             self.assets.save(group)
         self.assets.save(link)
         self.uow.commit()
@@ -273,6 +296,27 @@ class AssetRelationService:
                 evidence_reason=evidence_reason,
             )
         )
+
+    @staticmethod
+    def _manual_accepted_concept_ids(group: AssetGroup) -> set[str]:
+        return {
+            item.concept_id
+            for item in group.concept_links
+            if item.origin == "manual" and item.review_status == "accepted"
+        }
+
+    @staticmethod
+    def _reject_shadowed_ai_suggestions(
+        group: AssetGroup,
+        concept_ids: set[str],
+    ) -> None:
+        for item in group.concept_links:
+            if (
+                item.origin == "ai"
+                and item.review_status == "pending"
+                and item.concept_id in concept_ids
+            ):
+                item.review_status = "rejected"
 
 
 def _unique_phrases(values: list[str]) -> list[str]:

@@ -29,6 +29,20 @@ def asset_image_to_read(image: Image) -> AssetImageRead:
 
 
 def asset_group_to_read(group: AssetGroup) -> AssetGroupRead:
+    manually_confirmed_ids = {
+        item.concept_id
+        for item in group.concept_links
+        if item.origin == "manual" and item.review_status == "accepted"
+    }
+    visible_concept_links = [
+        item
+        for item in group.concept_links
+        if not (
+            item.origin == "ai"
+            and item.review_status == "pending"
+            and item.concept_id in manually_confirmed_ids
+        )
+    ]
     return AssetGroupRead(
         id=group.id,
         title=group.title,
@@ -56,7 +70,7 @@ def asset_group_to_read(group: AssetGroup) -> AssetGroupRead:
                 evidence_reason=item.evidence_reason,
                 source_ref=item.source_ref,
             )
-            for item in group.concept_links
+            for item in visible_concept_links
         ],
         search_phrases=[
             AssetSearchPhraseRead.model_validate(item) for item in group.search_phrases

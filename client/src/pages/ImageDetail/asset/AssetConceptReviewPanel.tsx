@@ -9,6 +9,7 @@ import { Button } from '@client/src/components/ui/button';
 import { Select } from '@client/src/components/ui/select';
 import type { AssetGroup, BusinessConcept } from '@client/src/types/api';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
+import { selectPendingConceptSuggestions } from '@client/src/features/assets/conceptPhrasePresentation';
 
 type AssetActions = ReturnType<typeof useAssetActions>;
 
@@ -29,9 +30,7 @@ function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptRevie
   const [conceptId, setConceptId] = useState('');
   const [relationRole, setRelationRole] = useState<AssetRelationRole>('supports');
   const [isManualOpen, setIsManualOpen] = useState(false);
-  const pending = group.conceptLinks.filter(
-    (item) => item.origin === 'ai' && item.reviewStatus === 'pending',
-  );
+  const pending = selectPendingConceptSuggestions(group.conceptLinks);
   const confirmed = group.conceptLinks.filter(
     (item) => item.origin === 'manual' && item.reviewStatus === 'accepted',
   );

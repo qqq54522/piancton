@@ -46,6 +46,7 @@ AI 只补充语义总结、画面事实、场景、素材独有搜索表达和�
 - AI 输出必须经过 normalizer、schema 和 taxonomy 校验后才能写入。
 - 图片分析契约固定为 Semantic Profile V3：不得重新生成或搜索使用 OCR、主体、动作、视觉风格、可见功能、排除边界和客观 `content_tags`；模型误返回的旧字段必须在 normalizer 丢弃。
 - 人工事实与 AI 建议不能混用：继续保留 `origin=manual/ai` 和 `review_status=pending/accepted/rejected` 的边界。
+- 同一素材组同一卖点已有人工 accepted 关系时，AI pending 建议必须在服务层软拒绝，后续分析持久化前必须排除；不得只靠前端隐藏重复建议。
 - 素材独有话术只有 `accepted` 项可以进入高优先级数据库/Meilisearch 直接召回；AI `pending` 只允许作为低优先级语义辅助，`rejected` 必须从 Semantic Profile、Embedding 和 Reranker 搜索投影排除。
 - 新增打标规则时，优先沉淀到 taxonomy、skills 或独立规则服务，不要写成散落在上传流程里的特殊判断。
 - 真实图片评测前，不要为了“看起来更聪明”重新引入图片直挂标签或固定二级树。

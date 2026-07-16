@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AssetConceptLink, BusinessConcept } from '@client/src/types/api';
-import { selectInheritedConcepts } from './conceptPhrasePresentation';
+import {
+  selectInheritedConcepts,
+  selectPendingConceptSuggestions,
+} from './conceptPhrasePresentation';
 
 describe('concept phrase presentation', () => {
   it('inherits only unique concepts from manually confirmed relationships', () => {
@@ -35,6 +38,36 @@ describe('concept phrase presentation', () => {
 
     expect(selectInheritedConcepts(links, concepts).map((item) => item.id)).toEqual([
       'sync-school',
+    ]);
+  });
+
+  it('hides pending AI suggestions already covered by a manual confirmation', () => {
+    const links = [
+      {
+        id: 'manual-link',
+        conceptId: 'sync-school',
+        origin: 'manual',
+        reviewStatus: 'accepted',
+        relationRole: 'expresses',
+      },
+      {
+        id: 'duplicate-ai-link',
+        conceptId: 'sync-school',
+        origin: 'ai',
+        reviewStatus: 'pending',
+        relationRole: 'expresses',
+      },
+      {
+        id: 'new-ai-link',
+        conceptId: 'other-concept',
+        origin: 'ai',
+        reviewStatus: 'pending',
+        relationRole: 'supports',
+      },
+    ] as AssetConceptLink[];
+
+    expect(selectPendingConceptSuggestions(links).map((item) => item.id)).toEqual([
+      'new-ai-link',
     ]);
   });
 });
