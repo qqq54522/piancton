@@ -80,6 +80,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     upload_phrases = _read("client/src/pages/ImageHome/UploadSearchPhraseFields.tsx")
     inheritance = _read("client/src/pages/ImageHome/ConceptPhraseInheritancePanel.tsx")
     concept_page = _read("client/src/pages/AdminConcepts/AdminConcepts.tsx")
+    asset_phrase_panel = _read(
+        "client/src/pages/ImageDetail/asset/AssetPhraseReviewPanel.tsx"
+    )
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -113,6 +116,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert 'title="卖点与公共话术"' in concept_page
     assert "卖点管理" in layout
     assert "AI培训" not in concept_page
+    assert "素材独有话术列表" in asset_phrase_panel
+    assert "AI 待确认候选" in asset_phrase_panel
+    assert "overflow-y-auto" in asset_phrase_panel
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme
