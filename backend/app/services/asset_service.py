@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import BinaryIO
 
@@ -148,6 +149,30 @@ class AssetService:
         if previous_primary:
             self.search_index.delete_image(previous_primary.id)
         self.search_index.upsert_image(image)
+        return asset_group_to_read(self._get(group_id))
+
+    def delete_variant(self, group_id: str, image_id: str) -> AssetGroupRead:
+        group = self._get(group_id)
+        image = next(
+            (
+                item
+                for item in group.images
+                if item.id == image_id and item.deleted_at is None
+            ),
+            None,
+        )
+        if not image:
+            raise NotFoundError("asset_variant_not_found", "素材组中不存在该版本")
+        if image.id == group.primary_image_id:
+            raise AppError(
+                "cannot_delete_primary_image",
+                "正式主图不能作为延展版本删除，请先替换主图",
+            )
+
+        image.deleted_at = datetime.now(timezone.utc)
+        self.images.save(image)
+        self.uow.commit()
+        self.search_index.delete_image(image.id)
         return asset_group_to_read(self._get(group_id))
 
     def _get(self, group_id: str) -> AssetGroup:

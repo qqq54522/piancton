@@ -23,6 +23,10 @@ export function useAssetActions(groupId: string) {
     ),
     onSuccess: update,
   });
+  const deleteVariant = useMutation({
+    mutationFn: (imageId: string) => assetApi.deleteAssetVariant(groupId, imageId),
+    onSuccess: update,
+  });
   const confirmConcept = useMutation({
     mutationFn: (input: {
       conceptId: string;
@@ -66,6 +70,7 @@ export function useAssetActions(groupId: string) {
     addPhrase,
     addVariant,
     confirmConcept,
+    deleteVariant,
     replacePrimary,
     reviewConcept,
     reviewConcepts,

@@ -38,7 +38,10 @@ def asset_group_to_read(group: AssetGroup) -> AssetGroupRead:
         created_by=group.created_by,
         images=[
             asset_image_to_read(image)
-            for image in sorted(group.images, key=lambda item: (item.version_no, item.created_at))
+            for image in sorted(
+                (item for item in group.images if item.deleted_at is None),
+                key=lambda item: (item.version_no, item.created_at),
+            )
         ],
         concept_links=[
             AssetConceptLinkRead(

@@ -46,6 +46,13 @@ export async function replaceAssetPrimary(
   return (await api.post(`/api/asset-groups/${groupId}/primary-image`, form)).data;
 }
 
+export async function deleteAssetVariant(
+  groupId: string,
+  imageId: string,
+): Promise<AssetGroup> {
+  return (await api.delete(`/api/asset-groups/${groupId}/images/${imageId}`)).data;
+}
+
 export async function confirmAssetConcept(
   groupId: string,
   conceptId: string,

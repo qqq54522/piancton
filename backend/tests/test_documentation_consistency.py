@@ -86,6 +86,12 @@ def test_master_and_project_log_publish_the_same_current_phase():
     asset_concept_panel = _read(
         "client/src/pages/ImageDetail/asset/AssetConceptReviewPanel.tsx"
     )
+    asset_versions_panel = _read(
+        "client/src/pages/ImageDetail/asset/AssetVersionsPanel.tsx"
+    )
+    asset_variant_delete_dialog = _read(
+        "client/src/pages/ImageDetail/asset/AssetVariantDeleteDialog.tsx"
+    )
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -99,6 +105,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D033" in master
     assert "D034" in master
     assert "D035" in master
+    assert "D036" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -124,6 +131,10 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "overflow-y-auto" in asset_phrase_panel
     assert 'role="switch"' in asset_concept_panel
     assert "需要为这张素材补充其他卖点关系时再开启" in asset_concept_panel
+    assert "image.id !== group.primaryImageId" in asset_versions_panel
+    assert "删除版本" in asset_versions_panel
+    assert "移入回收站" in asset_variant_delete_dialog
+    assert "只会移除这个版本" in asset_variant_delete_dialog
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme

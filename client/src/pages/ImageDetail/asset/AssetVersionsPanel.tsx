@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ImagePlus, RefreshCw } from 'lucide-react';
+import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { getApiError } from '@client/src/api/client';
@@ -7,9 +7,11 @@ import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
 import type { AssetGroup } from '@client/src/types/api';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
+import AssetVariantDeleteDialog from './AssetVariantDeleteDialog';
 import AssetVersionDialog from './AssetVersionDialog';
 
 type AssetActions = ReturnType<typeof useAssetActions>;
+type AssetImage = AssetGroup['images'][number];
 
 interface AssetVersionsPanelProps {
   group: AssetGroup;
@@ -20,6 +22,7 @@ interface AssetVersionsPanelProps {
 
 function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: AssetVersionsPanelProps) {
   const [dialogMode, setDialogMode] = useState<'variant' | 'replace' | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AssetImage | null>(null);
   const pending = actions.addVariant.isPending || actions.replacePrimary.isPending;
 
   const submit = async (input: {
@@ -39,6 +42,17 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
       await actions.addVariant.mutateAsync(input);
       toast.success('延展版本已添加，正在后台分析');
       setDialogMode(null);
+    } catch (error) {
+      toast.error(getApiError(error).message);
+    }
+  };
+
+  const removeVariant = async () => {
+    if (!deleteTarget) return;
+    try {
+      await actions.deleteVariant.mutateAsync(deleteTarget.id);
+      toast.success('延展版本已移入回收站');
+      setDeleteTarget(null);
     } catch (error) {
       toast.error(getApiError(error).message);
     }
@@ -69,9 +83,24 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
             <div className="space-y-1 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-xs font-medium">{image.title}</p>
-                <Badge variant={image.id === group.primaryImageId ? 'default' : 'outline'} className="text-[10px]">
-                  {image.id === group.primaryImageId ? '正式主图' : image.isCurrent ? '可用版本' : '历史版本'}
-                </Badge>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Badge variant={image.id === group.primaryImageId ? 'default' : 'outline'} className="text-[10px]">
+                    {image.id === group.primaryImageId ? '正式主图' : image.isCurrent ? '可用版本' : '历史版本'}
+                  </Badge>
+                  {editable && image.id !== group.primaryImageId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`删除版本“${image.title}”`}
+                      title="删除这个版本"
+                      onClick={() => setDeleteTarget(image)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {image.width && image.height ? `${image.width} × ${image.height}` : '尺寸待识别'}
@@ -87,6 +116,13 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
         pending={pending}
         onOpenChange={(open) => !open && setDialogMode(null)}
         onSubmit={submit}
+      />
+      <AssetVariantDeleteDialog
+        title={deleteTarget?.title ?? ''}
+        open={Boolean(deleteTarget)}
+        deleting={actions.deleteVariant.isPending}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={removeVariant}
       />
     </section>
   );

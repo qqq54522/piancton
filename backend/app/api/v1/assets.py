@@ -1,11 +1,12 @@
 from typing import Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile, status
 
 from app.api.dependencies import (
     get_ai_service,
     get_asset_relation_service,
     get_asset_service,
+    get_audit_service,
     get_current_user,
     get_db_session_factory,
     get_image_analysis_service,
@@ -24,6 +25,7 @@ from app.services.ai_service import AiService
 from app.services.analysis_tasks import run_image_analysis_task
 from app.services.asset_relation_service import AssetRelationService
 from app.services.asset_service import AssetService
+from app.services.audit_service import AuditService
 from app.services.image_analysis_service import ImageAnalysisService
 
 router = APIRouter(prefix="/asset-groups", tags=["asset-groups"])
@@ -123,6 +125,27 @@ def replace_asset_primary(
             ai=ai,
             session_factory=session_factory,
         )
+    return group
+
+
+@router.delete("/{group_id}/images/{image_id}", response_model=AssetGroupRead)
+def delete_asset_variant(
+    group_id: str,
+    image_id: str,
+    request: Request,
+    user: User = Depends(require_write_role),
+    service: AssetService = Depends(get_asset_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    group = service.delete_variant(group_id, image_id)
+    audit.record(
+        actor_user_id=user.id,
+        action="asset.variant.trash",
+        target_type="image",
+        target_id=image_id,
+        details={"assetGroupId": group_id},
+        request_id=request.state.request_id,
+    )
     return group
 
 

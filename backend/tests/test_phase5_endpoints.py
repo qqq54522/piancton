@@ -86,6 +86,75 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
     ]
 
 
+def test_phase5_designer_can_trash_variant_but_not_primary(client, monkeypatch):
+    deleted_from_index: list[str] = []
+    restored_to_index: list[str] = []
+    monkeypatch.setattr(
+        SearchIndexSync,
+        "delete_image",
+        lambda _self, image_id: deleted_from_index.append(image_id),
+    )
+    monkeypatch.setattr(
+        SearchIndexSync,
+        "upsert_image",
+        lambda _self, image: restored_to_index.append(image.id),
+    )
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={"title": "保留主图", "autoAnalyze": "false"},
+    ).json()
+    group_id = primary["assetGroupId"]
+    variant_group = client.post(
+        f"/api/asset-groups/{group_id}/images",
+        headers=headers,
+        files={"file": ("vertical.png", png_file("green"), "image/png")},
+        data={
+            "title": "待删除延展",
+            "assetRole": "derivative",
+            "autoAnalyze": "false",
+        },
+    ).json()
+    variant_id = next(
+        item["id"] for item in variant_group["images"] if item["id"] != primary["id"]
+    )
+
+    removed = client.delete(
+        f"/api/asset-groups/{group_id}/images/{variant_id}",
+        headers=headers,
+    )
+    assert removed.status_code == 200
+    assert [item["id"] for item in removed.json()["images"]] == [primary["id"]]
+    assert deleted_from_index == [variant_id]
+    assert variant_id in {
+        item["id"] for item in client.get("/api/images/trash").json()
+    }
+    refreshed = client.get(f"/api/asset-groups/{group_id}", headers=headers).json()
+    assert [item["id"] for item in refreshed["images"]] == [primary["id"]]
+
+    restored_to_index.clear()
+    restored = client.post(f"/api/images/{variant_id}/restore", headers=headers)
+    assert restored.status_code == 200
+    assert restored_to_index == [variant_id]
+    restored_group = client.get(
+        f"/api/asset-groups/{group_id}", headers=headers
+    ).json()
+    assert {item["id"] for item in restored_group["images"]} == {
+        primary["id"],
+        variant_id,
+    }
+
+    primary_delete = client.delete(
+        f"/api/asset-groups/{group_id}/images/{primary['id']}",
+        headers=headers,
+    )
+    assert primary_delete.status_code == 400
+    assert primary_delete.json()["code"] == "cannot_delete_primary_image"
+
+
 def test_phase5_batch_accepts_ai_concept_suggestions(client, db_factory):
     csrf = login(client, "admin", "admin-password")
     headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
