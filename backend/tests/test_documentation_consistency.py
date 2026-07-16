@@ -83,6 +83,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     asset_phrase_panel = _read(
         "client/src/pages/ImageDetail/asset/AssetPhraseReviewPanel.tsx"
     )
+    asset_concept_panel = _read(
+        "client/src/pages/ImageDetail/asset/AssetConceptReviewPanel.tsx"
+    )
     html = _read("client/index.html")
 
     assert "状态：Phase 0～6 工程完成" in master
@@ -119,6 +122,8 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "素材独有话术列表" in asset_phrase_panel
     assert "AI 待确认候选" in asset_phrase_panel
     assert "overflow-y-auto" in asset_phrase_panel
+    assert 'role="switch"' in asset_concept_panel
+    assert "需要为这张素材补充其他卖点关系时再开启" in asset_concept_panel
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme

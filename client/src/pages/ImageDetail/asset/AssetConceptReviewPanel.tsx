@@ -28,6 +28,7 @@ interface AssetConceptReviewPanelProps {
 function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptReviewPanelProps) {
   const [conceptId, setConceptId] = useState('');
   const [relationRole, setRelationRole] = useState<AssetRelationRole>('supports');
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const pending = group.conceptLinks.filter(
     (item) => item.origin === 'ai' && item.reviewStatus === 'pending',
   );
@@ -123,29 +124,66 @@ function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptRevie
       )}
 
       <div className="mt-5 border-t border-border pt-4">
-        <p className="text-xs font-medium text-muted-foreground">手动补充确认关系</p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_150px_auto]">
-          <Select
-            value={conceptId}
-            onChange={(event) => setConceptId(event.target.value)}
-          >
-            <option value="">选择业务概念</option>
-            {availableConcepts.map((concept) => (
-              <option key={concept.id} value={concept.id}>{concept.name}</option>
-            ))}
-          </Select>
-          <Select
-            value={relationRole}
-            onChange={(event) => setRelationRole(event.target.value as AssetRelationRole)}
-          >
-            {Object.entries(ROLE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </Select>
-          <Button size="sm" onClick={confirmManual} disabled={!conceptId || actions.confirmConcept.isPending}>
-            确认关系
-          </Button>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">手动补充确认关系</p>
+            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+              需要为这张素材补充其他卖点关系时再开启。
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              {isManualOpen ? '已开启' : '需要时开启'}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isManualOpen}
+              aria-controls="manual-concept-relation-form"
+              aria-label="手动补充确认关系"
+              onClick={() => setIsManualOpen((current) => !current)}
+              className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                isManualOpen
+                  ? 'border-primary bg-primary'
+                  : 'border-border bg-secondary'
+              }`}
+            >
+              <span
+                aria-hidden="true"
+                className={`absolute left-0 top-0.5 size-[18px] rounded-full bg-card shadow-sm transition-transform ${
+                  isManualOpen ? 'translate-x-[20px]' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
         </div>
+        {isManualOpen && (
+          <div
+            id="manual-concept-relation-form"
+            className="mt-3 grid animate-in gap-2 fade-in slide-in-from-top-1 sm:grid-cols-[1fr_150px_auto]"
+          >
+            <Select
+              value={conceptId}
+              onChange={(event) => setConceptId(event.target.value)}
+            >
+              <option value="">选择业务概念</option>
+              {availableConcepts.map((concept) => (
+                <option key={concept.id} value={concept.id}>{concept.name}</option>
+              ))}
+            </Select>
+            <Select
+              value={relationRole}
+              onChange={(event) => setRelationRole(event.target.value as AssetRelationRole)}
+            >
+              {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </Select>
+            <Button size="sm" onClick={confirmManual} disabled={!conceptId || actions.confirmConcept.isPending}>
+              确认关系
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );
