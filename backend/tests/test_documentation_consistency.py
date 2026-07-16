@@ -77,6 +77,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     home_header = _read("client/src/pages/ImageHome/ImageHomeHeader.tsx")
     search_result = _read("client/src/pages/ImageHome/SemanticSearchResult/index.tsx")
     search_card = _read("client/src/pages/ImageHome/SemanticSearchResult/ScoredImageCard.tsx")
+    search_constants = _read("client/src/pages/ImageHome/SemanticSearchResult/constants.ts")
     upload_phrases = _read("client/src/pages/ImageHome/UploadSearchPhraseFields.tsx")
     inheritance = _read("client/src/pages/ImageHome/ConceptPhraseInheritancePanel.tsx")
     concept_page = _read("client/src/pages/AdminConcepts/AdminConcepts.tsx")
@@ -109,6 +110,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D035" in master
     assert "D036" in master
     assert "D037" in master
+    assert "D038" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -123,6 +125,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "外部增强" not in search_result
     assert "智能语义搜索暂时响应较慢" in search_result
     assert "就是这张" in search_card
+    assert "没有合适素材提交需求" in search_constants
+    assert "label: '提交素材需求'" not in search_constants
+    assert "@client/src/components/ui/select" in search_card
     assert "当前素材独有话术" in upload_phrases
     assert "公共话术只在卖点层维护一次" in inheritance
     assert "辅助关键词" in inheritance

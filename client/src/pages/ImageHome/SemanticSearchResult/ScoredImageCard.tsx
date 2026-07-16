@@ -7,6 +7,7 @@ import { useMutation } from '@tanstack/react-query';
 import { submitSearchFeedback } from '@client/src/api/image';
 import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
+import { Select } from '@client/src/components/ui/select';
 import { variantLabel } from '@client/src/features/assets/assetPresentation';
 import type { AssetImage, ScoredImageMatch, SearchFeedbackType } from '@client/src/types/api';
 import { itemVariants } from './constants';
@@ -94,16 +95,18 @@ function ScoredImageCard({ scored, keyword, searchLogId }: ScoredImageCardProps)
           <label className="text-[11px] font-medium text-muted-foreground" htmlFor={`variant-${scored.assetGroupId || scored.image.id}`}>
             选择尺寸或渠道
           </label>
-          <select
-            id={`variant-${scored.assetGroupId || scored.image.id}`}
-            value={selected.id}
-            onChange={(event) => setSelectedId(event.target.value)}
-            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
-          >
-            {variants.map((variant) => (
-              <option key={variant.id} value={variant.id}>{variantLabel(variant)}</option>
-            ))}
-          </select>
+          <div className="mt-1">
+            <Select
+              id={`variant-${scored.assetGroupId || scored.image.id}`}
+              value={selected.id}
+              onChange={(event) => setSelectedId(event.target.value)}
+              className="h-9 rounded-md bg-background text-xs"
+            >
+              {variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>{variantLabel(variant)}</option>
+              ))}
+            </Select>
+          </div>
         </div>
 
         <div className="mt-3">

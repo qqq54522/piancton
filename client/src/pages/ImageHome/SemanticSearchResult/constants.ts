@@ -48,5 +48,5 @@ export const FEEDBACK_OPTIONS: Array<{ type: SearchFeedbackType; label: string }
   { type: 'not_relevant', label: '结果不相关' },
   { type: 'too_few_results', label: '结果太少' },
   { type: 'need_different_style', label: '想要别的风格' },
-  { type: 'asset_request', label: '提交素材需求' },
+  { type: 'asset_request', label: '没有合适素材提交需求' },
 ];
