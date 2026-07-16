@@ -11,7 +11,9 @@ export function selectInheritedConcepts(
   const inheritedIds = new Set(
     links
       .filter((link) => (
-        link.reviewStatus === 'accepted' && link.relationRole !== 'excludes'
+        link.origin === 'manual'
+        && link.reviewStatus === 'accepted'
+        && link.relationRole !== 'excludes'
       ))
       .map((link) => link.conceptId),
   );

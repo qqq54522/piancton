@@ -115,6 +115,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D037" in master
     assert "D038" in master
     assert "D039" in master
+    assert "D040" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -141,6 +142,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "素材独有话术列表" in asset_phrase_panel
     assert "selectInheritedConcepts" in asset_phrase_panel
     assert "new Set" in concept_phrase_presentation
+    assert "link.origin === 'manual'" in concept_phrase_presentation
     assert "AI 待确认候选" in asset_phrase_panel
     assert "overflow-y-auto" in asset_phrase_panel
     assert 'role="switch"' in asset_concept_panel
