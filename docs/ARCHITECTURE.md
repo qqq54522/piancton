@@ -64,6 +64,12 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 预览使用 `/content`，不记录下载；附件下载使用 `/download`，响应完成后增加计数。
 
+相关素材流程：
+
+1. `RelatedImageService` 可以按人工概念、体系和客观内容生成候选，但在评分前排除当前图片以及同一 `asset_group_id` 的所有版本。
+2. Repository 统一排除 `deleted_at` 非空图片；回收站图片不会进入相关素材。
+3. 前端版本变更成功后同时刷新素材组、图片列表和图片详情缓存，避免“版本与尺寸”与“相关素材”短暂不一致。
+
 ## 会话与权限
 
 - 密码使用 Argon2。

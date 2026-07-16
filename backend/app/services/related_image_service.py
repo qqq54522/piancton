@@ -23,6 +23,10 @@ class RelatedImageService:
             (candidate, self._similarity_score(image, candidate))
             for candidate in candidates
             if candidate.id != image.id
+            and (
+                image.asset_group_id is None
+                or candidate.asset_group_id != image.asset_group_id
+            )
         ]
         scored = [(candidate, score) for candidate, score in scored if score > 0]
         scored.sort(

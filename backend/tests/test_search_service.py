@@ -200,10 +200,25 @@ def test_confirmed_business_language_outweighs_objective_content_tags(db_factory
     assert content_tag_score == 0.8
 
 
-def test_related_images_prioritize_shared_confirmed_concepts(db_factory):
+def test_related_images_prioritize_shared_concepts_and_exclude_same_group_versions(
+    db_factory,
+):
     with db_factory() as db:
         source = create_concept_image(db, code="shared", name="共同概念", title="源图")
         concept = source.asset_group.concept_links[0].concept
+        same_group_variant = Image(
+            title="源图延展版本",
+            file_name="source-variant.png",
+            storage_key="source-variant.png",
+            thumbnail_storage_key="source-variant-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="admin",
+            asset_group=source.asset_group,
+            asset_role="derivative",
+            version_no=2,
+            is_current=True,
+        )
         sibling_group = AssetGroup(
             title="同概念图",
             created_by="admin",
@@ -226,7 +241,7 @@ def test_related_images_prioritize_shared_confirmed_concepts(db_factory):
             uploader="admin",
             asset_group=sibling_group,
         )
-        db.add(sibling)
+        db.add_all([same_group_variant, sibling])
         db.flush()
         sibling_group.primary_image_id = sibling.id
         db.commit()

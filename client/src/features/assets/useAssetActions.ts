@@ -6,9 +6,12 @@ import { assetGroupKey } from './useAssetGroup';
 
 export function useAssetActions(groupId: string) {
   const queryClient = useQueryClient();
-  const update = (group: AssetGroup) => {
+  const update = async (group: AssetGroup) => {
     queryClient.setQueryData(assetGroupKey(groupId), group);
-    queryClient.invalidateQueries({ queryKey: ['images'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['images'] }),
+      queryClient.invalidateQueries({ queryKey: ['image-detail'] }),
+    ]);
   };
 
   const addVariant = useMutation({
