@@ -84,6 +84,10 @@ def test_master_and_project_log_publish_the_same_current_phase():
     asset_phrase_panel = _read(
         "client/src/pages/ImageDetail/asset/AssetPhraseReviewPanel.tsx"
     )
+    image_ai_panel = _read("client/src/pages/ImageDetail/ImageAiAnalysisPanel.tsx")
+    semantic_profile_presentation = _read(
+        "client/src/pages/ImageDetail/semanticProfilePresentation.ts"
+    )
     concept_phrase_presentation = _read(
         "client/src/features/assets/conceptPhrasePresentation.ts"
     )
@@ -136,6 +140,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D042" in master
     assert "D043" in master
     assert "D044" in master
+    assert "D045" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -173,6 +178,22 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "item.reviewStatus !== 'accepted'" in asset_phrase_presentation
     assert "item.origin === 'ai'" in asset_phrase_presentation
     assert "acceptedKeys" in asset_phrase_presentation
+    assert "visibleSemanticProfileGroups" in image_ai_panel
+    assert "页面只展示画面事实、场景和素材独有搜索表达" in image_ai_panel
+    assert "title: '画面事实'" in semantic_profile_presentation
+    assert "title: '场景'" in semantic_profile_presentation
+    assert "title: '素材独有搜索表达'" in semantic_profile_presentation
+    for hidden_group in (
+        "OCR 文字",
+        "主体",
+        "动作",
+        "视觉风格",
+        "画面可见产品功能",
+        "画面排除边界",
+        "客观内容标签",
+    ):
+        assert hidden_group not in image_ai_panel
+        assert hidden_group not in semantic_profile_presentation
     assert 'role="switch"' in asset_concept_panel
     assert "需要为这张素材补充其他卖点关系时再开启" in asset_concept_panel
     assert "image.id !== group.primaryImageId" in asset_versions_panel
