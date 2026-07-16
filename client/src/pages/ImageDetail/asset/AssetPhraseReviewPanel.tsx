@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { ArrowUpRight, BookOpenText, Check, MessageSquarePlus, X } from 'lucide-react';
+import {
+  ArrowUpRight,
+  BookOpenText,
+  Check,
+  MessageSquarePlus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -46,6 +53,14 @@ function AssetPhraseReviewPanel({
   const review = async (phraseId: string, reviewStatus: 'accepted' | 'rejected') => {
     try {
       await actions.reviewPhrase.mutateAsync({ phraseId, reviewStatus });
+    } catch (error) {
+      toast.error(getApiError(error).message);
+    }
+  };
+  const remove = async (phraseId: string) => {
+    try {
+      await actions.removePhrase.mutateAsync(phraseId);
+      toast.success('话术已删除');
     } catch (error) {
       toast.error(getApiError(error).message);
     }
@@ -135,6 +150,18 @@ function AssetPhraseReviewPanel({
                   <span className="min-w-0 flex-1 text-sm leading-6 text-foreground">
                     {item.phrase}
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    data-testid="delete-asset-phrase"
+                    aria-label={`删除“${item.phrase}”`}
+                    title="删除话术"
+                    className="-mr-1 -mt-1 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    disabled={actions.removePhrase.isPending}
+                    onClick={() => remove(item.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
                 </div>
               ))
               : <span className="text-xs text-muted-foreground">暂无已确认的素材独有搜索语</span>}

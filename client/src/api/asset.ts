@@ -106,3 +106,10 @@ export async function reviewAssetSearchPhrase(
     reviewStatus,
   })).data;
 }
+
+export async function removeAssetSearchPhrase(
+  groupId: string,
+  phraseId: string,
+): Promise<AssetGroup> {
+  return (await api.delete(`/api/asset-groups/${groupId}/search-phrases/${phraseId}`)).data;
+}

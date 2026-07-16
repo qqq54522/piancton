@@ -7,7 +7,7 @@ from app.models.business_concept import (
 from app.models.image import ContentTag, Image
 from app.models.tag import Tag
 from app.repositories.image_repository import ImageRepository
-from app.schemas.asset import AssetSearchPhraseReview
+from app.schemas.asset import AssetSearchPhraseCreate, AssetSearchPhraseReview
 from app.services.asset_relation_service import AssetRelationService
 from app.services.database_search_recall import database_match_score
 from app.services.related_image_service import RelatedImageService
@@ -242,6 +242,55 @@ def test_accepting_ai_asset_phrase_refreshes_derived_indexes(db_factory):
 
     assert search_index.image_ids == [image.id]
     assert embedding_index.image_ids == [image.id]
+
+
+def test_removing_accepted_asset_phrase_soft_deletes_and_can_restore(db_factory):
+    class RecordingSearchIndex:
+        def __init__(self):
+            self.image_ids: list[str] = []
+
+        def upsert_image(self, image):
+            self.image_ids.append(image.id)
+
+    class RecordingEmbeddingIndex:
+        def __init__(self):
+            self.image_ids: list[str] = []
+
+        def upsert_image(self, _repo, image):
+            self.image_ids.append(image.id)
+
+    with db_factory() as db:
+        image = create_concept_image(db, code="removable-asset-phrase")
+        phrase = AssetSearchPhrase(
+            phrase="手机课程章节对应课本目录",
+            origin="manual",
+            review_status="accepted",
+        )
+        image.asset_group.search_phrases.append(phrase)
+        db.commit()
+        search_index = RecordingSearchIndex()
+        embedding_index = RecordingEmbeddingIndex()
+        service = AssetRelationService(
+            db,
+            search_index=search_index,
+            embedding_index=embedding_index,
+        )
+
+        removed = service.remove_phrase(image.asset_group.id, phrase.id)
+        removed_phrase = next(item for item in removed.search_phrases if item.id == phrase.id)
+        recalled_after_removal = ImageRepository(db).search(phrase.phrase, 12)
+
+        restored = service.add_phrase(
+            image.asset_group.id,
+            AssetSearchPhraseCreate(phrase=phrase.phrase, weight=1),
+        )
+        restored_phrase = next(item for item in restored.search_phrases if item.id == phrase.id)
+
+    assert removed_phrase.review_status == "rejected"
+    assert image.id not in {item.id for item in recalled_after_removal}
+    assert restored_phrase.review_status == "accepted"
+    assert search_index.image_ids == [image.id, image.id]
+    assert embedding_index.image_ids == [image.id, image.id]
 
 
 def test_confirmed_business_language_outweighs_objective_content_tags(db_factory):

@@ -217,6 +217,16 @@ class AssetRelationService:
         self._sync_primary(group_id)
         return asset_group_to_read(self._group(group_id))
 
+    def remove_phrase(self, group_id: str, phrase_id: str) -> AssetGroupRead:
+        phrase = self.assets.get_search_phrase(group_id, phrase_id)
+        if not phrase:
+            raise NotFoundError("asset_search_phrase_not_found", "素材搜索表达不存在")
+        phrase.review_status = "rejected"
+        self.assets.save(phrase)
+        self.uow.commit()
+        self._sync_primary(group_id)
+        return asset_group_to_read(self._group(group_id))
+
     def _sync_primary(self, group_id: str) -> None:
         group = self._group(group_id)
         if not group.primary_image_id:

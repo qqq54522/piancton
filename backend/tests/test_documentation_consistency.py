@@ -135,6 +135,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D041" in master
     assert "D042" in master
     assert "D043" in master
+    assert "D044" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -166,6 +167,8 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "overflow-y-auto" in asset_phrase_panel
     assert "splitAssetSearchPhrases" in asset_phrase_panel
     assert 'data-testid="accepted-asset-phrase-row"' in asset_phrase_panel
+    assert 'data-testid="delete-asset-phrase"' in asset_phrase_panel
+    assert 'title="删除话术"' in asset_phrase_panel
     assert "snap-y" in asset_phrase_panel
     assert "item.reviewStatus !== 'accepted'" in asset_phrase_presentation
     assert "item.origin === 'ai'" in asset_phrase_presentation
@@ -179,8 +182,10 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "移入回收站" in asset_variant_delete_dialog
     assert "只会移除这个版本" in asset_variant_delete_dialog
     assert "queryKey: ['image-detail']" in asset_actions
+    assert "removePhrase" in asset_actions
     assert "candidate.asset_group_id != image.asset_group_id" in related_image_service
     assert 'if asset_role != "derivative"' in asset_api
+    assert '@router.delete("/{group_id}/search-phrases/{phrase_id}"' in asset_api
     assert "derivative_analysis_not_required" in ai_api
     assert "group.primary_image_id == image.id" in image_analysis_service
     assert 'if phrase.review_status == "accepted"' in search_index
@@ -189,6 +194,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "semantic_search_phrases" in image_semantic_profile
     assert 'if item.review_status == "rejected"' in image_semantic_profile
     assert "self._sync_primary(group_id)" in asset_relation_service
+    assert "def remove_phrase" in asset_relation_service
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
     assert "当前本地素材库已有 1 张" in readme

@@ -8,6 +8,7 @@ from app.models.asset import AssetConceptLink, AssetGroup
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
 from app.models.tag import Tag
 from app.schemas.ai import ConfidenceTag, ImageAnalysisResult, ImageSemanticProfile
+from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from tests.conftest import login
 
@@ -207,6 +208,59 @@ def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
         if item["origin"] == "ai" and item["reviewStatus"] == "pending"
     }
     assert ai_phrases == {"正确主图候选"}
+
+
+def test_phase5_designer_can_remove_and_restore_asset_search_phrase(
+    client, monkeypatch
+):
+    monkeypatch.setattr(SearchIndexSync, "upsert_image", lambda _self, _image: None)
+    monkeypatch.setattr(
+        EmbeddingIndexSync,
+        "upsert_image",
+        lambda _self, _repo, _image: None,
+    )
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={"title": "话术删除测试主图", "autoAnalyze": "false"},
+    ).json()
+    group_id = primary["assetGroupId"]
+
+    added = client.post(
+        f"/api/asset-groups/{group_id}/search-phrases",
+        headers=headers,
+        json={"phrase": "手机课程章节对应课本目录", "weight": 1},
+    )
+    assert added.status_code == 200
+    phrase = next(
+        item
+        for item in added.json()["searchPhrases"]
+        if item["phrase"] == "手机课程章节对应课本目录"
+    )
+
+    removed = client.delete(
+        f"/api/asset-groups/{group_id}/search-phrases/{phrase['id']}",
+        headers=headers,
+    )
+    assert removed.status_code == 200
+    removed_phrase = next(
+        item for item in removed.json()["searchPhrases"] if item["id"] == phrase["id"]
+    )
+    assert removed_phrase["reviewStatus"] == "rejected"
+
+    restored = client.post(
+        f"/api/asset-groups/{group_id}/search-phrases",
+        headers=headers,
+        json={"phrase": phrase["phrase"], "weight": 1},
+    )
+    assert restored.status_code == 200
+    restored_phrase = next(
+        item for item in restored.json()["searchPhrases"] if item["id"] == phrase["id"]
+    )
+    assert restored_phrase["reviewStatus"] == "accepted"
 
 
 def test_phase5_designer_can_trash_variant_but_not_primary(client, monkeypatch):

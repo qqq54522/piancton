@@ -68,6 +68,10 @@ export function useAssetActions(groupId: string) {
     }) => assetApi.reviewAssetSearchPhrase(groupId, input.phraseId, input.reviewStatus),
     onSuccess: update,
   });
+  const removePhrase = useMutation({
+    mutationFn: (phraseId: string) => assetApi.removeAssetSearchPhrase(groupId, phraseId),
+    onSuccess: update,
+  });
 
   return {
     addPhrase,
@@ -75,6 +79,7 @@ export function useAssetActions(groupId: string) {
     confirmConcept,
     deleteVariant,
     replacePrimary,
+    removePhrase,
     reviewConcept,
     reviewConcepts,
     reviewPhrase,

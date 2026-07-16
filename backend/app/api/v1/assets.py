@@ -204,6 +204,16 @@ def review_asset_search_phrase(
     return service.review_phrase(group_id, phrase_id, payload)
 
 
+@router.delete("/{group_id}/search-phrases/{phrase_id}", response_model=AssetGroupRead)
+def remove_asset_search_phrase(
+    group_id: str,
+    phrase_id: str,
+    _: User = Depends(require_write_role),
+    service: AssetRelationService = Depends(get_asset_relation_service),
+):
+    return service.remove_phrase(group_id, phrase_id)
+
+
 def _queue_analysis(
     image_id: str,
     *,
