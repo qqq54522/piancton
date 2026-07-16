@@ -35,6 +35,13 @@ class ConceptMatch:
 
 
 @dataclass(frozen=True)
+class ConceptRouteOutcome:
+    hits: list[SearchHit]
+    active_matches: tuple[ConceptMatch, ...] = ()
+    used_fallback: bool = False
+
+
+@dataclass(frozen=True)
 class SearchQueryProfile:
     original_query: str
     normalized_query: str

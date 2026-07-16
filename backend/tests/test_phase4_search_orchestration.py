@@ -2,7 +2,7 @@ import threading
 import time
 
 from app.core.errors import AppError
-from app.models.asset import AssetConceptLink, AssetGroup
+from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase
 from app.models.image import Image
 from app.schemas.ai import SearchUnderstanding
@@ -369,7 +369,7 @@ def test_phase4_multi_intent_recalls_and_labels_each_confirmed_concept(db_factor
     assert response.search_understanding.query_type == "multi_business_intent_search"
     assert expected_ids.issubset({item.image.id for item in response.results})
     assert school_image.id not in {item.image.id for item in response.results}
-    assert response.results[-1].image.id == distractor.id
+    assert distractor.id not in {item.image.id for item in response.results}
     matched_by_image = {
         item.image.id: {
             match.concept_name for match in item.matched_query_concepts
@@ -380,7 +380,111 @@ def test_phase4_multi_intent_recalls_and_labels_each_confirmed_concept(db_factor
         next(iter(matched_by_image[image_id]))
         for image_id in expected_ids
     } == {name for _, name in concept_specs}
-    assert matched_by_image[distractor.id] == set()
+
+
+def test_phase4_concept_route_uses_asset_phrase_to_choose_within_selling_point(
+    db_factory,
+):
+    query = "和学校课程一致"
+    with db_factory() as db:
+        concept = BusinessConcept(
+            code="school_sync",
+            name="同步校内",
+            search_phrases=[
+                ConceptSearchPhrase(
+                    phrase="学校课程一致",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        exact = _image("章节对照素材", "exact.png")
+        exact_group = AssetGroup(
+            title=exact.title,
+            created_by="designer",
+            images=[exact],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="supports",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+            search_phrases=[
+                AssetSearchPhrase(
+                    phrase=query,
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        generic = _image("同步校内通用素材", "generic.png")
+        generic_group = AssetGroup(
+            title=generic.title,
+            created_by="designer",
+            images=[generic],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        title_only = _image(query, "title-only.png")
+        db.add_all([concept, exact_group, generic_group, title_only])
+        db.flush()
+        exact_group.primary_image_id = exact.id
+        generic_group.primary_image_id = generic.id
+        db.commit()
+
+        response = SearchService(db).search(query, 12)
+
+    assert [item.image.id for item in response.results] == [exact.id, generic.id]
+    assert any(
+        "卖点内素材独有话术命中" in reason
+        for reason in response.results[0].match_reasons
+    )
+    assert title_only.id not in {item.image.id for item in response.results}
+
+
+def test_phase4_global_recall_remains_when_no_selling_point_is_understood(db_factory):
+    with db_factory() as db:
+        image = _image("蓝色竖版学习周报", "fallback.png")
+        db.add(image)
+        db.commit()
+
+        response = SearchService(db).search("蓝色竖版学习周报", 12)
+
+    assert [item.image.id for item in response.results] == [image.id]
+
+
+def test_phase4_global_recall_fills_when_selling_point_route_has_no_assets(db_factory):
+    with db_factory() as db:
+        concept = BusinessConcept(
+            code="school_sync",
+            name="同步校内",
+            search_phrases=[
+                ConceptSearchPhrase(
+                    phrase="学校课程一致",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        fallback = _image("和学校课程一致", "fallback-title.png")
+        db.add_all([concept, fallback])
+        db.commit()
+
+        response = SearchService(db).search("和学校课程一致", 12)
+
+    assert [item.image.id for item in response.results] == [fallback.id]
+    assert any(
+        "卖点主通道暂无已确认素材" in reason
+        for reason in response.results[0].match_reasons
+    )
 
 
 def test_phase4_generic_short_phrase_does_not_cross_match_long_query(db_factory):

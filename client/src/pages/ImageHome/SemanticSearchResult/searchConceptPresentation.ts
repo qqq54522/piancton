@@ -11,6 +11,7 @@ export interface SearchIntentOption {
 export function searchIntentOptions(
   understanding?: SearchUnderstanding,
 ): SearchIntentOption[] {
+  if (understanding?.queryType === 'ambiguous_business_intent_search') return [];
   const unique = new Map<string, SearchIntentOption>();
   for (const match of understanding?.matchedBusinessConcepts ?? []) {
     const name = displayConceptName(match.concept);

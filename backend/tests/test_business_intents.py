@@ -237,6 +237,83 @@ def test_query_understanding_uses_ai_for_ambiguous_local_matches():
     assert service.understand("体现规划") == ai_result
 
 
+def test_local_ambiguous_matches_are_not_presented_as_confirmed_multi_intent():
+    service = QueryUnderstandingService(
+        catalog=_test_catalog(
+            BusinessIntent(
+                code="plan_intent",
+                name="学习规划",
+                target_system_code="sync_planning",
+                target_label_code="ai_learning_plan",
+                phrases=("规划",),
+                pain_points=(),
+                must_have_concepts=(),
+                nice_to_have_concepts=(),
+                exclude_concepts=(),
+                result_policy="strict_allow_few_results",
+            ),
+            BusinessIntent(
+                code="expert_intent",
+                name="专家规划",
+                target_system_code="sync_cultivation",
+                target_label_code="expert_planning",
+                phrases=("规划",),
+                pain_points=(),
+                must_have_concepts=(),
+                nice_to_have_concepts=(),
+                exclude_concepts=(),
+                result_policy="strict_allow_few_results",
+            ),
+        ),
+        search_policy=SearchPolicyCatalog(
+            version="test",
+            ambiguous_terms=("规划",),
+        ),
+    )
+
+    understanding = service.understand_locally("体现规划")
+
+    assert understanding is not None
+    assert understanding.query_type == "ambiguous_business_intent_search"
+    assert all(
+        item.relation == "related" and item.weight < 0.85
+        for item in understanding.matched_business_concepts
+    )
+
+
+def test_model_alternatives_require_explicit_multi_intent_before_hard_routing():
+    understanding = SearchUnderstanding(
+        original_query="需要规划",
+        normalized_query="学习规划",
+        search_intent="模型返回两个备选",
+        query_type="ai_search",
+        matched_business_concepts=[
+            SearchConceptMatch(
+                concept="同步规划体系 > 学习规划",
+                relation="direct",
+                reason="候选一",
+                weight=0.92,
+            ),
+            SearchConceptMatch(
+                concept="同步培养体系 > 专家规划",
+                relation="direct",
+                reason="候选二",
+                weight=0.91,
+            ),
+        ],
+    )
+
+    presented = QueryUnderstandingService().present_recognized_concepts(
+        "需要规划",
+        understanding,
+        [],
+    )
+
+    assert presented is not None
+    assert presented.query_type == "ambiguous_business_intent_search"
+    assert "不执行多卖点硬路由" in presented.search_strategy
+
+
 def test_query_understanding_uses_weak_local_fallback_when_ai_unavailable():
     service = QueryUnderstandingService(
         catalog=_test_catalog(

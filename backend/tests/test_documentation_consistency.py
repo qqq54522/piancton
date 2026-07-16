@@ -148,6 +148,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D046" in master
     assert "D047" in master
     assert "D048" in master
+    assert "D049" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master

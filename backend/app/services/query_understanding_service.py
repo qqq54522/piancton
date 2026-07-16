@@ -67,7 +67,14 @@ class QueryUnderstandingService:
         matches = self._local_matches(query)
         if not matches:
             return None
-        return self._understanding_from_matches(query, matches)
+        if self._should_trust_local(query, matches):
+            return self._understanding_from_matches(query, matches)
+        return self._understanding_from_matches(
+            query,
+            matches,
+            confidence_cap=UNCERTAIN_FALLBACK_CONFIDENCE,
+            fallback_reason="本地意图仍需消歧，不进入高置信卖点主通道",
+        )
 
     def should_use_model(
         self,
@@ -112,7 +119,14 @@ class QueryUnderstandingService:
             return None
         existing = list(understanding.matched_business_concepts) if understanding else []
         existing_keys = {_concept_key(item.concept) for item in existing}
-        for match in concept_matches:
+        additions = concept_matches
+        if understanding is not None:
+            additions = []
+        elif len(concept_matches) > 1:
+            # Multiple raw database matches are alternatives until query understanding
+            # confirms that the sentence genuinely expresses several selling points.
+            return None
+        for match in additions:
             key = _concept_key(match.name)
             if key in existing_keys:
                 continue
@@ -126,9 +140,15 @@ class QueryUnderstandingService:
             )
             existing_keys.add(key)
 
+        if not existing:
+            return understanding
         existing.sort(key=lambda item: item.weight, reverse=True)
         concept_names = [_display_concept_name(item.concept) for item in existing]
-        if len(concept_names) > 1:
+        confirmed_multi = bool(
+            understanding
+            and understanding.query_type == "multi_business_intent_search"
+        )
+        if confirmed_multi:
             intent_summary = f"本次需求可能同时涉及：{'、'.join(concept_names[:4])}"
             query_type = "multi_business_intent_search"
             strategy = "按多个候选卖点并行召回，再由素材独有表达和画面语义区分"
@@ -138,9 +158,18 @@ class QueryUnderstandingService:
                 if understanding and understanding.search_intent
                 else f"本次需求主要涉及：{concept_names[0]}"
             )
-            query_type = understanding.query_type if understanding else "business_intent_search"
+            unresolved_multiple = len(concept_names) > 1
+            query_type = (
+                "ambiguous_business_intent_search"
+                if unresolved_multiple
+                else understanding.query_type
+                if understanding
+                else "business_intent_search"
+            )
             strategy = (
-                understanding.search_strategy
+                "多个候选尚未确认可以同时成立，不执行多卖点硬路由"
+                if unresolved_multiple
+                else understanding.search_strategy
                 if understanding and understanding.search_strategy
                 else "优先按已确认卖点关系召回"
             )
@@ -227,17 +256,23 @@ class QueryUnderstandingService:
             )
             excluded.extend(match.intent.exclude_concepts)
         names = [target_label(match.intent).name for match in selected]
+        confirmed_multi = len(names) > 1 and confidence_cap is None
+        uncertain = confidence_cap is not None
         return SearchUnderstanding(
             original_query=query,
             normalized_query=label.name,
             search_intent=(
                 f"用户可能同时在找“{'、'.join(names)}”相关素材"
-                if len(names) > 1
+                if confirmed_multi
+                else f"当前只能判断可能涉及“{'、'.join(names)}”，仍需消歧"
+                if uncertain
                 else f"用户在找“{primary.intent.name}”相关素材"
             ),
             query_type=(
                 "multi_business_intent_search"
-                if len(names) > 1
+                if confirmed_multi
+                else "ambiguous_business_intent_search"
+                if uncertain
                 else "business_intent_search"
             ),
             expanded_terms=[],
@@ -245,7 +280,9 @@ class QueryUnderstandingService:
             excluded_concepts=list(dict.fromkeys(excluded)),
             search_strategy=(
                 f"按{'、'.join(names)}多个候选卖点并行召回"
-                if len(names) > 1
+                if confirmed_multi
+                else "不执行卖点硬路由，继续使用图片话术和画面语义兜底"
+                if uncertain
                 else f"优先按{primary.intent.name}对应业务概念召回"
             ),
         )

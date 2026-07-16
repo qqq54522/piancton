@@ -29,12 +29,14 @@
 - Meilisearch 召回放在 `meilisearch_recall_service.py`。
 - Embedding 召回放在 `embedding_recall_service.py`。
 - 显式体系限制放在 `search_system_filter.py`；已确认 `excludes` 关系由概念召回与排序边界处理，不再恢复旧强标签过滤器。
-- 排序和打分放在 `search_ranking_service.py`、`search_scorer.py`。
+- 卖点主通道与全局兜底分层放在 `search_concept_routing_service.py`；排序编排和结果打分分别放在 `search_ranking_service.py`、`search_scorer.py`。
 - 响应拼装放在 `search_response_builder.py`。
 - 流水线顺序和降级汇总放在 `search_orchestrator.py`；外部任务并发、分支预算、缓存与候选水合放在 `search_external_branches.py`；总截止和唯一一次重排放在 `search_rerank_coordinator.py`。不要把这些职责塞回单个召回服务或总入口。
 - 外部并发召回先返回候选 ID/向量，ORM 实体只允许由请求主会话装载；不得跨线程共享 SQLAlchemy Session。
 - 在线链路不得重新启用生成式图片摘要裁判；候选合并后最多执行一次 Top 20 Reranker。
 - 人工确认概念及其常见表达必须具备本地召回兜底；高置信本地概念查询跳过查询 Embedding 和模型理解，模糊查询才在总截止内使用外部分支。
+- 多路召回不得重新恢复成平铺竞争：可信卖点只允许 accepted `expresses/supports` 素材进入主通道，素材独有话术负责通道内选图；全局标题、话术和画面语义仅在主通道无素材或意图未消歧时兜底。
+- “明确同时涉及多个卖点”和“多个未消歧候选”必须使用不同查询状态；后者不得显示成多个已识别卖点，也不得执行多卖点硬路由。
 - 一次查询允许保留多个候选卖点；高置信卖点与人工 `expresses/supports` 关系必须在候选截断前和 Reranker 后保持主导。卡片“匹配卖点”只能由查询候选与已确认素材关系动态求交，不能写成新的图片固定标签。
 
 需要新增搜索规则时，优先判断它属于“词库配置、召回、过滤、排序、展示”哪一类，不要直接改总入口。

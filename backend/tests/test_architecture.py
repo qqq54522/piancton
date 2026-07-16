@@ -220,6 +220,7 @@ def test_search_boundary_services_do_not_depend_on_repositories():
         ROOT / "services" / "search_ranking_service.py",
         ROOT / "services" / "image_semantic_profile_service.py",
         ROOT / "services" / "query_understanding_service.py",
+        ROOT / "services" / "search_concept_routing_service.py",
         ROOT / "services" / "search_scorer.py",
         ROOT / "services" / "search_response_builder.py",
         ROOT / "services" / "semantic_rerank_service.py",
@@ -254,6 +255,17 @@ def test_search_ranking_service_stays_as_orchestrator():
     assert "image_to_read" not in source
     assert "NEGATION_MARKERS" not in source
     assert "_contains_unnegated_concept" not in source
+
+
+def test_concept_routing_service_stays_focused_and_bounded():
+    path = ROOT / "services" / "search_concept_routing_service.py"
+    source = path.read_text(encoding="utf-8")
+
+    assert len(source.splitlines()) <= 220
+    assert "class SearchConceptRoutingService" in source
+    assert "app.repositories" not in source
+    assert "Meilisearch" not in source
+    assert "Embedding" not in source
 
 
 def test_search_service_calls_query_understanding_without_owning_intent_config():

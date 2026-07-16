@@ -184,11 +184,14 @@ class AsyncSearchOrchestrator:
         )
 
         hits = self.ranking.fuse_sources([concept_hits, database_hits, meili_hits, embedding_hits])
-        hits = self.ranking.prioritize_confirmed_concepts(
+        concept_route = self.ranking.route_confirmed_concepts(
             hits,
             concept_matches,
-            confidence=profile.confidence,
+            keyword=keyword,
+            understanding=understanding,
         )
+        hits = concept_route.hits
+        active_concept_matches = list(concept_route.active_matches)
         hits = self.system_filter.apply(hits, system_code)
         hits = self.ranking.collapse_asset_groups(hits)
         hits = hits[: max(limit, self.candidate_limit)]
@@ -210,11 +213,14 @@ class AsyncSearchOrchestrator:
             hits,
             search_started=started,
         )
-        hits = self.ranking.prioritize_confirmed_concepts(
+        concept_route = self.ranking.route_confirmed_concepts(
             hits,
             concept_matches,
-            confidence=profile.confidence,
+            keyword=keyword,
+            understanding=understanding,
         )
+        hits = concept_route.hits
+        active_concept_matches = list(concept_route.active_matches)
         branch_diagnostics.append(reranker_diagnostic)
 
         total_duration_ms = _elapsed_ms(started)
@@ -233,7 +239,7 @@ class AsyncSearchOrchestrator:
             fallback_reason=fallback_reason,
             search_understanding=understanding,
             search_diagnostics=search_diagnostics,
-            query_concept_matches=concept_matches,
+            query_concept_matches=active_concept_matches,
         )
 
     def _database_hits(

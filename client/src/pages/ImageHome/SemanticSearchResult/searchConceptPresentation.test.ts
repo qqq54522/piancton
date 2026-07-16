@@ -41,4 +41,16 @@ describe('search concept presentation', () => {
     expect(filterResultsByIntent([first, second], 'AI私教答疑')).toEqual([second]);
     expect(filterResultsByIntent([first, second], null)).toEqual([first, second]);
   });
+
+  it('does not present unresolved alternatives as simultaneous selling points', () => {
+    const understanding = {
+      queryType: 'ambiguous_business_intent_search',
+      matchedBusinessConcepts: [
+        { concept: '学习规划', weight: 0.74 },
+        { concept: '专家规划', weight: 0.74 },
+      ],
+    } as SearchUnderstanding;
+
+    expect(searchIntentOptions(understanding)).toEqual([]);
+  });
 });
