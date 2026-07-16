@@ -1547,6 +1547,8 @@ export interface components {
             expressedConcepts?: string[];
             /** Supportedconcepts */
             supportedConcepts?: string[];
+            /** Matchedqueryconcepts */
+            matchedQueryConcepts?: components["schemas"]["SearchResultConceptMatch"][];
         };
         /** SearchBranchStatusRead */
         SearchBranchStatusRead: {
@@ -1833,6 +1835,18 @@ export interface components {
             searchDiagnostics?: components["schemas"]["SearchDiagnosticsRead"] | null;
             /** Matchsummary */
             matchSummary: string;
+        };
+        /** SearchResultConceptMatch */
+        SearchResultConceptMatch: {
+            /** Conceptcode */
+            conceptCode: string;
+            /** Conceptname */
+            conceptName: string;
+            /**
+             * Relationrole
+             * @enum {string}
+             */
+            relationRole: "expresses" | "supports" | "visual_related";
         };
         /** SearchUnderstanding */
         SearchUnderstanding: {

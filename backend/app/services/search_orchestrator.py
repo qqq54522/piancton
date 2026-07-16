@@ -9,6 +9,11 @@ from app.services.database_search_recall import DatabaseSearchRecallService
 from app.services.query_expansion_service import QueryExpansionService
 from app.services.query_profile_service import QueryProfileService
 from app.services.query_understanding_service import QueryUnderstandingService
+from app.services.search_concept_context import (
+    matches_from_understanding,
+    merge_concept_matches,
+    new_concept_matches,
+)
 from app.services.search_diagnostics_service import SearchDiagnosticsService
 from app.services.search_external_branches import SearchExternalBranches
 from app.services.search_models import (
@@ -75,7 +80,10 @@ class AsyncSearchOrchestrator:
         )
 
         concept_started = time.monotonic()
-        concept_matches = self.concept_recall.match(keyword)
+        concept_matches = merge_concept_matches(
+            self.concept_recall.match(keyword),
+            matches_from_understanding(local_understanding, self.concept_recall),
+        )
         concept_hits = self.concept_recall.recall(
             concept_matches,
             limit=max(limit * 3, self.candidate_limit),
@@ -114,6 +122,18 @@ class AsyncSearchOrchestrator:
                 self._database_hits(keyword, limit, model_expansions),
             )
 
+        understood_matches = matches_from_understanding(understanding, self.concept_recall)
+        added_matches = new_concept_matches(concept_matches, understood_matches)
+        if added_matches:
+            concept_matches = merge_concept_matches(concept_matches, added_matches)
+            concept_hits = self.ranking.merge_hits(
+                concept_hits,
+                self.concept_recall.recall(
+                    added_matches,
+                    limit=max(limit * 3, self.candidate_limit),
+                ),
+            )
+
         profile = self.query_profile.build(
             keyword,
             concept_matches=concept_matches,
@@ -121,9 +141,9 @@ class AsyncSearchOrchestrator:
         )
         if profile.normalized_query != keyword.strip():
             normalized_matches = self.concept_recall.match(profile.normalized_query)
-            added_matches = _new_concept_matches(concept_matches, normalized_matches)
+            added_matches = new_concept_matches(concept_matches, normalized_matches)
             if added_matches:
-                concept_matches.extend(added_matches)
+                concept_matches = merge_concept_matches(concept_matches, added_matches)
                 concept_hits = self.ranking.merge_hits(
                     concept_hits,
                     self.concept_recall.recall(
@@ -131,6 +151,16 @@ class AsyncSearchOrchestrator:
                         limit=max(limit * 3, self.candidate_limit),
                     ),
                 )
+        profile = self.query_profile.build(
+            keyword,
+            concept_matches=concept_matches,
+            understanding=understanding,
+        )
+        understanding = self.query_understanding.present_recognized_concepts(
+            keyword,
+            understanding,
+            concept_matches,
+        )
 
         database_diagnostic = SearchBranchDiagnostic(
             source="database",
@@ -154,6 +184,11 @@ class AsyncSearchOrchestrator:
         )
 
         hits = self.ranking.fuse_sources([concept_hits, database_hits, meili_hits, embedding_hits])
+        hits = self.ranking.prioritize_confirmed_concepts(
+            hits,
+            concept_matches,
+            confidence=profile.confidence,
+        )
         hits = self.system_filter.apply(hits, system_code)
         hits = self.ranking.collapse_asset_groups(hits)
         hits = hits[: max(limit, self.candidate_limit)]
@@ -175,6 +210,11 @@ class AsyncSearchOrchestrator:
             hits,
             search_started=started,
         )
+        hits = self.ranking.prioritize_confirmed_concepts(
+            hits,
+            concept_matches,
+            confidence=profile.confidence,
+        )
         branch_diagnostics.append(reranker_diagnostic)
 
         total_duration_ms = _elapsed_ms(started)
@@ -193,6 +233,7 @@ class AsyncSearchOrchestrator:
             fallback_reason=fallback_reason,
             search_understanding=understanding,
             search_diagnostics=search_diagnostics,
+            query_concept_matches=concept_matches,
         )
 
     def _database_hits(
@@ -215,14 +256,6 @@ class AsyncSearchOrchestrator:
             )
             for item in matches
         ]
-
-def _new_concept_matches(
-    existing: list[ConceptMatch],
-    candidates: list[ConceptMatch],
-) -> list[ConceptMatch]:
-    existing_ids = {item.concept_id for item in existing}
-    return [item for item in candidates if item.concept_id not in existing_ids]
-
 
 def _elapsed_ms(started: float) -> int:
     return max(0, round((time.monotonic() - started) * 1000))

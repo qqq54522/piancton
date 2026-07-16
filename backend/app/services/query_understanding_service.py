@@ -13,6 +13,7 @@ from app.domain.business_intents import (
 from app.domain.search_policy import SearchPolicyCatalog, load_search_policy
 from app.schemas.ai import SearchConceptMatch, SearchUnderstanding
 from app.services.ai_service import AiService
+from app.services.search_models import ConceptMatch
 
 
 @dataclass(frozen=True)
@@ -44,17 +45,17 @@ class QueryUnderstandingService:
             return None
         matches = self._local_matches(query)
         if matches and self._should_trust_local(query, matches):
-            return self._understanding_from_match(query, matches[0])
+            return self._understanding_from_matches(query, matches)
 
         ai_understanding = self._understand_with_ai(query)
         if ai_understanding:
             return ai_understanding
 
         if matches:
-            return self._understanding_from_match(
+            return self._understanding_from_matches(
                 query,
-                matches[0],
-                confidence=min(matches[0].confidence, UNCERTAIN_FALLBACK_CONFIDENCE),
+                matches,
+                confidence_cap=UNCERTAIN_FALLBACK_CONFIDENCE,
                 fallback_reason="本地意图不确定，AI 不可用，使用本地弱兜底",
             )
         return None
@@ -66,7 +67,7 @@ class QueryUnderstandingService:
         matches = self._local_matches(query)
         if not matches:
             return None
-        return self._understanding_from_match(query, matches[0])
+        return self._understanding_from_matches(query, matches)
 
     def should_use_model(
         self,
@@ -93,11 +94,69 @@ class QueryUnderstandingService:
         matches = self._local_matches(query)
         if not matches:
             return None
-        return self._understanding_from_match(
+        return self._understanding_from_matches(
             query,
-            matches[0],
-            confidence=min(matches[0].confidence, UNCERTAIN_FALLBACK_CONFIDENCE),
+            matches,
+            confidence_cap=UNCERTAIN_FALLBACK_CONFIDENCE,
             fallback_reason="本地意图不确定，模型不可用，使用本地弱兜底",
+        )
+
+    def present_recognized_concepts(
+        self,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        concept_matches: list[ConceptMatch],
+    ) -> SearchUnderstanding | None:
+        """Expose the validated concept candidates used by recall to the result UI."""
+        if understanding is None and not concept_matches:
+            return None
+        existing = list(understanding.matched_business_concepts) if understanding else []
+        existing_keys = {_concept_key(item.concept) for item in existing}
+        for match in concept_matches:
+            key = _concept_key(match.name)
+            if key in existing_keys:
+                continue
+            existing.append(
+                SearchConceptMatch(
+                    concept=match.name,
+                    relation="direct" if match.score >= 0.9 else "related",
+                    reason="；".join(match.reasons) or "本地卖点识别",
+                    weight=match.score,
+                )
+            )
+            existing_keys.add(key)
+
+        existing.sort(key=lambda item: item.weight, reverse=True)
+        concept_names = [_display_concept_name(item.concept) for item in existing]
+        if len(concept_names) > 1:
+            intent_summary = f"本次需求可能同时涉及：{'、'.join(concept_names[:4])}"
+            query_type = "multi_business_intent_search"
+            strategy = "按多个候选卖点并行召回，再由素材独有表达和画面语义区分"
+        else:
+            intent_summary = (
+                understanding.search_intent
+                if understanding and understanding.search_intent
+                else f"本次需求主要涉及：{concept_names[0]}"
+            )
+            query_type = understanding.query_type if understanding else "business_intent_search"
+            strategy = (
+                understanding.search_strategy
+                if understanding and understanding.search_strategy
+                else "优先按已确认卖点关系召回"
+            )
+        return SearchUnderstanding(
+            original_query=understanding.original_query if understanding else keyword,
+            normalized_query=(
+                understanding.normalized_query
+                if understanding and understanding.normalized_query.strip()
+                else concept_names[0]
+            ),
+            search_intent=intent_summary,
+            query_type=query_type,
+            expanded_terms=list(understanding.expanded_terms) if understanding else [],
+            matched_business_concepts=existing,
+            excluded_concepts=list(understanding.excluded_concepts) if understanding else [],
+            search_strategy=strategy,
         )
 
     def _local_matches(self, query: str) -> list[IntentMatch]:
@@ -126,6 +185,8 @@ class QueryUnderstandingService:
         confidence_gap = top.confidence - second.confidence
         if self._is_ambiguous_query(query) and confidence_gap <= 0.15:
             return False
+        if top.confidence >= 0.9 and second.confidence >= 0.9:
+            return True
         return confidence_gap > AMBIGUOUS_CONFIDENCE_GAP
 
     def _understand_with_ai(self, query: str) -> SearchUnderstanding | None:
@@ -136,35 +197,57 @@ class QueryUnderstandingService:
         except AppError:
             return None
 
-    def _understanding_from_match(
+    def _understanding_from_matches(
         self,
         query: str,
-        match: IntentMatch,
+        matches: list[IntentMatch],
         *,
-        confidence: float | None = None,
+        confidence_cap: float | None = None,
         fallback_reason: str | None = None,
     ) -> SearchUnderstanding:
-        weight = match.confidence if confidence is None else confidence
-        reasons = list(match.reasons)
-        if fallback_reason:
-            reasons.append(fallback_reason)
-        label = target_label(match.intent)
-        return SearchUnderstanding(
-            original_query=query,
-            normalized_query=label.name,
-            search_intent=f"用户在找“{match.intent.name}”相关素材",
-            query_type="business_intent_search",
-            expanded_terms=[],
-            matched_business_concepts=[
+        selected = _candidate_intent_matches(matches)
+        primary = selected[0]
+        label = target_label(primary.intent)
+        concept_matches: list[SearchConceptMatch] = []
+        excluded: list[str] = []
+        for match in selected:
+            weight = match.confidence
+            if confidence_cap is not None:
+                weight = min(weight, confidence_cap)
+            reasons = list(match.reasons)
+            if fallback_reason:
+                reasons.append(fallback_reason)
+            concept_matches.append(
                 SearchConceptMatch(
                     concept=target_display_name(match.intent),
-                    relation="direct",
+                    relation="direct" if weight >= LOCAL_TRUST_THRESHOLD else "related",
                     reason="；".join(reasons),
                     weight=weight,
                 )
-            ],
-            excluded_concepts=list(match.intent.exclude_concepts),
-            search_strategy=f"优先按{match.intent.name}对应业务概念召回",
+            )
+            excluded.extend(match.intent.exclude_concepts)
+        names = [target_label(match.intent).name for match in selected]
+        return SearchUnderstanding(
+            original_query=query,
+            normalized_query=label.name,
+            search_intent=(
+                f"用户可能同时在找“{'、'.join(names)}”相关素材"
+                if len(names) > 1
+                else f"用户在找“{primary.intent.name}”相关素材"
+            ),
+            query_type=(
+                "multi_business_intent_search"
+                if len(names) > 1
+                else "business_intent_search"
+            ),
+            expanded_terms=[],
+            matched_business_concepts=concept_matches,
+            excluded_concepts=list(dict.fromkeys(excluded)),
+            search_strategy=(
+                f"按{'、'.join(names)}多个候选卖点并行召回"
+                if len(names) > 1
+                else f"优先按{primary.intent.name}对应业务概念召回"
+            ),
         )
 
     def _match_intent(
@@ -218,6 +301,29 @@ def _matched_terms(needle: str, terms: tuple[str, ...]) -> list[str]:
         if normalized in needle or (len(needle) >= 4 and needle in normalized):
             matched.append(term)
     return matched
+
+
+def _candidate_intent_matches(matches: list[IntentMatch]) -> list[IntentMatch]:
+    if not matches:
+        return []
+    top_confidence = matches[0].confidence
+    return [
+        match
+        for index, match in enumerate(matches)
+        if index == 0
+        or (
+            match.confidence >= 0.9
+            and top_confidence - match.confidence <= 0.18
+        )
+    ][:4]
+
+
+def _display_concept_name(value: str) -> str:
+    return value.rsplit(">", 1)[-1].strip()
+
+
+def _concept_key(value: str) -> str:
+    return _normalize(_display_concept_name(value))
 
 
 def _normalize(value: str) -> str:

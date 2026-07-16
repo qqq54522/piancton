@@ -147,6 +147,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D045" in master
     assert "D046" in master
     assert "D047" in master
+    assert "D048" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -161,6 +162,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "外部增强" not in search_result
     assert "智能语义搜索暂时响应较慢" in search_result
     assert "就是这张" in search_card
+    assert "本次识别到的卖点" in search_result
+    assert "匹配" in search_card
+    assert "matchedQueryConcepts" in search_card
     assert "没有合适素材提交需求" in search_constants
     assert "label: '提交素材需求'" not in search_constants
     assert "@client/src/components/ui/select" in search_card

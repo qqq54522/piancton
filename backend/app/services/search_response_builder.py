@@ -4,7 +4,7 @@ from typing import Literal
 
 from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import SearchDiagnosticsRead, SearchResponse
-from app.services.search_models import SearchHit
+from app.services.search_models import ConceptMatch, SearchHit
 from app.services.search_scorer import SearchScorer
 
 
@@ -22,6 +22,7 @@ class SearchResponseBuilder:
         fallback_reason: str | None = None,
         search_understanding: SearchUnderstanding | None = None,
         search_diagnostics: SearchDiagnosticsRead | None = None,
+        query_concept_matches: list[ConceptMatch] | None = None,
     ) -> SearchResponse:
         needle = keyword.strip().lower()
         hits = self.deduplicate_asset_groups(hits)
@@ -31,6 +32,7 @@ class SearchResponseBuilder:
                 needle,
                 hit.score,
                 list(hit.reasons),
+                {item.concept_id for item in (query_concept_matches or [])},
             )
             for hit in hits
         ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from app.models.image import Image
-from app.schemas.image import ScoredImage
+from app.schemas.image import ScoredImage, SearchResultConceptMatch
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
 from app.services.query_expansion_service import unique
 from app.services.search_asset_presenter import SearchAssetPresenter
@@ -24,6 +24,7 @@ class SearchScorer:
         needle: str,
         external_score: float | None,
         external_reasons: list[str],
+        query_concept_ids: set[str] | None = None,
     ) -> ScoredImage:
         semantic_terms = self.semantic_profile.profile_terms(image)
         concept_links = [
@@ -67,6 +68,10 @@ class SearchScorer:
         score = max(0.0, min(score, 1.0))
 
         asset = self.asset_presenter.present(image)
+        matched_query_concepts = self._matched_query_concepts(
+            concept_links,
+            query_concept_ids or set(),
+        )
         return ScoredImage(
             image=image_to_read(image),
             match_level=self.match_level(score),
@@ -79,6 +84,7 @@ class SearchScorer:
             available_variants=list(asset.variants),
             expressed_concepts=list(asset.expressed_concepts),
             supported_concepts=list(asset.supported_concepts),
+            matched_query_concepts=matched_query_concepts,
         )
 
     def match_level(self, score: float) -> Literal["S", "A", "B", "C"]:
@@ -136,3 +142,44 @@ class SearchScorer:
             else:
                 scores.append(0.72)
         return max(scores) if scores else None
+
+    def _matched_query_concepts(
+        self,
+        links,
+        query_concept_ids: set[str],
+    ) -> list[SearchResultConceptMatch]:
+        if not query_concept_ids:
+            return []
+        role_priority = {"expresses": 3, "supports": 2, "visual_related": 1}
+        selected = {}
+        for link in links:
+            if (
+                link.concept_id not in query_concept_ids
+                or link.review_status != "accepted"
+                or link.relation_role not in role_priority
+            ):
+                continue
+            current = selected.get(link.concept_id)
+            current_rank = (
+                int(current.origin in {"manual", "migrated"}),
+                role_priority[current.relation_role],
+            ) if current else (-1, -1)
+            candidate_rank = (
+                int(link.origin in {"manual", "migrated"}),
+                role_priority[link.relation_role],
+            )
+            if candidate_rank > current_rank:
+                selected[link.concept_id] = link
+        ordered = sorted(
+            selected.values(),
+            key=lambda link: role_priority[link.relation_role],
+            reverse=True,
+        )
+        return [
+            SearchResultConceptMatch(
+                concept_code=link.concept.code,
+                concept_name=link.concept.name,
+                relation_role=link.relation_role,
+            )
+            for link in ordered
+        ]

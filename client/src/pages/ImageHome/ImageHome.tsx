@@ -62,7 +62,6 @@ const ImageHome = () => {
             keyword={globalSearchKeyword}
             result={semanticResult}
             onClear={clearGlobalSearch}
-            onKeywordClick={executeGlobalSearch}
           />
         ) : (
           <div className="mt-6">

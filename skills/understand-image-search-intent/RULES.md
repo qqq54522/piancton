@@ -24,6 +24,12 @@
 Use dynamic relation judgments across the complete business concept catalog.
 Do not restore the obsolete fixed label-tree mapping.
 
+One query may express several valid business concepts. Return every directly supported
+concept (normally no more than four), keep their individual weights and reasons, and do
+not force a single winner when the wording combines several product capabilities.
+Concepts that are only visually similar or weakly associated must use `related` or
+`fallback`, not `direct`.
+
 Recommended relation multipliers for later scoring:
 
 - direct: 1.0

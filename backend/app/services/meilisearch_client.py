@@ -12,10 +12,10 @@ class MeilisearchClientError(RuntimeError):
 
 
 MEILISEARCH_SEARCHABLE_ATTRIBUTES = (
-    "title",
     "acceptedConceptNames",
     "acceptedConceptPhrases",
     "assetSearchPhrases",
+    "title",
     "caption",
     "semanticProfileBusinessIntent",
     "semanticProfileVisualFacts",

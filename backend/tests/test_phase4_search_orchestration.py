@@ -302,6 +302,87 @@ def test_phase4_school_alignment_query_recalls_confirmed_asset_locally(db_factor
     assert embedding_branch.detail == "本地高置信业务概念已满足"
 
 
+def test_phase4_multi_intent_recalls_and_labels_each_confirmed_concept(db_factory):
+    query = "AI拍照后即可为你点拨思路，不会立即出答案"
+    concept_specs = [
+        ("photo_guided_learning", "AI拍题精学"),
+        ("rapid_preview_review", "极速预习复习"),
+        ("ai_tutor_qa", "AI私教答疑"),
+    ]
+    with db_factory() as db:
+        expected_ids: set[str] = set()
+        for code, name in concept_specs:
+            image = _image(f"{name}素材", f"{code}.png")
+            concept = BusinessConcept(code=code, name=name)
+            group = AssetGroup(
+                title=image.title,
+                created_by="designer",
+                images=[image],
+                concept_links=[
+                    AssetConceptLink(
+                        concept=concept,
+                        relation_role="expresses",
+                        origin="manual",
+                        review_status="accepted",
+                    )
+                ],
+            )
+            db.add_all([concept, group])
+            db.flush()
+            group.primary_image_id = image.id
+            expected_ids.add(image.id)
+
+        distractor = _image(query, "title-only.png")
+        school_image = _image("不应由相邻词误召回", "school.png")
+        school_concept = BusinessConcept(
+            code="school_sync",
+            name="同步校内",
+            search_phrases=[
+                ConceptSearchPhrase(
+                    phrase="预习复习",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        school_group = AssetGroup(
+            title=school_image.title,
+            created_by="designer",
+            images=[school_image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=school_concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([distractor, school_concept, school_group])
+        db.flush()
+        school_group.primary_image_id = school_image.id
+        db.commit()
+
+        response = SearchService(db).search(query, 12)
+
+    assert response.search_understanding is not None
+    assert response.search_understanding.query_type == "multi_business_intent_search"
+    assert expected_ids.issubset({item.image.id for item in response.results})
+    assert school_image.id not in {item.image.id for item in response.results}
+    assert response.results[-1].image.id == distractor.id
+    matched_by_image = {
+        item.image.id: {
+            match.concept_name for match in item.matched_query_concepts
+        }
+        for item in response.results
+    }
+    assert {
+        next(iter(matched_by_image[image_id]))
+        for image_id in expected_ids
+    } == {name for _, name in concept_specs}
+    assert matched_by_image[distractor.id] == set()
+
+
 def test_phase4_generic_short_phrase_does_not_cross_match_long_query(db_factory):
     with db_factory() as db:
         image = _image("动画课程素材", "course.png")

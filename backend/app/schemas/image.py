@@ -72,6 +72,12 @@ class SearchRequest(ApiModel):
     system_code: Optional[str] = Field(default=None, max_length=100)
 
 
+class SearchResultConceptMatch(ApiModel):
+    concept_code: str
+    concept_name: str
+    relation_role: Literal["expresses", "supports", "visual_related"]
+
+
 class ScoredImage(ApiModel):
     image: ImageRead
     match_level: Literal["S", "A", "B", "C"]
@@ -84,6 +90,7 @@ class ScoredImage(ApiModel):
     available_variants: List[AssetImageRead] = Field(default_factory=list)
     expressed_concepts: List[str] = Field(default_factory=list)
     supported_concepts: List[str] = Field(default_factory=list)
+    matched_query_concepts: List[SearchResultConceptMatch] = Field(default_factory=list)
 
 
 class SearchBranchStatusRead(ApiModel):

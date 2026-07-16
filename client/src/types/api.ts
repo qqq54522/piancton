@@ -169,6 +169,13 @@ export interface ScoredImageMatch {
   availableVariants: AssetImage[];
   expressedConcepts: string[];
   supportedConcepts: string[];
+  matchedQueryConcepts: SearchResultConceptMatch[];
+}
+
+export interface SearchResultConceptMatch {
+  conceptCode: string;
+  conceptName: string;
+  relationRole: 'expresses' | 'supports' | 'visual_related';
 }
 
 export interface SearchBranchStatus {

@@ -203,6 +203,8 @@ def test_phase6_metadata_no_longer_declares_legacy_image_semantic_tables():
 def test_meilisearch_prioritizes_confirmed_language_over_streamlined_ai_semantics():
     priorities = list(MEILISEARCH_SEARCHABLE_ATTRIBUTES)
 
+    assert priorities.index("acceptedConceptNames") < priorities.index("title")
+    assert priorities.index("acceptedConceptPhrases") < priorities.index("title")
     assert priorities.index("acceptedConceptPhrases") < priorities.index("assetSearchPhrases")
     assert priorities.index("assetSearchPhrases") < priorities.index("semanticProfileVisualFacts")
     assert priorities.index("semanticProfileScenes") < priorities.index(

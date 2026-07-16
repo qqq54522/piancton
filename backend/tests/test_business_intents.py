@@ -67,6 +67,23 @@ def test_query_understanding_maps_core_intent_queries_locally():
         assert understanding.matched_business_concepts[0].relation == "direct"
 
 
+def test_query_understanding_keeps_multiple_explicit_selling_points():
+    understanding = QueryUnderstandingService().understand_locally(
+        "AI拍照后即可为你点拨思路，不会立即出答案"
+    )
+
+    assert understanding is not None
+    assert understanding.query_type == "multi_business_intent_search"
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in understanding.matched_business_concepts
+    ] == ["AI拍题精学", "极速预习复习", "AI私教答疑"]
+    assert all(
+        item.relation == "direct"
+        for item in understanding.matched_business_concepts
+    )
+
+
 def test_query_understanding_falls_back_to_ai_when_local_intent_does_not_match():
     class FakeProvider:
         configured = True

@@ -6,7 +6,7 @@ from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import SearchDiagnosticsRead, SearchResponse
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
 from app.services.query_expansion_service import unique
-from app.services.search_models import RerankOutcome, SearchHit
+from app.services.search_models import ConceptMatch, RerankOutcome, SearchHit
 from app.services.search_response_builder import SearchResponseBuilder
 from app.services.search_scorer import SearchScorer
 from app.services.semantic_rerank_service import SemanticRerankService
@@ -98,6 +98,67 @@ class SearchRankingService:
     def collapse_asset_groups(self, hits: list[SearchHit]) -> list[SearchHit]:
         return self.response_builder.deduplicate_asset_groups(hits)
 
+    def prioritize_confirmed_concepts(
+        self,
+        hits: list[SearchHit],
+        concept_matches: list[ConceptMatch],
+        *,
+        confidence: float,
+    ) -> list[SearchHit]:
+        """Keep high-confidence intent and confirmed asset relations above weak signals."""
+        matched_ids = {
+            item.concept_id
+            for item in concept_matches
+            if item.score >= 0.84
+        }
+        if confidence < 0.85 or not matched_ids:
+            return hits
+
+        prioritized: list[SearchHit] = []
+        for hit in hits:
+            links = hit.image.asset_group.concept_links if hit.image.asset_group else []
+            if any(
+                link.concept_id in matched_ids
+                and link.review_status == "accepted"
+                and link.relation_role == "excludes"
+                for link in links
+            ):
+                continue
+            accepted = [
+                link
+                for link in links
+                if link.concept_id in matched_ids
+                and link.review_status == "accepted"
+                and link.relation_role != "excludes"
+            ]
+            base_score = hit.score if hit.score is not None else 0.65
+            score = min(base_score, 0.82)
+            reason = "高置信卖点意图：保留画面/话术兜底"
+            manual = [
+                link for link in accepted if link.origin in {"manual", "migrated"}
+            ]
+            roles = {link.relation_role for link in manual}
+            if "expresses" in roles:
+                score = 0.96 + min(1.0, base_score) * 0.04
+                reason = "高置信卖点意图命中人工确认的主要表达关系"
+            elif "supports" in roles:
+                score = 0.90 + min(1.0, base_score) * 0.05
+                reason = "高置信卖点意图命中人工确认的可以支持关系"
+            elif manual:
+                score = 0.84 + min(1.0, base_score) * 0.04
+                reason = "高置信卖点意图命中人工确认的画面关联关系"
+            elif accepted:
+                score = 0.84 + min(1.0, base_score) * 0.05
+                reason = "高置信卖点意图命中已采纳的 AI 关系"
+            prioritized.append(
+                SearchHit(
+                    image=hit.image,
+                    score=min(1.0, score),
+                    reasons=tuple(unique([*hit.reasons, reason])),
+                )
+            )
+        return self.sort_hits(prioritized)
+
     def rerank_hits(
         self,
         keyword: str,
@@ -123,6 +184,7 @@ class SearchRankingService:
         fallback_reason: str | None = None,
         search_understanding: SearchUnderstanding | None = None,
         search_diagnostics: SearchDiagnosticsRead | None = None,
+        query_concept_matches: list[ConceptMatch] | None = None,
     ) -> SearchResponse:
         return self.response_builder.build_response(
             keyword=keyword,
@@ -132,4 +194,5 @@ class SearchRankingService:
             fallback_reason=fallback_reason,
             search_understanding=search_understanding,
             search_diagnostics=search_diagnostics,
+            query_concept_matches=query_concept_matches,
         )

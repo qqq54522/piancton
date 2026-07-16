@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Download, MessageSquareWarning } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -25,12 +25,13 @@ function ScoredImageCard({ scored, keyword, searchLogId }: ScoredImageCardProps)
   const [selectedId, setSelectedId] = useState(variants[0].id);
   const [submittedFeedback, setSubmittedFeedback] = useState<SearchFeedbackType | null>(null);
   const selected = variants.find((item) => item.id === selectedId) ?? variants[0];
-  const concepts = useMemo(
-    () => [
-      ...scored.expressedConcepts.map((name) => ({ name, role: '主要表达' })),
-      ...scored.supportedConcepts.map((name) => ({ name, role: '可以支持' })),
-    ].slice(0, 4),
-    [scored.expressedConcepts, scored.supportedConcepts],
+  const matchedConcepts = scored.matchedQueryConcepts ?? [];
+  const primaryConcept = matchedConcepts[0] ?? (
+    scored.expressedConcepts[0]
+      ? { conceptName: scored.expressedConcepts[0], relationRole: 'expresses' as const }
+      : scored.supportedConcepts[0]
+        ? { conceptName: scored.supportedConcepts[0], relationRole: 'supports' as const }
+        : null
   );
   const feedback = useMutation({
     mutationFn: (feedbackType: 'relevant' | 'not_relevant') => submitSearchFeedback({
@@ -63,26 +64,29 @@ function ScoredImageCard({ scored, keyword, searchLogId }: ScoredImageCardProps)
             {variants.length} 个尺寸
           </Badge>
         )}
+        {primaryConcept && (
+          <div
+            className="absolute bottom-2 right-2 flex max-w-[calc(100%-1rem)] items-center justify-end gap-1"
+            title={matchedConcepts.length > 0
+              ? matchedConcepts.map((item) => `${item.conceptName} · ${relationLabel(item.relationRole)}`).join('、')
+              : `${primaryConcept.conceptName} · ${relationLabel(primaryConcept.relationRole)}`}
+          >
+            <Badge className="max-w-[12rem] truncate bg-slate-950/80 text-[10px] text-white backdrop-blur-sm">
+              {matchedConcepts.length > 0 ? '匹配' : '主要'}：{primaryConcept.conceptName}
+            </Badge>
+            {matchedConcepts.length > 1 && (
+              <Badge className="bg-primary text-[10px] text-primary-foreground">
+                +{matchedConcepts.length - 1}
+              </Badge>
+            )}
+          </div>
+        )}
       </Link>
 
       <div className="flex flex-1 flex-col p-4">
         <h3 className="line-clamp-2 text-sm font-semibold text-foreground">
           {scored.assetTitle || scored.image.title}
         </h3>
-
-        {concepts.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {concepts.map((concept) => (
-              <Badge
-                key={`${concept.role}-${concept.name}`}
-                variant={concept.role === '主要表达' ? 'default' : 'outline'}
-                className="text-[10px]"
-              >
-                {concept.name} · {concept.role}
-              </Badge>
-            ))}
-          </div>
-        )}
 
         <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2">
           <p className="text-[11px] font-medium text-muted-foreground">为什么匹配</p>
@@ -142,6 +146,14 @@ function ScoredImageCard({ scored, keyword, searchLogId }: ScoredImageCardProps)
       </div>
     </motion.article>
   );
+}
+
+function relationLabel(role: 'expresses' | 'supports' | 'visual_related'): string {
+  return {
+    expresses: '主要表达',
+    supports: '可以支持',
+    visual_related: '画面相关',
+  }[role];
 }
 
 function fallbackVariant(scored: ScoredImageMatch): AssetImage {
