@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, cast
 
-from sqlalchemy import and_, desc, literal, or_, select
+from sqlalchemy import and_, desc, literal, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.search_query_expansion import expand_search_terms
@@ -13,6 +13,7 @@ from app.models.image import (
     AnalysisRun,
     Image,
     ImageEmbedding,
+    ImageTitleReservation,
 )
 
 IMAGE_LOAD_OPTIONS = (
@@ -47,6 +48,35 @@ class ImageRepository:
     def get_any(self, image_id: str) -> Optional[Image]:
         return self.db.scalar(
             select(Image).where(Image.id == image_id).options(*IMAGE_LOAD_OPTIONS)
+        )
+
+    def list_all_titles(self, *, exclude_image_id: str | None = None) -> list[str]:
+        stmt = select(Image.title)
+        if exclude_image_id:
+            stmt = stmt.where(Image.id != exclude_image_id)
+        image_titles = list(self.db.scalars(stmt).all())
+        reserved_titles = list(
+            self.db.scalars(select(ImageTitleReservation.title)).all()
+        )
+        return image_titles + reserved_titles
+
+    def reserve_title(self, title: str) -> None:
+        self.db.add(
+            ImageTitleReservation(
+                normalized_title=title.strip().casefold(),
+                title=title.strip(),
+            )
+        )
+
+    def lock_title_namespace(self, namespace: str) -> None:
+        if self.db.bind is None or self.db.bind.dialect.name != "postgresql":
+            return
+        # Title allocation is intentionally serialized globally. Besides making the
+        # common same-name case safe, this also covers 255-character names whose
+        # numbered forms must be truncated before the suffix is appended.
+        self.db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:namespace))"),
+            {"namespace": "image-title-global"},
         )
 
     def list(

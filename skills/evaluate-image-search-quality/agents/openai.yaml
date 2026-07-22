@@ -1,0 +1,7 @@
+interface:
+  display_name: "评测图片搜索质量"
+  short_description: "运行本地或模型搜索评测并定位意图、选图和性能回归"
+  default_prompt: "Use $evaluate-image-search-quality to run an evidence-based search evaluation and classify every regression."
+policy:
+  allow_implicit_invocation: true
+

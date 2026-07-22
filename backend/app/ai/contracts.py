@@ -4,7 +4,8 @@ from typing import Any, Literal, Optional, Protocol
 
 ModelTask = Literal[
     "image_content_analysis",
-    "secondary_selling_point_classification",
+    "asset_search_phrase_generation",
+    "search_system_routing",
     "search_intent_understanding",
     "copy_selling_point_matching",
 ]
@@ -16,6 +17,8 @@ class ModelRequest:
     prompt: str
     input_text: str = ""
     image_path: Optional[Path] = None
+    image_media_type: Optional[str] = None
+    timeout_seconds: Optional[float] = None
 
 
 class ModelProvider(Protocol):

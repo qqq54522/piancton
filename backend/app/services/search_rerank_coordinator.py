@@ -27,6 +27,7 @@ class SearchRerankCoordinator:
         hits: list[SearchHit],
         *,
         search_started: float,
+        trusted_business_route: bool = False,
     ) -> tuple[list[SearchHit], SearchBranchDiagnostic, bool, bool]:
         remaining = self.total_timeout_seconds - (time.monotonic() - search_started)
         if remaining <= 0:
@@ -40,6 +41,32 @@ class SearchRerankCoordinator:
                     duration_ms=0,
                     result_count=len(hits),
                     detail="服务未配置或候选不足",
+                ),
+                False,
+                False,
+            )
+        if trusted_business_route and len(hits) <= 2:
+            return (
+                hits,
+                SearchBranchDiagnostic(
+                    source="reranker",
+                    status="skipped",
+                    duration_ms=0,
+                    result_count=len(hits),
+                    detail="高置信业务主通道候选较少，无需重排",
+                ),
+                False,
+                False,
+            )
+        if remaining < self.reranker_timeout_seconds:
+            return (
+                hits,
+                SearchBranchDiagnostic(
+                    source="reranker",
+                    status="skipped",
+                    duration_ms=0,
+                    result_count=len(hits),
+                    detail="剩余总预算不足，跳过重排",
                 ),
                 False,
                 False,

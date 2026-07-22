@@ -8,6 +8,9 @@ export type LoginResponse = components['schemas']['LoginResponse'];
 export type AnalysisRun = components['schemas']['AnalysisRunRead'];
 export type ImageSemanticProfile = components['schemas']['SemanticProfileRead'];
 export type AuditLog = components['schemas']['AuditLogRead'];
+export type AssetSearchPhraseSuggestion =
+  components['schemas']['AssetSearchPhraseSuggestion'];
+export type ImageTitleResolution = components['schemas']['ImageTitleResolution'];
 
 type GeneratedTag = components['schemas']['TagRead'];
 export type Tag = Omit<GeneratedTag, 'parentId'> & { parentId: string | null };

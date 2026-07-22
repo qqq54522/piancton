@@ -50,3 +50,14 @@ class SearchDiagnosticsService:
         if not reasons:
             return None
         return "搜索已降级：" + "；".join(dict.fromkeys(reasons))
+
+    def user_fallback_reason(
+        self,
+        branches: list[SearchBranchDiagnostic],
+        *,
+        trusted_business_route: bool,
+    ) -> str | None:
+        """Only expose degradation when it can materially change user results."""
+        if trusted_business_route:
+            return None
+        return self.fallback_reason(branches)

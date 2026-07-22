@@ -37,6 +37,12 @@ export function useAssetActions(groupId: string) {
     }) => assetApi.confirmAssetConcept(groupId, input.conceptId, input.relationRole),
     onSuccess: update,
   });
+  const updateBusinessClassification = useMutation({
+    mutationFn: (input: Parameters<typeof assetApi.updateAssetBusinessClassification>[1]) => (
+      assetApi.updateAssetBusinessClassification(groupId, input)
+    ),
+    onSuccess: update,
+  });
   const reviewConcept = useMutation({
     mutationFn: (input: {
       linkId: string;
@@ -83,5 +89,6 @@ export function useAssetActions(groupId: string) {
     reviewConcept,
     reviewConcepts,
     reviewPhrase,
+    updateBusinessClassification,
   };
 }

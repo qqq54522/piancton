@@ -3,12 +3,15 @@ from __future__ import annotations
 from typing import Literal, cast
 
 from app.core.errors import AppError, NotFoundError
+from app.domain.evidence_points import load_evidence_point_catalog
+from app.domain.proof_points import load_proof_point_catalog
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.repositories.asset_repository import AssetRepository
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
 from app.schemas.ai import ImageAnalysisResult
 from app.schemas.asset import (
+    AssetBusinessClassificationUpdate,
     AssetConceptBatchReview,
     AssetConceptConfirmation,
     AssetConceptReview,
@@ -109,6 +112,66 @@ class AssetRelationService:
             payload.evidence_reason,
         )
         self._reject_shadowed_ai_suggestions(group, {concept.id})
+        self.assets.save(group)
+        self.uow.commit()
+        self._sync_primary(group_id)
+        return asset_group_to_read(self._group(group_id))
+
+    def update_business_classification(
+        self,
+        group_id: str,
+        payload: AssetBusinessClassificationUpdate,
+    ) -> AssetGroupRead:
+        group = self._group(group_id)
+        evidence = None
+        if payload.evidence_point_code:
+            evidence = load_evidence_point_catalog().by_code.get(
+                payload.evidence_point_code
+            )
+            if evidence is None:
+                raise AppError("invalid_evidence_point", "证据表达点不存在或已失效")
+        proof_code = payload.proof_point_code or (
+            evidence.proof_point_code if evidence else None
+        )
+        proof = (
+            load_proof_point_catalog().by_code.get(proof_code)
+            if proof_code
+            else None
+        )
+        if proof_code and proof is None:
+            raise AppError("invalid_proof_point", "证明点不存在或已失效")
+        if evidence and proof and evidence.proof_point_code != proof.code:
+            raise AppError(
+                "evidence_point_parent_mismatch",
+                "证据表达点不属于所选证明点",
+            )
+
+        concept = None
+        if payload.concept_id:
+            concept = self.concepts.get(payload.concept_id)
+            if not concept:
+                raise NotFoundError("business_concept_not_found", "业务概念不存在")
+        elif proof:
+            concepts = self.concepts.get_many_by_codes([proof.concept_code])
+            concept = concepts[0] if concepts else None
+        if proof and concept and proof.concept_code != concept.code:
+            raise AppError("proof_point_parent_mismatch", "证明点不属于所选卖点")
+        if proof and concept is None:
+            raise AppError(
+                "proof_point_concept_unavailable",
+                "证明点对应的卖点当前不可用",
+            )
+        if concept:
+            self._upsert_manual_link(
+                group,
+                concept,
+                "expresses",
+                "设计师人工选择业务层级",
+            )
+            self._reject_shadowed_ai_suggestions(group, {concept.id})
+
+        group.primary_proof_point_code = proof.code if proof else None
+        group.primary_evidence_point_code = evidence.code if evidence else None
         self.assets.save(group)
         self.uow.commit()
         self._sync_primary(group_id)

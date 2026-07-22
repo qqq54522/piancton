@@ -68,7 +68,7 @@ make docker-up
 - `MEILISEARCH_INDEX`，默认 `images`
 - `SEARCH_TIMEOUT_SECONDS`，默认 2 秒
 
-在线搜索由一条限时异步编排统一执行：数据库、Meilisearch、Embedding 和复杂查询理解按配置并行运行，候选融合后最多调用一次 Reranker。任一外部分支不可用或超时时，接口使用已取得的候选返回，并通过诊断字段记录降级来源。
+在线搜索由一条限时异步编排统一执行：配置查询理解模型时，先只用六体系路由判断需要读取的体系，再完整加载候选体系 Skill 原文件、完整规则和候选体系卖点目录完成第二层识别；按需加载只缩小体系范围，不压缩已命中体系知识。体系路由与卖点识别分别使用 `SEARCH_SYSTEM_ROUTING_TIMEOUT_SECONDS` 和 `SEARCH_SELLING_POINT_TIMEOUT_SECONDS`，不再共用一个小于两层合计耗时的外层预算。第一层已确认业务体系而第二层失败时，没有可信 accepted 卖点关系就返回空，禁止放开全库弱召回。本地固定目录、数据库、Meilisearch 和 Embedding 并行准备候选，候选融合后最多调用一次 Reranker；Reranker 的可选总预算从查询理解完成后开始。
 
 重建派生搜索索引：
 

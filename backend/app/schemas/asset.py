@@ -49,6 +49,10 @@ class AssetGroupRead(ApiModel):
     primary_image_id: Optional[str] = None
     approval_status: str
     publish_status: str
+    style_label: Optional[str] = None
+    is_scene_image: Optional[bool] = None
+    primary_proof_point_code: Optional[str] = None
+    primary_evidence_point_code: Optional[str] = None
     created_by: str
     images: List[AssetImageRead] = Field(default_factory=list)
     concept_links: List[AssetConceptLinkRead] = Field(default_factory=list)
@@ -61,6 +65,12 @@ class AssetConceptConfirmation(ApiModel):
     concept_id: str
     relation_role: Literal["expresses", "supports", "visual_related", "excludes"]
     evidence_reason: Optional[str] = Field(default=None, max_length=3000)
+
+
+class AssetBusinessClassificationUpdate(ApiModel):
+    concept_id: Optional[str] = None
+    proof_point_code: Optional[str] = Field(default=None, max_length=120)
+    evidence_point_code: Optional[str] = Field(default=None, max_length=140)
 
 
 class AssetConceptReview(ApiModel):

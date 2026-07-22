@@ -11,6 +11,7 @@ from app.repositories.asset_repository import AssetRepository
 from app.repositories.image_repository import ImageRepository
 from app.schemas.asset import AssetGroupRead
 from app.services.asset_serializers import asset_group_to_read
+from app.services.image_title_service import ImageTitleService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
@@ -38,6 +39,7 @@ class AssetService:
         self.thumbnail_max_size = thumbnail_max_size
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.uow = UnitOfWork(db)
+        self.image_titles = ImageTitleService(db)
 
     def list(self) -> list[AssetGroupRead]:
         return [asset_group_to_read(item) for item in self.assets.list()]
@@ -64,9 +66,11 @@ class AssetService:
             self.max_image_pixels,
             self.thumbnail_max_size,
         )
+        requested_title = title.strip() or Path(original_name).stem
+        resolved_title = self.image_titles.resolve(requested_title)
         version_no = max((image.version_no for image in group.images), default=0) + 1
         image = Image(
-            title=title.strip() or Path(original_name).stem,
+            title=resolved_title,
             file_name=original_name,
             storage_key=staged.storage_key,
             thumbnail_storage_key=staged.thumbnail_storage_key,
@@ -110,6 +114,8 @@ class AssetService:
             self.max_image_pixels,
             self.thumbnail_max_size,
         )
+        requested_title = title.strip() or Path(original_name).stem
+        resolved_title = self.image_titles.resolve(requested_title)
         version_no = max((image.version_no for image in group.images), default=0) + 1
         previous_primary = next(
             (image for image in group.images if image.id == group.primary_image_id),
@@ -119,7 +125,7 @@ class AssetService:
             previous_primary.asset_role = "revision"
             previous_primary.is_current = False
         image = Image(
-            title=title.strip() or Path(original_name).stem,
+            title=resolved_title,
             file_name=original_name,
             storage_key=staged.storage_key,
             thumbnail_storage_key=staged.thumbnail_storage_key,

@@ -110,6 +110,9 @@ def test_phase6_search_document_uses_only_new_semantic_sources(db_factory):
     assert document["manualConceptCodes"] == ["animation_explanation"]
     assert document["acceptedConceptNames"] == ["动画精讲"]
     assert document["pendingAiConceptCodes"] == ["instant_quiz"]
+    # D080: 待审核建议只留 code 供运营过滤，不再产出可搜索的名称字段。
+    assert "pendingConceptNames" not in document
+    assert "课后小测" not in document["searchableText"]
     assert document["acceptedConceptSystems"] == ["sync_school"]
     assert document["assetSearchPhrases"] == ["蓝色平板动画课画面"]
     assert document["semanticProfileSearchPhrases"] == ["AI自动语义候选"]
@@ -176,6 +179,9 @@ def test_embedding_index_uses_the_same_phase6_semantic_document(db_factory):
             assert "素材独有搜索表达：蓝色平板动画课画面" in inputs[0]
             assert "素材搜索表达：AI自动语义候选" in inputs[0]
             assert "素材独有搜索表达：AI自动语义候选" not in inputs[0]
+            # D080: 待审核概念建议不进入向量/重排文档。
+            assert "AI待审核概念" not in inputs[0]
+            assert "课后小测" not in inputs[0]
             return [[0.1, 0.2, 0.3]]
 
     with db_factory() as db:
@@ -210,7 +216,6 @@ def test_meilisearch_prioritizes_confirmed_language_over_streamlined_ai_semantic
     assert priorities.index("semanticProfileScenes") < priorities.index(
         "semanticProfileSearchPhrases"
     )
-    assert priorities.index("semanticProfileSearchPhrases") < priorities.index(
-        "pendingConceptNames"
-    )
+    # D080: 待审核概念名称彻底退出可搜索字段。
+    assert "pendingConceptNames" not in priorities
     assert "contentTags" not in priorities

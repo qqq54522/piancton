@@ -8,9 +8,16 @@ from typing import Any
 
 from app.core.config import PROJECT_DIR
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
+from app.schemas.ai import SEARCH_QUERY_TYPES
 
 SEARCH_EVAL_CASES_PATH = PROJECT_DIR / "taxonomy" / "search_eval_cases.json"
-EXPECTED_CUMULATIVE_BATCH_COUNTS = {1: 15, 2: 30, 3: 50}
+EXPECTED_CUMULATIVE_BATCH_COUNTS = {1: 15, 2: 30, 3: 50, 4: 75, 5: 103}
+
+# 批次 4 的画面/否定用例没有唯一目标卖点，允许留空目标标签。
+QUERY_TYPES_WITHOUT_PRIMARY_LABEL = {
+    "visual_scene_search",
+    "no_reliable_intent_search",
+}
 
 
 @dataclass(frozen=True)
@@ -45,6 +52,8 @@ class SearchEvalCase:
     acceptable_asset_ids: tuple[str, ...]
     forbidden_asset_ids: tuple[str, ...]
     expected_concept_codes: tuple[str, ...]
+    expected_query_type: str
+    expected_excluded_concept_codes: tuple[str, ...]
     ambiguity: tuple[str, ...]
     allow_few_results: bool
     scoring: SearchEvalScoring
@@ -108,6 +117,10 @@ def _case(payload: dict[str, Any]) -> SearchEvalCase:
         acceptable_asset_ids=_strings(payload.get("acceptable_asset_ids")),
         forbidden_asset_ids=_strings(payload.get("forbidden_asset_ids")),
         expected_concept_codes=_strings(payload.get("expected_concept_codes")),
+        expected_query_type=str(payload.get("expected_query_type") or "").strip(),
+        expected_excluded_concept_codes=_strings(
+            payload.get("expected_excluded_concept_codes")
+        ),
         ambiguity=_strings(payload.get("ambiguity")),
         allow_few_results=bool(payload.get("allow_few_results", False)),
         scoring=_scoring(payload.get("scoring") or {}),
@@ -120,8 +133,10 @@ def _validate(catalog: SearchEvalCatalog) -> None:
         raise ValueError("搜索评测集缺少版本")
     if catalog.dataset_status not in {"template", "partial", "ready"}:
         raise ValueError("搜索评测集 dataset_status 无效")
-    if len(catalog.cases) != EXPECTED_CUMULATIVE_BATCH_COUNTS[3]:
-        raise ValueError("搜索评测集必须包含 50 条评测 query")
+    latest_batch = max(EXPECTED_CUMULATIVE_BATCH_COUNTS)
+    latest_count = EXPECTED_CUMULATIVE_BATCH_COUNTS[latest_batch]
+    if len(catalog.cases) != latest_count:
+        raise ValueError(f"搜索评测集必须包含 {latest_count} 条评测 query")
 
     ids = [case.id for case in catalog.cases]
     if len(ids) != len(set(ids)):
@@ -139,14 +154,25 @@ def _validate(catalog: SearchEvalCatalog) -> None:
     for case in catalog.cases:
         if not case.query or not case.true_intent:
             raise ValueError(f"搜索评测案例缺少 query 或真实意图：{case.id}")
-        system = node_by_code.get(case.expected_system_code)
-        if not system or system.node_type != "system":
-            raise ValueError(f"搜索评测案例目标体系无效：{case.id}")
-        label = node_by_code.get(case.expected_label_code)
-        if not label or label.node_type != "image_label":
-            raise ValueError(f"搜索评测案例目标标签无效：{case.id}")
-        if label.parent_code != system.code:
-            raise ValueError(f"搜索评测案例目标体系与标签不匹配：{case.id}")
+        if case.expected_query_type and case.expected_query_type not in SEARCH_QUERY_TYPES:
+            raise ValueError(f"搜索评测案例查询状态无效：{case.id}")
+        label_optional = case.expected_query_type in QUERY_TYPES_WITHOUT_PRIMARY_LABEL
+        if not (label_optional and not case.expected_system_code):
+            system = node_by_code.get(case.expected_system_code)
+            if not system or system.node_type != "system":
+                raise ValueError(f"搜索评测案例目标体系无效：{case.id}")
+            label = node_by_code.get(case.expected_label_code)
+            if not label or label.node_type != "image_label":
+                raise ValueError(f"搜索评测案例目标标签无效：{case.id}")
+            if label.parent_code != system.code:
+                raise ValueError(f"搜索评测案例目标体系与标签不匹配：{case.id}")
+        for code in (
+            *case.expected_concept_codes,
+            *case.expected_excluded_concept_codes,
+        ):
+            expected_label = node_by_code.get(code)
+            if not expected_label or expected_label.node_type != "image_label":
+                raise ValueError(f"搜索评测案例概念 code 无效：{case.id} -> {code}")
         if not case.strong_relevant_images:
             raise ValueError(f"搜索评测案例缺少强相关图片描述：{case.id}")
         if not case.disallowed_images:
@@ -175,4 +201,11 @@ def expected_display_name(case: SearchEvalCase) -> str:
     taxonomy = load_taxonomy_catalog()
     system = taxonomy.node_by_code[case.expected_system_code]
     label = taxonomy.node_by_code[case.expected_label_code]
+    return f"{system.name} > {label.name}"
+
+
+def display_name_for_label(code: str) -> str:
+    taxonomy = load_taxonomy_catalog()
+    label = taxonomy.node_by_code[code]
+    system = taxonomy.node_by_code[label.parent_code or ""]
     return f"{system.name} > {label.name}"

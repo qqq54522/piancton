@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.domain.query_negation import is_term_negated
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
@@ -25,7 +26,7 @@ class ConceptSearchRecallService:
         matches = [
             match
             for concept in self.concepts.list()
-            if (match := self._match_concept(needle, concept)) is not None
+            if (match := self._match_concept(needle, concept, keyword)) is not None
         ]
         return sorted(matches, key=lambda item: item.score, reverse=True)[:limit]
 
@@ -86,6 +87,7 @@ class ConceptSearchRecallService:
         self,
         needle: str,
         concept: BusinessConcept,
+        keyword: str,
     ) -> ConceptMatch | None:
         candidates = [
             (concept.name, 1.0, "业务概念名称命中"),
@@ -104,6 +106,8 @@ class ConceptSearchRecallService:
         for term, weight, reason in candidates:
             match_score = _term_match_score(needle, _normalize(term))
             if match_score <= 0:
+                continue
+            if is_term_negated(keyword, term):
                 continue
             scored.append((min(match_score, weight), reason))
         if not scored:
@@ -152,8 +156,10 @@ def _term_match_score(needle: str, term: str) -> float:
 def _link_score(*, origin: str, review_status: str, relation_role: str) -> float:
     if relation_role == "excludes":
         return 0.0
-    if review_status == "pending":
-        return 0.62 if origin == "ai" else 0.7
+    # D080: 未审核的关系建议只是待办，不参与任何搜索召回；
+    # 人工 accepted 之后才成为素材的业务语义事实。
+    if review_status != "accepted":
+        return 0.0
     role_score = {
         "expresses": 1.0,
         "supports": 0.92,

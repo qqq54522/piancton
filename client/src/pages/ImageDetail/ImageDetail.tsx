@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
 import { Button } from '@client/src/components/ui/button';
@@ -15,6 +15,8 @@ import AssetWorkspacePanel from './asset/AssetWorkspacePanel';
 const ImageDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { from?: string } | null)?.from;
   const detailQuery = useImageDetail(id);
   const detail = detailQuery.data ?? null;
   const loading = detailQuery.isLoading;
@@ -48,7 +50,7 @@ const ImageDetail = () => {
       <div className="mb-5 flex items-center gap-2 text-sm">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => (returnTo ? navigate(returnTo) : navigate(-1))}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" />

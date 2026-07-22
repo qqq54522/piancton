@@ -49,6 +49,10 @@ def asset_group_to_read(group: AssetGroup) -> AssetGroupRead:
         primary_image_id=group.primary_image_id,
         approval_status=group.approval_status,
         publish_status=group.publish_status,
+        style_label=group.style_label,
+        is_scene_image=group.is_scene_image,
+        primary_proof_point_code=group.primary_proof_point_code,
+        primary_evidence_point_code=group.primary_evidence_point_code,
         created_by=group.created_by,
         images=[
             asset_image_to_read(image)

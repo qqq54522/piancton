@@ -12,6 +12,12 @@ class ImageTitleUpdate(ApiModel):
     title: str = Field(min_length=1, max_length=255)
 
 
+class ImageTitleResolution(ApiModel):
+    requested_title: str
+    resolved_title: str
+    changed: bool
+
+
 class SemanticProfileRead(ApiModel):
     schema_version: Literal[3] = 3
     visual_facts: List[str] = Field(default_factory=list)
@@ -48,6 +54,8 @@ class ImageRead(ApiModel):
     height: Optional[int] = None
     aspect_ratio: Optional[float] = None
     channel: Optional[str] = None
+    style_label: Optional[str] = None
+    is_scene_image: Optional[bool] = None
     version_no: int = 1
     is_current: bool = True
     variant_count: int = 1
@@ -70,6 +78,9 @@ class SearchRequest(ApiModel):
     keyword: str = Field(min_length=1, max_length=200)
     limit: int = Field(default=12, ge=1, le=50)
     system_code: Optional[str] = Field(default=None, max_length=100)
+    concept_code: Optional[str] = Field(default=None, max_length=100)
+    proof_point_code: Optional[str] = Field(default=None, max_length=120)
+    evidence_point_code: Optional[str] = Field(default=None, max_length=140)
 
 
 class SearchResultConceptMatch(ApiModel):
@@ -91,6 +102,10 @@ class ScoredImage(ApiModel):
     expressed_concepts: List[str] = Field(default_factory=list)
     supported_concepts: List[str] = Field(default_factory=list)
     matched_query_concepts: List[SearchResultConceptMatch] = Field(default_factory=list)
+    primary_proof_point_code: Optional[str] = None
+    primary_proof_point_name: Optional[str] = None
+    primary_evidence_point_code: Optional[str] = None
+    primary_evidence_point_name: Optional[str] = None
 
 
 class SearchBranchStatusRead(ApiModel):

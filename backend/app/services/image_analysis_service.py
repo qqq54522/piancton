@@ -110,17 +110,31 @@ class ImageAnalysisService:
         return self._detail(image.id)
 
     def _concept_suggestion_codes(self, result: ImageAnalysisResult) -> list[str | None]:
-        catalog = load_taxonomy_catalog()
-        node_by_name = {
-            (catalog.node_by_code[node.parent_code].name, node.name): node.code
-            for node in catalog.image_label_nodes
-            if node.parent_code
+        concepts = self.asset_relations.concepts.list()
+        by_code = {concept.code: concept for concept in concepts}
+        by_pair = {
+            (link.system_tag.name.strip(), concept.name.strip()): concept.code
+            for concept in concepts
+            for link in concept.system_links
+            if link.status == "active" and link.system_tag is not None
         }
-        valid_codes = set(catalog.node_by_code)
+        codes_by_name: dict[str, set[str]] = {}
+        for concept in concepts:
+            codes_by_name.setdefault(concept.name.strip(), set()).add(concept.code)
+
+        def resolve(item) -> str | None:
+            if item.concept_code in by_code:
+                return item.concept_code
+            pair_code = by_pair.get(
+                (item.system_name.strip(), item.concept_name.strip())
+            )
+            if pair_code:
+                return pair_code
+            matching_codes = codes_by_name.get(item.concept_name.strip(), set())
+            return next(iter(matching_codes)) if len(matching_codes) == 1 else None
+
         return [
-            item.concept_code
-            if item.concept_code in valid_codes
-            else node_by_name.get((item.system_name.strip(), item.concept_name.strip()))
+            resolve(item)
             for item in result.concept_suggestions
         ]
 

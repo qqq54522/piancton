@@ -5,6 +5,7 @@ import { useAuth, ROLE_SUBJECT } from '@client/src/lib/auth';
 import type { ImageItem } from '@client/src/types/api';
 import { Badge } from '@client/src/components/ui/badge';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
+import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 
 interface ImageCardProps {
   image: ImageItem;
@@ -19,6 +20,8 @@ const ImageCard = ({ image, overlay }: ImageCardProps) => {
   return (
     <Link
       to={`/image/${image.id}`}
+      state={{ from: '/' }}
+      onClick={rememberImageHomeScroll}
       className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">

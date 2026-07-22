@@ -159,8 +159,20 @@ def test_rejected_or_excluded_concepts_do_not_recall_assets(db_factory):
 
 def test_asset_specific_phrase_recalls_only_its_group(db_factory):
     with db_factory() as db:
-        first = create_concept_image(db, code="first", name="第一概念", phrase="通用词")
-        second = create_concept_image(db, code="second", name="第二概念", phrase="另一个通用词")
+        first = create_concept_image(
+            db,
+            code="first",
+            name="第一概念",
+            title="第一张知识点动画讲解",
+            phrase="通用词",
+        )
+        second = create_concept_image(
+            db,
+            code="second",
+            name="第二概念",
+            title="第二张知识点动画讲解",
+            phrase="另一个通用词",
+        )
         first.asset_group.search_phrases.append(
             AssetSearchPhrase(
                 phrase="蓝色横版平板素材",

@@ -139,6 +139,9 @@ def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(clien
         data={
             "title": "素材组去重测试",
             "expectedSearchWords": "蓝色横版素材",
+            "channel": "官网",
+            "styleLabel": "官网风格",
+            "isSceneImage": "true",
             "autoAnalyze": "false",
         },
     )
@@ -147,6 +150,9 @@ def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(clien
     assert primary["assetGroupId"]
     assert primary["width"] == 8
     assert primary["height"] == 4
+    assert primary["channel"] == "官网"
+    assert primary["styleLabel"] == "官网风格"
+    assert primary["isSceneImage"] is True
 
     variant = client.post(
         f"/api/asset-groups/{primary['assetGroupId']}/images",
@@ -163,6 +169,8 @@ def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(clien
     assert len(group["images"]) == 2
     assert {item["assetRole"] for item in group["images"]} == {"primary", "derivative"}
     assert {item["phrase"] for item in group["searchPhrases"]} == {"蓝色横版素材"}
+    assert group["styleLabel"] == "官网风格"
+    assert group["isSceneImage"] is True
 
     response = client.post(
         "/api/images/search",
@@ -170,7 +178,11 @@ def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(clien
     )
     assert response.status_code == 200
     assert len(response.json()["results"]) == 1
-    assert response.json()["results"][0]["image"]["variantCount"] == 2
+    result = response.json()["results"][0]
+    assert result["image"]["variantCount"] == 2
+    assert result["image"]["styleLabel"] == "官网风格"
+    assert result["image"]["isSceneImage"] is True
+    assert {item["channel"] for item in result["availableVariants"]} == {"官网", "朋友圈"}
 
 
 def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_factory):

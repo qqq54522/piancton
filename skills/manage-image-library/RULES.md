@@ -1,17 +1,31 @@
-# 图片库管理 Skill
+# 图片素材库运行规则
 
-用途：图片上传、列表、详情、关联图片、编辑、下载和删除。
+用途：约束图片上传、素材组版本、人工关系、话术、下载和回收流程。
 
-## 工作流
+## 素材组与版本
 
-- Upload: validate upload -> save bytes -> create metadata -> attach tags.
-- List: optional keyword, tags, category, cursor, limit, sort.
-- Detail: image metadata + tags + content analysis + related images.
-- Update title: change metadata only.
-- Update tags: replace associations atomically.
-- Download: resolve safe file path, increment count, stream file.
-- Delete: remove database record, then delete only the owned local file.
+- 首次上传只强制图片文件和素材名称，创建一个素材组及正式主图；业务卖点、渠道、画面风格、场景图状态和首次素材话术均为可选。
+- `derivative` 只表示同一主视觉的尺寸、比例、排版或渠道适配，继承素材组关系和话术，不运行 AI 分析。
+- `alternative` 可以保留独立画面分析，但不能改写素材组级 AI 候选；`revision` 成为正式主图后才允许刷新素材组级候选和派生索引。
+- 替换主图保留素材组、人工 accepted 关系、公共话术继承和素材历史；旧主图退出默认搜索。
 
-The image entity stores title, original name, local path, uploader, download
-count, categories, semantic summary, timestamps, manual tags, content tags, and
-secondary categories.
+## 关系与话术
+
+- 人工确认关系只使用 `expresses`、`supports`、`excludes`，并以 `origin=manual`、`review_status=accepted` 保存。
+- AI 关系与话术建议默认 `pending`；接受或拒绝必须留下审核轨迹，不能覆盖人工事实。
+- 公共搜索话术在卖点层维护；素材组只保存当前图片独有画面、文案和使用场景表达。
+- 已采纳素材话术可进入第三层图片筛选；pending/rejected 不得作为正式准入证据。
+
+## 存储安全
+
+- 存储文件名使用 UUID 和规范化扩展名，不拼接客户端路径片段。
+- 数据库只保存受控 storage key 和元数据，图片字节不进入数据库。
+- 解析、下载和删除前验证目标是配置存储根目录的后代路径。
+- 上传先写 staging、校验并生成缩略图，再原子移动；数据库失败时清理本次创建的文件。
+
+## 删除与下载
+
+- 普通删除设置 `deleted_at` 并退出素材组响应和搜索索引；恢复后重建派生索引。
+- 非主图版本可在素材组内移入回收站；正式主图必须先替换，不允许直接删除。
+- 永久删除只在回收站执行，只删除已核验属于当前记录的原图和缩略图。
+- 预览不增加下载次数；附件下载成功后记录下载。

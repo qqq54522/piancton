@@ -13,6 +13,7 @@
 - Meilisearch 是可选增强层和可重建派生索引，不是主数据库。
 - Phase 4 已建立分层编排：`SearchService` 只装配，`AsyncSearchOrchestrator` 只串联，`SearchExternalBranches` 管理外部分支，`SearchRerankCoordinator` 管理唯一一次 Reranker。
 - Phase 5 已完成两个使用端改造：普通业务端只有一个搜索框和显式可选的体系过滤；设计师端通过素材详情维护版本、概念关系和搜索话术。
+- 项目能力已收口为 `skills/INDEX.md` 中的正式 Skill；只有真正需要语义判断的运行时任务读取 `RULES.md`，存储、召回、筛选、评分和事务继续由 Python 服务执行。
 - 版本化业务概念与人工确认的素材关系是可变业务语义的事实来源；`tags` 只保存六大体系稳定节点，旧标签树不再承担运行职责。
 - 目前没有看到哪一块已经重到会拖垮后续开发。
 - 后续风险主要来自功能继续变多时，把规则、流程和 UI 状态重新塞进少数大文件。
@@ -23,8 +24,9 @@
 
 搜索相关逻辑可以继续优化，但不要把召回、理解、过滤、排序和响应组装重新混到一起。
 
-- 查询理解放在 `query_understanding_service.py`。
-- 业务话术和意图簇优先放在 `taxonomy/business_intents.json`。
+- 查询理解放在 `query_understanding_service.py`；查询状态是封闭枚举（单卖点/真多卖点/探索型/待消歧/纯画面/无可靠卖点），新增状态先改枚举与文档再改代码。
+- 运行时意图词库由 `intent_catalog_service.py` 从数据库当前启用卖点合成，`taxonomy/business_intents.json` 只承担初始种子与兜底；新增公共话术进数据库概念层，不要再往静态文件里长期堆词。
+- 显式否定判定放在 `app/domain/query_negation.py`，本地理解与概念召回共用同一套规则；查询级排除卖点由 `search_concept_routing_service.py` 过滤。
 - 数据库召回放在 `database_search_recall.py`。
 - Meilisearch 召回放在 `meilisearch_recall_service.py`。
 - Embedding 召回放在 `embedding_recall_service.py`。
@@ -35,9 +37,11 @@
 - 外部并发召回先返回候选 ID/向量，ORM 实体只允许由请求主会话装载；不得跨线程共享 SQLAlchemy Session。
 - 在线链路不得重新启用生成式图片摘要裁判；候选合并后最多执行一次 Top 20 Reranker。
 - 人工确认概念及其常见表达必须具备本地召回兜底；高置信本地概念查询跳过查询 Embedding 和模型理解，模糊查询才在总截止内使用外部分支。
-- 多路召回不得重新恢复成平铺竞争：可信卖点只允许 accepted `expresses/supports` 素材进入主通道，素材独有话术负责通道内选图；全局标题、话术和画面语义仅在主通道无素材或意图未消歧时兜底。
-- “明确同时涉及多个卖点”和“多个未消歧候选”必须使用不同查询状态；后者不得显示成多个已识别卖点，也不得执行多卖点硬路由。
+- 多路召回不得重新恢复成平铺竞争：可信卖点只允许 accepted `expresses/supports` 素材进入主通道，accepted 素材独有话术负责通道内主筛选，标题与 V3 画面事实/场景只作辅助。已有 `expresses` 直接素材时，只有 `supports` 的证明图必须命中 accepted 图片话术或得到查询明确点名的标题/画面证据，否则不能仅凭关系补位；没有 `expresses` 时可保留 accepted `supports` 作为可信库存保底。主通道无相关素材必须返回空结果，外部来源不得用无关库存补位。
+- “明确同时涉及多个卖点”“共享入口词探索型”和“多个未消歧候选”必须使用不同查询状态：真多卖点要求每个卖点有独立措辞证据；探索型（证据完全相同）召回可以合并主通道，但文案必须是“你可能在找”；未消歧候选不得显示成多个已识别卖点，也不得执行多卖点硬路由。
+- 查询里显式否定的卖点必须进入 `excluded_concepts` 并在路由层过滤，不得作为正向证据参与召回。
 - 一次查询允许保留多个候选卖点；高置信卖点与人工 `expresses/supports` 关系必须在候选截断前和 Reranker 后保持主导。卡片“匹配卖点”只能由查询候选与已确认素材关系动态求交，不能写成新的图片固定标签。
+- 渠道、人工画面风格和是否为场景图属于结果后二次筛选，不得进入查询理解、卖点主通道或 Reranker 竞争；筛选实现保持稳定排序，并明确区分“未标注”和“非场景图”。
 
 需要新增搜索规则时，优先判断它属于“词库配置、召回、过滤、排序、展示”哪一类，不要直接改总入口。
 
@@ -48,11 +52,20 @@ AI 只补充语义总结、画面事实、场景、素材独有搜索表达和�
 - 六大体系稳定 code 以体系源文件和 `tags` 六个节点为准；可变化业务概念、概念搜索表达和素材关系以数据库概念层为准。
 - AI 输出必须经过 normalizer、schema 和 taxonomy 校验后才能写入。
 - 图片分析契约固定为 Semantic Profile V3：不得重新生成或搜索使用 OCR、主体、动作、视觉风格、可见功能、排除边界和客观 `content_tags`；模型误返回的旧字段必须在 normalizer 丢弃。
+- 素材组的人工 `style_label/is_scene_image` 只保存设计师显式填写值；即使名称含“风格/场景”，也不得从 AI Semantic Profile 自动回填，避免把人工筛选事实和模型推断重新混用。
 - 人工事实与 AI 建议不能混用：继续保留 `origin=manual/ai` 和 `review_status=pending/accepted/rejected` 的边界。
 - 同一素材组同一卖点已有人工 accepted 关系时，AI pending 建议必须在服务层软拒绝，后续分析持久化前必须排除；不得只靠前端隐藏重复建议。
 - 素材独有话术只有 `accepted` 项可以进入高优先级数据库/Meilisearch 直接召回；AI `pending` 只允许作为低优先级语义辅助，`rejected` 必须从 Semantic Profile、Embedding 和 Reranker 搜索投影排除。
 - 新增打标规则时，优先沉淀到 taxonomy、skills 或独立规则服务，不要写成散落在上传流程里的特殊判断。
 - 真实图片评测前，不要为了“看起来更聪明”重新引入图片直挂标签或固定二级树。
+
+#### 正式 Skill 与运行时任务
+
+- 每个正式 Skill 必须具备 `SKILL.md` 和 `agents/openai.yaml`；只有应用运行时模型需要读取的能力才额外提供 `RULES.md`。
+- 页面点击不会临时生成 Skill，而是由 Service 调用已注册的模型任务；模型任务到运行时规则的唯一映射位于 `backend/app/ai/skill_loader.py`。
+- 图片分析、上传前素材话术、分层搜索意图和兼容文案匹配是当前四类模型任务。增加任务时必须同时定义触发入口、输入、输出 Schema、审核状态、超时、降级和测试。
+- 旧固定二级标签、`content_tags`、三层弱召回和旧 S/A/B/C 评分公式不得以新 Skill 名义恢复。底层确定性职责合并到完整工作流边界，但实现仍留在各自 Python 模块。
+- 修改正式 Skill 清单、运行时任务映射或删除旧 Skill 时，必须更新 `skills/INDEX.md`、总纲决策、项目日志和 `backend/tests/test_project_skills.py`。
 
 ### 3. 前端图片工作台
 
@@ -61,6 +74,7 @@ AI 只补充语义总结、画面事实、场景、素材独有搜索表达和�
 - 数据请求和远程状态放在 `features/*` 的 hook 中。
 - 页面文件只负责页面编排，不承接复杂业务判断。
 - 图片卡片、上传弹窗、详情面板、AI 分析面板继续保持独立组件；六体系快捷筛选属于统一搜索组件，不新建旧标签筛选弹窗。
+- 渠道、风格和场景图精细筛选应保持折叠、可选，并明确是“推荐结果后再缩小”；不得恢复第二个搜索框或精准/智能模式。
 - 素材组查询与 mutation 继续集中在 `features/assets`；版本维护、概念关系审核、搜索话术审核和素材组结果卡不得重新合并成一个工作台大组件。
 - 普通业务端不得重新暴露 `precise/smart/configured` 内部模式；六大体系只有在用户显式选择时才进入后端硬过滤。
 - 单结果反馈只写搜索反馈目标，不得从前端直接修改素材审批或人工概念关系。

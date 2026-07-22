@@ -46,7 +46,6 @@ def test_query_understanding_maps_core_intent_queries_locally():
         ("错题本", "AI错题本", "同步自学体系 > AI错题本"),
         ("上传错题", "AI错题本", "同步自学体系 > AI错题本"),
         ("整理错题费功夫又容易忘", "AI错题本", "同步自学体系 > AI错题本"),
-        ("拍题", "AI拍题精学", "同步自学体系 > AI拍题精学"),
         ("体现拍题精学", "AI拍题精学", "同步自学体系 > AI拍题精学"),
         ("孩子拍题只抄答案考试不会", "AI拍题精学", "同步自学体系 > AI拍题精学"),
         ("专家规划", "专家规划", "同步培养体系 > 专家规划"),
@@ -67,21 +66,75 @@ def test_query_understanding_maps_core_intent_queries_locally():
         assert understanding.matched_business_concepts[0].relation == "direct"
 
 
-def test_query_understanding_keeps_multiple_explicit_selling_points():
+def test_embedded_variant_training_prefers_transfer_practice_over_quiz():
+    service = QueryUnderstandingService()
+    queries = (
+        "孩子会听懂但不会做，想找讲完还有例题和变式训练的",
+        "孩子说听懂了但不知道真会不会，想找讲完例题后的变式训练",
+        "讲完一道例题，再做同类题训练，直到换个条件也会做",
+    )
+
+    for query in queries:
+        understanding = service.understand_locally(query)
+
+        assert understanding is not None
+        assert understanding.query_type == "business_intent_search"
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == ["举一反三"]
+        assert understanding.matched_business_concepts[0].relation == "direct"
+
+
+def test_embedded_variant_training_keeps_error_book_when_error_context_is_explicit():
+    understanding = QueryUnderstandingService().understand_locally(
+        "把孩子不会做的个人错题整理起来，再推荐同类题训练"
+    )
+
+    assert understanding is not None
+    assert understanding.query_type == "business_intent_search"
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in understanding.matched_business_concepts
+    ] == ["AI错题本"]
+
+
+def test_quiz_pain_without_variant_training_still_maps_to_instant_quiz():
+    understanding = QueryUnderstandingService().understand_locally(
+        "孩子说听懂了但不知道真会不会"
+    )
+
+    assert understanding is not None
+    assert understanding.query_type == "business_intent_search"
+    assert understanding.matched_business_concepts[0].concept.endswith("> 课后小测")
+
+
+def test_context_specific_photo_query_does_not_expand_shared_entry_candidates():
     understanding = QueryUnderstandingService().understand_locally(
         "AI拍照后即可为你点拨思路，不会立即出答案"
     )
 
     assert understanding is not None
-    assert understanding.query_type == "multi_business_intent_search"
+    assert understanding.query_type == "business_intent_search"
     assert [
         item.concept.rsplit(">", 1)[-1].strip()
         for item in understanding.matched_business_concepts
-    ] == ["AI拍题精学", "极速预习复习", "AI私教答疑"]
+    ] == ["AI拍题精学"]
     assert all(
         item.relation == "direct"
         for item in understanding.matched_business_concepts
     )
+
+
+def test_exact_shared_photo_entry_stays_exploratory():
+    understanding = QueryUnderstandingService().understand_locally("AI拍照")
+
+    assert understanding is not None
+    assert understanding.query_type == "exploratory_business_intent_search"
+    assert {
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in understanding.matched_business_concepts
+    } == {"AI错题本", "AI拍题精学", "极速预习复习", "AI私教答疑"}
 
 
 def test_query_understanding_falls_back_to_ai_when_local_intent_does_not_match():
@@ -286,7 +339,7 @@ def test_model_alternatives_require_explicit_multi_intent_before_hard_routing():
         original_query="需要规划",
         normalized_query="学习规划",
         search_intent="模型返回两个备选",
-        query_type="ai_search",
+        query_type="business_intent_search",
         matched_business_concepts=[
             SearchConceptMatch(
                 concept="同步规划体系 > 学习规划",
@@ -350,7 +403,7 @@ def _ai_understanding(normalized_query: str) -> SearchUnderstanding:
         original_query="",
         normalized_query=normalized_query,
         search_intent="AI 搜索理解",
-        query_type="ai_search",
+        query_type="business_intent_search",
         expanded_terms=[],
         matched_business_concepts=[
             SearchConceptMatch(

@@ -4,12 +4,16 @@
 
 1. `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
 2. `docs/DEVELOPMENT_GUARDRAILS.md`
-3. 与当前 Phase 直接相关的现有测试、迁移和服务文件
+3. `skills/INDEX.md`，并完整读取与当前任务直接相关的正式 `SKILL.md`
+4. 涉及六大体系、核心卖点、证明点或意图识别时，继续完整阅读 `docs/BUSINESS_SYSTEM_SELLING_POINT_CATALOG.md` 和 `skills/understand-image-search-intent/SKILL.md`
+5. 修改某个体系知识时，继续完整阅读 `skills/understand-image-search-intent/references/` 下对应的体系文件
+6. 与当前 Phase 直接相关的现有测试、迁移和服务文件
 
 ## 当前状态
 
 - 当前可用 3-6 张代表图片进入 Phase 0，不需要等待全部三四十张图片完成；完整图片集用于后续验收和调优。
 - 六大体系原始截图已保存到 `docs/source/six-systems/`。
+- 六个体系知识文件分别保存在 `skills/understand-image-search-intent/references/`；只有带运行时摘要且已完成梳理的体系才进入项目模型 Prompt。
 - 改造总纲是本项目后续工作的唯一事实来源。
 
 ## 不得擅自改变的原则

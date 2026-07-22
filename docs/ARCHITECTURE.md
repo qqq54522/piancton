@@ -11,6 +11,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
                     +-> StorageProvider -> 持久化图片卷
                     |
                     +-> ModelProvider -> placeholder / OpenAI-compatible 多模态模型
+                    |                 -> 正式 Skill 运行时 RULES 与版本化业务目录
                     |
                     +-> SearchService -> 限时并行搜索编排
                                       -> 数据库概念/短语召回
@@ -34,11 +35,13 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 数据库结构禁止使用 `create_all()`，只能通过 Alembic migration 修改。
 - AI 业务只依赖 `ModelProvider`；未配置 Provider 时必须失败，不能返回空结果冒充成功。
 - AI 输出必须先经过 normalizer、Pydantic schema 和 taxonomy catalog 校验，才能写入业务数据。
+- 正式 Skill 清单以 `skills/INDEX.md` 为准；应用模型任务只从 `backend/app/ai/skill_loader.py` 加载当前运行时 `RULES.md`，标准 `SKILL.md` 负责完整工作流和触发边界。
 - 素材概念关系必须区分人工事实与 AI 建议：`origin=manual/ai`；AI 建议通过 `review_status=pending/accepted/rejected` 流转。
 - 同卖点人工 `accepted` 关系会在服务层软拒绝 AI `pending` 建议，分析重跑也必须在持久化前排除该卖点；序列化和前端只做防御性过滤，不能代替后端事实约束。
 - 数据库是图片、业务概念、素材关系、AI 分析和审核状态的事实源；Meilisearch 只是可重建的派生索引。
 - Meilisearch 不可用时搜索必须降级到数据库路径，不能阻断上传、详情或基础搜索。
 - 普通业务用户只有一个搜索框；六大体系只有在用户显式选择时才是硬过滤。
+- 渠道保存在图片版本，人工画面风格与场景图状态保存在素材组；业务端只在已排序搜索响应上做稳定的精确二次筛选，不把这些属性塞入查询理解、召回融合或 Reranker。
 - 外部搜索分支不得共享请求 SQLAlchemy Session；ORM 实体只由请求主会话水合。
 - 候选融合后最多执行一次 Reranker，生成式图片摘要裁判不得回到在线链路。
 - 公共搜索话术属于业务概念，素材详情只保存当前图片独有话术；公共话术编辑/停用必须经过管理员接口和概念版本更新。

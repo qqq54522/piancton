@@ -21,40 +21,61 @@ class SearchBranchRunner:
         call: Callable[[], T],
         *,
         timeout_seconds: float,
+        retry_attempts: int = 0,
+        retry_backoff_seconds: float = 0.0,
     ) -> SearchBranchResult[T]:
         started = time.monotonic()
-        try:
-            value = await asyncio.wait_for(
-                asyncio.to_thread(call),
-                timeout=max(0.001, timeout_seconds),
-            )
-        except asyncio.TimeoutError:
+        deadline = started + max(0.001, timeout_seconds)
+        last_error: Exception | None = None
+        for attempt in range(max(0, retry_attempts) + 1):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return self._timed_out(source, started)
+            try:
+                value = await asyncio.wait_for(
+                    asyncio.to_thread(call),
+                    timeout=remaining,
+                )
+            except asyncio.TimeoutError:
+                return self._timed_out(source, started)
+            except Exception as exc:
+                last_error = exc
+                if attempt >= max(0, retry_attempts):
+                    break
+                backoff = min(
+                    max(0.0, retry_backoff_seconds),
+                    max(0.0, deadline - time.monotonic()),
+                )
+                if backoff:
+                    await asyncio.sleep(backoff)
+                continue
             return SearchBranchResult(
-                value=None,
+                value=value,
                 diagnostic=SearchBranchDiagnostic(
                     source=source,
-                    status="timed_out",
+                    status="ok",
                     duration_ms=_elapsed_ms(started),
-                    detail="超过分支时间预算",
-                ),
-            )
-        except Exception as exc:
-            return SearchBranchResult(
-                value=None,
-                diagnostic=SearchBranchDiagnostic(
-                    source=source,
-                    status="failed",
-                    duration_ms=_elapsed_ms(started),
-                    detail=_safe_error(exc),
+                    result_count=_result_count(value),
                 ),
             )
         return SearchBranchResult(
-            value=value,
+            value=None,
             diagnostic=SearchBranchDiagnostic(
                 source=source,
-                status="ok",
+                status="failed",
                 duration_ms=_elapsed_ms(started),
-                result_count=_result_count(value),
+                detail=_safe_error(last_error or RuntimeError("分支调用失败")),
+            ),
+        )
+
+    def _timed_out(self, source: str, started: float) -> SearchBranchResult[T]:
+        return SearchBranchResult(
+            value=None,
+            diagnostic=SearchBranchDiagnostic(
+                source=source,
+                status="timed_out",
+                duration_ms=_elapsed_ms(started),
+                detail="超过分支时间预算",
             ),
         )
 

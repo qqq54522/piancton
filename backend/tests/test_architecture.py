@@ -266,6 +266,19 @@ def test_concept_routing_service_stays_focused_and_bounded():
     assert "app.repositories" not in source
     assert "Meilisearch" not in source
     assert "Embedding" not in source
+    assert "AssetSelectionPolicyService" in source
+    assert "苏格拉底" not in source
+
+
+def test_asset_selection_policy_stays_config_driven_and_bounded():
+    path = ROOT / "services" / "asset_selection_policy_service.py"
+    source = path.read_text(encoding="utf-8")
+
+    assert len(source.splitlines()) <= 140
+    assert "class AssetSelectionPolicyService" in source
+    assert "苏格拉底" not in source
+    assert "app.repositories" not in source
+    assert "search_orchestrator" not in source
 
 
 def test_search_service_calls_query_understanding_without_owning_intent_config():

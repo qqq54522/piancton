@@ -31,6 +31,7 @@ from app.schemas.image import (
     ImageDetailRead,
     ImageListResponse,
     ImageRead,
+    ImageTitleResolution,
     ImageTitleUpdate,
     SearchRequest,
     SearchResponse,
@@ -75,6 +76,9 @@ async def semantic_search(
         payload.keyword,
         payload.limit,
         payload.system_code,
+        payload.concept_code,
+        payload.proof_point_code,
+        payload.evidence_point_code,
     )
     response.search_log_id = analytics.record_search(
         actor_user_id=user.id,
@@ -92,7 +96,9 @@ def upload_image(
     file: UploadFile = File(...),
     title: Optional[str] = Form(default=None),
     expected_search_words: str = Form(default="", alias="expectedSearchWords"),
-    channel: Optional[str] = Form(default=None),
+    channel: Optional[str] = Form(default=None, max_length=100),
+    style_label: Optional[str] = Form(default=None, alias="styleLabel", max_length=100),
+    is_scene_image: Optional[bool] = Form(default=None, alias="isSceneImage"),
     auto_analyze: bool = Form(default=True, alias="autoAnalyze"),
     user: User = Depends(require_write_role),
     service: ImageService = Depends(get_image_service),
@@ -109,13 +115,21 @@ def upload_image(
         user.username,
         [item for item in expected_search_words.split("\n") if item.strip()],
         channel,
+        style_label,
+        is_scene_image,
     )
     audit.record(
         actor_user_id=user.id,
         action="image.upload",
         target_type="image",
         target_id=image.id,
-        details={"fileName": image.file_name, "sizeBytes": image.size_bytes},
+        details={
+            "fileName": image.file_name,
+            "sizeBytes": image.size_bytes,
+            "channel": image.channel,
+            "styleLabel": image.style_label,
+            "isSceneImage": image.is_scene_image,
+        },
         request_id=request.state.request_id,
     )
     provider = getattr(ai, "provider", None)
@@ -137,6 +151,16 @@ def list_deleted_images(
     service: ImageLifecycleService = Depends(get_image_lifecycle_service),
 ):
     return service.list_deleted()
+
+
+@router.get("/title-resolution", response_model=ImageTitleResolution)
+def resolve_image_title(
+    title: str = Query(min_length=1, max_length=255),
+    _: User = Depends(require_roles("designer", "admin")),
+    service: ImageService = Depends(get_image_service),
+):
+    """Preview the title the backend will reserve when the image is published."""
+    return service.resolve_title(title)
 
 
 @router.post("/{image_id}/restore", response_model=ImageRead)

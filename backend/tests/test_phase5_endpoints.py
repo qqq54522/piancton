@@ -450,3 +450,93 @@ def test_phase5_system_filter_asset_metadata_and_result_feedback(client, db_fact
     )
     assert positive_feedback.status_code == 201
     assert positive_feedback.json()["feedbackType"] == "relevant"
+
+
+def test_business_facets_and_asset_classification_support_green_expression_level(
+    client, db_factory
+):
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    image = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("expression.png", png_file(), "image/png")},
+        data={"title": "例题后变式训练", "autoAnalyze": "false"},
+    ).json()
+
+    with db_factory() as db:
+        concept = BusinessConcept(code="transfer_practice", name="举一反三")
+        db.add(concept)
+        db.commit()
+        concept_id = concept.id
+
+    catalog = client.get("/api/business-facets", headers=headers)
+    assert catalog.status_code == 200
+    assert any(
+        item["code"] == "ep_exam_variant_expansion"
+        for item in catalog.json()["evidencePoints"]
+    )
+
+    updated = client.patch(
+        f"/api/asset-groups/{image['assetGroupId']}/business-classification",
+        headers=headers,
+        json={
+            "conceptId": concept_id,
+            "proofPointCode": "pp_exam_transfer_variant_practice",
+            "evidencePointCode": "ep_exam_variant_expansion",
+        },
+    )
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["primaryProofPointCode"] == "pp_exam_transfer_variant_practice"
+    assert body["primaryEvidencePointCode"] == "ep_exam_variant_expansion"
+    assert any(
+        item["conceptCode"] == "transfer_practice"
+        and item["relationRole"] == "expresses"
+        and item["reviewStatus"] == "accepted"
+        for item in body["conceptLinks"]
+    )
+
+
+def test_asset_business_classification_saves_proof_and_evidence_facets(client, db_factory):
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    image = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("facet.png", png_file(), "image/png")},
+        data={"title": "短时动画课", "autoAnalyze": "false"},
+    ).json()
+    with db_factory() as db:
+        concept = BusinessConcept(code="animation_explanation", name="动画精讲")
+        db.add(concept)
+        db.commit()
+        concept_id = concept.id
+
+    facets = client.get("/api/business-facets", headers=headers)
+    assert facets.status_code == 200
+    assert any(
+        item["code"] == "ep_school_short_animation_lesson"
+        for item in facets.json()["evidencePoints"]
+    )
+
+    classified = client.patch(
+        f"/api/asset-groups/{image['assetGroupId']}/business-classification",
+        headers=headers,
+        json={
+            "conceptId": concept_id,
+            "proofPointCode": "pp_animation_pedagogy_design",
+            "evidencePointCode": "ep_school_short_animation_lesson",
+        },
+    )
+
+    assert classified.status_code == 200
+    body = classified.json()
+    assert body["primaryProofPointCode"] == "pp_animation_pedagogy_design"
+    assert body["primaryEvidencePointCode"] == "ep_school_short_animation_lesson"
+    assert any(
+        item["conceptCode"] == "animation_explanation"
+        and item["relationRole"] == "expresses"
+        and item["reviewStatus"] == "accepted"
+        for item in body["conceptLinks"]
+    )

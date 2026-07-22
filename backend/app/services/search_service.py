@@ -11,6 +11,7 @@ from app.services.ai_service import AiService
 from app.services.concept_search_recall import ConceptSearchRecallService
 from app.services.database_search_recall import DatabaseSearchRecallService
 from app.services.embedding_recall_service import EmbeddingRecallService
+from app.services.intent_catalog_service import IntentCatalogService
 from app.services.meilisearch_recall_service import MeilisearchRecallService
 from app.services.query_expansion_service import QueryExpansionService
 from app.services.query_profile_service import QueryProfileService
@@ -45,6 +46,11 @@ class SearchService:
         meilisearch_timeout_seconds: float = 0.2,
         embedding_timeout_seconds: float = 0.65,
         understanding_timeout_seconds: float = 0.9,
+        system_routing_timeout_seconds: float = 8.0,
+        selling_point_timeout_seconds: float = 20.0,
+        understanding_grace_seconds: float = 5.0,
+        understanding_retry_attempts: int = 1,
+        understanding_retry_backoff_seconds: float = 1.0,
         reranker_timeout_seconds: float = 0.7,
         candidate_limit: int = 20,
         cache_ttl_seconds: float = 300.0,
@@ -54,7 +60,10 @@ class SearchService:
         images = ImageRepository(db)
         concepts = BusinessConceptRepository(db)
         self.expansion = QueryExpansionService()
-        self.query_understanding = QueryUnderstandingService(ai_service)
+        self.query_understanding = QueryUnderstandingService(
+            ai_service,
+            runtime_catalog=IntentCatalogService(concepts).runtime_catalog(),
+        )
         self.ranking = SearchRankingService(
             reranker,
             min(max(1, reranker_top_n), max(1, candidate_limit)),
@@ -82,6 +91,11 @@ class SearchService:
             meilisearch_timeout_seconds=meilisearch_timeout_seconds,
             embedding_timeout_seconds=embedding_timeout_seconds,
             understanding_timeout_seconds=understanding_timeout_seconds,
+            system_routing_timeout_seconds=system_routing_timeout_seconds,
+            selling_point_timeout_seconds=selling_point_timeout_seconds,
+            understanding_grace_seconds=understanding_grace_seconds,
+            understanding_retry_attempts=understanding_retry_attempts,
+            understanding_retry_backoff_seconds=understanding_retry_backoff_seconds,
             embedding_top_n=embedding_top_n,
             candidate_limit=candidate_limit,
         )
@@ -108,18 +122,40 @@ class SearchService:
         keyword: str,
         limit: int,
         system_code: str | None = None,
+        concept_code: str | None = None,
+        proof_point_code: str | None = None,
+        evidence_point_code: str | None = None,
     ) -> SearchResponse:
-        return await self.orchestrator.search(keyword, limit, system_code)
+        return await self.orchestrator.search(
+            keyword,
+            limit,
+            system_code,
+            concept_code,
+            proof_point_code,
+            evidence_point_code,
+        )
 
     def search(
         self,
         keyword: str,
         limit: int,
         system_code: str | None = None,
+        concept_code: str | None = None,
+        proof_point_code: str | None = None,
+        evidence_point_code: str | None = None,
     ) -> SearchResponse:
         """Compatibility wrapper for scripts and synchronous service tests."""
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            return asyncio.run(self.search_async(keyword, limit, system_code))
+            return asyncio.run(
+                self.search_async(
+                    keyword,
+                    limit,
+                    system_code,
+                    concept_code,
+                    proof_point_code,
+                    evidence_point_code,
+                )
+            )
         raise RuntimeError("异步上下文请调用 SearchService.search_async")

@@ -22,7 +22,6 @@ MEILISEARCH_SEARCHABLE_ATTRIBUTES = (
     "semanticProfileScenes",
     "semanticProfileSearchPhrases",
     "searchableText",
-    "pendingConceptNames",
 )
 
 

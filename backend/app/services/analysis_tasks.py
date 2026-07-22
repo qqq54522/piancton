@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.contracts import ModelProvider
 from app.core.config import get_settings
+from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_analysis_service import ImageAnalysisService
@@ -37,7 +38,10 @@ def run_image_analysis_task(
     try:
         analysis.mark_running(image_id, analysis_run_id)
         path, _image = images.content(image_id)
-        result = AiService(provider).analyze_image(path)
+        result = AiService(
+            provider,
+            knowledge=AiKnowledgeService(db).knowledge(),
+        ).analyze_image(path)
         analysis.save_ai_analysis(image_id, result, analysis_run_id=analysis_run_id)
     except Exception:
         logger.exception("Image analysis task failed", extra={"image_id": image_id})

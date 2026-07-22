@@ -1,0 +1,7 @@
+interface:
+  display_name: "运维模型Provider"
+  short_description: "接入和诊断模型适配器、降级顺序、预算与遥测"
+  default_prompt: "Use $operate-model-providers to diagnose or safely change this model-provider workflow."
+policy:
+  allow_implicit_invocation: true
+

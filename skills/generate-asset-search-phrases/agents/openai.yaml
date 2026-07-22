@@ -1,0 +1,7 @@
+interface:
+  display_name: "生成图片独有话术"
+  short_description: "按图片、名称和卖点生成可编辑搜索需求候选"
+  default_prompt: "Use $generate-asset-search-phrases to generate editable asset-specific search phrases for this image."
+policy:
+  allow_implicit_invocation: true
+

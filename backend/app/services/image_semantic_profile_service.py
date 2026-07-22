@@ -22,11 +22,6 @@ class ImageSemanticProfileService:
             for link in concept_links
             if link.review_status == "accepted"
         ]
-        pending_concepts = [
-            link.concept
-            for link in concept_links
-            if link.review_status == "pending"
-        ]
         parts = [
             f"标题：{image.title}",
             f"语义总结：{image.image_summary}" if image.image_summary else "",
@@ -51,8 +46,7 @@ class ImageSemanticProfileService:
                     if phrase.review_status == "accepted"
                 )
             ),
-            "AI待审核概念："
-            + "、".join(dict.fromkeys(concept.name for concept in pending_concepts)),
+            # D080: AI 待审核概念建议不进入排序/向量文档，人工确认后才算数。
             "素材独有搜索表达："
             + "、".join(
                 phrase.phrase

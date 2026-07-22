@@ -24,6 +24,7 @@ class BusinessIntent:
     nice_to_have_concepts: tuple[str, ...]
     exclude_concepts: tuple[str, ...]
     result_policy: str
+    exact_only_phrases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,7 @@ def _intent(payload: dict[str, Any]) -> BusinessIntent:
         nice_to_have_concepts=_strings(payload.get("nice_to_have_concepts")),
         exclude_concepts=_strings(payload.get("exclude_concepts")),
         result_policy=str(payload.get("result_policy") or "").strip(),
+        exact_only_phrases=_strings(payload.get("exact_only_phrases")),
     )
 
 
@@ -77,7 +79,14 @@ def _validate(catalog: BusinessIntentCatalog) -> None:
             raise ValueError(f"业务意图目标标签无效：{intent.code}")
         if label.parent_code != system.code:
             raise ValueError(f"业务意图目标体系与标签不匹配：{intent.code}")
-        if not any([intent.phrases, intent.pain_points, intent.must_have_concepts]):
+        if not any(
+            [
+                intent.phrases,
+                intent.exact_only_phrases,
+                intent.pain_points,
+                intent.must_have_concepts,
+            ]
+        ):
             raise ValueError(f"业务意图缺少匹配材料：{intent.code}")
 
 
@@ -106,6 +115,10 @@ def render_business_intents_for_prompt(
         lines.append(f"目标标签：{_display_name(system, label)}")
         if intent.phrases:
             lines.append(f"- 功能表达：{'、'.join(intent.phrases)}")
+        if intent.exact_only_phrases:
+            lines.append(
+                f"- 共享入口（仅整句匹配）：{'、'.join(intent.exact_only_phrases)}"
+            )
         if intent.pain_points:
             lines.append(f"- 家长痛点：{'、'.join(intent.pain_points)}")
         if intent.must_have_concepts:

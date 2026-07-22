@@ -11,7 +11,9 @@ from app.core.config import get_settings
 from app.core.errors import ForbiddenError
 from app.db.session import SessionLocal, get_db
 from app.models.user import User, UserSession
+from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
+from app.services.asset_phrase_suggestion_service import AssetPhraseSuggestionService
 from app.services.asset_relation_service import AssetRelationService
 from app.services.asset_service import AssetService
 from app.services.audit_service import AuditService
@@ -32,6 +34,10 @@ from app.services.tag_service import TagService
 from app.services.user_service import UserService
 
 settings = get_settings()
+
+
+def _provider_attempt_count(provider) -> int:
+    return max(1, int(getattr(provider, "attempt_count", 1)))
 
 
 def get_db_session_factory():
@@ -96,6 +102,8 @@ def get_tag_service(db: Session = Depends(get_db)) -> TagService:
 
 
 def get_search_service(db: Session = Depends(get_db)) -> SearchService:
+    search_ai_service = get_search_ai_service(db)
+    provider_attempts = _provider_attempt_count(search_ai_service.provider)
     return SearchService(
         db,
         search_backend=settings.search_backend,
@@ -103,7 +111,7 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
         meilisearch_api_key=settings.meilisearch_api_key,
         meilisearch_index=settings.meilisearch_index,
         search_timeout_seconds=settings.search_meilisearch_timeout_seconds,
-        ai_service=get_search_ai_service(),
+        ai_service=search_ai_service,
         embedding_client=EmbeddingClient(
             base_url=settings.embedding_base_url,
             api_key=settings.embedding_api_key,
@@ -127,7 +135,20 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
         total_timeout_seconds=settings.search_total_timeout_seconds,
         meilisearch_timeout_seconds=settings.search_meilisearch_timeout_seconds,
         embedding_timeout_seconds=settings.search_embedding_timeout_seconds,
-        understanding_timeout_seconds=settings.search_understanding_timeout_seconds,
+        understanding_timeout_seconds=(
+            settings.search_understanding_timeout_seconds * provider_attempts
+        ),
+        system_routing_timeout_seconds=(
+            settings.search_system_routing_timeout_seconds * provider_attempts
+        ),
+        selling_point_timeout_seconds=(
+            settings.search_selling_point_timeout_seconds * provider_attempts
+        ),
+        understanding_grace_seconds=settings.search_understanding_grace_seconds,
+        understanding_retry_attempts=settings.search_understanding_retry_attempts,
+        understanding_retry_backoff_seconds=(
+            settings.search_understanding_retry_backoff_seconds
+        ),
         reranker_timeout_seconds=settings.search_reranker_timeout_seconds,
         candidate_limit=settings.search_candidate_limit,
         cache_ttl_seconds=settings.search_cache_ttl_seconds,
@@ -147,15 +168,36 @@ def get_search_ops_service(db: Session = Depends(get_db)) -> SearchOpsService:
     return SearchOpsService(db)
 
 
-def get_ai_service() -> AiService:
-    return AiService(get_model_provider())
-
-
-def get_search_ai_service() -> AiService:
+def get_ai_service(db: Session = Depends(get_db)) -> AiService:
     return AiService(
-        get_model_provider(
-            timeout_seconds=max(1, ceil(settings.search_understanding_timeout_seconds))
-        )
+        get_model_provider(),
+        knowledge=AiKnowledgeService(db).knowledge(),
+    )
+
+
+def get_asset_phrase_suggestion_service(
+    ai: AiService = Depends(get_ai_service),
+) -> AssetPhraseSuggestionService:
+    return AssetPhraseSuggestionService(
+        ai,
+        LocalStorageProvider(settings.storage_dir),
+        max_upload_bytes=settings.max_upload_bytes,
+        max_image_pixels=settings.max_image_pixels,
+        thumbnail_max_size=settings.thumbnail_max_size,
+    )
+
+
+def get_search_ai_service(db: Session) -> AiService:
+    provider_timeout = max(
+        settings.search_understanding_timeout_seconds,
+        settings.search_system_routing_timeout_seconds,
+        settings.search_selling_point_timeout_seconds,
+    )
+    return AiService(
+        get_model_provider(timeout_seconds=max(1, ceil(provider_timeout))),
+        knowledge=AiKnowledgeService(db).knowledge(),
+        system_routing_timeout_seconds=(settings.search_system_routing_timeout_seconds),
+        selling_point_timeout_seconds=(settings.search_selling_point_timeout_seconds),
     )
 
 

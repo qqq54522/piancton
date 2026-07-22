@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Generic, Literal, TypeVar
 
 from app.models.image import Image
+from app.schemas.ai import SearchUnderstanding
 
 
 class SearchUnavailable(RuntimeError):
@@ -76,6 +77,16 @@ T = TypeVar("T", covariant=True)
 class SearchBranchResult(Generic[T]):
     value: T | None
     diagnostic: SearchBranchDiagnostic
+
+
+@dataclass(frozen=True)
+class QueryUnderstandingOutcome:
+    """Preserves a successful first-layer route if the second layer times out."""
+
+    understanding: SearchUnderstanding | None
+    routed_system_codes: tuple[str, ...] = ()
+    route_completed: bool = False
+    selling_point_completed: bool = False
 
 
 @dataclass(frozen=True)

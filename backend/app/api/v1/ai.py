@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.api.dependencies import (
     get_ai_service,
+    get_asset_phrase_suggestion_service,
     get_image_analysis_service,
     get_image_service,
     require_roles,
@@ -10,6 +13,7 @@ from app.api.dependencies import (
 from app.core.errors import AppError
 from app.models.user import User
 from app.schemas.ai import (
+    AssetSearchPhraseSuggestion,
     ImageAnalysisResult,
     ProviderStatus,
     SearchIntentRequest,
@@ -18,6 +22,7 @@ from app.schemas.ai import (
     SellingPointRequest,
 )
 from app.services.ai_service import AiService
+from app.services.asset_phrase_suggestion_service import AssetPhraseSuggestionService
 from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_service import ImageService
 
@@ -48,6 +53,28 @@ def match_selling_points(
     service: AiService = Depends(get_ai_service),
 ):
     return service.match_selling_points(payload.copy_text)
+
+
+@router.post(
+    "/asset-search-phrases",
+    response_model=AssetSearchPhraseSuggestion,
+)
+def generate_asset_search_phrases(
+    file: UploadFile = File(...),
+    count: int = Form(default=5, ge=2, le=5),
+    title: str = Form(default="", max_length=200),
+    concept_code: str = Form(default="", alias="conceptCode", max_length=100),
+    _: User = Depends(require_write_role),
+    service: AssetPhraseSuggestionService = Depends(
+        get_asset_phrase_suggestion_service
+    ),
+):
+    return service.generate(
+        file.file,
+        count=count,
+        title=title.strip() or Path(file.filename or "image").stem,
+        concept_code=concept_code,
+    )
 
 
 @router.post("/images/{image_id}/analyze", response_model=ImageAnalysisResult)

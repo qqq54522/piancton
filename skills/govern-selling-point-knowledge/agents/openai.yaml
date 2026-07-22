@@ -1,0 +1,7 @@
+interface:
+  display_name: "治理卖点知识"
+  short_description: "维护六体系卖点、公共话术、证明材料和边界映射"
+  default_prompt: "Use $govern-selling-point-knowledge to review and safely implement this selling-point knowledge change."
+policy:
+  allow_implicit_invocation: true
+

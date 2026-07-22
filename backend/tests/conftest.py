@@ -33,14 +33,18 @@ def db_factory():
 def client(db_factory, tmp_path: Path, monkeypatch):
     from app.api import dependencies
 
-    dependencies.settings.storage_dir = tmp_path / "images"
-    dependencies.settings.storage_dir.mkdir()
-    dependencies.settings.embedding_base_url = ""
-    dependencies.settings.embedding_api_key = ""
-    dependencies.settings.embedding_model_name = ""
-    dependencies.settings.reranker_base_url = ""
-    dependencies.settings.reranker_api_key = ""
-    dependencies.settings.reranker_model_name = ""
+    storage_dir = tmp_path / "images"
+    storage_dir.mkdir()
+    monkeypatch.setattr(dependencies.settings, "storage_dir", storage_dir)
+    monkeypatch.setattr(dependencies.settings, "search_backend", "database")
+    monkeypatch.setattr(dependencies.settings, "meilisearch_url", "")
+    monkeypatch.setattr(dependencies.settings, "meilisearch_api_key", "")
+    monkeypatch.setattr(dependencies.settings, "embedding_base_url", "")
+    monkeypatch.setattr(dependencies.settings, "embedding_api_key", "")
+    monkeypatch.setattr(dependencies.settings, "embedding_model_name", "")
+    monkeypatch.setattr(dependencies.settings, "reranker_base_url", "")
+    monkeypatch.setattr(dependencies.settings, "reranker_api_key", "")
+    monkeypatch.setattr(dependencies.settings, "reranker_model_name", "")
 
     def override_db():
         with db_factory() as db:

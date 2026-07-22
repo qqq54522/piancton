@@ -70,6 +70,13 @@ const ImageDetailInfoPanel = ({
       <div><span className="block text-muted-foreground">上传日期</span><span className="mt-1 block font-medium">{new Date(detail.createdAt).toLocaleDateString('zh-CN')}</span></div>
       <div><span className="block text-muted-foreground">图片尺寸</span><span className="mt-1 block font-medium">{detail.width && detail.height ? `${detail.width}×${detail.height}` : '待识别'}</span></div>
       {detail.channel && <div className="col-span-2"><span className="text-muted-foreground">使用渠道</span><span className="ml-2 font-medium">{detail.channel}</span></div>}
+      {detail.styleLabel && <div className="col-span-2"><span className="text-muted-foreground">画面风格</span><span className="ml-2 font-medium">{detail.styleLabel}</span></div>}
+      {typeof detail.isSceneImage === 'boolean' && (
+        <div className="col-span-2">
+          <span className="text-muted-foreground">图片类型</span>
+          <span className="ml-2 font-medium">{detail.isSceneImage ? '场景图' : '非场景图'}</span>
+        </div>
+      )}
     </div>
 
     <ImageAiAnalysisPanel detail={detail} provider={provider} actions={actions} />

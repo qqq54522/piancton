@@ -12,9 +12,24 @@ class StaticProvider:
 
     def __init__(self, payload):
         self.payload = payload
+        self.last_request = None
 
-    def generate_json(self, _request):
+    def generate_json(self, request):
+        self.last_request = request
         return self.payload
+
+
+class SequenceProvider:
+    name = "test"
+    configured = True
+
+    def __init__(self, payloads):
+        self.payloads = iter(payloads)
+        self.requests = []
+
+    def generate_json(self, request):
+        self.requests.append(request)
+        return next(self.payloads)
 
 
 def payload(*, concept_suggestions=None):
@@ -136,6 +151,53 @@ def test_image_analysis_allows_short_asset_specific_search_phrases():
     assert result.semantic_profile.asset_search_phrases[-1] == "课堂"
 
 
+def test_pre_upload_phrase_generation_returns_exact_requested_count():
+    provider = StaticProvider(
+        {
+            "phrases": [
+                "找一张能体现和学校教材进度一致的图",
+                "找一张学校学到哪课程就讲到哪的图",
+                "想找一张教材目录和课程目录能对应上的素材",
+            ]
+        }
+    )
+
+    result = AiService(provider).generate_asset_search_phrases(
+        Path("unused.upload"),
+        count=3,
+        title="课程同步",
+        concept_code="school_sync",
+        image_media_type="image/png",
+    )
+
+    assert result.phrases == [
+        "找一张能体现和学校教材进度一致的图",
+        "找一张学校学到哪课程就讲到哪的图",
+        "想找一张教材目录和课程目录能对应上的素材",
+    ]
+    assert provider.last_request is not None
+    assert "业务小白" in provider.last_request.input_text
+    assert "课程版本、章节和学校课堂进度保持一致" in (
+        provider.last_request.input_text
+    )
+    assert "图片用于让话术确实能找到这张素材" in provider.last_request.prompt
+    assert "找一张能体现和学校教材进度一致的图" in (
+        provider.last_request.prompt
+    )
+
+
+def test_pre_upload_phrase_generation_rejects_wrong_model_count():
+    provider = StaticProvider({"phrases": ["只有一条", "只有两条"]})
+    with pytest.raises(AppError) as exc_info:
+        AiService(provider).generate_asset_search_phrases(
+            Path("unused.png"),
+            count=3,
+        )
+
+    assert exc_info.value.code == "model_response_invalid"
+    assert exc_info.value.details == {"expected": 3, "actual": 2}
+
+
 def test_image_analysis_rejects_too_many_asset_specific_search_phrases():
     invalid = payload()
     invalid["semantic_profile"]["asset_search_phrases"] = [
@@ -189,8 +251,22 @@ def test_image_analysis_rejects_generated_concept_suggestion_reason():
 
 
 def test_search_intent_normalizes_catalog_codes_to_chinese_names():
-    result = AiService(
-        StaticProvider(
+    route = {
+        "original_query": "孩子听不懂老师讲课",
+        "route_type": "single_system",
+        "candidate_systems": [
+            {
+                "code": "sync_school",
+                "relation": "primary",
+                "reason": "课堂知识没有听懂",
+                "weight": 0.96,
+            }
+        ],
+        "excluded_systems": [],
+    }
+    provider = SequenceProvider(
+        [
+            route,
             {
                 "original_query": "孩子听不懂老师讲课",
                 "normalized_query": "动画精讲",
@@ -206,18 +282,90 @@ def test_search_intent_normalizes_catalog_codes_to_chinese_names():
                 ],
                 "matched_business_concepts": [
                     {
-                        "concept": "sync_school",
+                        "concept": "animation_explanation",
                         "relation": "direct",
-                        "reason": "属于同步校内体系",
-                        "weight": 0.8,
+                        "reason": "课堂没听懂，需要动画讲透",
+                        "weight": 0.95,
                     }
                 ],
                 "excluded_concepts": ["instant_quiz"],
                 "search_strategy": "优先召回动画精讲",
-            }
-        )
-    ).understand_search("孩子听不懂老师讲课")
+            },
+        ]
+    )
+    result = AiService(provider).understand_search("孩子听不懂老师讲课")
 
     assert result.expanded_terms[0].term == "同步校内体系 > 动画精讲"
-    assert result.matched_business_concepts[0].concept == "同步校内体系"
+    assert result.matched_business_concepts[0].concept == "同步校内体系 > 动画精讲"
     assert result.excluded_concepts == ["同步校内体系 > 课后小测"]
+    assert [request.task for request in provider.requests] == [
+        "search_system_routing",
+        "search_intent_understanding",
+    ]
+    assert "animation_explanation" not in provider.requests[0].prompt
+    assert "`animation_explanation` / 动画精讲" in provider.requests[1].prompt
+    assert "ai_tutor_qa" not in provider.requests[1].prompt
+
+
+def test_visual_search_stops_after_system_routing():
+    provider = SequenceProvider(
+        [
+            {
+                "original_query": "蓝色横版有孩子的图",
+                "route_type": "visual_scene",
+                "candidate_systems": [],
+                "excluded_systems": [],
+            }
+        ]
+    )
+
+    result = AiService(provider).understand_search("蓝色横版有孩子的图")
+
+    assert result.query_type == "visual_scene_search"
+    assert result.matched_business_concepts == []
+    assert [request.task for request in provider.requests] == [
+        "search_system_routing"
+    ]
+
+
+def test_second_layer_rejects_concepts_outside_routed_system():
+    provider = SequenceProvider(
+        [
+            {
+                "original_query": "随时找 AI 回答问题",
+                "route_type": "single_system",
+                "candidate_systems": [
+                    {
+                        "code": "sync_self_study",
+                        "relation": "primary",
+                        "reason": "AI 即时答疑",
+                        "weight": 0.97,
+                    }
+                ],
+                "excluded_systems": [],
+            },
+            {
+                "original_query": "随时找 AI 回答问题",
+                "normalized_query": "真人老师督学",
+                "search_intent": "错误跨体系返回",
+                "query_type": "business_intent_search",
+                "expanded_terms": [],
+                "matched_business_concepts": [
+                    {
+                        "concept": "human_teacher_supervision",
+                        "relation": "direct",
+                        "reason": "模型越界",
+                        "weight": 0.9,
+                    }
+                ],
+                "excluded_concepts": [],
+                "search_strategy": "错误",
+            },
+        ]
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        AiService(provider).understand_search("随时找 AI 回答问题")
+
+    assert exc_info.value.code == "model_response_invalid"
+    assert "候选体系之外" in exc_info.value.message

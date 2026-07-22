@@ -3,6 +3,8 @@ import { Loader2 } from 'lucide-react';
 import { useAssetActions } from '@client/src/features/assets/useAssetActions';
 import { useAssetGroup } from '@client/src/features/assets/useAssetGroup';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
+import { useBusinessFacets } from '@client/src/features/assets/useBusinessFacets';
+import AssetBusinessClassificationPanel from './AssetBusinessClassificationPanel';
 import AssetConceptReviewPanel from './AssetConceptReviewPanel';
 import AssetPhraseReviewPanel from './AssetPhraseReviewPanel';
 import AssetVersionsPanel from './AssetVersionsPanel';
@@ -16,6 +18,7 @@ interface AssetWorkspacePanelProps {
 function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorkspacePanelProps) {
   const group = useAssetGroup(groupId);
   const concepts = useBusinessConcepts(editable);
+  const facets = useBusinessFacets(editable);
   const actions = useAssetActions(groupId);
 
   if (group.isLoading) {
@@ -42,6 +45,12 @@ function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorks
       />
       {editable && (
         <>
+          <AssetBusinessClassificationPanel
+            group={group.data}
+            concepts={concepts.data ?? []}
+            facets={facets.data ?? { proofPoints: [], evidencePoints: [] }}
+            actions={actions}
+          />
           <AssetConceptReviewPanel
             group={group.data}
             concepts={concepts.data ?? []}

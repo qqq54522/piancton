@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from app.domain.evidence_points import load_evidence_point_catalog
+from app.domain.proof_points import load_proof_point_catalog
 from app.models.image import Image
 from app.schemas.image import ScoredImage, SearchResultConceptMatch
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
@@ -72,6 +74,11 @@ class SearchScorer:
             concept_links,
             query_concept_ids or set(),
         )
+        group = image.asset_group
+        proof_code = group.primary_proof_point_code if group else None
+        evidence_code = group.primary_evidence_point_code if group else None
+        proof = load_proof_point_catalog().by_code.get(proof_code or "")
+        evidence = load_evidence_point_catalog().by_code.get(evidence_code or "")
         return ScoredImage(
             image=image_to_read(image),
             match_level=self.match_level(score),
@@ -85,6 +92,10 @@ class SearchScorer:
             expressed_concepts=list(asset.expressed_concepts),
             supported_concepts=list(asset.supported_concepts),
             matched_query_concepts=matched_query_concepts,
+            primary_proof_point_code=proof_code,
+            primary_proof_point_name=proof.name if proof else None,
+            primary_evidence_point_code=evidence_code,
+            primary_evidence_point_name=evidence.name if evidence else None,
         )
 
     def match_level(self, score: float) -> Literal["S", "A", "B", "C"]:

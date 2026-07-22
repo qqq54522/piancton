@@ -1,56 +1,35 @@
-# 文案卖点匹配 Skill
+# 文案卖点匹配运行时规则
 
-用途：把活动或课程文案匹配到六大体系和 30 个文案卖点。
+用途：把活动、课程或营销文案匹配到 Prompt 附带的版本化文案点目录。
 
-## 六大体系与 30 个文案卖点
+## 输出协议
 
-## sync_school / 同步校内体系
+只返回以下 JSON：
 
-- material_sync / 教材同步: textbook edition and classroom alignment.
-- animation_teach / 动画讲透知识点: animation explains abstract knowledge.
-- instant_test / 学完即测: test and feedback immediately after learning.
-- preview_review / 预习复习: preview before and review after class.
-- daily_clear / 日日清: digest today's knowledge today.
+```json
+{
+  "matched": [
+    {
+      "system_key": "目录中的体系 code",
+      "system_name": "目录中的体系名称",
+      "points": [
+        {
+          "point_key": "目录中的 copy_point code",
+          "point_name": "目录中的文案点名称",
+          "weight": 0.0
+        }
+      ]
+    }
+  ],
+  "expand_keywords": ["可用于检索的少量中文扩展词"],
+  "confidence": 0.0
+}
+```
 
-## sync_exam / 同步考点体系
+## 匹配纪律
 
-- new_exam_standard / 新中考新课标
-- key_point_training / 重难点培优
-- exam_cram / 考前突击
-- common_mistakes / 高频错题
-- transfer_learning / 举一反三
-
-## sync_cultivation / 同步培养体系
-
-- k12_integration / 小初高一体化
-- stage_transition / 学段衔接
-- expert_design / 命题专家设计
-- ability_progression / 能力进阶
-- thinking_infusion / 思维渗透
-
-## sync_planning / 同步规划体系
-
-- ai_custom_class / AI定制班
-- personalized_plan / 个性化规划
-- precise_match / 精准匹配
-- hassle_free / 省心高效
-- learning_coach / 学习教练
-
-## sync_self_study / 同步自学体系
-
-- ai_tutor / AI私教
-- photo_learn / 拍题精学
-- quick_preview / 极速预习
-- quick_review / 极速复习
-- ai_error_book / AI错题本
-
-## sync_companion / 同步伴学体系
-
-- human_tutor / 真人老师伴学
-- supervision / 督学
-- learning_report / 学情报告
-- parent_peace / 家长放心
-- dual_guarantee / 双重保障
-
-Weight guide: 0.90-1 direct wording, 0.75-0.89 same core meaning,
-0.60-0.74 partial but useful overlap. Do not output below 0.60.
+- 只使用附带目录中的体系和 `copy_point` code，名称必须与目录一致，不得创造新点或修改目标核心卖点映射。
+- `0.90～1.00` 表示文案直接表达，`0.75～0.89` 表示核心含义一致，`0.60～0.74` 表示局部但有用的重合；低于 `0.60` 不返回。
+- 同一体系内去重并按权重降序；没有可靠命中时返回空 `matched` 和低置信度。
+- 扩展词必须来自原文含义，不虚构功能、效果、数据、学校、证书或用户评价。
+- 这里只匹配文案运营点，不选择具体图片，不把30个文案点解释为图片固定标签。

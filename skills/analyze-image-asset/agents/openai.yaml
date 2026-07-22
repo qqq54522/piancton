@@ -1,0 +1,7 @@
+interface:
+  display_name: "图片素材分析"
+  short_description: "生成画面事实、场景、图片话术和待审核卖点关系"
+  default_prompt: "Use $analyze-image-asset to analyze this primary image and return reviewable Semantic Profile V3 evidence and concept suggestions."
+policy:
+  allow_implicit_invocation: true
+

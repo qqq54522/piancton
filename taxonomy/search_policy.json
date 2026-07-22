@@ -1,5 +1,5 @@
 {
-  "version": "2026-06-29",
+  "version": "2026-07-21.2",
   "ambiguous_terms": [
     "规划",
     "讲解",
@@ -10,6 +10,175 @@
     "自律",
     "监督",
     "练习",
-    "学习方案"
+    "学习方案",
+    "理解原理",
+    "换题也会",
+    "老师反馈",
+    "定期反馈"
+  ],
+  "asset_selection": {
+    "accepted_phrase_match_threshold": 0.58,
+    "auxiliary_match_threshold": 0.72,
+    "filter_supports_when_expresses_exist": true
+  },
+  "asset_evidence_requirements": [
+    {
+      "code": "animation_classroom_effect_evidence",
+      "concept_codes": ["animation_explanation"],
+      "query_trigger_terms": [
+        "学校案例",
+        "落地案例",
+        "学校落地",
+        "课堂案例",
+        "媒体报道",
+        "乡村中学",
+        "公办学校",
+        "成绩提升数据",
+        "一线教学实证",
+        "学校成绩"
+      ],
+      "asset_terms": [
+        "学校",
+        "课堂",
+        "案例",
+        "报道",
+        "实证",
+        "成绩提升"
+      ]
+    },
+    {
+      "code": "animation_short_micro_lesson_evidence",
+      "concept_codes": ["animation_explanation"],
+      "query_trigger_terms": [
+        "几分钟",
+        "几分钟讲明白",
+        "几分钟讲懂",
+        "几分钟讲透",
+        "几分钟就能讲明白一个知识点",
+        "一节课不长",
+        "课不长",
+        "一个点能讲透",
+        "一个点讲透",
+        "一节课不长但一个点能讲透",
+        "课不长但一个点讲透",
+        "短时间讲明白",
+        "短时间讲懂",
+        "短时间讲透",
+        "5-8分钟讲透",
+        "5到8分钟讲透",
+        "五到八分钟讲透",
+        "5-8分钟动画微课",
+        "5到8分钟动画微课"
+      ],
+      "asset_terms": [
+        "5-8分钟",
+        "5到8分钟",
+        "五到八分钟",
+        "几分钟",
+        "短时间",
+        "动画微课"
+      ]
+    },
+    {
+      "code": "new_curriculum_school_practice_evidence",
+      "concept_codes": ["new_curriculum_prediction"],
+      "query_trigger_terms": [
+        "学校教研活动",
+        "新中考学校案例",
+        "新课标学校落地",
+        "新考法课堂案例",
+        "公办学校新中考"
+      ],
+      "asset_terms": ["学校", "课堂", "案例", "教研活动", "落地"]
+    },
+    {
+      "code": "universal_method_school_effect_evidence",
+      "concept_codes": ["universal_method"],
+      "query_trigger_terms": [
+        "原理学习学校案例",
+        "底层方法学校试点",
+        "变式题正确率",
+        "班级成绩数据",
+        "底层方法效果实证"
+      ],
+      "asset_terms": ["学校", "中学", "试点", "案例", "实证", "正确率", "成绩"]
+    },
+    {
+      "code": "ai_learning_plan_data_foundation_evidence",
+      "concept_codes": ["ai_learning_plan"],
+      "query_trigger_terms": [
+        "AI定制数据基础",
+        "AI规划学习行为数据",
+        "AI定制用户规模",
+        "AI规划课程规模"
+      ],
+      "asset_terms": ["数据", "用户规模", "学习行为", "课程规模", "互动"]
+    },
+    {
+      "code": "rapid_preview_review_effect_evidence",
+      "concept_codes": ["rapid_preview_review"],
+      "query_trigger_terms": [
+        "预习效率数据",
+        "复习正确率提升",
+        "听课效率翻倍",
+        "课后复习效果实证"
+      ],
+      "asset_terms": ["效率", "正确率", "效果数据", "提升", "实证"]
+    },
+    {
+      "code": "learning_report_parent_delivery_evidence",
+      "concept_codes": ["learning_report"],
+      "query_trigger_terms": [
+        "微信学习周报",
+        "家长小程序周报",
+        "每周自动推送学习报告",
+        "微信里看学习报告"
+      ],
+      "asset_terms": ["微信", "小程序", "周报", "推送", "家长端"]
+    }
+  ],
+  "asset_specificity_gates": [
+    {
+      "code": "photo_guided_socratic_method",
+      "concept_codes": ["photo_guided_learning"],
+      "asset_terms": [
+        "苏格拉底",
+        "启发式提问",
+        "层层追问",
+        "还原思考过程",
+        "从解一题到通一类"
+      ],
+      "query_trigger_terms": [
+        "苏格拉底",
+        "启发式提问",
+        "层层追问",
+        "问步骤",
+        "先问步骤",
+        "讲思路",
+        "还原思考过程",
+        "从解一题到通一类"
+      ]
+    },
+    {
+      "code": "instant_quiz_action_assets",
+      "concept_codes": ["instant_quiz"],
+      "asset_terms": [
+        "学完即练",
+        "学练测闭环",
+        "线上错题自动归纳到错题本",
+        "题库支撑"
+      ],
+      "query_trigger_terms": [
+        "学完即练",
+        "学完即测",
+        "课后小测",
+        "随堂测验",
+        "做题",
+        "练习",
+        "测试",
+        "题库",
+        "错题"
+      ]
+    }
   ]
 }

@@ -113,8 +113,8 @@ def image_to_search_document(image: Image) -> dict[str, Any]:
         "acceptedAiConceptCodes": _unique(
             link.concept.code for link in accepted_ai_links
         ),
+        # D080: 待审核建议只保留 code 供运营过滤，不再进入任何可搜索字段。
         "pendingAiConceptCodes": _unique(link.concept.code for link in pending_ai_links),
-        "pendingConceptNames": _unique(link.concept.name for link in pending_ai_links),
         "acceptedConceptCodes": accepted_concept_codes,
         "acceptedConceptNames": accepted_concept_names,
         "acceptedConceptPhrases": accepted_concept_phrases,

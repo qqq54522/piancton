@@ -3,6 +3,7 @@ import { api } from './client';
 import type {
   AssetConceptLink,
   AssetGroup,
+  BusinessFacetCatalog,
   BusinessConcept,
 } from '@client/src/types/api';
 
@@ -14,6 +15,21 @@ export async function fetchAssetGroup(id: string): Promise<AssetGroup> {
 
 export async function fetchBusinessConcepts(): Promise<BusinessConcept[]> {
   return (await api.get('/api/business-concepts')).data;
+}
+
+export async function fetchBusinessFacets(): Promise<BusinessFacetCatalog> {
+  return (await api.get('/api/business-facets')).data;
+}
+
+export async function updateAssetBusinessClassification(
+  groupId: string,
+  input: {
+    conceptId?: string | null;
+    proofPointCode?: string | null;
+    evidencePointCode?: string | null;
+  },
+): Promise<AssetGroup> {
+  return (await api.patch(`/api/asset-groups/${groupId}/business-classification`, input)).data;
 }
 
 export async function addAssetVariant(

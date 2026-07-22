@@ -7,12 +7,19 @@ from pathlib import Path
 from typing import BinaryIO, Optional
 
 from app.core.errors import AppError, NotFoundError
+from app.domain.image_titles import clean_image_title
 from app.models.asset import AssetGroup
 from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
-from app.schemas.image import ImageDetailRead, ImageListResponse, ImageRead
+from app.schemas.image import (
+    ImageDetailRead,
+    ImageListResponse,
+    ImageRead,
+    ImageTitleResolution,
+)
 from app.services.asset_relation_service import AssetRelationService
 from app.services.embedding_index import EmbeddingIndexSync
+from app.services.image_title_service import ImageTitleService
 from app.services.related_image_service import RelatedImageService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail, image_to_read
@@ -62,6 +69,7 @@ class ImageService:
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
         self.asset_relations = AssetRelationService(db)
         self.related_images = RelatedImageService(self.images)
+        self.image_titles = ImageTitleService(db)
 
     def list_images(
         self,
@@ -101,6 +109,8 @@ class ImageService:
         uploader: str,
         expected_search_words: list[str] | None = None,
         channel: str | None = None,
+        style_label: str | None = None,
+        is_scene_image: bool | None = None,
     ) -> ImageRead:
         staged = self.storage.stage(
             stream,
@@ -108,15 +118,19 @@ class ImageService:
             self.max_image_pixels,
             self.thumbnail_max_size,
         )
+        requested_title = title.strip() or Path(original_name).stem
+        resolved_title = self.image_titles.resolve(requested_title)
         group = AssetGroup(
-            title=title.strip() or Path(original_name).stem,
+            title=resolved_title,
             approval_status="approved",
             publish_status="published",
+            style_label=(style_label or "").strip() or None,
+            is_scene_image=is_scene_image,
             created_by=uploader,
             search_phrases=self.asset_relations.manual_phrases(expected_search_words or []),
         )
         image = Image(
-            title=title.strip() or Path(original_name).stem,
+            title=resolved_title,
             file_name=original_name,
             storage_key=staged.storage_key,
             thumbnail_storage_key=staged.thumbnail_storage_key,
@@ -147,12 +161,32 @@ class ImageService:
 
     def update_title(self, image_id: str, title: str) -> ImageRead:
         image = self._get(image_id)
-        image.title = title
+        requested_title = clean_image_title(title)
+        resolved_title = (
+            requested_title
+            if requested_title.casefold() == image.title.casefold()
+            else self.image_titles.resolve(
+                requested_title,
+                exclude_image_id=image.id,
+            )
+        )
+        image.title = resolved_title
+        if image.asset_group and image.asset_group.primary_image_id == image.id:
+            image.asset_group.title = resolved_title
         self.embedding_index.upsert_image(self.images, image)
         self.images.save(image)
         self.uow.commit()
         self._sync_index(image.id)
         return image_to_read(image)
+
+    def resolve_title(self, title: str) -> ImageTitleResolution:
+        requested = title.strip()
+        resolved = self.image_titles.resolve(requested, reserve=False)
+        return ImageTitleResolution(
+            requested_title=requested,
+            resolved_title=resolved,
+            changed=requested != resolved,
+        )
 
     def content(self, image_id: str) -> tuple[Path, Image]:
         image = self._get(image_id)

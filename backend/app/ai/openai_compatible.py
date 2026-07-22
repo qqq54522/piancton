@@ -8,7 +8,29 @@ from typing import Any
 
 import httpx
 
-from app.ai.contracts import ModelProviderError, ModelProviderNotConfigured, ModelRequest
+from app.ai.contracts import (
+    ModelProviderError,
+    ModelProviderNotConfigured,
+    ModelRequest,
+)
+
+SEARCH_TASK_ROLES = {
+    "search_system_routing": (
+        "你是六大业务体系的第一层路由决策员。"
+        "你只判断体系范围，必须先核对对象和主动作，再核对时间尺度、目的与执行主体；"
+        "若句式是‘通过/借助/采用X，帮你/从而Y’，X是主手段证据，Y是结果；"
+        "共享词不能被当作唯一体系证据，也不得提前判断卖点或具体图片。"
+    ),
+    "search_intent_understanding": (
+        "你是业务方搜索话术的第二层卖点决策员，并负责可选的证明点识别。"
+        "你只能在第一层候选体系和当前启用目录内判断；"
+        "必须区分主动作或产品入口、使用对象、目的结果与讲解方法，"
+        "若句式是‘通过/借助/采用X，帮你/从而Y’，X是核心方法谓词，Y是结果；"
+        "不得让通用结果词或方法细节覆盖更主要的入口证据；"
+        "只有原话明确点名功能、方法、案例、数据或具体证据时才输出证明点；"
+        "每个证明点还必须从该证明点已有搜索语言中原样选择一至三条最具体的 evidence_terms。"
+    ),
+}
 
 
 class OpenAICompatibleModelProvider:
@@ -27,11 +49,13 @@ class OpenAICompatibleModelProvider:
         api_key: str,
         model_name: str,
         timeout_seconds: int = 120,
+        temperature: float = 0.2,
     ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model_name = model_name
         self.timeout_seconds = timeout_seconds
+        self.temperature = temperature
 
     @property
     def configured(self) -> bool:
@@ -44,16 +68,25 @@ class OpenAICompatibleModelProvider:
         payload = {
             "model": self.model_name,
             "messages": self._messages(request),
-            "temperature": 0.2,
+            "temperature": self.temperature,
             "response_format": {"type": "json_object"},
         }
-        response_payload = self._post_chat_completions(payload)
+        if request.timeout_seconds is None:
+            response_payload = self._post_chat_completions(payload)
+        else:
+            response_payload = self._post_chat_completions(
+                payload,
+                timeout_seconds=request.timeout_seconds,
+            )
         return self._extract_json(response_payload)
 
     def _messages(self, request: ModelRequest) -> list[dict[str, Any]]:
+        role = SEARCH_TASK_ROLES.get(
+            request.task,
+            "你是标签图片仓库的结构化分析引擎。",
+        )
         system_prompt = (
-            "你是标签图片仓库的结构化分析引擎。"
-            "必须只返回一个合法 JSON 对象，不要返回 Markdown、解释或代码块。"
+            role + "必须只返回一个合法 JSON 对象，不要返回 Markdown、解释或代码块。"
             "字段名称、枚举值和数组结构必须严格遵循用户给出的输出协议。"
         )
         task_text = "\n\n".join(
@@ -71,7 +104,12 @@ class OpenAICompatibleModelProvider:
                 {"type": "text", "text": task_text},
                 {
                     "type": "image_url",
-                    "image_url": {"url": self._image_data_url(request.image_path)},
+                    "image_url": {
+                        "url": self._image_data_url(
+                            request.image_path,
+                            request.image_media_type,
+                        )
+                    },
                 },
             ]
         else:
@@ -81,19 +119,35 @@ class OpenAICompatibleModelProvider:
             {"role": "user", "content": user_content},
         ]
 
-    def _image_data_url(self, image_path: Path) -> str:
-        mime_type = mimetypes.guess_type(image_path.name)[0] or "application/octet-stream"
+    def _image_data_url(
+        self,
+        image_path: Path,
+        explicit_media_type: str | None = None,
+    ) -> str:
+        mime_type = (
+            explicit_media_type
+            or mimetypes.guess_type(image_path.name)[0]
+            or "application/octet-stream"
+        )
         encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
         return f"data:{mime_type};base64,{encoded}"
 
-    def _post_chat_completions(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post_chat_completions(
+        self,
+        payload: dict[str, Any],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> dict[str, Any]:
         url = f"{self.base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
         try:
-            with httpx.Client(timeout=self.timeout_seconds) as client:
+            request_timeout = (
+                max(0.1, timeout_seconds) if timeout_seconds is not None else self.timeout_seconds
+            )
+            with httpx.Client(timeout=request_timeout) as client:
                 response = client.post(url, headers=headers, json=payload)
                 if response.status_code == 400 and "response_format" in payload:
                     fallback_payload = {**payload}

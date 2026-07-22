@@ -1,10 +1,12 @@
 import { api } from './client';
 
 import type {
+  AssetSearchPhraseSuggestion,
   ImageDetail,
   ImageItem,
   ImageListParams,
   ImageListResponse,
+  ImageTitleResolution,
   ProviderStatus,
   SearchFeedbackRequest,
   SemanticSearchRequest,
@@ -27,6 +29,8 @@ export async function uploadImage(input: {
   title: string;
   expectedSearchWords?: string[];
   channel?: string;
+  styleLabel?: string;
+  isSceneImage?: boolean;
   autoAnalyze?: boolean;
 }): Promise<ImageItem> {
   const form = new FormData();
@@ -34,6 +38,10 @@ export async function uploadImage(input: {
   form.append('title', input.title);
   form.append('expectedSearchWords', (input.expectedSearchWords ?? []).join('\n'));
   if (input.channel?.trim()) form.append('channel', input.channel.trim());
+  if (input.styleLabel?.trim()) form.append('styleLabel', input.styleLabel.trim());
+  if (typeof input.isSceneImage === 'boolean') {
+    form.append('isSceneImage', String(input.isSceneImage));
+  }
   form.append('autoAnalyze', String(input.autoAnalyze ?? true));
   return (await api.post('/api/images/upload', form)).data;
 }
@@ -43,6 +51,10 @@ export async function updateImageTitle(
   data: UpdateImageTitleRequest,
 ): Promise<ImageItem> {
   return (await api.patch(`/api/images/${id}/title`, data)).data;
+}
+
+export async function resolveImageTitle(title: string): Promise<ImageTitleResolution> {
+  return (await api.get('/api/images/title-resolution', { params: { title } })).data;
 }
 
 export async function deleteImage(id: string): Promise<void> {
@@ -68,7 +80,9 @@ export async function fetchTags(): Promise<TagWithCount[]> {
 export async function semanticSearch(
   params: SemanticSearchRequest,
 ): Promise<SemanticSearchResponse> {
-  return (await api.post('/api/images/search', params)).data;
+  return (
+    await api.post('/api/images/search', params, { timeout: 180_000 })
+  ).data;
 }
 
 export async function submitSearchFeedback(data: SearchFeedbackRequest): Promise<void> {
@@ -77,6 +91,22 @@ export async function submitSearchFeedback(data: SearchFeedbackRequest): Promise
 
 export async function fetchProviderStatus(): Promise<ProviderStatus> {
   return (await api.get('/api/ai/provider')).data;
+}
+
+export async function generateAssetSearchPhrases(input: {
+  file: File;
+  count: number;
+  title?: string;
+  conceptCode?: string;
+}): Promise<AssetSearchPhraseSuggestion> {
+  const form = new FormData();
+  form.append('file', input.file);
+  form.append('count', String(input.count));
+  if (input.title?.trim()) form.append('title', input.title.trim());
+  if (input.conceptCode?.trim()) form.append('conceptCode', input.conceptCode.trim());
+  return (
+    await api.post('/api/ai/asset-search-phrases', form, { timeout: 120_000 })
+  ).data;
 }
 
 export async function analyzeContentTags(id: string): Promise<void> {

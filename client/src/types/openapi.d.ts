@@ -123,6 +123,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/images/title-resolution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve Image Title
+         * @description Preview the title the backend will reserve when the image is published.
+         */
+        get: operations["resolve_image_title_api_images_title_resolution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/images/{image_id}/restore": {
         parameters: {
             query?: never;
@@ -345,6 +365,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/asset-groups/{group_id}/business-classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Asset Business Classification */
+        patch: operations["update_asset_business_classification_api_asset_groups__group_id__business_classification_patch"];
+        trace?: never;
+    };
     "/api/asset-groups/{group_id}/concept-links/{link_id}": {
         parameters: {
             query?: never;
@@ -501,6 +538,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/business-facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Business Facets */
+        get: operations["get_business_facets_api_business_facets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tags": {
         parameters: {
             query?: never;
@@ -563,6 +617,23 @@ export interface paths {
         put?: never;
         /** Match Selling Points */
         post: operations["match_selling_points_api_ai_selling_points_match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/asset-search-phrases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Asset Search Phrases */
+        post: operations["generate_asset_search_phrases_api_ai_asset_search_phrases_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -797,6 +868,15 @@ export interface components {
              */
             createdAt: string;
         };
+        /** AssetBusinessClassificationUpdate */
+        AssetBusinessClassificationUpdate: {
+            /** Conceptid */
+            conceptId?: string | null;
+            /** Proofpointcode */
+            proofPointCode?: string | null;
+            /** Evidencepointcode */
+            evidencePointCode?: string | null;
+        };
         /** AssetConceptBatchReview */
         AssetConceptBatchReview: {
             /** Linkids */
@@ -877,6 +957,14 @@ export interface components {
             approvalStatus: string;
             /** Publishstatus */
             publishStatus: string;
+            /** Stylelabel */
+            styleLabel?: string | null;
+            /** Issceneimage */
+            isSceneImage?: boolean | null;
+            /** Primaryproofpointcode */
+            primaryProofPointCode?: string | null;
+            /** Primaryevidencepointcode */
+            primaryEvidencePointCode?: string | null;
             /** Createdby */
             createdBy: string;
             /** Images */
@@ -956,6 +1044,11 @@ export interface components {
              */
             reviewStatus: "accepted" | "rejected";
         };
+        /** AssetSearchPhraseSuggestion */
+        AssetSearchPhraseSuggestion: {
+            /** Phrases */
+            phrases: string[];
+        };
         /** AuditLogRead */
         AuditLogRead: {
             /** Id */
@@ -1002,6 +1095,29 @@ export interface components {
              */
             auto_analyze: boolean;
         };
+        /** Body_generate_asset_search_phrases_api_ai_asset_search_phrases_post */
+        Body_generate_asset_search_phrases_api_ai_asset_search_phrases_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+            /**
+             * Count
+             * @default 5
+             */
+            count: number;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Concept Code
+             * @default
+             */
+            concept_code: string;
+        };
         /** Body_replace_asset_primary_api_asset_groups__group_id__primary_image_post */
         Body_replace_asset_primary_api_asset_groups__group_id__primary_image_post: {
             /**
@@ -1035,6 +1151,10 @@ export interface components {
             expected_search_words: string;
             /** Channel */
             channel?: string | null;
+            /** Style Label */
+            style_label?: string | null;
+            /** Is Scene Image */
+            is_scene_image?: boolean | null;
             /**
              * Auto Analyze
              * @default true
@@ -1104,6 +1224,15 @@ export interface components {
             replacedByConceptId?: string | null;
             /** Systemlinks */
             systemLinks?: components["schemas"]["ConceptSystemLinkInput"][] | null;
+        };
+        /** BusinessFacetCatalogRead */
+        BusinessFacetCatalogRead: {
+            /** Version */
+            version: string;
+            /** Proofpoints */
+            proofPoints?: components["schemas"]["ProofPointFacetRead"][];
+            /** Evidencepoints */
+            evidencePoints?: components["schemas"]["EvidencePointFacetRead"][];
         };
         /** ConceptHealthItem */
         ConceptHealthItem: {
@@ -1308,6 +1437,21 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** EvidencePointFacetRead */
+        EvidencePointFacetRead: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Proofpointcode */
+            proofPointCode: string;
+            /** Systemcode */
+            systemCode: string;
+            /** Conceptcode */
+            conceptCode: string;
+            /** Sourceref */
+            sourceRef: string;
+        };
         /** ExpandedSearchTerm */
         ExpandedSearchTerm: {
             /** Term */
@@ -1379,6 +1523,10 @@ export interface components {
             aspectRatio?: number | null;
             /** Channel */
             channel?: string | null;
+            /** Stylelabel */
+            styleLabel?: string | null;
+            /** Issceneimage */
+            isSceneImage?: boolean | null;
             /**
              * Versionno
              * @default 1
@@ -1455,6 +1603,10 @@ export interface components {
             aspectRatio?: number | null;
             /** Channel */
             channel?: string | null;
+            /** Stylelabel */
+            styleLabel?: string | null;
+            /** Issceneimage */
+            isSceneImage?: boolean | null;
             /**
              * Versionno
              * @default 1
@@ -1486,6 +1638,15 @@ export interface components {
             /** Assetsearchphrases */
             assetSearchPhrases?: string[];
         };
+        /** ImageTitleResolution */
+        ImageTitleResolution: {
+            /** Requestedtitle */
+            requestedTitle: string;
+            /** Resolvedtitle */
+            resolvedTitle: string;
+            /** Changed */
+            changed: boolean;
+        };
         /** ImageTitleUpdate */
         ImageTitleUpdate: {
             /** Title */
@@ -1508,6 +1669,17 @@ export interface components {
         PasswordReset: {
             /** Password */
             password: string;
+        };
+        /** ProofPointFacetRead */
+        ProofPointFacetRead: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Systemcode */
+            systemCode: string;
+            /** Conceptcode */
+            conceptCode: string;
         };
         /** ProviderStatus */
         ProviderStatus: {
@@ -1549,6 +1721,14 @@ export interface components {
             supportedConcepts?: string[];
             /** Matchedqueryconcepts */
             matchedQueryConcepts?: components["schemas"]["SearchResultConceptMatch"][];
+            /** Primaryproofpointcode */
+            primaryProofPointCode?: string | null;
+            /** Primaryproofpointname */
+            primaryProofPointName?: string | null;
+            /** Primaryevidencepointcode */
+            primaryEvidencePointCode?: string | null;
+            /** Primaryevidencepointname */
+            primaryEvidencePointName?: string | null;
         };
         /** SearchBranchStatusRead */
         SearchBranchStatusRead: {
@@ -1617,6 +1797,21 @@ export interface components {
             degradedSources?: string[];
             /** Branches */
             branches?: components["schemas"]["SearchBranchStatusRead"][];
+        };
+        /** SearchEvidencePointMatch */
+        SearchEvidencePointMatch: {
+            /** Code */
+            code: string;
+            /** Proofpointcode */
+            proofPointCode: string;
+            /** Conceptcode */
+            conceptCode: string;
+            /** Name */
+            name: string;
+            /** Reason */
+            reason: string;
+            /** Weight */
+            weight: number;
         };
         /** SearchFeedbackCreate */
         SearchFeedbackCreate: {
@@ -1795,6 +1990,21 @@ export interface components {
             /** Assetgaps */
             assetGaps: components["schemas"]["AssetGapItem"][];
         };
+        /** SearchProofPointMatch */
+        SearchProofPointMatch: {
+            /** Code */
+            code: string;
+            /** Conceptcode */
+            conceptCode: string;
+            /** Name */
+            name: string;
+            /** Reason */
+            reason: string;
+            /** Weight */
+            weight: number;
+            /** Evidenceterms */
+            evidenceTerms?: string[];
+        };
         /** SearchRequest */
         SearchRequest: {
             /** Keyword */
@@ -1806,6 +2016,12 @@ export interface components {
             limit: number;
             /** Systemcode */
             systemCode?: string | null;
+            /** Conceptcode */
+            conceptCode?: string | null;
+            /** Proofpointcode */
+            proofPointCode?: string | null;
+            /** Evidencepointcode */
+            evidencePointCode?: string | null;
         };
         /** SearchResponse */
         SearchResponse: {
@@ -1856,12 +2072,19 @@ export interface components {
             normalizedQuery: string;
             /** Searchintent */
             searchIntent: string;
-            /** Querytype */
-            queryType: string;
+            /**
+             * Querytype
+             * @enum {string}
+             */
+            queryType: "business_intent_search" | "multi_business_intent_search" | "exploratory_business_intent_search" | "ambiguous_business_intent_search" | "visual_scene_search" | "no_reliable_intent_search";
             /** Expandedterms */
             expandedTerms?: components["schemas"]["ExpandedSearchTerm"][];
             /** Matchedbusinessconcepts */
             matchedBusinessConcepts?: components["schemas"]["SearchConceptMatch"][];
+            /** Matchedproofpoints */
+            matchedProofPoints?: components["schemas"]["SearchProofPointMatch"][];
+            /** Matchedevidencepoints */
+            matchedEvidencePoints?: components["schemas"]["SearchEvidencePointMatch"][];
             /** Excludedconcepts */
             excludedConcepts?: string[];
             /**
@@ -2246,6 +2469,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_image_title_api_images_title_resolution_get: {
+        parameters: {
+            query: {
+                title: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageTitleResolution"];
                 };
             };
             /** @description Validation Error */
@@ -2756,6 +3012,46 @@ export interface operations {
             };
         };
     };
+    update_asset_business_classification_api_asset_groups__group_id__business_classification_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetBusinessClassificationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     review_asset_concept_suggestion_api_asset_groups__group_id__concept_links__link_id__patch: {
         parameters: {
             query?: never;
@@ -3220,6 +3516,37 @@ export interface operations {
             };
         };
     };
+    get_business_facets_api_business_facets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessFacetCatalogRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_tags_api_tags_get: {
         parameters: {
             query?: never;
@@ -3345,6 +3672,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SellingPointMatchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_asset_search_phrases_api_ai_asset_search_phrases_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_generate_asset_search_phrases_api_ai_asset_search_phrases_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetSearchPhraseSuggestion"];
                 };
             };
             /** @description Validation Error */

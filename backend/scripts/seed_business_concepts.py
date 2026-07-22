@@ -15,6 +15,16 @@ from app.models.business_concept import (
 )
 from app.models.tag import Tag
 
+# 业务已确认由其他稳定卖点承载的旧 source_document 话术。
+# 保留原记录用于审计，但每次幂等同步都要维持 rejected，避免旧库或备份
+# 恢复后重新覆盖 Skill 已校准的跨体系边界。
+REJECTED_SOURCE_PHRASES_BY_CONCEPT = {
+    "universal_method": {
+        "一道题会一类题",
+        "一道题学会一类题",
+    },
+}
+
 
 def sync_business_concepts(db) -> tuple[int, int, int, int]:
     """Idempotently materialize concept seeds after taxonomy tags exist."""
@@ -44,18 +54,12 @@ def sync_business_concepts(db) -> tuple[int, int, int, int]:
             db.flush()
             concepts_by_code[node.code] = concept
             created += 1
-        else:
-            changed = False
-            for key, value in {
-                "name": node.name,
-                "definition": node.definition or None,
-            }.items():
-                if getattr(concept, key) != value:
-                    setattr(concept, key, value)
-                    changed = True
-            if changed:
-                concept.version += 1
-                updated += 1
+        elif not (concept.definition or "").strip() and node.definition:
+            # D027：数据库是概念名称/定义的运行事实来源。种子只负责初始化，
+            # 已存在的概念不再被静态文件覆盖，仅补齐仍为空的定义。
+            concept.definition = node.definition
+            concept.version += 1
+            updated += 1
 
         system_tag = tags_by_code.get(node.parent_code or "")
         if system_tag and not any(
@@ -132,8 +136,30 @@ def sync_business_concepts(db) -> tuple[int, int, int, int]:
                 f"共享跨体系卖点：{point.name}",
             )
 
+    # 必须放在全部静态话术合并之后执行：即使旧目录、旧备份或后续静态来源
+    # 再次带回已校准的错误表达，最终运行态仍以 Skill 边界为准并保留审计记录。
+    for concept in concepts_by_code.values():
+        updated += _reject_deprecated_source_phrases(concept)
+
     db.flush()
     return created, updated, phrase_count, relation_count
+
+
+def _reject_deprecated_source_phrases(concept: BusinessConcept) -> int:
+    rejected_phrases = REJECTED_SOURCE_PHRASES_BY_CONCEPT.get(concept.code, set())
+    changed = False
+    for item in concept.search_phrases:
+        if (
+            item.origin == "source_document"
+            and item.review_status == "accepted"
+            and item.phrase in rejected_phrases
+        ):
+            item.review_status = "rejected"
+            changed = True
+    if not changed:
+        return 0
+    concept.version += 1
+    return 1
 
 
 def _add_phrases(

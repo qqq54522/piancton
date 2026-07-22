@@ -27,7 +27,15 @@ export function useImageDetailActions(detail: ImageDetail | null) {
   };
   const titleMutation = useMutation({
     mutationFn: (title: string) => imageApi.updateImageTitle(detail!.id, { title }),
-    onSuccess: async () => { setEditingTitle(false); await refresh(); toast.success('图片名称已更新'); },
+    onSuccess: async (image, requestedTitle) => {
+      setEditingTitle(false);
+      await refresh();
+      toast.success(
+        image.title === requestedTitle.trim()
+          ? '图片名称已更新'
+          : `名称已存在，已自动更新为“${image.title}”`,
+      );
+    },
     onError: (error) => toast.error(getApiError(error).message),
   });
   const deleteMutation = useMutation({

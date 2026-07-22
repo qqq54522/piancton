@@ -1,0 +1,7 @@
+interface:
+  display_name: "匹配文案卖点"
+  short_description: "将活动或课程文案映射到版本化文案运营点目录"
+  default_prompt: "Use $match-copy-selling-points to map this copy to the current versioned copy-point catalog."
+policy:
+  allow_implicit_invocation: true
+

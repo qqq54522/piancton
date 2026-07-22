@@ -1,0 +1,7 @@
+interface:
+  display_name: "管理图片素材库"
+  short_description: "维护素材上传、版本、人工关系、下载和回收流程"
+  default_prompt: "Use $manage-image-library to implement or verify this asset-library workflow without breaking lifecycle and approval boundaries."
+policy:
+  allow_implicit_invocation: true
+

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -46,6 +46,14 @@ class Image(Base):
         DateTime(timezone=True), nullable=True, index=True
     )
 
+    __table_args__ = (
+        Index(
+            "uq_images_title_normalized",
+            func.lower(func.trim(title)),
+            unique=True,
+        ),
+    )
+
     content_tags: Mapped[list["ContentTag"]] = relationship(
         back_populates="image", cascade="all, delete-orphan"
     )
@@ -56,6 +64,16 @@ class Image(Base):
         back_populates="image", cascade="all, delete-orphan", uselist=False
     )
     asset_group: Mapped[Optional["AssetGroup"]] = relationship(back_populates="images")
+
+
+class ImageTitleReservation(Base):
+    __tablename__ = "image_title_reservations"
+
+    normalized_title: Mapped[str] = mapped_column(String(255), primary_key=True)
+    title: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
 
 
 class ContentTag(Base):

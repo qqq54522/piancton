@@ -1,10 +1,12 @@
 export type {
   ApiErrorBody,
   AnalysisRun,
+  AssetSearchPhraseSuggestion,
   AuditLog,
   ImageSemanticProfile,
   ImageDetail,
   ImageItem,
+  ImageTitleResolution,
   LoginResponse,
   Tag,
   User,
@@ -48,6 +50,24 @@ export interface SearchConceptMatch {
   weight: number;
 }
 
+export interface SearchProofPointMatch {
+  code: string;
+  conceptCode: string;
+  name: string;
+  reason: string;
+  weight: number;
+  evidenceTerms: string[];
+}
+
+export interface SearchEvidencePointMatch {
+  code: string;
+  proofPointCode: string;
+  conceptCode: string;
+  name: string;
+  reason: string;
+  weight: number;
+}
+
 export interface SearchUnderstanding {
   originalQuery: string;
   normalizedQuery: string;
@@ -55,6 +75,8 @@ export interface SearchUnderstanding {
   queryType: string;
   expandedTerms: ExpandedSearchTerm[];
   matchedBusinessConcepts: SearchConceptMatch[];
+  matchedProofPoints: SearchProofPointMatch[];
+  matchedEvidencePoints: SearchEvidencePointMatch[];
   excludedConcepts: string[];
   searchStrategy: string;
 }
@@ -63,6 +85,9 @@ export interface SemanticSearchRequest {
   keyword: string;
   limit?: number;
   systemCode?: string | null;
+  conceptCode?: string | null;
+  proofPointCode?: string | null;
+  evidencePointCode?: string | null;
 }
 
 export interface AssetImage {
@@ -112,6 +137,8 @@ export interface AssetGroup {
   images: AssetImage[];
   conceptLinks: AssetConceptLink[];
   searchPhrases: AssetSearchPhrase[];
+  primaryProofPointCode?: string | null;
+  primaryEvidencePointCode?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -157,6 +184,24 @@ export interface BusinessConcept {
   searchPhrases: ConceptSearchPhrase[];
 }
 
+export interface ProofPointFacet {
+  code: string;
+  conceptCode: string;
+  name: string;
+}
+
+export interface EvidencePointFacet {
+  code: string;
+  proofPointCode: string;
+  conceptCode: string;
+  name: string;
+}
+
+export interface BusinessFacetCatalog {
+  proofPoints: ProofPointFacet[];
+  evidencePoints: EvidencePointFacet[];
+}
+
 export interface ScoredImageMatch {
   image: ImageItem;
   matchLevel: 'S' | 'A' | 'B' | 'C';
@@ -170,6 +215,10 @@ export interface ScoredImageMatch {
   expressedConcepts: string[];
   supportedConcepts: string[];
   matchedQueryConcepts: SearchResultConceptMatch[];
+  primaryProofPointCode?: string | null;
+  primaryProofPointName?: string | null;
+  primaryEvidencePointCode?: string | null;
+  primaryEvidencePointName?: string | null;
 }
 
 export interface SearchResultConceptMatch {

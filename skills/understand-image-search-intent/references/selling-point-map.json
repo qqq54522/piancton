@@ -1,0 +1,64 @@
+{
+  "version": "2026-07-17.1",
+  "description": "卖点智库精简展示名称与 Skill 完整业务名称的一一对应表；stable code 是唯一连接键。",
+  "systems": [
+    {
+      "code": "sync_school",
+      "displayName": "同步校内体系",
+      "reference": "sync-school.md",
+      "sellingPoints": [
+        {"code": "school_sync", "displayName": "同步校内", "skillName": "教材版本与课程目录同步"},
+        {"code": "animation_explanation", "displayName": "动画精讲", "skillName": "动画讲透知识点"},
+        {"code": "instant_quiz", "displayName": "课后小测", "skillName": "学练测闭环"}
+      ]
+    },
+    {
+      "code": "sync_exam",
+      "displayName": "同步考点体系",
+      "reference": "sync-exam.md",
+      "sellingPoints": [
+        {"code": "new_curriculum_prediction", "displayName": "新课标新考法预测", "skillName": "新课标新考法"},
+        {"code": "focused_excellence", "displayName": "专项培优", "skillName": "分学科重难点专项培优"},
+        {"code": "transfer_practice", "displayName": "举一反三", "skillName": "理解原理，举一反三"}
+      ]
+    },
+    {
+      "code": "sync_cultivation",
+      "displayName": "同步培养体系",
+      "reference": "sync-cultivation.md",
+      "sellingPoints": [
+        {"code": "expert_planning", "displayName": "专家规划", "skillName": "命题专家与教材编者设计"},
+        {"code": "stage_transition", "displayName": "学段衔接", "skillName": "小初高一体化与学段衔接"},
+        {"code": "universal_method", "displayName": "万能解法", "skillName": "底层方法与思维培养"}
+      ]
+    },
+    {
+      "code": "sync_planning",
+      "displayName": "同步规划体系",
+      "reference": "sync-planning.md",
+      "sellingPoints": [
+        {"code": "ai_learning_plan", "displayName": "AI定制学习方案", "skillName": "AI 量身定制学习方案"}
+      ]
+    },
+    {
+      "code": "sync_self_study",
+      "displayName": "同步自学体系",
+      "reference": "sync-self-study.md",
+      "sellingPoints": [
+        {"code": "ai_tutor_qa", "displayName": "AI私教答疑", "skillName": "AI 私教随时答疑"},
+        {"code": "photo_guided_learning", "displayName": "AI拍题精学", "skillName": "AI 拍题精学"},
+        {"code": "rapid_preview_review", "displayName": "极速预习复习", "skillName": "极速预习复习"},
+        {"code": "ai_error_book", "displayName": "AI错题本", "skillName": "AI 错题本"}
+      ]
+    },
+    {
+      "code": "sync_companion",
+      "displayName": "同步伴学体系",
+      "reference": "sync-companion.md",
+      "sellingPoints": [
+        {"code": "human_teacher_supervision", "displayName": "真人老师督学", "skillName": "真人老师督学"},
+        {"code": "learning_report", "displayName": "学情报告反馈", "skillName": "学情报告反馈"}
+      ]
+    }
+  ]
+}

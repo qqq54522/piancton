@@ -1,8 +1,10 @@
+import { useLayoutEffect } from 'react';
 import { Loader2, Upload } from 'lucide-react';
 
 import { Button } from '@client/src/components/ui/button';
 import { ROLE_SUBJECT, useAuth } from '@client/src/lib/auth';
 import { useImageBrowser } from '@client/src/features/images/useImageBrowser';
+import { takeImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 import GlobalImageSearch from './GlobalImageSearch';
 import ImageGrid from './ImageGrid';
 import ImageHomeHeader from './ImageHomeHeader';
@@ -14,6 +16,8 @@ const ImageHome = () => {
   const auth = useAuth();
   const isDesigner = !auth.isLoading && auth.ability.can('designer', ROLE_SUBJECT);
   const {
+    businessConcepts,
+    businessFacets,
     clearGlobalSearch,
     executeGlobalSearch,
     globalSearchImages,
@@ -25,9 +29,20 @@ const ImageHome = () => {
     images,
     loading,
     loadingMore,
+    refinementOptions,
+    searchRefinements,
     selectedSystemCode,
+    selectedConceptCode,
+    selectedProofPointCode,
+    selectedEvidencePointCode,
+    selectConcept,
+    selectProofPoint,
+    selectEvidencePoint,
     selectSystem,
     semanticResult,
+    setSelectedChannel,
+    setSelectedScene,
+    setSelectedStyle,
     sentinelRef,
     setGlobalSearchInput,
     setSortBy,
@@ -37,6 +52,13 @@ const ImageHome = () => {
     uploadOpen,
   } = useImageBrowser();
 
+  useLayoutEffect(() => {
+    if (globalSearchLoading || loading) return;
+    const scrollY = takeImageHomeScroll();
+    if (scrollY === null) return;
+    window.requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+  }, [globalSearchLoading, loading]);
+
   return (
     <div className="page-shell">
       <ImageHomeHeader isDesigner={isDesigner} onOpenUpload={() => setUploadOpen(true)} />
@@ -45,8 +67,22 @@ const ImageHome = () => {
         input={globalSearchInput}
         systems={systems}
         selectedSystemCode={selectedSystemCode}
+        selectedConceptCode={selectedConceptCode}
+        selectedProofPointCode={selectedProofPointCode}
+        selectedEvidencePointCode={selectedEvidencePointCode}
+        businessConcepts={businessConcepts}
+        businessFacets={businessFacets}
+        refinementOptions={refinementOptions}
+        refinements={searchRefinements}
+        refinementsReady={Boolean(semanticResult) && !globalSearchLoading}
         onInputChange={setGlobalSearchInput}
         onSystemChange={selectSystem}
+        onConceptChange={selectConcept}
+        onProofPointChange={selectProofPoint}
+        onEvidencePointChange={selectEvidencePoint}
+        onChannelChange={setSelectedChannel}
+        onSceneChange={setSelectedScene}
+        onStyleChange={setSelectedStyle}
         onClear={clearGlobalSearch}
         onSearch={executeGlobalSearch}
       />
@@ -61,6 +97,7 @@ const ImageHome = () => {
           <SemanticSearchResult
             keyword={globalSearchKeyword}
             result={semanticResult}
+            refinements={searchRefinements}
             onClear={clearGlobalSearch}
           />
         ) : (

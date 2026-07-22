@@ -1,0 +1,95 @@
+{
+  "version": "2026-07-17.1",
+  "status": "applied_with_reversible_two_row_data_update",
+  "runtimeCatalogVersionBefore": "2026.07.2+db-3e6d49a2bf0f7773",
+  "runtimeCatalogVersionAfter": "2026.07.2+db-46d6e4d365fb8d8c",
+  "snapshot": {
+    "systemCount": 6,
+    "conceptCount": 16,
+    "conceptPhraseCount": 433,
+    "manualPhraseCount": 0,
+    "rejectedPhraseCount": 2,
+    "evalCaseCount": 103
+  },
+  "actions": [
+    {
+      "id": "P1_CORE_SYSTEM_FIRST",
+      "status": "applied",
+      "approval": "engineering_safe",
+      "databaseWrites": false,
+      "summary": "运行时展示体系优先选择 active core，再回退 active support。",
+      "targets": [
+        {"conceptCode": "ai_error_book", "before": "sync_exam", "after": "sync_self_study"},
+        {"conceptCode": "ai_tutor_qa", "before": "sync_companion", "after": "sync_self_study"},
+        {"conceptCode": "human_teacher_supervision", "before": "sync_planning", "after": "sync_companion"},
+        {"conceptCode": "rapid_preview_review", "before": "sync_school", "after": "sync_self_study"}
+      ],
+      "rollback": "恢复旧的首条 active 关系选择逻辑；不需要数据回滚。"
+    },
+    {
+      "id": "P2_STATIC_EXACT_MODE_PRECEDENCE",
+      "status": "applied",
+      "approval": "engineering_safe",
+      "databaseWrites": false,
+      "summary": "静态目录声明为 exact_only 的词，从数据库普通 tier 中移除并继续保留为整句入口。",
+      "targets": [
+        {"conceptCode": "ai_error_book", "phrases": ["同类题训练", "变式训练"]},
+        {"conceptCode": "instant_quiz", "phrases": ["反馈", "掌握情况", "正确率"]},
+        {"conceptCode": "learning_report", "phrases": ["反馈", "学习反馈", "掌握情况", "正确率"]},
+        {"conceptCode": "photo_guided_learning", "phrases": ["拍题"]},
+        {"conceptCode": "transfer_practice", "phrases": ["同类题训练", "换题也会"]},
+        {"conceptCode": "universal_method", "phrases": ["理解原理", "换题也会"]}
+      ],
+      "rollback": "恢复旧的目录合并规则；14 条数据库记录保持原样。"
+    },
+    {
+      "id": "P3_REJECT_OLD_UNIVERSAL_METHOD_PHRASES",
+      "status": "applied",
+      "approval": "business_confirmation_required",
+      "databaseWrites": true,
+      "summary": "把已经统一归入考试迁移卖点的两条旧表达从 universal_method 中拒绝。",
+      "targets": [
+        {
+          "conceptCode": "universal_method",
+          "phrase": "一道题会一类题",
+          "origin": "source_document",
+          "before": {"phraseType": "alias", "reviewStatus": "accepted", "weight": 1.0},
+          "after": {"phraseType": "alias", "reviewStatus": "rejected", "weight": 1.0}
+        },
+        {
+          "conceptCode": "universal_method",
+          "phrase": "一道题学会一类题",
+          "origin": "source_document",
+          "before": {"phraseType": "official", "reviewStatus": "accepted", "weight": 1.0},
+          "after": {"phraseType": "official", "reviewStatus": "rejected", "weight": 1.0}
+        }
+      ],
+      "rollback": "按 conceptCode + phrase + origin 恢复 before 对象；执行前后都保存事务快照。"
+    },
+    {
+      "id": "P4_REVIEW_GENERIC_AND_SHARED_PHRASES",
+      "status": "runtime_candidate_preservation_applied_database_review_pending",
+      "approval": "business_confirmation_required",
+      "databaseWrites": false,
+      "summary": "暂不自动处理跨卖点重复或过宽表达，结合真实搜索日志逐词决定 exact、弱辅助或 rejected。",
+      "targets": [
+        "卡住", "双重保障", "复习", "学习教练", "家长放心", "日日清", "相似题", "知识点",
+        "考前", "能力进阶", "薄弱点", "讲解", "路径", "迁移", "进度", "预习复习", "高频错题"
+      ],
+      "rollback": "本动作当前只评审，不写数据。"
+    }
+  ],
+  "evaluationAfter": {
+    "businessLabelHitCount": 95,
+    "businessLabelExpectedCount": 95,
+    "queryTypeHitCount": 49,
+    "queryTypeExpectedCount": 54,
+    "remainingTypeMisses": "5 visual-only queries intentionally produce no business intent and continue to the visual branch"
+  },
+  "forbiddenBulkSyncSources": [
+    "绿色待制作或待寻找图片建议",
+    "未核验专家身份、学校、媒体、证书、奖项、套餐、用户规模和效果数据",
+    "证明点长文和示例用户引语",
+    "Skill 内部反例与判定说明"
+  ]
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "卖点意图识别"
+  short_description: "识别业务话术对应的体系、核心卖点、证明依据与排除边界，辅助精准匹配图片素材"
+  default_prompt: "Use $understand-image-search-intent to identify the systems and selling points expressed by this business query, then explain the evidence and exclusions."
+policy:
+  allow_implicit_invocation: true

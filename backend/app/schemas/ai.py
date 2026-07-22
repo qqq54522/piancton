@@ -1,8 +1,77 @@
 from typing import List, Literal, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
+
+# D051：查询状态收口为封闭枚举，覆盖“单卖点/多卖点/探索型/待消歧/纯画面/无可靠卖点”。
+SearchQueryType = Literal[
+    "business_intent_search",
+    "multi_business_intent_search",
+    "exploratory_business_intent_search",
+    "ambiguous_business_intent_search",
+    "visual_scene_search",
+    "no_reliable_intent_search",
+]
+
+SEARCH_QUERY_TYPES: frozenset[str] = frozenset(
+    (
+        "business_intent_search",
+        "multi_business_intent_search",
+        "exploratory_business_intent_search",
+        "ambiguous_business_intent_search",
+        "visual_scene_search",
+        "no_reliable_intent_search",
+    )
+)
+
+SearchSystemRouteType = Literal[
+    "single_system",
+    "multi_system",
+    "ambiguous_system",
+    "visual_scene",
+    "no_reliable_system",
+]
+
+
+class SearchSystemCandidate(ApiModel):
+    code: Literal[
+        "sync_school",
+        "sync_exam",
+        "sync_cultivation",
+        "sync_planning",
+        "sync_self_study",
+        "sync_companion",
+    ]
+    relation: Literal["primary", "related"]
+    reason: str
+    weight: float = Field(ge=0, le=1)
+
+
+class SearchSystemRouting(ApiModel):
+    original_query: str
+    route_type: SearchSystemRouteType
+    candidate_systems: List[SearchSystemCandidate] = Field(default_factory=list)
+    excluded_systems: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_route_shape(self):
+        candidates = self.candidate_systems
+        if self.route_type in {"visual_scene", "no_reliable_system"}:
+            if candidates:
+                raise ValueError("纯画面或无可靠体系时不得返回体系候选")
+            return self
+        if not candidates:
+            raise ValueError("业务体系路由必须至少返回一个候选体系")
+        primary_count = sum(item.relation == "primary" for item in candidates)
+        if primary_count != 1:
+            raise ValueError("体系候选必须且只能包含一个 primary")
+        if self.route_type == "single_system" and len(candidates) != 1:
+            raise ValueError("单体系路由只能返回一个候选")
+        limit = 3 if self.route_type == "multi_system" else 2
+        if len(candidates) > limit:
+            raise ValueError("体系候选数量超出渐进式加载上限")
+        return self
 
 
 class ProviderStatus(ApiModel):
@@ -33,6 +102,10 @@ class ImageAnalysisResult(ApiModel):
     concept_suggestions: List[ConceptSuggestion] = Field(default_factory=list)
 
 
+class AssetSearchPhraseSuggestion(ApiModel):
+    phrases: List[str] = Field(min_length=2, max_length=5)
+
+
 class SearchIntentRequest(ApiModel):
     keyword: str = Field(min_length=1, max_length=200)
 
@@ -51,13 +124,33 @@ class SearchConceptMatch(ApiModel):
     weight: float = Field(ge=0, le=1)
 
 
+class SearchProofPointMatch(ApiModel):
+    code: str
+    concept_code: str
+    name: str
+    reason: str
+    weight: float = Field(ge=0, le=1)
+    evidence_terms: List[str] = Field(default_factory=list, max_length=3)
+
+
+class SearchEvidencePointMatch(ApiModel):
+    code: str
+    proof_point_code: str
+    concept_code: str
+    name: str
+    reason: str
+    weight: float = Field(ge=0, le=1)
+
+
 class SearchUnderstanding(ApiModel):
     original_query: str
     normalized_query: str
     search_intent: str
-    query_type: str
+    query_type: SearchQueryType
     expanded_terms: List[ExpandedSearchTerm] = Field(default_factory=list)
     matched_business_concepts: List[SearchConceptMatch] = Field(default_factory=list)
+    matched_proof_points: List[SearchProofPointMatch] = Field(default_factory=list)
+    matched_evidence_points: List[SearchEvidencePointMatch] = Field(default_factory=list)
     excluded_concepts: List[str] = Field(default_factory=list)
     search_strategy: str = ""
 

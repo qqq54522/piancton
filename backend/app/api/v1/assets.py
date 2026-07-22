@@ -14,6 +14,7 @@ from app.api.dependencies import (
 )
 from app.models.user import User
 from app.schemas.asset import (
+    AssetBusinessClassificationUpdate,
     AssetConceptBatchReview,
     AssetConceptConfirmation,
     AssetConceptReview,
@@ -160,6 +161,16 @@ def confirm_asset_concept(
     service: AssetRelationService = Depends(get_asset_relation_service),
 ):
     return service.confirm(group_id, payload)
+
+
+@router.patch("/{group_id}/business-classification", response_model=AssetGroupRead)
+def update_asset_business_classification(
+    group_id: str,
+    payload: AssetBusinessClassificationUpdate,
+    _: User = Depends(require_write_role),
+    service: AssetRelationService = Depends(get_asset_relation_service),
+):
+    return service.update_business_classification(group_id, payload)
 
 
 @router.patch("/{group_id}/concept-links/{link_id}", response_model=AssetGroupRead)

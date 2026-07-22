@@ -1,0 +1,7 @@
+interface:
+  display_name: "维护项目架构"
+  short_description: "开发和重构时保护分层、依赖方向、文档与测试边界"
+  default_prompt: "Use $maintain-piancton-architecture to implement this change within the project's documented boundaries."
+policy:
+  allow_implicit_invocation: true
+

@@ -1,0 +1,6783 @@
+{
+  "version": "2026.07.2",
+  "batch": 4,
+  "caseCount": 75,
+  "datasetStatus": "partial",
+  "realBoundCaseCount": 1,
+  "missingBindingCaseIds": [
+    "SE001",
+    "SE002",
+    "SE003",
+    "SE005",
+    "SE006",
+    "SE007",
+    "SE008",
+    "SE009",
+    "SE010",
+    "SE011",
+    "SE012",
+    "SE013",
+    "SE014",
+    "SE015",
+    "SE016",
+    "SE017",
+    "SE018",
+    "SE019",
+    "SE020",
+    "SE021",
+    "SE022",
+    "SE023",
+    "SE024",
+    "SE025",
+    "SE026",
+    "SE027",
+    "SE028",
+    "SE029",
+    "SE030",
+    "SE031",
+    "SE032",
+    "SE033",
+    "SE034",
+    "SE035",
+    "SE036",
+    "SE037",
+    "SE038",
+    "SE039",
+    "SE040",
+    "SE041",
+    "SE042",
+    "SE043",
+    "SE044",
+    "SE045",
+    "SE046",
+    "SE047",
+    "SE048",
+    "SE049",
+    "SE050",
+    "SE051",
+    "SE052",
+    "SE053",
+    "SE054",
+    "SE055",
+    "SE056",
+    "SE057",
+    "SE058",
+    "SE059",
+    "SE060",
+    "SE061",
+    "SE062",
+    "SE063",
+    "SE064",
+    "SE065",
+    "SE066",
+    "SE067",
+    "SE068",
+    "SE069",
+    "SE070",
+    "SE071",
+    "SE072",
+    "SE073",
+    "SE074",
+    "SE075"
+  ],
+  "top3HitRate": 0.24,
+  "p95LatencyMs": 450.85,
+  "disallowedCaseIds": [],
+  "fallbackCaseIds": [],
+  "timedOutCaseIds": [],
+  "results": [
+    {
+      "id": "SE001",
+      "query": "整理错题费功夫又容易忘",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_error_book",
+        "displayName": "同步自学体系 > AI错题本",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给答案",
+        "普通练习",
+        "普通课程"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 121.77,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 117,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 62,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 48,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE002",
+      "query": "孩子拍题只抄答案考试不会",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给最终答案",
+        "普通AI聊天",
+        "错题本列表"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 377.54,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 377,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 68,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 305,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE003",
+      "query": "出卷人编教材的人设计课程",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "expert_planning",
+        "displayName": "同步培养体系 > 专家规划",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程",
+        "普通学习规划",
+        "没有专家背书"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 93.23,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 93,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 46,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 42,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE004",
+      "query": "孩子听不懂老师讲课",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "animation_explanation",
+        "displayName": "同步校内体系 > 动画精讲",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "静态题目",
+        "测试结果",
+        "拍题解题"
+      ],
+      "topIds": [
+        "342f1217-5978-4f9f-acee-b052860f8822",
+        "c43c24c2-891f-44d1-9a36-2d105e26d475"
+      ],
+      "topAssetIds": [
+        "434c9ef6-4afc-4324-9157-0f02e7f4223d",
+        "b0ffb668-9187-4bda-ab29-57beee73af49"
+      ],
+      "topTitles": [
+        "题型可视化",
+        "官方奖项认可"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 182.88,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 182,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 56,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 121,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE005",
+      "query": "教材版本要和学校一致",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "school_sync",
+        "displayName": "同步校内体系 > 同步校内",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "没有教材线索",
+        "专家规划",
+        "专项训练"
+      ],
+      "topIds": [
+        "08684678-ab12-4ba5-9f41-ec7730c570f6",
+        "c033666e-5715-4608-b807-48ddf524eee7"
+      ],
+      "topAssetIds": [
+        "4bf2f4cd-3499-45ea-8d09-00256caff937",
+        "5cc4725b-84d9-400f-8a83-ca0b05a3bb1b"
+      ],
+      "topTitles": [
+        "教材同步",
+        "课程同步001"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 119.13,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 118,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 53,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 60,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE006",
+      "query": "学完马上知道孩子掌握没掌握",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "instant_quiz",
+        "displayName": "同步校内体系 > 课后小测",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "长期学情报告",
+        "只有课程讲解",
+        "综合周报"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 138.72,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 138,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 88,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 45,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE007",
+      "query": "换个题型还是错",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "transfer_practice",
+        "displayName": "同步考点体系 > 举一反三",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单题答案",
+        "错题本列表",
+        "普通课程"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 92.25,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 92,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 40,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 47,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE008",
+      "query": "考前抓重点提分",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "focused_excellence",
+        "displayName": "同步考点体系 > 专项培优",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程",
+        "学习报告",
+        "新课标预测"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 81.66,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 80,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 40,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 36,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE009",
+      "query": "新中考题型变化怎么准备",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "new_curriculum_prediction",
+        "displayName": "同步考点体系 > 新课标新考法预测",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通旧题",
+        "专家背书",
+        "校内同步"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 94.14,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 93,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 34,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 55,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE010",
+      "query": "小升初怕孩子跟不上",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "stage_transition",
+        "displayName": "同步培养体系 > 学段衔接",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通教材同步",
+        "无阶段变化",
+        "普通课程"
+      ],
+      "topIds": [
+        "918afa68-080f-4a0f-912b-a3da9b343f2c"
+      ],
+      "topAssetIds": [
+        "4d76c1ab-a183-4533-a9a4-3ff7e274f0e5"
+      ],
+      "topTitles": [
+        "衔接课"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 235.37,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 234,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 104,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 126,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE011",
+      "query": "孩子只会死记硬背换题就不会",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "universal_method",
+        "displayName": "同步培养体系 > 万能解法",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给答案",
+        "只刷题",
+        "纯专项训练"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 107.3,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 107,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 54,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 46,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE012",
+      "query": "离中考还有一个月怎么规划",
+      "expected": {
+        "systemCode": "sync_planning",
+        "labelCode": "ai_learning_plan",
+        "displayName": "同步规划体系 > AI定制学习方案",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 86.92,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 87,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 38,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 44,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE013",
+      "query": "孩子晚上写题卡住没人教",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_tutor_qa",
+        "displayName": "同步自学体系 > AI私教答疑",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "真人老师",
+        "只有课程视频"
+      ],
+      "topIds": [
+        "ff7a42cc-09b1-4fac-8033-c4356ac2b24b"
+      ],
+      "topAssetIds": [
+        "c16e64c4-a190-4519-8616-016d050f7218"
+      ],
+      "topTitles": [
+        "ai私教"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 282.57,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 282,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 57,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 218,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE014",
+      "query": "孩子叫不动管不住一管就吵架",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "human_teacher_supervision",
+        "displayName": "同步伴学体系 > 真人老师督学",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "AI对话",
+        "学习报告",
+        "没有老师证据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 158.81,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 158,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 83,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 71,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE015",
+      "query": "家长想知道孩子每天学了什么",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "learning_report",
+        "displayName": "同步伴学体系 > 学情报告反馈",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单次课后小测",
+        "老师消息",
+        "没有数据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 91.69,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 91,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 39,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 46,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE016",
+      "query": "上课前快速预习一下",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "rapid_preview_review",
+        "displayName": "同步自学体系 > 极速预习复习",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "长期学习规划",
+        "完整课程讲解",
+        "课后小测"
+      ],
+      "topIds": [
+        "50ac83d2-39c5-4ebe-a109-899cdc268700",
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd"
+      ],
+      "topAssetIds": [
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d",
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b"
+      ],
+      "topTitles": [
+        "极速复习",
+        "极速预习"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 253.94,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 252,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 61,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 183,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE017",
+      "query": "作业前想回顾今天知识点",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "rapid_preview_review",
+        "displayName": "同步自学体系 > 极速预习复习",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "长期学习规划",
+        "完整课程讲解",
+        "课后小测"
+      ],
+      "topIds": [
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd",
+        "50ac83d2-39c5-4ebe-a109-899cdc268700"
+      ],
+      "topAssetIds": [
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b",
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d"
+      ],
+      "topTitles": [
+        "极速预习",
+        "极速复习"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 148.96,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 148,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 48,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 91,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE018",
+      "query": "家长不会辅导初中数学",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_tutor_qa",
+        "displayName": "同步自学体系 > AI私教答疑",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "真人老师",
+        "只有课程视频"
+      ],
+      "topIds": [
+        "ff7a42cc-09b1-4fac-8033-c4356ac2b24b"
+      ],
+      "topAssetIds": [
+        "c16e64c4-a190-4519-8616-016d050f7218"
+      ],
+      "topTitles": [
+        "ai私教"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 263.06,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 262,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 131,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 123,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE019",
+      "query": "错题本",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_error_book",
+        "displayName": "同步自学体系 > AI错题本",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给答案",
+        "普通练习",
+        "普通课程"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 182.0,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 181,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 57,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 119,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE020",
+      "query": "拍题后要讲思路不是直接给答案",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给最终答案",
+        "普通AI聊天",
+        "错题本列表",
+        "长期学习规划",
+        "完整课程讲解",
+        "课后小测"
+      ],
+      "topIds": [
+        "50ac83d2-39c5-4ebe-a109-899cdc268700",
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd",
+        "ff7a42cc-09b1-4fac-8033-c4356ac2b24b"
+      ],
+      "topAssetIds": [
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d",
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b",
+        "c16e64c4-a190-4519-8616-016d050f7218"
+      ],
+      "topTitles": [
+        "极速复习",
+        "极速预习",
+        "ai私教"
+      ],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 502.7,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 499,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 142,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 345,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE021",
+      "query": "当天课堂学完回来复习",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "school_sync",
+        "displayName": "同步校内体系 > 同步校内",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "没有教材线索",
+        "专家规划",
+        "专项训练"
+      ],
+      "topIds": [
+        "08684678-ab12-4ba5-9f41-ec7730c570f6",
+        "c033666e-5715-4608-b807-48ddf524eee7",
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd",
+        "50ac83d2-39c5-4ebe-a109-899cdc268700"
+      ],
+      "topAssetIds": [
+        "4bf2f4cd-3499-45ea-8d09-00256caff937",
+        "5cc4725b-84d9-400f-8a83-ca0b05a3bb1b",
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b",
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d"
+      ],
+      "topTitles": [
+        "教材同步",
+        "课程同步001",
+        "极速预习",
+        "极速复习"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 282.68,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 280,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 61,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 213,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 4,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE022",
+      "query": "用动画讲透知识点",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "animation_explanation",
+        "displayName": "同步校内体系 > 动画精讲",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "静态题目",
+        "测试结果",
+        "拍题解题"
+      ],
+      "topIds": [
+        "342f1217-5978-4f9f-acee-b052860f8822",
+        "c43c24c2-891f-44d1-9a36-2d105e26d475"
+      ],
+      "topAssetIds": [
+        "434c9ef6-4afc-4324-9157-0f02e7f4223d",
+        "b0ffb668-9187-4bda-ab29-57beee73af49"
+      ],
+      "topTitles": [
+        "题型可视化",
+        "官方奖项认可"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 235.18,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 234,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 59,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 168,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE023",
+      "query": "课后小测反馈正确率",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "instant_quiz",
+        "displayName": "同步校内体系 > 课后小测",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "长期学情报告",
+        "只有课程讲解",
+        "综合周报"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 295.26,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 295,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 38,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 254,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE024",
+      "query": "想练同类题",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "transfer_practice",
+        "displayName": "同步考点体系 > 举一反三",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单题答案",
+        "错题本列表",
+        "普通课程"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 143.68,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 143,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 53,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 86,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE025",
+      "query": "孩子薄弱点怎么提升",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "focused_excellence",
+        "displayName": "同步考点体系 > 专项培优",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程",
+        "学习报告",
+        "新课标预测"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 153.55,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 153,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 37,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 111,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE026",
+      "query": "孩子遇到情境题不会做",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "new_curriculum_prediction",
+        "displayName": "同步考点体系 > 新课标新考法预测",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通旧题",
+        "专家背书",
+        "校内同步"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 163.61,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 163,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 82,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 76,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE027",
+      "query": "初升高难度突然变大",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "stage_transition",
+        "displayName": "同步培养体系 > 学段衔接",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通教材同步",
+        "无阶段变化",
+        "普通课程"
+      ],
+      "topIds": [
+        "918afa68-080f-4a0f-912b-a3da9b343f2c"
+      ],
+      "topAssetIds": [
+        "4d76c1ab-a183-4533-a9a4-3ff7e274f0e5"
+      ],
+      "topTitles": [
+        "衔接课"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 156.27,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 155,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 55,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 95,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE028",
+      "query": "一道题学会一类题",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "transfer_practice",
+        "displayName": "同步考点体系 > 举一反三",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单题答案",
+        "错题本列表",
+        "普通课程"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 112.61,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 112,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 34,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 74,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE029",
+      "query": "想按孩子水平定制学习计划",
+      "expected": {
+        "systemCode": "sync_planning",
+        "labelCode": "ai_learning_plan",
+        "displayName": "同步规划体系 > AI定制学习方案",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 119.99,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 119,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 37,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 78,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE030",
+      "query": "每周给家长发学习报告",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "learning_report",
+        "displayName": "同步伴学体系 > 学情报告反馈",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单次课后小测",
+        "老师消息",
+        "没有数据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 188.43,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 188,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 77,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 108,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE031",
+      "query": "需要真人老师帮忙监督",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "human_teacher_supervision",
+        "displayName": "同步伴学体系 > 真人老师督学",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "AI对话",
+        "学习报告",
+        "没有老师证据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 136.52,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 135,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 57,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 71,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE032",
+      "query": "家长不用每天安排学习任务",
+      "expected": {
+        "systemCode": "sync_planning",
+        "labelCode": "ai_learning_plan",
+        "displayName": "同步规划体系 > AI定制学习方案",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 110.62,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 109,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 45,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 59,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE033",
+      "query": "考前没时间了想快速复习",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "rapid_preview_review",
+        "displayName": "同步自学体系 > 极速预习复习",
+        "queryType": "ambiguous_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "长期学习规划",
+        "完整课程讲解",
+        "课后小测"
+      ],
+      "topIds": [
+        "50ac83d2-39c5-4ebe-a109-899cdc268700",
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd",
+        "08684678-ab12-4ba5-9f41-ec7730c570f6",
+        "c033666e-5715-4608-b807-48ddf524eee7"
+      ],
+      "topAssetIds": [
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d",
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b",
+        "4bf2f4cd-3499-45ea-8d09-00256caff937",
+        "5cc4725b-84d9-400f-8a83-ca0b05a3bb1b"
+      ],
+      "topTitles": [
+        "极速复习",
+        "极速预习",
+        "教材同步",
+        "课程同步001"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 467.33,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 465,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 108,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 350,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 4,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE034",
+      "query": "孩子不好意思问老师",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_tutor_qa",
+        "displayName": "同步自学体系 > AI私教答疑",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "真人老师",
+        "只有课程视频"
+      ],
+      "topIds": [
+        "ff7a42cc-09b1-4fac-8033-c4356ac2b24b"
+      ],
+      "topAssetIds": [
+        "c16e64c4-a190-4519-8616-016d050f7218"
+      ],
+      "topTitles": [
+        "ai私教"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 208.75,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 208,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 122,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 79,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE035",
+      "query": "考前不知道复习哪几道错题",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_error_book",
+        "displayName": "同步自学体系 > AI错题本",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给答案",
+        "普通练习",
+        "普通课程"
+      ],
+      "topIds": [
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd",
+        "50ac83d2-39c5-4ebe-a109-899cdc268700"
+      ],
+      "topAssetIds": [
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b",
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d"
+      ],
+      "topTitles": [
+        "极速预习",
+        "极速复习"
+      ],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 232.79,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 231,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 35,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 192,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE036",
+      "query": "孩子十分钟写完作业去玩",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给最终答案",
+        "普通AI聊天",
+        "错题本列表"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 84.57,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 84,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 34,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 46,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE037",
+      "query": "课本章节和学校进度对齐",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "school_sync",
+        "displayName": "同步校内体系 > 同步校内",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "没有教材线索",
+        "专家规划",
+        "专项训练"
+      ],
+      "topIds": [
+        "08684678-ab12-4ba5-9f41-ec7730c570f6",
+        "c033666e-5715-4608-b807-48ddf524eee7"
+      ],
+      "topAssetIds": [
+        "4bf2f4cd-3499-45ea-8d09-00256caff937",
+        "5cc4725b-84d9-400f-8a83-ca0b05a3bb1b"
+      ],
+      "topTitles": [
+        "教材同步",
+        "课程同步001"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 182.13,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 181,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 64,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 111,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE038",
+      "query": "抽象内容变直观",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "animation_explanation",
+        "displayName": "同步校内体系 > 动画精讲",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "静态题目",
+        "测试结果",
+        "拍题解题"
+      ],
+      "topIds": [
+        "c43c24c2-891f-44d1-9a36-2d105e26d475",
+        "342f1217-5978-4f9f-acee-b052860f8822"
+      ],
+      "topAssetIds": [
+        "b0ffb668-9187-4bda-ab29-57beee73af49",
+        "434c9ef6-4afc-4324-9157-0f02e7f4223d"
+      ],
+      "topTitles": [
+        "官方奖项认可",
+        "题型可视化"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 164.02,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 162,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 53,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 103,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE039",
+      "query": "学习结果看得见",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "instant_quiz",
+        "displayName": "同步校内体系 > 课后小测",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "长期学情报告",
+        "只有课程讲解",
+        "综合周报"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 90.97,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 90,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 39,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 47,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE040",
+      "query": "做一道会一类题",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "transfer_practice",
+        "displayName": "同步考点体系 > 举一反三",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单题答案",
+        "错题本列表",
+        "普通课程"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 117.13,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 117,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 42,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 70,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE041",
+      "query": "找不到提分重点",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "focused_excellence",
+        "displayName": "同步考点体系 > 专项培优",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程",
+        "学习报告",
+        "新课标预测"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 123.13,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 122,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 46,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 70,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE042",
+      "query": "买不到针对新课标的练习",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "new_curriculum_prediction",
+        "displayName": "同步考点体系 > 新课标新考法预测",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通旧题",
+        "专家背书",
+        "校内同步"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 345.61,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 342,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 199,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 136,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE043",
+      "query": "孩子升学后突然变中游",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "stage_transition",
+        "displayName": "同步培养体系 > 学段衔接",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通教材同步",
+        "无阶段变化",
+        "普通课程"
+      ],
+      "topIds": [
+        "918afa68-080f-4a0f-912b-a3da9b343f2c"
+      ],
+      "topAssetIds": [
+        "4d76c1ab-a183-4533-a9a4-3ff7e274f0e5"
+      ],
+      "topTitles": [
+        "衔接课"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 213.14,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 209,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 73,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 128,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE044",
+      "query": "讲底层逻辑的图",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "universal_method",
+        "displayName": "同步培养体系 > 万能解法",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "只给答案",
+        "只刷题",
+        "纯专项训练"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 275.24,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 274,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 124,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 139,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE045",
+      "query": "孩子学习不走弯路",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "expert_planning",
+        "displayName": "同步培养体系 > 专家规划",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程",
+        "普通学习规划",
+        "没有专家背书"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 127.58,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 126,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 47,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 74,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE046",
+      "query": "学习没有方向越学越乱",
+      "expected": {
+        "systemCode": "sync_planning",
+        "labelCode": "ai_learning_plan",
+        "displayName": "同步规划体系 > AI定制学习方案",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 182.36,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 181,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 79,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 89,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE047",
+      "query": "孩子自律差需要有人盯",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "human_teacher_supervision",
+        "displayName": "同步伴学体系 > 真人老师督学",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "AI对话",
+        "学习报告",
+        "没有老师证据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 145.36,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 145,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 46,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 92,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE048",
+      "query": "学习过程不是黑盒",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "learning_report",
+        "displayName": "同步伴学体系 > 学情报告反馈",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单次课后小测",
+        "老师消息",
+        "没有数据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 148.18,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 147,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 94,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 48,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE049",
+      "query": "家长只想看一眼报告就放心",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "learning_report",
+        "displayName": "同步伴学体系 > 学情报告反馈",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "单次课后小测",
+        "老师消息",
+        "没有数据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 90.58,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 90,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 38,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 47,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE050",
+      "query": "真正懂命题的人规划学习路径",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "expert_planning",
+        "displayName": "同步培养体系 > 专家规划",
+        "queryType": "",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": null,
+      "excludedConcepts": [
+        "普通课程",
+        "普通学习规划",
+        "没有专家背书",
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 187.72,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 187,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 67,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 112,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE051",
+      "query": "拍题后既要点拨思路，也要有学情报告给家长看",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学",
+        "queryType": "multi_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "multi_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "只给最终答案",
+        "普通AI聊天",
+        "错题本列表",
+        "单次课后小测",
+        "老师消息",
+        "没有数据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 725.37,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 724,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 90,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 628,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE052",
+      "query": "既要错题归纳，也要同类题训练",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "ai_error_book",
+        "displayName": "同步自学体系 > AI错题本",
+        "queryType": "business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "只给答案",
+        "普通练习",
+        "普通课程"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 196.1,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 195,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 57,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 132,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE053",
+      "query": "小升初衔接，还要私人学习计划",
+      "expected": {
+        "systemCode": "sync_cultivation",
+        "labelCode": "stage_transition",
+        "displayName": "同步培养体系 > 学段衔接",
+        "queryType": "multi_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "multi_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "普通教材同步",
+        "无阶段变化",
+        "普通课程",
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件"
+      ],
+      "topIds": [
+        "918afa68-080f-4a0f-912b-a3da9b343f2c"
+      ],
+      "topAssetIds": [
+        "4d76c1ab-a183-4533-a9a4-3ff7e274f0e5"
+      ],
+      "topTitles": [
+        "衔接课"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 247.14,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 246,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 92,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 148,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE054",
+      "query": "新课标新题型预测，配上正确率报告",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "new_curriculum_prediction",
+        "displayName": "同步考点体系 > 新课标新考法预测",
+        "queryType": "multi_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "multi_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "普通旧题",
+        "专家背书",
+        "校内同步",
+        "单次课后小测",
+        "老师消息",
+        "没有数据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 253.48,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 253,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 57,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 191,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE055",
+      "query": "专项突破重难点，同时真人老师盯学",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "focused_excellence",
+        "displayName": "同步考点体系 > 专项培优",
+        "queryType": "multi_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "multi_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "普通课程",
+        "学习报告",
+        "新课标预测",
+        "AI对话",
+        "没有老师证据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 223.5,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 222,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 61,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 157,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE056",
+      "query": "AI拍照",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学",
+        "queryType": "exploratory_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "exploratory_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "只给答案",
+        "普通练习",
+        "普通课程",
+        "只给最终答案",
+        "普通AI聊天",
+        "错题本列表",
+        "长期学习规划",
+        "完整课程讲解",
+        "课后小测",
+        "真人老师",
+        "只有课程视频"
+      ],
+      "topIds": [
+        "50ac83d2-39c5-4ebe-a109-899cdc268700",
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd",
+        "ff7a42cc-09b1-4fac-8033-c4356ac2b24b"
+      ],
+      "topAssetIds": [
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d",
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b",
+        "c16e64c4-a190-4519-8616-016d050f7218"
+      ],
+      "topTitles": [
+        "极速复习",
+        "极速预习",
+        "ai私教"
+      ],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 559.86,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 558,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 121,
+            "resultCount": 4,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 429,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE057",
+      "query": "拍题",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学",
+        "queryType": "exploratory_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "exploratory_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "只给答案",
+        "普通练习",
+        "普通课程",
+        "只给最终答案",
+        "普通AI聊天",
+        "错题本列表",
+        "真人老师",
+        "只有课程视频"
+      ],
+      "topIds": [
+        "ff7a42cc-09b1-4fac-8033-c4356ac2b24b"
+      ],
+      "topAssetIds": [
+        "c16e64c4-a190-4519-8616-016d050f7218"
+      ],
+      "topTitles": [
+        "ai私教"
+      ],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 450.85,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 450,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 105,
+            "resultCount": 4,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 339,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE058",
+      "query": "家长省心",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "learning_report",
+        "displayName": "同步伴学体系 > 学情报告反馈",
+        "queryType": "exploratory_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "exploratory_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件",
+        "单次课后小测",
+        "老师消息",
+        "没有数据",
+        "AI对话",
+        "学习报告",
+        "没有老师证据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 164.86,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 164,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 75,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 85,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE059",
+      "query": "同类题训练",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "transfer_practice",
+        "displayName": "同步考点体系 > 举一反三",
+        "queryType": "exploratory_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "exploratory_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "单题答案",
+        "错题本列表",
+        "普通课程",
+        "只给答案",
+        "普通练习"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 191.86,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 191,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 97,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 90,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE060",
+      "query": "点拨思路",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "photo_guided_learning",
+        "displayName": "同步自学体系 > AI拍题精学",
+        "queryType": "exploratory_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "exploratory_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "只给最终答案",
+        "普通AI聊天",
+        "错题本列表",
+        "真人老师",
+        "只有课程视频"
+      ],
+      "topIds": [
+        "ff7a42cc-09b1-4fac-8033-c4356ac2b24b"
+      ],
+      "topAssetIds": [
+        "c16e64c4-a190-4519-8616-016d050f7218"
+      ],
+      "topTitles": [
+        "ai私教"
+      ],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 283.04,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 282,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 71,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 204,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE061",
+      "query": "需要规划",
+      "expected": {
+        "systemCode": "sync_planning",
+        "labelCode": "ai_learning_plan",
+        "displayName": "同步规划体系 > AI定制学习方案",
+        "queryType": "ambiguous_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "普通课程列表",
+        "专家背书",
+        "没有个人条件"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 91.22,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 91,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 38,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 48,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE062",
+      "query": "讲解知识点",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "animation_explanation",
+        "displayName": "同步校内体系 > 动画精讲",
+        "queryType": "ambiguous_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "静态题目",
+        "测试结果",
+        "拍题解题"
+      ],
+      "topIds": [
+        "c43c24c2-891f-44d1-9a36-2d105e26d475",
+        "342f1217-5978-4f9f-acee-b052860f8822",
+        "918afa68-080f-4a0f-912b-a3da9b343f2c"
+      ],
+      "topAssetIds": [
+        "b0ffb668-9187-4bda-ab29-57beee73af49",
+        "434c9ef6-4afc-4324-9157-0f02e7f4223d",
+        "4d76c1ab-a183-4533-a9a4-3ff7e274f0e5"
+      ],
+      "topTitles": [
+        "官方奖项认可",
+        "题型可视化",
+        "衔接课"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 154.97,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 154,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 96,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 53,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE063",
+      "query": "提分",
+      "expected": {
+        "systemCode": "sync_exam",
+        "labelCode": "focused_excellence",
+        "displayName": "同步考点体系 > 专项培优",
+        "queryType": "ambiguous_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "普通课程",
+        "学习报告",
+        "新课标预测"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 87.15,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 87,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 37,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 45,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE064",
+      "query": "复习",
+      "expected": {
+        "systemCode": "sync_self_study",
+        "labelCode": "rapid_preview_review",
+        "displayName": "同步自学体系 > 极速预习复习",
+        "queryType": "ambiguous_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "只给答案",
+        "普通练习",
+        "普通课程",
+        "长期学习规划",
+        "完整课程讲解",
+        "课后小测"
+      ],
+      "topIds": [
+        "50ac83d2-39c5-4ebe-a109-899cdc268700",
+        "cb820473-cfb6-4891-adfd-c4e2e1aa50bd",
+        "08684678-ab12-4ba5-9f41-ec7730c570f6",
+        "c033666e-5715-4608-b807-48ddf524eee7"
+      ],
+      "topAssetIds": [
+        "7dfa2c02-8694-49b6-9f66-e2d7db8be32d",
+        "4c3b8a23-0c8a-4a7a-a4f3-d3ff8c3a8a3b",
+        "4bf2f4cd-3499-45ea-8d09-00256caff937",
+        "5cc4725b-84d9-400f-8a83-ca0b05a3bb1b"
+      ],
+      "topTitles": [
+        "极速复习",
+        "极速预习",
+        "教材同步",
+        "课程同步001"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 291.93,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 286,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 74,
+            "resultCount": 4,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 205,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 4,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE065",
+      "query": "监督孩子学习",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "human_teacher_supervision",
+        "displayName": "同步伴学体系 > 真人老师督学",
+        "queryType": "ambiguous_business_intent_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": "ambiguous_business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "AI对话",
+        "学习报告",
+        "没有老师证据"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 206.34,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 205,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 94,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 102,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE066",
+      "query": "蓝色竖版学生书桌场景",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "visual_scene_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": null,
+      "queryTypeHit": false,
+      "excludedConcepts": [],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 40.85,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 40,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 26,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 5,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE067",
+      "query": "橙色横版应用界面截图",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "visual_scene_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": null,
+      "queryTypeHit": false,
+      "excludedConcepts": [],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 72.83,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 72,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 65,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 3,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE068",
+      "query": "绿色渐变背景插画",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "visual_scene_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": null,
+      "queryTypeHit": false,
+      "excludedConcepts": [],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 33.12,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 33,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 25,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 5,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE069",
+      "query": "卡通形象启动页画面",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "visual_scene_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": null,
+      "queryTypeHit": false,
+      "excludedConcepts": [],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 38.33,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 38,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 27,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 5,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE070",
+      "query": "白底简洁图表页面",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "visual_scene_search",
+        "excludedConceptCodes": []
+      },
+      "queryType": null,
+      "queryTypeHit": false,
+      "excludedConcepts": [],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 43.99,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 43,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 30,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 5,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE071",
+      "query": "不需要真人老师督学",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "no_reliable_intent_search",
+        "excludedConceptCodes": [
+          "human_teacher_supervision"
+        ]
+      },
+      "queryType": "no_reliable_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "同步伴学体系 > 真人老师督学"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 144.81,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 144,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 63,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 71,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE072",
+      "query": "不需要真人老师，孩子自己问AI",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "no_reliable_intent_search",
+        "excludedConceptCodes": [
+          "human_teacher_supervision"
+        ]
+      },
+      "queryType": "no_reliable_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "同步伴学体系 > 真人老师督学"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 75.75,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 75,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 25,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 43,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE073",
+      "query": "无需整理错题的普通练习页",
+      "expected": {
+        "systemCode": "",
+        "labelCode": "",
+        "displayName": "",
+        "queryType": "no_reliable_intent_search",
+        "excludedConceptCodes": [
+          "ai_error_book"
+        ]
+      },
+      "queryType": "no_reliable_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "同步自学体系 > AI错题本"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 25.07,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 24,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 15,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 5,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "搜索增强未启用或服务未配置"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE074",
+      "query": "不要课后小测，只看学情报告",
+      "expected": {
+        "systemCode": "sync_companion",
+        "labelCode": "learning_report",
+        "displayName": "同步伴学体系 > 学情报告反馈",
+        "queryType": "business_intent_search",
+        "excludedConceptCodes": [
+          "instant_quiz"
+        ]
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "单次课后小测",
+        "老师消息",
+        "没有数据",
+        "同步校内体系 > 课后小测",
+        "同步自学体系 > 极速预习复习"
+      ],
+      "topIds": [],
+      "topAssetIds": [],
+      "topTitles": [],
+      "topLabelMatchRank": null,
+      "topCategoryMatchRank": null,
+      "top3Hit": false,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 293.92,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 293,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 47,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 240,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SE075",
+      "query": "不要拍照搜题，要动画精讲",
+      "expected": {
+        "systemCode": "sync_school",
+        "labelCode": "animation_explanation",
+        "displayName": "同步校内体系 > 动画精讲",
+        "queryType": "business_intent_search",
+        "excludedConceptCodes": [
+          "photo_guided_learning"
+        ]
+      },
+      "queryType": "business_intent_search",
+      "queryTypeHit": true,
+      "excludedConcepts": [
+        "静态题目",
+        "测试结果",
+        "拍题解题",
+        "同步自学体系 > AI拍题精学"
+      ],
+      "topIds": [
+        "342f1217-5978-4f9f-acee-b052860f8822",
+        "c43c24c2-891f-44d1-9a36-2d105e26d475"
+      ],
+      "topAssetIds": [
+        "434c9ef6-4afc-4324-9157-0f02e7f4223d",
+        "b0ffb668-9187-4bda-ab29-57beee73af49"
+      ],
+      "topTitles": [
+        "题型可视化",
+        "官方奖项认可"
+      ],
+      "topLabelMatchRank": 1,
+      "topCategoryMatchRank": 1,
+      "top3Hit": true,
+      "top5ForbiddenAssetIds": [],
+      "latencyMs": 228.4,
+      "top5DisallowedTerms": [],
+      "fallback": false,
+      "fallbackReason": null,
+      "searchDiagnostics": {
+        "totalDurationMs": 227,
+        "timedOut": false,
+        "rerankerUsed": false,
+        "cacheHit": false,
+        "degradedSources": [],
+        "branches": [
+          {
+            "source": "local_concepts",
+            "status": "ok",
+            "durationMs": 56,
+            "resultCount": 3,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "database",
+            "status": "ok",
+            "durationMs": 163,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": null
+          },
+          {
+            "source": "meilisearch",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "embedding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "本地高置信业务概念已满足"
+          },
+          {
+            "source": "query_understanding",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 0,
+            "cacheHit": false,
+            "detail": "查询理解模型未配置，使用本地固定目录兜底"
+          },
+          {
+            "source": "reranker",
+            "status": "skipped",
+            "durationMs": 0,
+            "resultCount": 2,
+            "cacheHit": false,
+            "detail": "服务未配置或候选不足"
+          }
+        ]
+      }
+    }
+  ]
+}

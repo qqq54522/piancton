@@ -6,6 +6,7 @@ from app.api.v1 import (
     assets,
     auth,
     business_concepts,
+    business_facets,
     images,
     search_feedback,
     search_ops,
@@ -17,6 +18,7 @@ api_router.include_router(auth.router)
 api_router.include_router(images.router)
 api_router.include_router(assets.router)
 api_router.include_router(business_concepts.router)
+api_router.include_router(business_facets.router)
 api_router.include_router(tags.router)
 api_router.include_router(ai.router)
 api_router.include_router(admin.router)

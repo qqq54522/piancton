@@ -58,6 +58,8 @@ def image_to_read(image: Image) -> ImageRead:
         height=image.height,
         aspect_ratio=image.aspect_ratio,
         channel=image.channel,
+        style_label=image.asset_group.style_label if image.asset_group else None,
+        is_scene_image=image.asset_group.is_scene_image if image.asset_group else None,
         version_no=image.version_no,
         is_current=image.is_current,
         variant_count=(

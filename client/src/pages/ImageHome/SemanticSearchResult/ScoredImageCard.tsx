@@ -9,8 +9,10 @@ import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
 import { Select } from '@client/src/components/ui/select';
 import { variantLabel } from '@client/src/features/assets/assetPresentation';
+import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 import type { AssetImage, ScoredImageMatch, SearchFeedbackType } from '@client/src/types/api';
 import { itemVariants } from './constants';
+import { resultMatchExplanation } from './searchConceptPresentation';
 
 interface ScoredImageCardProps {
   scored: ScoredImageMatch;
@@ -52,7 +54,12 @@ function ScoredImageCard({ scored, keyword, searchLogId }: ScoredImageCardProps)
       variants={itemVariants}
       className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm"
     >
-      <Link to={`/image/${selected.id}`} className="group relative aspect-[4/3] overflow-hidden bg-muted">
+      <Link
+        to={`/image/${selected.id}`}
+        state={{ from: '/' }}
+        onClick={rememberImageHomeScroll}
+        className="group relative aspect-[4/3] overflow-hidden bg-muted"
+      >
         <img
           src={selected.thumbnailUrl}
           alt={selected.title}
@@ -91,7 +98,7 @@ function ScoredImageCard({ scored, keyword, searchLogId }: ScoredImageCardProps)
         <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2">
           <p className="text-[11px] font-medium text-muted-foreground">为什么匹配</p>
           <p className="mt-1 line-clamp-2 text-xs text-foreground/80">
-            {scored.matchReasons.slice(0, 2).join('；') || '与搜索内容相关'}
+            {resultMatchExplanation(scored)}
           </p>
         </div>
 

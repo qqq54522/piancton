@@ -82,6 +82,64 @@ def test_upload_preview_download_and_phase6_detail_contract(client):
     assert client.get(f"/api/images/{image['id']}").json()["downloadCount"] == 1
 
 
+def test_global_duplicate_titles_are_previewed_and_numbered_even_in_trash(client):
+    headers = admin_headers(client)
+    first = upload(client, headers, "AI私教")
+
+    preview = client.get(
+        "/api/images/title-resolution",
+        params={"title": "AI私教"},
+    )
+    assert preview.status_code == 200
+    assert preview.json() == {
+        "requestedTitle": "AI私教",
+        "resolvedTitle": "AI私教001",
+        "changed": True,
+    }
+
+    second = upload(client, headers, "AI私教")
+    third = upload(client, headers, "AI私教001")
+    different = upload(client, headers, "私教答疑")
+    assert second["title"] == "AI私教001"
+    assert third["title"] == "AI私教002"
+    assert different["title"] == "私教答疑"
+
+    deleted = client.delete(f"/api/images/{third['id']}", headers=headers)
+    assert deleted.status_code == 204
+    after_delete = client.get(
+        "/api/images/title-resolution",
+        params={"title": "AI私教"},
+    )
+    assert after_delete.json()["resolvedTitle"] == "AI私教003"
+
+    purged = client.delete(f"/api/images/{third['id']}/purge", headers=headers)
+    assert purged.status_code == 204
+    after_purge = client.get(
+        "/api/images/title-resolution",
+        params={"title": "AI私教"},
+    )
+    assert after_purge.json()["resolvedTitle"] == "AI私教003"
+    assert first["title"] == "AI私教"
+
+
+def test_renaming_a_primary_image_auto_numbers_and_keeps_group_title_in_sync(client):
+    headers = admin_headers(client)
+    upload(client, headers, "专家规划")
+    image = upload(client, headers, "临时名称")
+
+    renamed = client.patch(
+        f"/api/images/{image['id']}/title",
+        headers=headers,
+        json={"title": "专家规划"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["title"] == "专家规划001"
+
+    group = client.get(f"/api/asset-groups/{image['assetGroupId']}")
+    assert group.status_code == 200
+    assert group.json()["title"] == "专家规划001"
+
+
 def test_unified_search_log_has_no_requested_mode(client):
     headers = admin_headers(client)
     upload(client, headers, "搜索运营测试图")
@@ -116,6 +174,66 @@ def test_ai_not_configured_is_explicit(client):
     response = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
     assert response.status_code == 503
     assert response.json()["code"] == "provider_not_configured"
+
+
+def test_designer_can_generate_editable_pre_upload_asset_phrases(client):
+    captured = {}
+
+    class Provider:
+        name = "fake"
+        configured = True
+
+        def generate_json(self, request):
+            captured["request"] = request
+            return {
+                "phrases": [
+                    "找一张能体现和学校教材进度一致的图",
+                    "找一张学校学到哪课程就讲到哪的图",
+                    "想找一张教材目录和课程目录能对应上的素材",
+                    "有没有课外课程不会和学校章节脱节的图",
+                ]
+            }
+
+    app.dependency_overrides[dependencies.get_ai_service] = lambda: AiService(
+        Provider()
+    )
+    headers = admin_headers(client)
+    response = client.post(
+        "/api/ai/asset-search-phrases",
+        headers=headers,
+        files={"file": ("course-sync.png", png_file(), "image/png")},
+        data={
+            "count": "4",
+            "title": "课程同步",
+            "conceptCode": "school_sync",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["phrases"] == [
+        "找一张能体现和学校教材进度一致的图",
+        "找一张学校学到哪课程就讲到哪的图",
+        "想找一张教材目录和课程目录能对应上的素材",
+        "有没有课外课程不会和学校章节脱节的图",
+    ]
+    assert captured["request"].task == "asset_search_phrase_generation"
+    assert captured["request"].image_media_type == "image/png"
+    assert "严格生成数量：4 条" in captured["request"].input_text
+    assert "课程版本、章节和学校课堂进度保持一致" in (
+        captured["request"].input_text
+    )
+
+
+def test_pre_upload_asset_phrase_count_is_limited_to_two_through_five(client):
+    headers = admin_headers(client)
+    response = client.post(
+        "/api/ai/asset-search-phrases",
+        headers=headers,
+        files={"file": ("course-sync.png", png_file(), "image/png")},
+        data={"count": "1"},
+    )
+
+    assert response.status_code == 422
 
 
 def test_ai_analysis_persists_content_and_new_concept_suggestion(client, db_factory):

@@ -1,6 +1,12 @@
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+pytestmark = pytest.mark.skipif(
+    not (PROJECT_ROOT / "README.md").is_file(),
+    reason="文档一致性检查只在完整源码工作区运行，生产后端镜像不打包项目文档",
+)
 
 ACTIVE_DOCS = (
     "README.md",
@@ -75,10 +81,12 @@ def test_master_and_project_log_publish_the_same_current_phase():
     layout = _read("client/src/components/Layout.tsx")
     login = _read("client/src/pages/Login/Login.tsx")
     home_header = _read("client/src/pages/ImageHome/ImageHomeHeader.tsx")
+    global_search = _read("client/src/pages/ImageHome/GlobalImageSearch.tsx")
     search_result = _read("client/src/pages/ImageHome/SemanticSearchResult/index.tsx")
     search_card = _read("client/src/pages/ImageHome/SemanticSearchResult/ScoredImageCard.tsx")
     search_constants = _read("client/src/pages/ImageHome/SemanticSearchResult/constants.ts")
     upload_phrases = _read("client/src/pages/ImageHome/UploadSearchPhraseFields.tsx")
+    upload_dialog = _read("client/src/pages/ImageHome/UploadDialog.tsx")
     inheritance = _read("client/src/pages/ImageHome/ConceptPhraseInheritancePanel.tsx")
     concept_page = _read("client/src/pages/AdminConcepts/AdminConcepts.tsx")
     asset_phrase_panel = _read(
@@ -119,7 +127,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     )
     ai_schema = _read("backend/app/schemas/ai.py")
     image_schema = _read("backend/app/schemas/image.py")
-    ai_rules = _read("skills/analyze-image-content/RULES.md")
+    ai_rules = _read("skills/analyze-image-asset/RULES.md")
     meilisearch_client = _read("backend/app/services/meilisearch_client.py")
     search_index = _read("backend/app/services/search_index.py")
     html = _read("client/index.html")
@@ -149,6 +157,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D047" in master
     assert "D048" in master
     assert "D049" in master
+    assert "D050" in master
     assert "文档一致性自动测试" in master
     assert "首次上传最多录入 5 条" in master
     assert "不是素材搜索话术的永久总上限" in master
@@ -161,15 +170,33 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "title={PRODUCT_NAME}" in home_header
     assert "业务素材库" not in home_header
     assert "外部增强" not in search_result
-    assert "智能语义搜索暂时响应较慢" in search_result
+    assert "本次没有识别出可靠卖点" in search_result
+    assert "外部语义增强未在时限内完成" in search_result
+    assert "「{keyword}」的素材结果" not in search_result
+    assert "推荐结果后再缩小" in global_search
+    assert "按使用渠道筛选" in global_search
+    assert "按画面风格筛选" in global_search
+    assert "按场景图筛选" in global_search
+    concept_presentation = _read(
+        "client/src/pages/ImageHome/SemanticSearchResult/searchConceptPresentation.ts"
+    )
     assert "就是这张" in search_card
-    assert "本次识别到的卖点" in search_result
+    assert "searchIntentTitle" in search_result
+    assert "本次识别到的卖点" in concept_presentation
+    assert "你可能在找" in concept_presentation
+    assert "本次需求同时涉及" in concept_presentation
     assert "匹配" in search_card
     assert "matchedQueryConcepts" in search_card
     assert "没有合适素材提交需求" in search_constants
     assert "label: '提交素材需求'" not in search_constants
     assert "@client/src/components/ui/select" in search_card
     assert "当前素材独有话术" in upload_phrases
+    assert "业务筛选信息" in upload_dialog
+    assert "不触发 AI 分析" in upload_dialog
+    assert "files.length <= 1" in upload_dialog
+    assert "单张上传可以在这里修改名称" in upload_dialog
+    assert "styleLabel" in upload_dialog
+    assert "isSceneImage" in upload_dialog
     assert "公共话术只在卖点层维护一次" in inheritance
     assert "辅助关键词" in inheritance
     assert 'title="卖点与公共话术"' in concept_page

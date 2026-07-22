@@ -1,14 +1,40 @@
-import { Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { ChevronDown, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { Input } from '@client/src/components/ui/input';
-import type { TagWithCount } from '@client/src/types/api';
+import { Select } from '@client/src/components/ui/select';
+import type {
+  BusinessConcept,
+  BusinessFacetCatalog,
+  TagWithCount,
+} from '@client/src/types/api';
+import {
+  activeRefinementCount,
+  type SceneImageFilter,
+  type SearchRefinementOptions,
+  type SearchRefinements,
+} from './searchResultFilters';
 
 interface GlobalImageSearchProps {
   input: string;
   systems: TagWithCount[];
   selectedSystemCode: string | null;
+  selectedConceptCode: string | null;
+  selectedProofPointCode: string | null;
+  selectedEvidencePointCode: string | null;
+  businessConcepts: BusinessConcept[];
+  businessFacets: BusinessFacetCatalog;
+  refinementOptions: SearchRefinementOptions;
+  refinements: SearchRefinements;
+  refinementsReady: boolean;
   onInputChange: (value: string) => void;
   onSystemChange: (value: string | null) => void;
+  onConceptChange: (value: string | null) => void;
+  onProofPointChange: (value: string | null) => void;
+  onEvidencePointChange: (value: string | null) => void;
+  onChannelChange: (value: string) => void;
+  onStyleChange: (value: string) => void;
+  onSceneChange: (value: SceneImageFilter) => void;
   onClear: () => void;
   onSearch: (value?: string) => void;
 }
@@ -17,11 +43,44 @@ const GlobalImageSearch = ({
   input,
   systems,
   selectedSystemCode,
+  selectedConceptCode,
+  selectedProofPointCode,
+  selectedEvidencePointCode,
+  businessConcepts,
+  businessFacets,
+  refinementOptions,
+  refinements,
+  refinementsReady,
   onInputChange,
   onSystemChange,
+  onConceptChange,
+  onProofPointChange,
+  onEvidencePointChange,
+  onChannelChange,
+  onStyleChange,
+  onSceneChange,
   onClear,
   onSearch,
-}: GlobalImageSearchProps) => (
+}: GlobalImageSearchProps) => {
+  const [refinementsOpen, setRefinementsOpen] = useState(false);
+  const activeCount = activeRefinementCount(refinements);
+  const selectedSystem = systems.find((system) => system.code === selectedSystemCode);
+  const visibleConcepts = selectedSystem
+    ? businessConcepts.filter((concept) => concept.systemLinks.some(
+      (link) => link.systemTagId === selectedSystem.id && link.status === 'active',
+    ))
+    : businessConcepts;
+  const visibleProofPoints = businessFacets.proofPoints.filter(
+    (point) => point.conceptCode === selectedConceptCode,
+  );
+  const visibleEvidencePoints = businessFacets.evidencePoints.filter(
+    (point) => point.proofPointCode === selectedProofPointCode,
+  );
+  useEffect(() => {
+    if (activeCount > 0) setRefinementsOpen(true);
+  }, [activeCount]);
+
+  return (
   <section className="relative mt-7 overflow-hidden rounded-[28px] border border-primary/10 bg-gradient-to-br from-indigo-50 via-card to-sky-50/70 px-4 py-5 shadow-sm sm:px-6 sm:py-6">
     <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-primary/8 blur-3xl" />
     <div className="relative">
@@ -84,8 +143,127 @@ const GlobalImageSearch = ({
           ))}
         </div>
       </div>
+
+      <div className="mt-3 grid gap-3 border-t border-primary/10 pt-3 sm:grid-cols-3">
+        <label className="block">
+          <span className="field-label">卖点</span>
+          <Select
+            aria-label="按卖点筛选"
+            value={selectedConceptCode ?? ''}
+            onChange={(event) => onConceptChange(event.target.value || null)}
+          >
+            <option value="">全部卖点</option>
+            {visibleConcepts.map((concept) => (
+              <option key={concept.code} value={concept.code}>{concept.name}</option>
+            ))}
+          </Select>
+        </label>
+        <label className="block">
+          <span className="field-label">证明点</span>
+          <Select
+            aria-label="按证明点筛选"
+            value={selectedProofPointCode ?? ''}
+            disabled={!selectedConceptCode}
+            onChange={(event) => onProofPointChange(event.target.value || null)}
+          >
+            <option value="">全部证明点</option>
+            {visibleProofPoints.map((point) => (
+              <option key={point.code} value={point.code}>{point.name}</option>
+            ))}
+          </Select>
+        </label>
+        <label className="block">
+          <span className="field-label">证据表达点</span>
+          <Select
+            aria-label="按证据表达点筛选"
+            value={selectedEvidencePointCode ?? ''}
+            disabled={!selectedProofPointCode}
+            onChange={(event) => onEvidencePointChange(event.target.value || null)}
+          >
+            <option value="">全部证据表达点</option>
+            {visibleEvidencePoints.map((point) => (
+              <option key={point.code} value={point.code}>{point.name}</option>
+            ))}
+          </Select>
+        </label>
+        <p className="text-[11px] leading-5 text-muted-foreground sm:col-span-3">
+          搜索会自动选中识别到的业务层级；不准确时可在这里逐层改选，结果会按所选层级重新匹配。
+        </p>
+      </div>
+
+      <div className="mt-3 border-t border-primary/10 pt-3">
+        <button
+          type="button"
+          aria-expanded={refinementsOpen}
+          onClick={() => setRefinementsOpen((value) => !value)}
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-1 py-1 text-left"
+        >
+          <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <SlidersHorizontal className="size-3.5" />精细筛选
+            <span className="font-normal text-muted-foreground/70">（推荐结果后再缩小）</span>
+            {activeCount > 0 && (
+              <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                已选 {activeCount}
+              </span>
+            )}
+          </span>
+          <ChevronDown className={`mr-1 size-4 text-muted-foreground transition-transform ${refinementsOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {refinementsOpen && (
+          <div className="mt-3 grid gap-3 rounded-2xl border border-white/90 bg-white/65 p-3 shadow-sm sm:grid-cols-3">
+            <label className="block">
+              <span className="field-label">使用渠道</span>
+              <Select
+                aria-label="按使用渠道筛选"
+                value={refinements.channel}
+                disabled={!refinementsReady || refinementOptions.channels.length === 0}
+                onChange={(event) => onChannelChange(event.target.value)}
+              >
+                <option value="">全部渠道</option>
+                {refinementOptions.channels.map((channel) => (
+                  <option key={channel} value={channel}>{channel}</option>
+                ))}
+              </Select>
+            </label>
+            <label className="block">
+              <span className="field-label">画面风格</span>
+              <Select
+                aria-label="按画面风格筛选"
+                value={refinements.style}
+                disabled={!refinementsReady || refinementOptions.styles.length === 0}
+                onChange={(event) => onStyleChange(event.target.value)}
+              >
+                <option value="">全部风格</option>
+                {refinementOptions.styles.map((style) => (
+                  <option key={style} value={style}>{style}</option>
+                ))}
+              </Select>
+            </label>
+            <label className="block">
+              <span className="field-label">图片类型</span>
+              <Select
+                aria-label="按场景图筛选"
+                value={refinements.scene}
+                disabled={!refinementsReady || !refinementOptions.hasKnownSceneType}
+                onChange={(event) => onSceneChange(event.target.value as SceneImageFilter)}
+              >
+                <option value="all">全部类型</option>
+                <option value="scene">只看场景图</option>
+                <option value="nonScene">只看非场景图</option>
+              </Select>
+            </label>
+            <p className="text-[11px] leading-5 text-muted-foreground sm:col-span-3">
+              {refinementsReady
+                ? '筛选不会重新调用 AI，也不会改变推荐顺序；未标注的素材不会被误判为“非场景图”。'
+                : '完成一次搜索后，可按设计师人工维护的渠道、风格和场景图标记继续筛选。'}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   </section>
-);
+  );
+};
 
 export default GlobalImageSearch;

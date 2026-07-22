@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -21,6 +21,14 @@ class AssetGroup(Base):
     primary_image_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     approval_status: Mapped[str] = mapped_column(String(20), default="approved", index=True)
     publish_status: Mapped[str] = mapped_column(String(20), default="published", index=True)
+    style_label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    is_scene_image: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    primary_proof_point_code: Mapped[Optional[str]] = mapped_column(
+        String(120), nullable=True, index=True
+    )
+    primary_evidence_point_code: Mapped[Optional[str]] = mapped_column(
+        String(140), nullable=True, index=True
+    )
     created_by: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
