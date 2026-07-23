@@ -11,7 +11,7 @@ from app.domain.taxonomy_catalog import load_taxonomy_catalog
 def test_catalog_has_stable_expected_shape():
     catalog = load_taxonomy_catalog()
 
-    assert catalog.version == "2026.06.1"
+    assert catalog.version == "2026-07-23.1"
     assert len(catalog.system_nodes) == 6
     assert len(catalog.image_label_nodes) == 16
     assert len(catalog.copy_points) == 30
@@ -34,7 +34,7 @@ def test_every_copy_point_maps_to_existing_image_labels():
 def test_prompt_is_built_from_versioned_catalog():
     prompt = build_task_prompt("image_content_analysis")
 
-    assert "权威标签目录（版本 2026.06.1）" in prompt
+    assert "权威标签目录（版本 2026-07-23.1）" in prompt
     assert "`photo_guided_learning` / AI拍题精学" in prompt
     assert "模型只能返回以上目录中存在的稳定 code" in prompt
 
@@ -93,6 +93,26 @@ def test_multi_system_selling_point_prompt_adds_cross_system_calibration():
 def test_full_search_intent_prompt_cannot_be_built_without_system_route():
     with pytest.raises(ValueError, match="必须先调用"):
         build_task_prompt("search_intent_understanding")
+
+
+def test_manual_review_keeps_transfer_method_and_error_boundaries():
+    catalog = load_taxonomy_catalog()
+    node_by_code = catalog.node_by_code
+
+    transfer = node_by_code["transfer_practice"]
+    universal = node_by_code["universal_method"]
+    focused = node_by_code["focused_excellence"]
+    error_book = node_by_code["ai_error_book"]
+    common_mistakes = next(
+        item for item in catalog.copy_points if item.code == "common_mistakes"
+    )
+
+    assert "相似题推荐" in transfer.positive_evidence
+    assert "一题多解" in universal.positive_evidence
+    assert "换题不会" not in universal.positive_evidence
+    assert "全网高频错题" in focused.aliases
+    assert "这个学生自己做错的题" in error_book.definition
+    assert common_mistakes.target_label_codes == ("focused_excellence",)
 
 
 def test_non_intent_prompt_does_not_load_six_system_intent_summaries():

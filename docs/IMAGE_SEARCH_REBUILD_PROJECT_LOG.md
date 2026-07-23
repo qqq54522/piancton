@@ -1,10 +1,439 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-07-21
+更新时间：2026-07-23
 当前范围：Phase 0～Phase 6；九个正式 Skill 与四类运行时模型任务完成收口
 当前状态：Phase 0～6 工程改造完成；六大体系、16 个核心卖点、三层搜索和人工关系边界保持稳定
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+---
+
+## 2026-07-23：证明点来源与人工校准关系收口（D118）
+
+### 本轮目标
+
+- 修正人工复核发现的两处语义归属问题，并确保原图绿色路径与业务人工补充判断不会混在一起。
+
+### 完成内容
+
+- `evidence-points.json` 升至 `2026-07-23.4`。
+- `ep_cultivation_learning_loop` 从 `pp_cultivation_expert_path_design` 改归 `pp_cultivation_stage_transition_plan`，使“完整教-学-练-评闭环”明确对应“学段衔接”。
+- `ep_exam_transfer_logic` 只保留真实原图绿色路径；“AI 拍题讲解后推送相似题可证明举一反三”改为 `reviewNotes` 人工确认关系。
+- 业务 facets API 和前端类型只读透传 `reviewNotes`；人工分类组件在默认折叠的来源区域中分开显示“原图推导路径”和“人工确认关系”。
+- 普通搜索、模型 Prompt、召回、排序、数据库字段、稳定 code 和现有人工素材关系均未改变；无数据库迁移。
+
+### 验证
+
+- JSON 结构校验通过：58 个证据表达点、59 条真实原图路径、1 条独立人工校准说明；`ep_cultivation_learning_loop` 父证明点已确认为 `pp_cultivation_stage_transition_plan`。
+- 后端证据点与业务 facets 接口定向测试 `16 passed`。
+- Skill、文档、卖点映射、证明点来源与 taxonomy 对齐测试 `25 passed`。
+- 搜索评测和 Phase 0～3 基础链路回归 `11 passed`。
+- 前端组件测试 `1 passed`；TypeScript、ESLint、生产构建和 `git diff --check` 通过。
+- 本地 `backend/web` 已重新构建，四个长期服务均为 healthy。
+- 浏览器实测通过：上传页已显示“卖点 → 证明点 → 证据表达点”；“举一反三 → 变式与同类题迁移训练 → 讲解当前题后推送相似题”展开后，原图路径与“人工确认关系”分开展示；“完整教、学、练、评闭环”只出现在“学段衔接 → 衔接期个性化规划支撑”下。
+- `npm run generate:api` 仍固定请求未对宿主机开放的 `127.0.0.1:8000`，本地容器只通过 Web 反向代理提供 API，因此该命令连接失败；本轮已同步维护生成类型中的 `reviewNotes`，并由 TypeScript 与生产构建验证。
+
+### 待继续
+
+- 后续人工复核若发现跨卖点支撑，只补充 `reviewNotes` 或人工素材关系，不再写入原图 `sourcePaths`。
+
+## 2026-07-23：六体系证据表达点来源路径补齐（D117）
+
+### 本轮目标
+
+- 继续按原图补全其他体系，让人工审核时能看到每个绿色证明点从哪个核心卖点和中间证明分支推导出来。
+
+### 完成内容
+
+- `evidence-points.json` 升至 `2026-07-23.3`，六个体系 58 个 `ep_` 绿色证据表达点全部补齐 `sourcePaths`。
+- 覆盖数量：同步校内 16 个、同步考点 15 个、同步培养 10 个、同步规划 3 个、同步自学 9 个、同步伴学 5 个。
+- 保留不定深度原图链路：`system → selling_point → proof_group... → evidence_expression`；同步考点 `ep_exam_transfer_logic` 保留原图 AI 拍题路径和 2026-07-23 人工校准补充路径。
+- 同步更新六体系知识文件与业务目录口径：绿色点是证据表达和人工审查锚点，不自动等于已核验事实、已有素材或新增核心卖点。
+- 普通搜索、模型 Prompt、召回、排序、数据库字段、稳定 code 和人工素材关系均未改变。
+- D118 后续将人工校准补充路径从 `sourcePaths` 拆为 `reviewNotes`；本节保留当时实施记录。
+
+### 验证
+
+- JSON 结构校验通过；目录统计为 `58` 条，缺失 `sourcePaths` 数量为 `0`。
+- `test_evidence_point_runtime.py` 已升级为全量路径护栏：每条路径必须从 `system` 开始、以 `evidence_expression` 结束，并包含 `selling_point`。
+- 临时 Docker 后端容器挂载当前源码运行：证据点与业务 facets 接口定向测试 `15 passed`；文档、Skill、卖点和证明点来源对齐测试 `17 passed`。
+- `git diff --check` 通过。
+- 本地根目录无 `.venv`，系统 Python 缺少 `pytest/ruff`；当前后端 Docker 镜像也未安装 `ruff`，因此本轮 Ruff 未能执行。
+
+### 待继续
+
+- 业务负责人可按上传页/详情页中默认折叠的“查看原图推导路径”逐条核对图片关系；如发现某个绿色点需要支持相邻卖点，继续通过人工素材关系表达，不改原图父子来源。
+
+## 2026-07-23：证据表达点结构化来源路径（D116）
+
+### 本轮目标
+
+- 保留原脑图从体系、核心卖点、多级证明分支到末端绿色点的完整推导关系，同时不增加生产搜索层级。
+
+### 完成内容
+
+- `evidence-points.json` 为同步培养 10 个绿色点增加可变深度、可保存多条的 `sourcePaths`；专家身份绿色点保留两条原图来源路径。
+- 后端证据表达点目录增加来源路径节点解析与层级校验，业务 facets API 只读返回 `sourceRef/sourcePaths`。
+- 上传页和素材详情复用的人工分类组件新增默认折叠的“查看原图推导路径”，仅在选中带路径的绿色点后出现。
+- 普通搜索、模型 Prompt、召回、过滤、排序、数据库结构、稳定 code 和人工素材关系均未改变。
+- 后端专项测试 `28 passed`；前端全量 `23 passed`，TypeScript、ESLint、生产构建和 `git diff --check` 通过。
+- 后端全量为 `225 passed, 3 failed`；3 条失败均为本轮未修改的 `search_service.py`、`asset_selection_policy_service.py` 既有行数护栏超限，不属于来源路径变更。
+- 浏览器确认当前素材库和详情工作台可正常加载；为避免把工作区其他未提交改动一并部署，本轮未重启现有服务，运行页面将在后续正常重建服务后显示新路径入口。
+
+### 待继续
+
+- 其他五个体系来源路径已在 D117 按原图补齐；后续不再以“缺路径”为待办。
+- 由业务负责人从同步培养绿色点开始逐项确认路径和对应图片。
+
+---
+
+## 2026-07-23：恢复原图绿色证明点人工审核视图（D115）
+
+### 本轮目标
+
+- 解决规范化证明点脱离原图绿色分支和对应图片后不便人工判断的问题。
+
+### 完成内容
+
+- 同步培养体系新增“核心卖点 → 原图绿色证明点 → 对应图片/素材”人工审核表，保持绿色点原文和原图父子关系。
+- 明确现有 9 个 `pp_` 条目是搜索解释层，不再要求业务负责人把它们当作另一套证明点清单审核。
+- 复用现有 `ep_cultivation_*` 绿色证据表达点记录，不新增稳定 code、不修改数据库或人工素材关系。
+- 共享证明能力在绿色点确认后再判断；保留原图归属，同时允许支持相邻卖点。
+- Skill、文档、卖点对齐和来源对齐专项测试 `17 passed`，`git diff --check` 通过。
+
+### 待继续
+
+- 由业务负责人按表中绿色点逐项确认对应图片及最终主要/支持关系。
+
+---
+
+## 2026-07-23：同步考点业务边界人工审核（D114）
+
+### 本轮目标
+
+- 固定举一反三、万能解法、AI 拍题精学、高频错题和个人错题本之间的业务边界。
+
+### 完成内容
+
+- 举一反三固定为当前题讲解后继续做相似题、同类题或变式题。
+- 万能解法固定为同一道题使用不同方法或路径求解。
+- 保留同步动画课对举一反三的证明关系：动画讲透原理后继续进入同类/变式训练时，同时支撑两个卖点。
+- AI 拍题精学保持独立卖点；讲解后自动推送相似题时，同时证明举一反三。
+- 高频错题固定为全网题库/群体共性错题功能；AI 错题本只收集这个学生自己做错的题。
+- 已上传发布材料视为业务人工确认事实；未有已审核素材承载的候选结论继续待核验。
+- 同步更新体系知识、跨体系校准、taxonomy、证据表达点、运行时目录版本和回归测试。
+
+### 修改文件
+
+- `skills/understand-image-search-intent/references/sync-exam.md`
+- `skills/understand-image-search-intent/references/sync-cultivation.md`
+- `skills/understand-image-search-intent/references/cross-system-calibration.md`
+- `skills/understand-image-search-intent/references/public-phrase-governance.json`
+- `skills/understand-image-search-intent/references/evidence-points.json`
+- `taxonomy/catalog.json`
+- `backend/app/services/query_understanding_service.py`
+- `backend/tests/test_taxonomy_catalog.py`
+- `backend/tests/test_evidence_point_runtime.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无；未修改数据库概念、公共话术、素材关系或已上传材料。
+
+### 测试结果
+
+- taxonomy、证据表达点、三档话术、查询状态、证明点来源、Skill 与文档一致性专项：`50 passed`。
+- 变更文件 Ruff 与 `git diff --check` 通过。
+
+### 遗留问题
+
+- 同步培养体系后续逐卖点审核时，继续核对万能解法其余证明点，不重复改变本轮已确认边界。
+
+### 下一步
+
+1. 等待用户指定下一个卖点；未确认前不继续修改。
+
+---
+
+## 2026-07-23：同步校内证明点人工审核（D113）
+
+### 本轮目标
+
+- 按“一个卖点及其直属证明点”的粒度完成第一体系审核，并清理同步校内文件中的过时待确认项。
+
+### 完成内容
+
+- 人工确认同步校内 3 个卖点、10 个证明点及父子关系不变。
+- 明确 `school_sync` 对应 2 个证明点、`animation_explanation` 对应 5 个证明点、`instant_quiz` 对应 3 个证明点。
+- 删除“极速预习复习是否独立”的旧待确认口径；它已经是同步自学体系的独立核心卖点。
+- 固定“学习效果看得见”为学练测结果表达；日报、周报或家长端长期查看继续归学情报告。
+- 明确已上传并发布材料视为业务人工确认事实；只有尚无已审核素材承载的知识文件候选样例继续待核验。
+
+### 修改文件
+
+- `skills/understand-image-search-intent/references/sync-school.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `test_project_skills.py`、`test_proof_point_source_alignment.py`、`test_documentation_consistency.py`：`11 passed`。
+- `git diff --check` 通过。
+
+### 遗留问题
+
+- 其余五个体系尚未按卖点逐项完成人工审核。
+
+### 下一步
+
+1. 按用户指示进入下一个卖点或体系；未确认前不修改其他体系。
+
+---
+
+## 2026-07-23：回到 GPT-5.5 主判断（D112）
+
+### 本轮目标
+
+- 按用户要求，“还是回到 5.5”，并且刚刚 DeepSeek 相关实验改动不进入当前运行方案。
+
+### 完成内容
+
+- 本地根目录 `.env` 与 `backend/.env` 的 `MODEL_PROVIDER_ORDER` 已改回 `primary`，当前只走原有 `gpt-5.5` 主判断。
+- 回滚 D108～D110 的代码级实验改动：
+  - 厂商 `thinking` / `reasoning_effort` 请求参数。
+  - `SEARCH_SKILL_STABLE_CONTEXT_ENABLED` Skill 稳定前缀。
+  - `SEARCH_THREE_LAYER_UNDERSTANDING_ENABLED` 三层理解分支。
+  - 三层模式下的第三层证明点拆分调用。
+  - 对应 Compose、示例环境变量和实验测试。
+- 保留 D107～D111 的评测报告作为历史实验记录，不作为当前生产策略。
+
+### 当前结论
+
+- 当前运行方案回到 GPT-5.5 原始两层业务判断路径。
+- DeepSeek 可用性和三层实验结果只作为后续参考，不再影响当前默认判断链路。
+
+---
+
+## 2026-07-23：GPT-5.5 主判断 30 条回归探针（D111）
+
+### 本轮目标
+
+- 按用户要求，将评测进程临时切回原来的 `gpt-5.5` 主判断，重跑 30 条话术，观察 5.5 是否比 DeepSeek 更稳定。
+
+### 执行口径
+
+- 使用 `gpt-5.5` primary-only。
+- 临时清空 DeepSeek/Kimi 后备，避免 fallback 污染结果。
+- 关闭 `SEARCH_SKILL_STABLE_CONTEXT_ENABLED`。
+- 关闭 `SEARCH_THREE_LAYER_UNDERSTANDING_ENABLED`。
+- 不发送 `thinking` / `reasoning_effort` 参数。
+- 复用 D107 评测集前 30 条。
+
+### 注意事项
+
+- 第一次在沙箱内直跑时，30 条全部进入 `failed` 分支；随后用最小请求验证，原因是当前沙箱无法解析中转域名，不是 5.5 模型或接口本身失败。
+- 经外部网络权限验证中转接口返回 `200` 后，重新跑 30 条并生成本轮正式结果。
+
+### 30 条结果
+
+| 方案 | 外部语义成功 | 包含预设卖点 | 产出卖点 | 空卖点 | 错误卖点 | P50 | P95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| GPT-5.5 primary-only 前 30 条 | `30/30` | `30/30` | `30/30` | `0/30` | `0/30` | `27167ms` | `36729ms` |
+| 普通 DeepSeek 前 30 条 | `30/30` | `24/30` | `25/30` | `5/30` | `1/30` | `30435ms` | `47755ms` |
+| DeepSeek 三层 + thinking/high 前 30 条 | `29/30` | `25/30` | `25/30` | `5/30` | `0/30` | `42496ms` | `62045ms` |
+
+### 输出文件
+
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_30_GPT55_2026-07-23.json`
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_30_GPT55_2026-07-23.md`
+
+### 结论
+
+- 在前 30 条样本上，GPT-5.5 的卖点判断稳定性明显优于当前 DeepSeek 普通版和三层 + thinking/high 版本。
+- 当前 30 条主要覆盖同步校内、动画精讲、课后小测、新课标和专项培优开头；若要重新决定生产主判断，仍建议补跑完整 100 条，尤其覆盖 DeepSeek 在 D107 暴露出的 AI 私教、极速预习、AI 错题本、真人督学等弱项。
+
+---
+
+## 2026-07-23：三层理解 50 条探针（D110）
+
+### 本轮目标
+
+- 按用户要求，先验证“Skill 稳定前缀 + thinking/high”是否值得继续；若不好用，则回到 DeepSeek `thinking/high`，并按“第一层判断体系、第二层判断卖点、第三层判断证明点/证据表达点”的三层方法优化后重跑 50 条。
+
+### 完成内容
+
+- 保持 `SEARCH_SKILL_STABLE_CONTEXT_ENABLED=false`，不采用 D109 中准确率未提升的 Skill 稳定前缀。
+- 新增 `SEARCH_THREE_LAYER_UNDERSTANDING_ENABLED` 实验开关，默认关闭。
+- 开启三层理解后：
+  - 第一层仍只判断六大体系。
+  - 第二层卖点 Prompt 不再携带证明点/证据表达点目录，并明确要求 `matched_proof_points`、`matched_evidence_points` 返回空数组。
+  - 第二层成功后，第三层才在已命中卖点范围内补证明点/证据表达点；第三层不得改写第二层卖点。
+- 运行 50 条 DeepSeek-only 外部语义评测，临时开启 `thinking=enabled`、`reasoning_effort=high` 和三层理解开关。
+
+### 50 条对比结果
+
+| 方案 | 外部语义成功 | 包含预设卖点 | 产出卖点 | 空卖点 | 错误卖点 | P50 | P95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 普通 DeepSeek 前 50 条 | `50/50` | `34/50` | `40/50` | `10/50` | `6/50` | `28159ms` | `50053ms` |
+| 三层 + thinking/high 前 50 条 | `49/50` | `37/50` | `41/50` | `9/50` | `4/50` | `37790ms` | `62040ms` |
+
+### 关键变化
+
+- 改善样本：`SPX011`、`SPX014` 动画精讲由空变命中；`SPX028` 新课标新考法预测由空变命中；`SPX039` 举一反三由万能解法改为正确；`SPX048` 学段衔接由空变命中。
+- 回归样本：`SPX009`、`SPX012` 动画精讲由命中变空；`SPX031` 专项培优错到 AI 定制学习方案；`SPX046` 专家规划由新课标命中变空。
+- 另有 `SPX008` 一条外部语义失败，归入 failed 分支，不代表本地语义或公共话术命中。
+
+### 输出文件
+
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_50_DEEPSEEK_THREE_LAYER_THINKING_2026-07-23.json`
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_50_DEEPSEEK_THREE_LAYER_THINKING_2026-07-23.md`
+
+### 测试结果
+
+- `backend/.venv/bin/ruff check app/ai app/core/config.py app/services/ai_service.py app/services/search_external_branches.py tests/test_project_skills.py tests/test_ai_provider.py`：通过。
+- `STORAGE_DIR=../storage/images backend/.venv/bin/pytest tests/test_ai_provider.py tests/test_project_skills.py tests/test_proof_point_runtime.py tests/test_documentation_consistency.py`：`26 passed`。
+- `git diff --check`：通过。
+
+### 遗留问题
+
+- 三层拆分相对普通 DeepSeek 有小幅收益，但延迟明显更高，且仍存在动画精讲、专项培优、专家规划、学段衔接等弱项波动；当前不足以默认生产开启。
+- 后续更值得做的是在三层框架下加强第二层卖点自检与弱项体系定向上下文，而不是继续扩大通用稳定前缀。
+
+---
+
+## 2026-07-23：Skill 稳定上下文 20 条探针（D109）
+
+### 本轮目标
+
+- 验证“DeepSeek + thinking/high + 项目 Skill 稳定业务上下文”是否比单纯 thinking/high 更适合卖点识别。
+
+### 完成内容
+
+- 新增 `SEARCH_SKILL_STABLE_CONTEXT_ENABLED` 实验开关，默认关闭。
+- 开启后，第一层体系路由 Prompt 前置六大体系稳定地图，但仍禁止输出卖点 code。
+- 开启后，第二层卖点 Prompt 前置六大体系与 16 个核心卖点 stable code 目录和关键纪律；候选体系全文、数据库当前启用卖点目录、证明点和证据表达点仍按原有规则按需加载。
+- 未改变默认生产请求体、数据库、素材关系、公共话术或搜索仲裁逻辑。
+
+### 20 条对比结果
+
+| 方案 | 包含预设卖点 | 产出卖点 | 空卖点 | 错误卖点 | P50 | P95 |
+|---|---:|---:|---:|---:|---:|---:|
+| 普通 DeepSeek | `15/20` | `16/20` | `4/20` | `1/20` | `30687ms` | `47754ms` |
+| DeepSeek thinking/high | `17/20` | `17/20` | `3/20` | `0/20` | `40720ms` | `55813ms` |
+| Skill 稳定上下文 + thinking/high | `15/20` | `16/20` | `4/20` | `1/20` | `26198ms` | `38792ms` |
+
+### 关键变化
+
+- 相比 thinking/high，Skill 稳定上下文救回 `SPX007`（同步校内）。
+- 同时 `SPX010`、`SPX012`、`SPX013` 从动画精讲命中变为空卖点，`SPX003` 仍错到动画精讲。
+- 速度明显变快，可能来自稳定前缀带来的请求组织或 DeepSeek 上下文缓存收益；当前脚本尚未记录 `prompt_cache_hit_tokens`，不能把原因定死。
+
+### 输出文件
+
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_20_DEEPSEEK_SKILL_THINKING_2026-07-23.json`
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_20_DEEPSEEK_SKILL_THINKING_2026-07-23.md`
+
+### 测试结果
+
+- `backend/.venv/bin/ruff check app/ai app/core/config.py tests/test_ai_provider.py tests/test_project_skills.py scripts/run_external_selling_point_review.py`：通过。
+- `STORAGE_DIR=../storage/images backend/.venv/bin/pytest tests/test_ai_provider.py tests/test_project_skills.py`：`13 passed`。
+
+### 遗留问题
+
+- 当前 Skill 稳定前缀没有提升准确率，不能默认生产开启。
+- 下一步若继续探索，应优先记录 DeepSeek `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`，并对 D107 弱项卖点做定向上下文，而不是扩大通用前缀。
+
+---
+
+## 2026-07-23：DeepSeek 推理参数 20 条探针（D108）
+
+### 本轮目标
+
+- 参考 DeepSeek 示例请求，在不丢失项目两层业务判断角色的前提下，增加可配置 `thinking` / `reasoning_effort`，并用 20 条话术快速观察是否提升卖点识别。
+
+### 完成内容
+
+- `OpenAICompatibleModelProvider` 新增可选 `thinking_type` 与 `reasoning_effort`，默认空值不写入请求体。
+- Provider 工厂按 `primary/fallback1/fallback2` 槽位读取对应配置，DeepSeek 可单独开启，GPT-5.5/Kimi 可保持空值。
+- Docker 和 `.env.docker.example` 增加对应环境变量。
+- 单元测试覆盖请求体里正确发送 `{"thinking":{"type":"enabled"}}` 与 `reasoning_effort=high`，并确认 fallback1 配置能传入 Provider。
+
+### 20 条探针结果
+
+- 口径：复用 D107 DeepSeek-only 100 条评测的前 20 条；临时设置 `FALLBACK1_THINKING_TYPE=enabled`、`FALLBACK1_REASONING_EFFORT=high`；临时禁用 GPT-5.5/Kimi 后备。
+- 外部语义成功：`20/20`。
+- 包含预设卖点：不开推理 `15/20`，开启后 `17/20`。
+- 空卖点：不开推理 `4/20`，开启后 `3/20`。
+- 错误卖点：不开推理 `1/20`，开启后 `0/20`。
+- 延迟 P50/P95：不开推理 `30687ms/47754ms`，开启后 `40720ms/55813ms`。
+- 改善：`SPX008`、`SPX011`、`SPX013`、`SPX014` 从空卖点变为动画精讲。
+- 回归：`SPX007`、`SPX009` 从正确命中变为空卖点；`SPX003` 从错分动画精讲变为空卖点。
+
+### 输出文件
+
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_20_DEEPSEEK_THINKING_2026-07-23.json`
+- `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_20_DEEPSEEK_THINKING_2026-07-23.md`
+
+### 测试结果
+
+- `backend/.venv/bin/ruff check app/ai app/core/config.py tests/test_ai_provider.py scripts/run_external_selling_point_review.py`：通过。
+- `STORAGE_DIR=../storage/images backend/.venv/bin/pytest tests/test_ai_provider.py`：`8 passed`。
+
+### 遗留问题
+
+- 推理参数有小幅准确率收益，但延迟变高且出现个别正确样本变空；当前只作为实验开关，不默认生产开启。
+- 下一步如果继续评估，应优先对 D107 全 100 条或后半段弱项卖点重跑，而不是只凭前 20 条改生产策略。
+
+---
+
+## 2026-07-23：DeepSeek-only 100 条卖点话术评测（D107）
+
+### 本轮目标
+
+- 按用户要求再跑一轮 100 条话术测试，继续使用大模型辅助语义，重点验证“卖点准不准”，并专项测试 DeepSeek。
+
+### 执行口径
+
+- 用户明确同意把本项目卖点目录、评测话术和相关 Prompt 发送给 DeepSeek。
+- 本轮临时使用根目录 `.env` 中有效 DeepSeek key，并清空 GPT-5.5/Kimi 后备 key，只测 `deepseek-v4-pro`；不采用最初被后备模型污染的 6 条中断结果。
+- 评测只读，不写回公共话术、素材关系、证明点、证据表达点或业务知识库。
+
+### 完成内容
+
+- 复用 `backend/scripts/run_external_selling_point_review.py` 生成 100 条需要外部语义理解的卖点话术，并串行运行线上同款搜索依赖。
+- 修正评测脚本 Provider 标签逻辑：报告只列出当前进程中名称、URL 和 key 都实际配置的 Provider，避免临时禁用后备时仍显示 GPT-5.5。
+- 新增 DeepSeek 专项评测原始 JSON 与 Markdown 审批表：
+  - `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_100_DEEPSEEK_2026-07-23.json`
+  - `docs/SELLING_POINT_EXTERNAL_SEMANTIC_EVAL_100_DEEPSEEK_2026-07-23.md`
+
+### 结果摘要
+
+- 已完成：`100/100`
+- 外部语义成功：`100/100`
+- 产出至少一个卖点：`60/100`
+- 实际卖点包含预设卖点：`52/100`
+- 未产出卖点：`40/100`
+- 产出错误卖点且不含预设：`8/100`
+- 搜索结果层降级：`25/100`
+- 延迟 P50/P95：`29170ms / 54831ms`
+- 表现稳定卖点：课后小测 `7/7`，学情报告反馈 `6/6`。
+- 明显弱项：AI 私教答疑、极速预习复习、AI 错题本、真人老师督学均 `0/6`；学段衔接 `2/6`，专家规划 `2/6`。
+
+### 测试结果
+
+- `backend/.venv/bin/ruff check scripts/run_external_selling_point_review.py`：通过。
+- 报告 JSON 汇总校验：Provider `deepseek-v4-pro`，完成 `100` 条，包含预设卖点 `52` 条，空卖点 `40` 条。
+
+### 遗留问题
+
+- DeepSeek 接口可用，但当前 DeepSeek-only 业务语义准确性不足，不能作为唯一或无仲裁主判断。
+- `backend/.env` 中的 DeepSeek key 已失效；根目录 `.env` 的 key 有效。后续本地直跑若要继续测试 DeepSeek，需要同步修正 Git 忽略环境文件中的密钥，但不得写入文档或版本库。
+- 下一步应优先保留 D085 本地强证据优先、D106 GPT-5.5 后备，并用这份表逐条业务审批，区分“合理多卖点”“模型保守空结果”和“真实错分”。
 
 ---
 
@@ -3190,6 +3619,86 @@ Model：数据结构和关系
 
 1. 由业务负责人/设计师在详情工作台按原作图依据补标现有素材，优先处理当前高频误差对应图片。
 2. 补标后重跑 103 条评测和真实页面样本，记录证据表达点 Top 1、空结果和兄弟证明点误放行情况。
+
+---
+
+## 2026-07-23：搜索系统优化实施手册（D105）
+
+### 本轮目标
+
+- 把程序架构优化、API 调用治理、历史案例记忆、搜索准确性、数据飞轮和未来模型训练统一成一份可由后续模型逐项执行的标准文档。
+- 明确证明点全量审核可以推迟，不阻塞运行一致性、架构减重、API 遥测、案例记忆、卖点优化和反馈闭环。
+
+### 完成内容
+
+- 新增 `docs/SEARCH_SYSTEM_OPTIMIZATION_IMPLEMENTATION_PLAYBOOK.md`，包含 10 个阶段、依赖顺序、具体文件边界、数据表/API 建议、执行步骤、测试、验收、灰度和回滚清单。
+- 将“日志只有被审核并由在线链路消费后才构成数据飞轮”“Embedding 只做候选生成”“模型只在候选范围内做结构化判断”“证明点先做 3～6 张代表素材试点”等原则登记回总纲。
+- 第一轮建议只做运行一致性、架构全绿、Provider/决策遥测和 accepted 案例记忆，不要求先补完 40 张素材的证明点。
+
+### 修改文件
+
+- `docs/SEARCH_SYSTEM_OPTIMIZATION_IMPLEMENTATION_PLAYBOOK.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。手册中的 `model_attempts`、search log 扩展和 `approved_query_cases` 均为后续实施建议，未创建表、未写数据库。
+
+### 测试结果
+
+- 本轮只修改 Markdown 文档；文档一致性与项目 Skill 测试 `8 passed`，`git diff --check` 通过，手册路径和未来建议文件边界已复核。
+- 优化前检查点仍为 `codex/d104-pre-optimization-checkpoint-20260723` / `641d8bc`；本轮未修改搜索行为或运行容器。
+
+### 遗留问题
+
+- 需要从手册阶段 0 开始重新核对运行数据库 revision、容器版本和备份恢复。
+- 已知后端 `222 passed`、3 个架构体量护栏失败；应在阶段 1 做等价拆分，不在本轮文档任务中修改代码。
+
+### 下一步
+
+1. 执行手册 Sprint A：运行一致性、版本接口、迁移核对和架构减重。
+2. Sprint A 全绿后再实施 API Gateway/决策遥测；证明点审核可继续推迟。
+
+---
+
+## 2026-07-23：查询理解首选 Provider 切换（D106）
+
+### 本轮目标
+
+- 将模型理解的首选 Provider 切换为 DeepSeek，同时完整保留 GPT-5.5 作为第二顺位后备。
+
+### 完成内容
+
+- 当前 Docker 环境顺序改为 `DeepSeek → GPT-5.5`；本地直跑环境顺序改为 `DeepSeek → GPT-5.5 → Kimi`。
+- DeepSeek 使用独立 fallback 配置槽位；GPT-5.5 原有主配置、模型名和密钥未删除、未移动。
+- 未修改业务 Prompt、六体系、16 个卖点、证明点、素材关系、搜索 Schema 或失败降级逻辑。
+- 密钥只保存于 Git 忽略的环境文件，不写入文档、日志或版本库。
+
+### 修改文件
+
+- `.env`、`backend/.env`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- DeepSeek `/models` 返回 `200`，目标模型可用；最小 Chat Completions 返回 `200` 且 JSON 可解析。
+- Provider、Skill 与文档一致性专项测试：`15 passed`；Ruff 与 `git diff --check` 通过。
+- 后端容器已重建并健康；脱敏运行配置确认顺序为 `DeepSeek → GPT-5.5`。
+- 从运行中的后端容器通过项目 Provider 工厂再次调用 `deepseek-v4-pro`，结构化 JSON 返回成功。
+
+### 遗留问题
+
+- Provider 连通不等于业务准确性通过；后续仍需用真实搜索样本比较 DeepSeek 与 GPT-5.5 的意图、证明点和延迟表现。
+
+### 下一步
+
+1. 用真实但非敏感的搜索样本对比 DeepSeek 与 GPT-5.5 的意图、证明点和延迟表现。
 
 ---
 

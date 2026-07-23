@@ -195,6 +195,14 @@ export interface EvidencePointFacet {
   proofPointCode: string;
   conceptCode: string;
   name: string;
+  sourceRef?: string;
+  sourcePaths?: EvidencePointSourcePathNode[][];
+  reviewNotes?: string[];
+}
+
+export interface EvidencePointSourcePathNode {
+  level: 'system' | 'selling_point' | 'proof_group' | 'evidence_expression';
+  label: string;
 }
 
 export interface BusinessFacetCatalog {

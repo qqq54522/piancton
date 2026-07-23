@@ -1,5 +1,5 @@
 {
-  "version": "2026.06.1",
+  "version": "2026-07-23.1",
   "systems": [
     {
       "code": "sync_school",
@@ -57,9 +57,9 @@
           "code": "focused_excellence",
           "name": "专项培优",
           "color": "#A78BFA",
-          "aliases": ["重难点培优", "专项突破", "薄弱点提升", "考前突击", "高频错题", "找不到重点", "重点突破", "薄弱科目", "高分题训练", "拔高训练"],
+          "aliases": ["重难点培优", "专项突破", "薄弱点提升", "考前突击", "高频错题", "全网高频错题", "群体易错题", "找不到重点", "重点突破", "薄弱科目", "高分题训练", "拔高训练"],
           "definition": "针对学科重难点和薄弱环节进行集中训练。",
-          "positive_evidence": ["专项训练", "重难点", "薄弱点", "培优", "考前冲刺", "高频错题", "题太难", "薄弱环节", "不会规划重难点", "越学越焦虑"],
+          "positive_evidence": ["专项训练", "重难点", "薄弱点", "培优", "考前冲刺", "高频错题", "全网错题", "群体易错题", "题太难", "薄弱环节", "不会规划重难点", "越学越焦虑"],
           "negative_evidence": ["没有明确专项或重难点的普通课程"]
         },
         {
@@ -93,9 +93,9 @@
           "code": "universal_method",
           "name": "万能解法",
           "color": "#F472B6",
-          "aliases": ["底层逻辑", "通用方法", "解题模型", "题型方法", "理解原理", "换题也会", "不是死记硬背", "底层思路", "解题底层逻辑"],
-          "definition": "讲清题型底层原理和可复用的通用解法。",
-          "positive_evidence": ["解题思路", "底层原理", "通用模型", "方法总结", "一题多解", "只会背公式", "换题不会", "不会举一反三", "理解不是背答案"],
+          "aliases": ["一题多解", "同一道题不同解法", "同题多种解法", "底层逻辑", "通用方法", "解题模型", "题型方法", "理解原理", "不是死记硬背", "底层思路", "解题底层逻辑"],
+          "definition": "围绕同一道题展示不同解法和不同推导路径，讲清底层原理与通用方法。",
+          "positive_evidence": ["一题多解", "同一道题不同解法", "同题多种路径", "解题思路", "底层原理", "通用模型", "方法总结", "只会背公式", "理解不是背答案"],
           "negative_evidence": ["死记硬背", "只给答案", "没有方法解释"]
         },
         {
@@ -139,8 +139,8 @@
           "name": "AI错题本",
           "color": "#34D399",
           "aliases": ["智能错题本", "错题归纳", "错题整理", "错因分析", "错题复习", "错题总忘", "错题反复错", "薄弱点归纳", "不会复盘"],
-          "definition": "自动归纳错题、分析原因并推荐复习和同类练习。",
-          "positive_evidence": ["错题列表", "错因分析", "错题归档", "相似题", "复习提醒", "重复犯错", "错题没人整理", "错因不清楚", "考前不知道复习哪"],
+          "definition": "收集这个学生自己做错的题，进行个人错题归档、复盘和同类练习。",
+          "positive_evidence": ["个人错题", "自己做错的题", "错题列表", "错因分析", "错题归档", "相似题", "复习提醒", "重复犯错", "错题没人整理", "错因不清楚", "考前不知道复习哪"],
           "negative_evidence": ["单次解题但没有错题沉淀"]
         },
         {
@@ -209,7 +209,7 @@
     {"code": "new_exam_standard", "name": "新中考新课标", "system_code": "sync_exam", "target_label_codes": ["new_curriculum_prediction"]},
     {"code": "key_point_training", "name": "重难点培优", "system_code": "sync_exam", "target_label_codes": ["focused_excellence"]},
     {"code": "exam_cram", "name": "考前突击", "system_code": "sync_exam", "target_label_codes": ["focused_excellence"]},
-    {"code": "common_mistakes", "name": "高频错题", "system_code": "sync_exam", "target_label_codes": ["focused_excellence", "ai_error_book"]},
+    {"code": "common_mistakes", "name": "高频错题", "system_code": "sync_exam", "target_label_codes": ["focused_excellence"]},
     {"code": "transfer_learning", "name": "举一反三", "system_code": "sync_exam", "target_label_codes": ["transfer_practice"]},
     {"code": "k12_integration", "name": "小初高一体化", "system_code": "sync_cultivation", "target_label_codes": ["stage_transition"]},
     {"code": "stage_transition", "name": "学段衔接", "system_code": "sync_cultivation", "target_label_codes": ["stage_transition"]},

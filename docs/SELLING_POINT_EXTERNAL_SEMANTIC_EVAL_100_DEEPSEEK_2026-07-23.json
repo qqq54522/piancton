@@ -1,0 +1,4653 @@
+{
+  "version": "2026-07-22.1",
+  "created_at": "2026-07-23T12:40:55.004917+08:00",
+  "provider": "deepseek-v4-pro",
+  "criteria": {
+    "scope": "只评卖点，不评证明点",
+    "external_success": "search_diagnostics.query_understanding.status == ok 且非缓存",
+    "selection": "仅保留运行前应触发外部模型的话术"
+  },
+  "cases": [
+    {
+      "id": "SPX001",
+      "query": "孩子在外面学的东西，要是能刚好对上学校老师最近讲的那些内容就太好了。",
+      "expected_code": "school_sync",
+      "expected_name": "同步校内",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 26727.83,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 26548,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6794ms；卖点识别 19754ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6794ms；卖点识别 19754ms",
+      "actual_codes": [
+        "school_sync"
+      ],
+      "actual_names": [
+        "同步校内"
+      ],
+      "result_selling_points": [
+        "同步校内"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "教材同步",
+        "课程同步"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 26725,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:41:36.003639+08:00"
+    },
+    {
+      "id": "SPX002",
+      "query": "想给他找个课程，能跟着学校上课的步子走，别落下。",
+      "expected_code": "school_sync",
+      "expected_name": "同步校内",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 21375.67,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 21175,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6214ms；卖点识别 14960ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6214ms；卖点识别 14960ms",
+      "actual_codes": [
+        "school_sync"
+      ],
+      "actual_names": [
+        "同步校内"
+      ],
+      "result_selling_points": [
+        "同步校内"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "教材同步",
+        "课程同步"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 21374,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:41:57.380054+08:00"
+    },
+    {
+      "id": "SPX003",
+      "query": "有没有那种课外材料，能让他回家后把当天课堂上没弄懂的地方再温习温习？",
+      "expected_code": "school_sync",
+      "expected_name": "同步校内",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 58221.71,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 57395,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 24402ms；卖点识别 32992ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 24402ms；卖点识别 32992ms",
+      "actual_codes": [
+        "animation_explanation"
+      ],
+      "actual_names": [
+        "动画精讲"
+      ],
+      "result_selling_points": [
+        "动画精讲"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "理科（抽象知识可视化）",
+        "抽象题目变为有趣动画",
+        "5-8分钟讲透知识点，学完就练",
+        "权威背书",
+        "文科（抽象知识可视化）"
+      ],
+      "result_count": 7,
+      "total_duration_ms": 58219,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:42:55.602283+08:00"
+    },
+    {
+      "id": "SPX004",
+      "query": "我希望他的辅导班别另讲一套，最好和他学校课本里的东西能挂钩。",
+      "expected_code": "school_sync",
+      "expected_name": "同步校内",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 17342.03,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 17108,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 3989ms；卖点识别 13119ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 3989ms；卖点识别 13119ms",
+      "actual_codes": [
+        "school_sync"
+      ],
+      "actual_names": [
+        "同步校内"
+      ],
+      "result_selling_points": [
+        "同步校内"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "教材同步",
+        "课程同步"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 17341,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:43:12.946013+08:00"
+    },
+    {
+      "id": "SPX005",
+      "query": "学校现在学到哪了，课外练习就跟着练到哪，这样孩子不容易糊涂。",
+      "expected_code": "school_sync",
+      "expected_name": "同步校内",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 28160.77,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 28010,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4766ms；卖点识别 23243ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4766ms；卖点识别 23243ms",
+      "actual_codes": [
+        "school_sync"
+      ],
+      "actual_names": [
+        "同步校内"
+      ],
+      "result_selling_points": [
+        "同步校内"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "课程同步",
+        "教材同步"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 28159,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:43:41.167332+08:00"
+    },
+    {
+      "id": "SPX006",
+      "query": "不想让他在家学的和学校教的脱节，感觉那样白费时间。",
+      "expected_code": "school_sync",
+      "expected_name": "同步校内",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 18327.33,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 18177,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5608ms；卖点识别 12569ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5608ms；卖点识别 12569ms",
+      "actual_codes": [
+        "school_sync"
+      ],
+      "actual_names": [
+        "同步校内"
+      ],
+      "result_selling_points": [
+        "同步校内"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "课程同步",
+        "教材同步"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 18326,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:43:59.495712+08:00"
+    },
+    {
+      "id": "SPX007",
+      "query": "他白天上课的内容，晚上回家能有个对应的辅助东西帮他消化。",
+      "expected_code": "school_sync",
+      "expected_name": "同步校内",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 31692.2,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 30143,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 12657ms；卖点识别 17486ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 12657ms；卖点识别 17486ms",
+      "actual_codes": [
+        "school_sync"
+      ],
+      "actual_names": [
+        "同步校内"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai私教",
+        "课程同步",
+        "学完即练",
+        "5-8分钟讲透知识点，学完就练",
+        "文科（抽象知识可视化）"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 31683,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:44:31.189243+08:00"
+    },
+    {
+      "id": "SPX008",
+      "query": "孩子对那些看不见摸不着的概念总是理解不了，要是有种能把它们变活的东西就好了。",
+      "expected_code": "animation_explanation",
+      "expected_name": "动画精讲",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 20673.64,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 19039,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 19036ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 19036ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "理科（抽象知识可视化）",
+        "文科（抽象知识可视化）",
+        "权威背书",
+        "5-8分钟讲透知识点，学完就练",
+        "官方数据规模"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 20664,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:44:51.866327+08:00"
+    },
+    {
+      "id": "SPX009",
+      "query": "我想找那种用生动有趣的形式把复杂原理给展示出来的课程。",
+      "expected_code": "animation_explanation",
+      "expected_name": "动画精讲",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 40137.27,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 38811,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 19684ms；卖点识别 19127ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 19684ms；卖点识别 19127ms",
+      "actual_codes": [
+        "animation_explanation"
+      ],
+      "actual_names": [
+        "动画精讲"
+      ],
+      "result_selling_points": [
+        "动画精讲"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "文科（抽象知识可视化）",
+        "官方数据规模",
+        "5-8分钟讲透知识点，学完就练",
+        "权威背书",
+        "抽象题目变为有趣动画"
+      ],
+      "result_count": 7,
+      "total_duration_ms": 40134,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:45:32.006428+08:00"
+    },
+    {
+      "id": "SPX010",
+      "query": "有时候老师讲的好几遍，孩子还是似懂非懂，可能换个活泼的方法就通了。",
+      "expected_code": "animation_explanation",
+      "expected_name": "动画精讲",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 30771.88,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 29751,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 10424ms；卖点识别 19326ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 10424ms；卖点识别 19326ms",
+      "actual_codes": [
+        "animation_explanation"
+      ],
+      "actual_names": [
+        "动画精讲"
+      ],
+      "result_selling_points": [
+        "动画精讲"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "理科（抽象知识可视化）",
+        "5-8分钟讲透知识点，学完就练",
+        "抽象题目变为有趣动画",
+        "动画课多专业协同打磨",
+        "文科（抽象知识可视化）"
+      ],
+      "result_count": 7,
+      "total_duration_ms": 30769,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:46:02.781026+08:00"
+    },
+    {
+      "id": "SPX011",
+      "query": "希望有个东西能把那堆公式定理演成情景，让他一看就明白咋回事。",
+      "expected_code": "animation_explanation",
+      "expected_name": "动画精讲",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 39997.8,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 38673,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 11834ms；卖点识别 26839ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 11834ms；卖点识别 26839ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "理科（抽象知识可视化）",
+        "文科（抽象知识可视化）",
+        "权威背书",
+        "5-8分钟讲透知识点，学完就练",
+        "官方数据规模"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 39986,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:46:42.780850+08:00"
+    },
+    {
+      "id": "SPX012",
+      "query": "有没有那种把枯燥内容做得像小电影一样的，孩子肯定爱看。",
+      "expected_code": "animation_explanation",
+      "expected_name": "动画精讲",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 30181.99,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 29189,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 17481ms；卖点识别 11708ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 17481ms；卖点识别 11708ms",
+      "actual_codes": [
+        "animation_explanation"
+      ],
+      "actual_names": [
+        "动画精讲"
+      ],
+      "result_selling_points": [
+        "动画精讲"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "理科（抽象知识可视化）",
+        "官方数据规模",
+        "抽象题目变为有趣动画",
+        "动画课多专业协同打磨",
+        "文科（抽象知识可视化）"
+      ],
+      "result_count": 7,
+      "total_duration_ms": 30180,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:47:12.966040+08:00"
+    },
+    {
+      "id": "SPX013",
+      "query": "我女儿抽象思维不太行，要是能把那些东西变成具体画面，她就容易接受了。",
+      "expected_code": "animation_explanation",
+      "expected_name": "动画精讲",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 12230.83,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 10990,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 10986ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 10986ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "文科（抽象知识可视化）",
+        "理科（抽象知识可视化）",
+        "权威背书",
+        "5-8分钟讲透知识点，学完就练",
+        "官方数据规模"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 12221,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:47:25.201376+08:00"
+    },
+    {
+      "id": "SPX014",
+      "query": "最好能把书本上的死知识变成能动的过程，孩子看了就能刻在脑子里。",
+      "expected_code": "animation_explanation",
+      "expected_name": "动画精讲",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 9591.68,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 8360,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 8356ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 8356ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "文科（抽象知识可视化）",
+        "权威背书",
+        "5-8分钟讲透知识点，学完就练",
+        "理科（抽象知识可视化）",
+        "官方数据规模"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 9581,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:47:34.796567+08:00"
+    },
+    {
+      "id": "SPX015",
+      "query": "每次教他一个东西，我就想马上找几道配套题让他试试，看他到底消化了没。",
+      "expected_code": "instant_quiz",
+      "expected_name": "课后小测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 30688.75,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 30523,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6738ms；卖点识别 23785ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6738ms；卖点识别 23785ms",
+      "actual_codes": [
+        "instant_quiz"
+      ],
+      "actual_names": [
+        "课后小测"
+      ],
+      "result_selling_points": [
+        "课后小测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "配套功能学情报告"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 30687,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:48:05.488678+08:00"
+    },
+    {
+      "id": "SPX016",
+      "query": "孩子总说自己听懂了，但我心里没底，要是学完能有个小考验就好了。",
+      "expected_code": "instant_quiz",
+      "expected_name": "课后小测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 26044.98,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 25816,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6008ms；卖点识别 19808ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6008ms；卖点识别 19808ms",
+      "actual_codes": [
+        "instant_quiz"
+      ],
+      "actual_names": [
+        "课后小测"
+      ],
+      "result_selling_points": [
+        "课后小测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "配套功能学情报告"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 26044,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:48:31.535065+08:00"
+    },
+    {
+      "id": "SPX017",
+      "query": "最好边学边有题练手，这样不用等大考才知道哪里薄弱。",
+      "expected_code": "instant_quiz",
+      "expected_name": "课后小测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 31484.16,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 29907,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 8908ms；卖点识别 20998ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 8908ms；卖点识别 20998ms",
+      "actual_codes": [
+        "instant_quiz"
+      ],
+      "actual_names": [
+        "课后小测"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "学完即练",
+        "学练测闭环",
+        "错题同类题精准强化",
+        "配套功能，线上错题自动归纳到错题本",
+        "错题本精准定位练习"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 31471,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:49:03.021655+08:00"
+    },
+    {
+      "id": "SPX018",
+      "query": "我希望每学完一小节，就有个快测，能立刻看出他哪儿还糊涂。",
+      "expected_code": "instant_quiz",
+      "expected_name": "课后小测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 32299.95,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 30901,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6614ms；卖点识别 24287ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6614ms；卖点识别 24287ms",
+      "actual_codes": [
+        "instant_quiz"
+      ],
+      "actual_names": [
+        "课后小测"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "学完即练",
+        "学练测闭环",
+        "配套功能学情报告",
+        "配套功能，线上错题自动归纳到错题本",
+        "题库支撑"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 32289,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:49:35.325283+08:00"
+    },
+    {
+      "id": "SPX019",
+      "query": "有没有那种刚讲完就能抛几个实际问题让他解的课程？这样能加深印象。",
+      "expected_code": "instant_quiz",
+      "expected_name": "课后小测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 47755.45,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 47549,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 29497ms；卖点识别 18052ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 29497ms；卖点识别 18052ms",
+      "actual_codes": [
+        "instant_quiz"
+      ],
+      "actual_names": [
+        "课后小测"
+      ],
+      "result_selling_points": [
+        "课后小测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "配套功能学情报告"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 47754,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:50:23.084104+08:00"
+    },
+    {
+      "id": "SPX020",
+      "query": "我比较在意学后能不能马上检查，不然隔几天就忘了，也不知道他当时明白了没。",
+      "expected_code": "instant_quiz",
+      "expected_name": "课后小测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 31909.13,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 31764,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 14217ms；卖点识别 17546ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 14217ms；卖点识别 17546ms",
+      "actual_codes": [
+        "instant_quiz"
+      ],
+      "actual_names": [
+        "课后小测"
+      ],
+      "result_selling_points": [
+        "课后小测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "配套功能学情报告"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 31908,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:50:54.994976+08:00"
+    },
+    {
+      "id": "SPX021",
+      "query": "孩子学东西容易水过地皮湿，如果学完就让他实践一下，效果会好得多。",
+      "expected_code": "instant_quiz",
+      "expected_name": "课后小测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 25275.93,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 25083,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 14128ms；卖点识别 10954ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 14128ms；卖点识别 10954ms",
+      "actual_codes": [
+        "instant_quiz"
+      ],
+      "actual_names": [
+        "课后小测"
+      ],
+      "result_selling_points": [
+        "课后小测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "配套功能学情报告"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 25270,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:51:20.275252+08:00"
+    },
+    {
+      "id": "SPX022",
+      "query": "听说现在考试方向变了，光刷老题型不行了，想找些新式样的练习给孩子。",
+      "expected_code": "new_curriculum_prediction",
+      "expected_name": "新课标新考法预测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 26550.96,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 25721,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5214ms；卖点识别 20507ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5214ms；卖点识别 20507ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "创始人理念",
+        "新中考培优",
+        "数据验证，真命中",
+        "专家背书",
+        "创始人宣讲"
+      ],
+      "result_count": 5,
+      "total_duration_ms": 26548,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:51:46.827836+08:00"
+    },
+    {
+      "id": "SPX023",
+      "query": "现在的中考题越来越活，经常把两个学科搅在一起出，得让孩子提前适应。",
+      "expected_code": "new_curriculum_prediction",
+      "expected_name": "新课标新考法预测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 27360.89,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 26548,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5348ms；卖点识别 21199ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5348ms；卖点识别 21199ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "新中考培优",
+        "数据验证，真命中",
+        "专家背书",
+        "创始人理念",
+        "创始人宣讲"
+      ],
+      "result_count": 5,
+      "total_duration_ms": 27358,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:52:14.191229+08:00"
+    },
+    {
+      "id": "SPX024",
+      "query": "孩子一做那种给个生活场景让分析问题的题就发懵，有没有专门练这个的？",
+      "expected_code": "new_curriculum_prediction",
+      "expected_name": "新课标新考法预测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 31907.67,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 31683,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7766ms；卖点识别 23916ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7766ms；卖点识别 23916ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "新中考培优",
+        "专家背书"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 31906,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:52:46.101703+08:00"
+    },
+    {
+      "id": "SPX025",
+      "query": "我想找点那种能练到结合实际的题目，别总考死记硬背的。",
+      "expected_code": "new_curriculum_prediction",
+      "expected_name": "新课标新考法预测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 33283.16,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 32372,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 8037ms；卖点识别 24335ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 8037ms；卖点识别 24335ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "创始人理念",
+        "数据验证，真命中",
+        "新中考培优",
+        "专家背书",
+        "创始人宣讲"
+      ],
+      "result_count": 5,
+      "total_duration_ms": 33280,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:53:19.386551+08:00"
+    },
+    {
+      "id": "SPX026",
+      "query": "最近考试加了好多开放性的问法，孩子总是答不全，需要针对练练。",
+      "expected_code": "new_curriculum_prediction",
+      "expected_name": "新课标新考法预测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 27171.45,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 26994,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6795ms；卖点识别 20198ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6795ms；卖点识别 20198ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "新中考培优",
+        "创始人宣讲"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 27170,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:53:46.560811+08:00"
+    },
+    {
+      "id": "SPX027",
+      "query": "那种把知识放在一个真实任务里让孩子解决的题，现在特别多，他很不习惯。",
+      "expected_code": "new_curriculum_prediction",
+      "expected_name": "新课标新考法预测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 39082.46,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 38186,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 17791ms；卖点识别 20394ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 17791ms；卖点识别 20394ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "创始人理念",
+        "数据验证，真命中",
+        "新中考培优",
+        "创始人宣讲",
+        "专家背书"
+      ],
+      "result_count": 5,
+      "total_duration_ms": 39079,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:54:25.644986+08:00"
+    },
+    {
+      "id": "SPX028",
+      "query": "感觉现在的考试不光考知识了，更看能力，比如从材料里找信息再分析。",
+      "expected_code": "new_curriculum_prediction",
+      "expected_name": "新课标新考法预测",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 7136.18,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 5959,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5955ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5955ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "数据验证，真命中",
+        "5-8分钟讲透知识点，学完就练",
+        "考前突击",
+        "衔接课",
+        "错题同类题精准强化"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 7127,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:54:32.786043+08:00"
+    },
+    {
+      "id": "SPX029",
+      "query": "孩子做卷子总是最后两道大题不会，怎么办？",
+      "expected_code": "focused_excellence",
+      "expected_name": "专项培优",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 38371.25,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 36791,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6495ms；卖点识别 30296ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6495ms；卖点识别 30296ms",
+      "actual_codes": [
+        "focused_excellence"
+      ],
+      "actual_names": [
+        "专项培优"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "学练测闭环",
+        "错题同类题精准强化",
+        "5-8分钟讲透知识点，学完就练",
+        "拍题精学",
+        "学完即练"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 38360,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:55:11.161525+08:00"
+    },
+    {
+      "id": "SPX030",
+      "query": "考前时间不多，怎么把容易丢分的题集中练练？",
+      "expected_code": "focused_excellence",
+      "expected_name": "专项培优",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 81716.04,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 80982,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 10906ms；卖点识别 70076ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 10906ms；卖点识别 70076ms",
+      "actual_codes": [
+        "focused_excellence"
+      ],
+      "actual_names": [
+        "专项培优"
+      ],
+      "result_selling_points": [
+        "专项培优"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "考前专项突破",
+        "高频错题",
+        "考前突击",
+        "重难点培优"
+      ],
+      "result_count": 4,
+      "total_duration_ms": 81711,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:56:32.886448+08:00"
+    },
+    {
+      "id": "SPX031",
+      "query": "数学哪个部分孩子最容易出错，想专门练一下。",
+      "expected_code": "focused_excellence",
+      "expected_name": "专项培优",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 42830.99,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 42076,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 9514ms；卖点识别 32561ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 9514ms；卖点识别 32561ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI错题本"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "拍照上传错题",
+        "错题本精准定位练习",
+        "错题同类题精准强化",
+        "精准筛选错题"
+      ],
+      "result_count": 4,
+      "total_duration_ms": 42828,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:57:15.724179+08:00"
+    },
+    {
+      "id": "SPX032",
+      "query": "听说考试有些题型经常出现，想让孩子专练这些。",
+      "expected_code": "focused_excellence",
+      "expected_name": "专项培优",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 21124.74,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 20312,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4501ms；卖点识别 15811ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4501ms；卖点识别 15811ms",
+      "actual_codes": [
+        "focused_excellence"
+      ],
+      "actual_names": [
+        "专项培优"
+      ],
+      "result_selling_points": [
+        "专项培优"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "考前专项突破",
+        "重难点培优",
+        "高频错题",
+        "考前突击"
+      ],
+      "result_count": 4,
+      "total_duration_ms": 21121,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:57:36.854331+08:00"
+    },
+    {
+      "id": "SPX033",
+      "query": "孩子说有些知识点考试总考，但就是学不透。",
+      "expected_code": "focused_excellence",
+      "expected_name": "专项培优",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 50065.61,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 48354,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 10378ms；卖点识别 37976ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 10378ms；卖点识别 37976ms",
+      "actual_codes": [
+        "focused_excellence"
+      ],
+      "actual_names": [
+        "专项培优"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "5-8分钟讲透知识点，学完就练",
+        "权威背书",
+        "文科（抽象知识可视化）",
+        "配套功能学情报告",
+        "抽象题目变为有趣动画"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 50053,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T12:58:26.929045+08:00"
+    },
+    {
+      "id": "SPX034",
+      "query": "想帮孩子找些压轴题的解析，但不知道怎么找。",
+      "expected_code": "focused_excellence",
+      "expected_name": "专项培优",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 20997.33,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 20321,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6732ms；卖点识别 13588ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6732ms；卖点识别 13588ms",
+      "actual_codes": [
+        "focused_excellence"
+      ],
+      "actual_names": [
+        "专项培优"
+      ],
+      "result_selling_points": [
+        "专项培优"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "考前突击",
+        "重难点培优",
+        "高频错题",
+        "考前专项突破"
+      ],
+      "result_count": 4,
+      "total_duration_ms": 20994,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:58:47.932867+08:00"
+    },
+    {
+      "id": "SPX035",
+      "query": "题目稍微变一变孩子就不会了，怎么办？",
+      "expected_code": "transfer_practice",
+      "expected_name": "举一反三",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 29859.81,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 29654,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6883ms；卖点识别 22770ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6883ms；卖点识别 22770ms",
+      "actual_codes": [
+        "transfer_practice"
+      ],
+      "actual_names": [
+        "举一反三"
+      ],
+      "result_selling_points": [
+        "举一反三"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "举一反三"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 29859,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:59:17.795814+08:00"
+    },
+    {
+      "id": "SPX036",
+      "query": "明明会做原题，换个问法就不知道怎么下手。",
+      "expected_code": "transfer_practice",
+      "expected_name": "举一反三",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 23094.81,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 22916,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 11580ms；卖点识别 11335ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 11580ms；卖点识别 11335ms",
+      "actual_codes": [
+        "transfer_practice"
+      ],
+      "actual_names": [
+        "举一反三"
+      ],
+      "result_selling_points": [
+        "举一反三"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "举一反三"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 23094,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:59:40.896528+08:00"
+    },
+    {
+      "id": "SPX037",
+      "query": "怎么让孩子看懂题目背后的原理，而不是死记硬背。",
+      "expected_code": "transfer_practice",
+      "expected_name": "举一反三",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 17318.63,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 17126,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "已确认卖点内证明点补全"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "已确认卖点内证明点补全",
+      "actual_codes": [
+        "universal_method"
+      ],
+      "actual_names": [
+        "万能解法"
+      ],
+      "result_selling_points": [
+        "万能解法"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "一题多解"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 17317,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T12:59:58.219617+08:00"
+    },
+    {
+      "id": "SPX038",
+      "query": "孩子说这道题老师讲过，但考试换个数字就错了。",
+      "expected_code": "transfer_practice",
+      "expected_name": "举一反三",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 22528.3,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 22408,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "已确认卖点内证明点补全"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "已确认卖点内证明点补全",
+      "actual_codes": [
+        "transfer_practice"
+      ],
+      "actual_names": [
+        "举一反三"
+      ],
+      "result_selling_points": [
+        "举一反三"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "举一反三"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 22527,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:00:20.750995+08:00"
+    },
+    {
+      "id": "SPX039",
+      "query": "同一类题，只要改个条件，孩子就懵了。",
+      "expected_code": "transfer_practice",
+      "expected_name": "举一反三",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 40587.86,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 40303,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 9553ms；卖点识别 30749ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 9553ms；卖点识别 30749ms",
+      "actual_codes": [
+        "universal_method"
+      ],
+      "actual_names": [
+        "万能解法"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [],
+      "result_count": 0,
+      "total_duration_ms": 40587,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:01:01.341397+08:00"
+    },
+    {
+      "id": "SPX040",
+      "query": "想让孩子做一道题能会一类题，有什么好方法？",
+      "expected_code": "transfer_practice",
+      "expected_name": "举一反三",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 55431.32,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 55097,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 18490ms；卖点识别 36607ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 18490ms；卖点识别 36607ms",
+      "actual_codes": [
+        "transfer_practice"
+      ],
+      "actual_names": [
+        "举一反三"
+      ],
+      "result_selling_points": [
+        "举一反三"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "举一反三"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 55430,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:01:56.774914+08:00"
+    },
+    {
+      "id": "SPX041",
+      "query": "听说有的课是真正出过考试题的人设计的，这种有用吗？",
+      "expected_code": "expert_planning",
+      "expected_name": "专家规划",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 5991.95,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 4763,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4760ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4760ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "数据验证，真命中",
+        "动画课多专业协同打磨",
+        "学完即练",
+        "极速预习",
+        "权威背书"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 5984,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:02:02.769577+08:00"
+    },
+    {
+      "id": "SPX042",
+      "query": "想找教研经验丰富的老师规划的课程，避免孩子走弯路。",
+      "expected_code": "expert_planning",
+      "expected_name": "专家规划",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 18112.49,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 17868,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5537ms；卖点识别 12326ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5537ms；卖点识别 12326ms",
+      "actual_codes": [
+        "expert_planning"
+      ],
+      "actual_names": [
+        "专家规划"
+      ],
+      "result_selling_points": [
+        "专家规划"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "专家背书"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 18111,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:02:20.887368+08:00"
+    },
+    {
+      "id": "SPX043",
+      "query": "孩子时间宝贵，怎么知道选的课是不是真正懂考试的人做的？",
+      "expected_code": "expert_planning",
+      "expected_name": "专家规划",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 43262.35,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 42457,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 20261ms；卖点识别 22195ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 20261ms；卖点识别 22195ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "数据验证，真命中",
+        "新中考培优",
+        "创始人宣讲",
+        "专家背书",
+        "创始人理念"
+      ],
+      "result_count": 5,
+      "total_duration_ms": 43255,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:03:04.152705+08:00"
+    },
+    {
+      "id": "SPX044",
+      "query": "有没有那种教材编者参与设计的辅导班？",
+      "expected_code": "expert_planning",
+      "expected_name": "专家规划",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 17290.3,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 17063,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "已确认卖点内证明点补全"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "已确认卖点内证明点补全",
+      "actual_codes": [
+        "expert_planning"
+      ],
+      "actual_names": [
+        "专家规划"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [],
+      "result_count": 0,
+      "total_duration_ms": 17289,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:03:21.449177+08:00"
+    },
+    {
+      "id": "SPX045",
+      "query": "想找个课程体系有行家把关的，不要随便拼凑的。",
+      "expected_code": "expert_planning",
+      "expected_name": "专家规划",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 6618.33,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 5209,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5205ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5205ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "权威背书",
+        "动画课多专业协同打磨",
+        "学练测闭环",
+        "官方数据规模",
+        "ai定制"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 6610,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:03:28.070155+08:00"
+    },
+    {
+      "id": "SPX046",
+      "query": "怎么分辨一个课程是不是由懂命题的人设计的？",
+      "expected_code": "expert_planning",
+      "expected_name": "专家规划",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 36740.61,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 36513,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5290ms；卖点识别 31222ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5290ms；卖点识别 31222ms",
+      "actual_codes": [
+        "new_curriculum_prediction"
+      ],
+      "actual_names": [
+        "新课标新考法预测"
+      ],
+      "result_selling_points": [
+        "新课标新考法预测"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "专家背书"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 36739,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:04:04.816704+08:00"
+    },
+    {
+      "id": "SPX047",
+      "query": "孩子小学成绩挺好，一上初中就掉队了，为什么？",
+      "expected_code": "stage_transition",
+      "expected_name": "学段衔接",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 11599.29,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 10203,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 10201ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 10201ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "学练测闭环",
+        "衔接课",
+        "ai定制规划",
+        "老师给学生做详细规划",
+        "5-8分钟讲透知识点，学完就练"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 11592,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:04:16.418691+08:00"
+    },
+    {
+      "id": "SPX048",
+      "query": "初升高暑假怎么过才不会一开学就落后？",
+      "expected_code": "stage_transition",
+      "expected_name": "学段衔接",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 16816.92,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 15285,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 15278ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 15278ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "学练测闭环",
+        "ai定制规划",
+        "衔接课",
+        "ai定制",
+        "老师给学生做详细规划"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 16813,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:04:33.241736+08:00"
+    },
+    {
+      "id": "SPX049",
+      "query": "三年级开始加减乘除混在一起，孩子就乱套了。",
+      "expected_code": "stage_transition",
+      "expected_name": "学段衔接",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 37689.87,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 36993,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 11551ms；卖点识别 25440ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 11551ms；卖点识别 25440ms",
+      "actual_codes": [
+        "animation_explanation"
+      ],
+      "actual_names": [
+        "动画精讲"
+      ],
+      "result_selling_points": [
+        "动画精讲"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "抽象题目变为有趣动画",
+        "文科（抽象知识可视化）",
+        "理科（抽象知识可视化）",
+        "动画课多专业协同打磨",
+        "5-8分钟讲透知识点，学完就练"
+      ],
+      "result_count": 7,
+      "total_duration_ms": 37687,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:05:10.935695+08:00"
+    },
+    {
+      "id": "SPX050",
+      "query": "一上初中数学突然变难，怎么帮孩子适应？",
+      "expected_code": "stage_transition",
+      "expected_name": "学段衔接",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 24231.4,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 24039,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7314ms；卖点识别 16725ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7314ms；卖点识别 16725ms",
+      "actual_codes": [
+        "stage_transition"
+      ],
+      "actual_names": [
+        "学段衔接"
+      ],
+      "result_selling_points": [
+        "学段衔接"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "衔接课",
+        "ai定制规划"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 24230,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:05:35.170363+08:00"
+    },
+    {
+      "id": "SPX051",
+      "query": "孩子幼儿园没学过拼音，上小学能跟上吗？",
+      "expected_code": "stage_transition",
+      "expected_name": "学段衔接",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 7888.83,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 6472,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6468ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6468ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "学练测闭环",
+        "衔接课",
+        "ai定制规划",
+        "权威背书",
+        "5-8分钟讲透知识点，学完就练"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 7880,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:05:43.061636+08:00"
+    },
+    {
+      "id": "SPX052",
+      "query": "小学升初中后，学习方式变化大，怎么应对？",
+      "expected_code": "stage_transition",
+      "expected_name": "学段衔接",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 30945.93,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 30763,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 11145ms；卖点识别 19618ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 11145ms；卖点识别 19618ms",
+      "actual_codes": [
+        "stage_transition"
+      ],
+      "actual_names": [
+        "学段衔接"
+      ],
+      "result_selling_points": [
+        "学段衔接"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "衔接课"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 30943,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:06:14.013014+08:00"
+    },
+    {
+      "id": "SPX053",
+      "query": "孩子做题一换题型就懵，有没有办法让他学会自己分析？",
+      "expected_code": "universal_method",
+      "expected_name": "万能解法",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 18409.49,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 18304,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "已确认卖点内证明点补全"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "已确认卖点内证明点补全",
+      "actual_codes": [
+        "universal_method"
+      ],
+      "actual_names": [
+        "万能解法"
+      ],
+      "result_selling_points": [
+        "万能解法"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "一题多解"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 18408,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:06:32.427145+08:00"
+    },
+    {
+      "id": "SPX054",
+      "query": "不想让他背题，但希望他看见新题也能找到路子。",
+      "expected_code": "universal_method",
+      "expected_name": "万能解法",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 15826.97,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 14487,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 14484ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 14484ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "举一反三",
+        "苏格拉底讲解提问",
+        "拍题精学",
+        "5-8分钟讲透知识点，学完就练",
+        "错题同类题精准强化"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 15816,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:06:48.259575+08:00"
+    },
+    {
+      "id": "SPX055",
+      "query": "现在题目太活，娃死套公式老出错，怎么破？",
+      "expected_code": "universal_method",
+      "expected_name": "万能解法",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 63139.02,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 62881,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 29962ms；卖点识别 32919ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 29962ms；卖点识别 32919ms",
+      "actual_codes": [
+        "universal_method",
+        "transfer_practice"
+      ],
+      "actual_names": [
+        "万能解法",
+        "举一反三"
+      ],
+      "result_selling_points": [
+        "万能解法"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "ambiguous_business_intent_search",
+      "top_result_titles": [
+        "举一反三",
+        "一题多解"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 63136,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:07:51.406602+08:00"
+    },
+    {
+      "id": "SPX056",
+      "query": "有没有那种让他彻底告别背答案的学法？",
+      "expected_code": "universal_method",
+      "expected_name": "万能解法",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 22411.9,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 22259,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7498ms；卖点识别 14760ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7498ms；卖点识别 14760ms",
+      "actual_codes": [
+        "universal_method"
+      ],
+      "actual_names": [
+        "万能解法"
+      ],
+      "result_selling_points": [
+        "万能解法"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "一题多解"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 22411,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:08:13.821842+08:00"
+    },
+    {
+      "id": "SPX057",
+      "query": "成绩忽上忽下，感觉是没搞懂背后那套东西。",
+      "expected_code": "universal_method",
+      "expected_name": "万能解法",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 54832.15,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 54693,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 27650ms；卖点识别 27043ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 27650ms；卖点识别 27043ms",
+      "actual_codes": [
+        "universal_method"
+      ],
+      "actual_names": [
+        "万能解法"
+      ],
+      "result_selling_points": [
+        "万能解法"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "一题多解"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 54831,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:09:08.656510+08:00"
+    },
+    {
+      "id": "SPX058",
+      "query": "想找一种教孩子见招拆招的课，不是光刷题。",
+      "expected_code": "universal_method",
+      "expected_name": "万能解法",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 26028.38,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 24605,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 10304ms；卖点识别 14301ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 10304ms；卖点识别 14301ms",
+      "actual_codes": [
+        "transfer_practice"
+      ],
+      "actual_names": [
+        "举一反三"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "衔接课",
+        "举一反三",
+        "5-8分钟讲透知识点，学完就练",
+        "错题同类题精准强化",
+        "新中考培优"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 26018,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:09:34.687660+08:00"
+    },
+    {
+      "id": "SPX059",
+      "query": "孩子做题没头绪，每天该练什么我也不清楚。",
+      "expected_code": "ai_learning_plan",
+      "expected_name": "AI定制学习方案",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 23514.85,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 22037,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7553ms；卖点识别 14483ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7553ms；卖点识别 14483ms",
+      "actual_codes": [
+        "ai_learning_plan"
+      ],
+      "actual_names": [
+        "AI定制学习方案"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai定制",
+        "ai定制规划",
+        "精准筛选错题",
+        "创始人理念",
+        "错题同类题精准强化"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 23507,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:09:58.210137+08:00"
+    },
+    {
+      "id": "SPX060",
+      "query": "能不能根据他这周错题，自动出点同类的练练？",
+      "expected_code": "ai_learning_plan",
+      "expected_name": "AI定制学习方案",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 27845.34,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 27632,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5240ms；卖点识别 22391ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5240ms；卖点识别 22391ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [],
+      "result_count": 0,
+      "total_duration_ms": 27844,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:10:26.061622+08:00"
+    },
+    {
+      "id": "SPX061",
+      "query": "马上初三了，时间紧，不知道怎么排最有效。",
+      "expected_code": "ai_learning_plan",
+      "expected_name": "AI定制学习方案",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 21634.0,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 21463,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5441ms；卖点识别 16021ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5441ms；卖点识别 16021ms",
+      "actual_codes": [
+        "ai_learning_plan"
+      ],
+      "actual_names": [
+        "AI定制学习方案"
+      ],
+      "result_selling_points": [
+        "AI定制学习方案"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai定制",
+        "ai定制规划"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 21633,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:10:47.698232+08:00"
+    },
+    {
+      "id": "SPX062",
+      "query": "他的弱项是函数，能先集中补这块吗？",
+      "expected_code": "ai_learning_plan",
+      "expected_name": "AI定制学习方案",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 44545.22,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 44318,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 17350ms；卖点识别 26968ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 17350ms；卖点识别 26968ms",
+      "actual_codes": [
+        "ai_learning_plan"
+      ],
+      "actual_names": [
+        "AI定制学习方案"
+      ],
+      "result_selling_points": [
+        "AI定制学习方案"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "exploratory_business_intent_search",
+      "top_result_titles": [
+        "ai定制规划",
+        "ai定制"
+      ],
+      "result_count": 2,
+      "total_duration_ms": 44544,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:11:32.246600+08:00"
+    },
+    {
+      "id": "SPX063",
+      "query": "我自己不会辅导，能有个东西告诉他今天先做哪几页吗？",
+      "expected_code": "ai_learning_plan",
+      "expected_name": "AI定制学习方案",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 23594.23,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 23434,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7057ms；卖点识别 16376ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7057ms；卖点识别 16376ms",
+      "actual_codes": [
+        "ai_learning_plan"
+      ],
+      "actual_names": [
+        "AI定制学习方案"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [],
+      "result_count": 0,
+      "total_duration_ms": 23593,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:11:55.844302+08:00"
+    },
+    {
+      "id": "SPX064",
+      "query": "上回考了70分，下一步该抓什么感觉没方向。",
+      "expected_code": "ai_learning_plan",
+      "expected_name": "AI定制学习方案",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 44591.68,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 44404,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6762ms；卖点识别 37642ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6762ms；卖点识别 37642ms",
+      "actual_codes": [
+        "ai_learning_plan"
+      ],
+      "actual_names": [
+        "AI定制学习方案"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [],
+      "result_count": 0,
+      "total_duration_ms": 44591,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:12:40.438841+08:00"
+    },
+    {
+      "id": "SPX065",
+      "query": "孩子晚上写题卡住了，家里没人能帮上忙。",
+      "expected_code": "ai_tutor_qa",
+      "expected_name": "AI私教答疑",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 21246.07,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 20943,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5561ms；卖点识别 15381ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5561ms；卖点识别 15381ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI私教答疑"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai私教"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 21245,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:13:01.687936+08:00"
+    },
+    {
+      "id": "SPX066",
+      "query": "问学校老师怕打扰，最好有个随时能问的助手。",
+      "expected_code": "ai_tutor_qa",
+      "expected_name": "AI私教答疑",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 31430.62,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 31266,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5654ms；卖点识别 25612ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5654ms；卖点识别 25612ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI私教答疑"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai私教"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 31429,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:13:33.123698+08:00"
+    },
+    {
+      "id": "SPX067",
+      "query": "有时一个小点不理解，就得卡一晚上，太耽误时间。",
+      "expected_code": "ai_tutor_qa",
+      "expected_name": "AI私教答疑",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 35069.28,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 34912,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6680ms；卖点识别 28232ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6680ms；卖点识别 28232ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI私教答疑"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai私教"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 35068,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:14:08.195773+08:00"
+    },
+    {
+      "id": "SPX068",
+      "query": "有没有那种不懂就能马上问，还能一直追问的？",
+      "expected_code": "ai_tutor_qa",
+      "expected_name": "AI私教答疑",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 18727.21,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 18507,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 3666ms；卖点识别 14841ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 3666ms；卖点识别 14841ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI私教答疑"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai私教"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 18726,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:14:26.925917+08:00"
+    },
+    {
+      "id": "SPX069",
+      "query": "他不敢问老师，积攒一堆问题到考试就暴露。",
+      "expected_code": "ai_tutor_qa",
+      "expected_name": "AI私教答疑",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 39085.58,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 38907,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 21883ms；卖点识别 17024ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 21883ms；卖点识别 17024ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI私教答疑"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "ai私教"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 39082,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:15:06.014776+08:00"
+    },
+    {
+      "id": "SPX070",
+      "query": "我们家长不会教初中的题，只能干着急。",
+      "expected_code": "ai_tutor_qa",
+      "expected_name": "AI私教答疑",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 8737.94,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 7133,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7130ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7130ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "ai私教",
+        "学练测闭环",
+        "老师给学生做详细规划",
+        "拍题精学",
+        "ai定制规划"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 8728,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:15:14.757884+08:00"
+    },
+    {
+      "id": "SPX071",
+      "query": "孩子拿手机扫题直接出答案，根本没动脑子。",
+      "expected_code": "photo_guided_learning",
+      "expected_name": "AI拍题精学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 7334.19,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 5857,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5853ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5853ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "拍题精学",
+        "苏格拉底讲解提问",
+        "极速预习",
+        "配套功能，线上错题自动归纳到错题本",
+        "错题同类题精准强化"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 7323,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:15:22.099543+08:00"
+    },
+    {
+      "id": "SPX072",
+      "query": "扫完就抄，下次换个数字还是不会。怎么管？",
+      "expected_code": "photo_guided_learning",
+      "expected_name": "AI拍题精学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 13293.76,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 13183,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "已确认卖点内证明点补全"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "已确认卖点内证明点补全",
+      "actual_codes": [
+        "transfer_practice"
+      ],
+      "actual_names": [
+        "举一反三"
+      ],
+      "result_selling_points": [
+        "举一反三"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "举一反三"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 13292,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:15:35.405405+08:00"
+    },
+    {
+      "id": "SPX073",
+      "query": "想让他遇到难题先自己走几步，再看提示。",
+      "expected_code": "photo_guided_learning",
+      "expected_name": "AI拍题精学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 46875.37,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 46709,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 13084ms；卖点识别 33625ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 13084ms；卖点识别 33625ms",
+      "actual_codes": [
+        "photo_guided_learning"
+      ],
+      "actual_names": [
+        "AI拍题精学"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [],
+      "result_count": 0,
+      "total_duration_ms": 46874,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:16:22.296616+08:00"
+    },
+    {
+      "id": "SPX074",
+      "query": "有没有那种扫了题之后，先反问你怎么想的工具？",
+      "expected_code": "photo_guided_learning",
+      "expected_name": "AI拍题精学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 19700.55,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 19520,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5784ms；卖点识别 13736ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5784ms；卖点识别 13736ms",
+      "actual_codes": [
+        "photo_guided_learning"
+      ],
+      "actual_names": [
+        "AI拍题精学"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [],
+      "result_count": 0,
+      "total_duration_ms": 19700,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:16:42.001405+08:00"
+    },
+    {
+      "id": "SPX075",
+      "query": "作业全靠搜答案，十分钟做完，考试全露馅。",
+      "expected_code": "photo_guided_learning",
+      "expected_name": "AI拍题精学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 7083.74,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 5700,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5696ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5696ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "拍题精学",
+        "苏格拉底讲解提问",
+        "极速预习",
+        "配套功能，线上错题自动归纳到错题本",
+        "错题同类题精准强化"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 7079,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:16:49.089551+08:00"
+    },
+    {
+      "id": "SPX076",
+      "query": "一看答案全明白，合上答案还是不会，愁人。",
+      "expected_code": "photo_guided_learning",
+      "expected_name": "AI拍题精学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 8725.94,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 7313,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7309ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7309ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "拍题精学",
+        "苏格拉底讲解提问",
+        "5-8分钟讲透知识点，学完就练",
+        "学练测闭环",
+        "配套功能，线上错题自动归纳到错题本"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 8715,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:16:57.820802+08:00"
+    },
+    {
+      "id": "SPX077",
+      "query": "上课铃响了，赶紧把今天要讲的单元拍一下，趁老师没进来先扫个大概。",
+      "expected_code": "rapid_preview_review",
+      "expected_name": "极速预习复习",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 22949.07,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 22645,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4154ms；卖点识别 18489ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4154ms；卖点识别 18489ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "极速预习复习"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "极速预习"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 22948,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:17:20.777317+08:00"
+    },
+    {
+      "id": "SPX078",
+      "query": "放学回家路上，把白天随手记的要点拍一张，到家就能立刻回顾。",
+      "expected_code": "rapid_preview_review",
+      "expected_name": "极速预习复习",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 30872.28,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 30698,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 9445ms；卖点识别 21252ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 9445ms；卖点识别 21252ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "极速预习复习"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "极速预习"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 30871,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:17:51.653195+08:00"
+    },
+    {
+      "id": "SPX079",
+      "query": "孩子上课容易走神，让他把板书拍下来，晚上我帮他一起理理思路。",
+      "expected_code": "rapid_preview_review",
+      "expected_name": "极速预习复习",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 13475.59,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 12277,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 12273ms；无需进入卖点层"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 12273ms；无需进入卖点层",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "no_reliable_intent_search",
+      "top_result_titles": [
+        "拍题精学",
+        "苏格拉底讲解提问",
+        "极速预习",
+        "ai定制",
+        "错题同类题精准强化"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 13464,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:18:05.133028+08:00"
+    },
+    {
+      "id": "SPX080",
+      "query": "周末想给孩子查漏补缺，把教材拍一拍，马上就能找出薄弱环节。",
+      "expected_code": "rapid_preview_review",
+      "expected_name": "极速预习复习",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 34205.5,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 33845,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6212ms；卖点识别 27632ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6212ms；卖点识别 27632ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "极速预习复习"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "极速预习"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 34204,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:18:39.344762+08:00"
+    },
+    {
+      "id": "SPX081",
+      "query": "明天要学新章节了，晚上提前拍下内容，一会儿就有个印象，上课不慌。",
+      "expected_code": "rapid_preview_review",
+      "expected_name": "极速预习复习",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 27862.37,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 27680,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5512ms；卖点识别 22167ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5512ms；卖点识别 22167ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "极速预习复习"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "极速预习"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 27861,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:19:07.210249+08:00"
+    },
+    {
+      "id": "SPX082",
+      "query": "每逢大考前夕，把书本的重点页拍下来，等车的时候看两眼，比死记效果好。",
+      "expected_code": "rapid_preview_review",
+      "expected_name": "极速预习复习",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 40183.63,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 39984,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5430ms；卖点识别 34554ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5430ms；卖点识别 34554ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "极速预习复习"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "极速预习"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 40183,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:19:47.397379+08:00"
+    },
+    {
+      "id": "SPX083",
+      "query": "把自己做错过的题目拍照存起来，随时能翻出来再练，看看还会不会错。",
+      "expected_code": "ai_error_book",
+      "expected_name": "AI错题本",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 36520.99,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 36337,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5619ms；卖点识别 30717ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5619ms；卖点识别 30717ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI错题本"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "拍照上传错题"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 36520,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:20:23.921922+08:00"
+    },
+    {
+      "id": "SPX084",
+      "query": "孩子老是同一类问题反复错，把这些题目收集好，隔三差五就让他重做一遍。",
+      "expected_code": "ai_error_book",
+      "expected_name": "AI错题本",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 29544.73,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 28579,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 3967ms；卖点识别 24612ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 3967ms；卖点识别 24612ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI错题本"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "错题本精准定位练习",
+        "错题同类题精准强化",
+        "拍照上传错题",
+        "精准筛选错题"
+      ],
+      "result_count": 4,
+      "total_duration_ms": 29543,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:20:53.473125+08:00"
+    },
+    {
+      "id": "SPX085",
+      "query": "把平时练习中出错的题目分学科整理好，以后找起来方便，还能针对性强化。",
+      "expected_code": "ai_error_book",
+      "expected_name": "AI错题本",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 34267.13,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 34069,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6431ms；卖点识别 27637ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6431ms；卖点识别 27637ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI错题本"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "精准筛选错题"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 34266,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:21:27.744191+08:00"
+    },
+    {
+      "id": "SPX086",
+      "query": "每次作业或考试中踩的坑，拍下来记上日期，大考前重点回顾这些就够了。",
+      "expected_code": "ai_error_book",
+      "expected_name": "AI错题本",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 91815.36,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 91596,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6936ms；卖点识别 84659ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6936ms；卖点识别 84659ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI错题本"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "拍照上传错题"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 91808,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:22:59.563194+08:00"
+    },
+    {
+      "id": "SPX087",
+      "query": "建立一个个人出错档案，按知识点归类，哪个弱项一眼便知，专攻那部分。",
+      "expected_code": "ai_error_book",
+      "expected_name": "AI错题本",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 30416.61,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 29716,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4974ms；卖点识别 24742ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4974ms；卖点识别 24742ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI错题本"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "精准筛选错题",
+        "错题本精准定位练习",
+        "错题同类题精准强化",
+        "拍照上传错题"
+      ],
+      "result_count": 4,
+      "total_duration_ms": 30414,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:23:29.984312+08:00"
+    },
+    {
+      "id": "SPX088",
+      "query": "与其盲目刷题，不如把自己做错过的题目反复练，直到彻底搞懂。",
+      "expected_code": "ai_error_book",
+      "expected_name": "AI错题本",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 33541.61,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 33367,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6277ms；卖点识别 27090ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6277ms；卖点识别 27090ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "AI错题本"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "错题本精准定位练习"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 33540,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:24:03.532135+08:00"
+    },
+    {
+      "id": "SPX089",
+      "query": "孩子放学后没人管，找个专业的老师天天带着他学，比玩手机强。",
+      "expected_code": "human_teacher_supervision",
+      "expected_name": "真人老师督学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 19522.65,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 18845,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4310ms；卖点识别 14535ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4310ms；卖点识别 14535ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "真人老师督学"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "老师给学生做详细规划",
+        "真人老师督学",
+        "老师帮学生分析问题"
+      ],
+      "result_count": 3,
+      "total_duration_ms": 19521,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:24:23.058895+08:00"
+    },
+    {
+      "id": "SPX090",
+      "query": "家长说一百句不如老师一句话，找个温柔又严格的老师每天陪他完成任务。",
+      "expected_code": "human_teacher_supervision",
+      "expected_name": "真人老师督学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 31890.69,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 31294,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4514ms；卖点识别 26779ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4514ms；卖点识别 26779ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "真人老师督学"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "真人老师督学",
+        "老师帮学生分析问题",
+        "老师给学生做详细规划"
+      ],
+      "result_count": 3,
+      "total_duration_ms": 31888,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:24:54.955498+08:00"
+    },
+    {
+      "id": "SPX091",
+      "query": "每天有人专门检查学习进度，没做完还会打电话来催，比家长自己急管用。",
+      "expected_code": "human_teacher_supervision",
+      "expected_name": "真人老师督学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 25126.04,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 24841,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5067ms；卖点识别 19774ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5067ms；卖点识别 19774ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "真人老师督学"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "真人老师督学"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 25125,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:25:20.092284+08:00"
+    },
+    {
+      "id": "SPX092",
+      "query": "孩子学习不自觉，希望有个老师能经常跟他聊聊学习情况，及时纠偏。",
+      "expected_code": "human_teacher_supervision",
+      "expected_name": "真人老师督学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 35755.86,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 35521,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 4268ms；卖点识别 31253ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 4268ms；卖点识别 31253ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "真人老师督学"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "真人老师督学"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 35755,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:25:55.852233+08:00"
+    },
+    {
+      "id": "SPX093",
+      "query": "平时工作忙没时间盯，能有个老师帮忙跟进孩子学习，定期告诉我情况就好。",
+      "expected_code": "human_teacher_supervision",
+      "expected_name": "真人老师督学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 35272.07,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 34405,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5003ms；卖点识别 29402ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5003ms；卖点识别 29402ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "真人老师督学"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "老师给学生做详细规划",
+        "真人老师督学",
+        "老师帮学生分析问题"
+      ],
+      "result_count": 3,
+      "total_duration_ms": 35267,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:26:31.132153+08:00"
+    },
+    {
+      "id": "SPX094",
+      "query": "孩子最近状态下滑，需要有人能一对一给他梳理问题和安排每天任务。",
+      "expected_code": "human_teacher_supervision",
+      "expected_name": "真人老师督学",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 27988.99,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 27042,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 8011ms；卖点识别 19031ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 8011ms；卖点识别 19031ms",
+      "actual_codes": [],
+      "actual_names": [],
+      "result_selling_points": [
+        "真人老师督学"
+      ],
+      "has_selling_point": false,
+      "expected_code_present": false,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "老师帮学生分析问题",
+        "老师给学生做详细规划",
+        "真人老师督学"
+      ],
+      "result_count": 3,
+      "total_duration_ms": 27986,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:26:59.128888+08:00"
+    },
+    {
+      "id": "SPX095",
+      "query": "孩子每天学了啥、用功了多久，我手机上随时能瞧一眼，心里有数。",
+      "expected_code": "learning_report",
+      "expected_name": "学情报告反馈",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 29178.73,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 27852,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 5900ms；卖点识别 21951ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 5900ms；卖点识别 21951ms",
+      "actual_codes": [
+        "learning_report"
+      ],
+      "actual_names": [
+        "学情报告反馈"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "家长看到学习结果",
+        "配套功能学情报告",
+        "ai定制",
+        "学练测闭环",
+        "真人老师督学"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 29170,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:27:28.314432+08:00"
+    },
+    {
+      "id": "SPX096",
+      "query": "每周都能收到一份学习小结，孩子哪个板块弱，不用考试也知道。",
+      "expected_code": "learning_report",
+      "expected_name": "学情报告反馈",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 35151.46,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 34986,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 7460ms；卖点识别 27525ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 7460ms；卖点识别 27525ms",
+      "actual_codes": [
+        "learning_report"
+      ],
+      "actual_names": [
+        "学情报告反馈"
+      ],
+      "result_selling_points": [
+        "学情报告反馈"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "家长看到学习结果"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 35150,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:28:03.471538+08:00"
+    },
+    {
+      "id": "SPX097",
+      "query": "不用天天追着问，打开APP就知道他今天学了几门、做了多少题。",
+      "expected_code": "learning_report",
+      "expected_name": "学情报告反馈",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 25890.36,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 25745,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6470ms；卖点识别 19273ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6470ms；卖点识别 19273ms",
+      "actual_codes": [
+        "learning_report"
+      ],
+      "actual_names": [
+        "学情报告反馈"
+      ],
+      "result_selling_points": [
+        "学情报告反馈"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "家长看到学习结果"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 25889,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:28:29.365371+08:00"
+    },
+    {
+      "id": "SPX098",
+      "query": "想知道孩子最近学习状态咋样，看看后台记录，专注时间、薄弱项都看得到。",
+      "expected_code": "learning_report",
+      "expected_name": "学情报告反馈",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 33559.04,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 33393,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 14580ms；卖点识别 18813ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 14580ms；卖点识别 18813ms",
+      "actual_codes": [
+        "learning_report"
+      ],
+      "actual_names": [
+        "学情报告反馈"
+      ],
+      "result_selling_points": [
+        "学情报告反馈"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "家长看到学习结果"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 33554,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:29:02.927941+08:00"
+    },
+    {
+      "id": "SPX099",
+      "query": "学习系统自动统计他每周投入的时间分布，我一看就知道时间花在哪儿了。",
+      "expected_code": "learning_report",
+      "expected_name": "学情报告反馈",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 29197.82,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 29002,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 9998ms；卖点识别 19003ms"
+          },
+          "fallback": false,
+          "fallback_reason": null
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 9998ms；卖点识别 19003ms",
+      "actual_codes": [
+        "learning_report"
+      ],
+      "actual_names": [
+        "学情报告反馈"
+      ],
+      "result_selling_points": [
+        "学情报告反馈"
+      ],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "business_intent_search",
+      "top_result_titles": [
+        "家长看到学习结果"
+      ],
+      "result_count": 1,
+      "total_duration_ms": 29197,
+      "fallback": false,
+      "fallback_reason": null,
+      "recorded_at": "2026-07-23T13:29:32.129372+08:00"
+    },
+    {
+      "id": "SPX100",
+      "query": "老师也会定期发来孩子的学习情况和需要加强的地方，很贴心。",
+      "expected_code": "learning_report",
+      "expected_name": "学情报告反馈",
+      "review_status": "pending",
+      "review_notes": "",
+      "attempts": [
+        {
+          "attempt": 1,
+          "elapsed_ms": 38375.06,
+          "query_understanding": {
+            "source": "query_understanding",
+            "status": "ok",
+            "durationMs": 37028,
+            "resultCount": 1,
+            "cacheHit": false,
+            "detail": "体系路由 6856ms；卖点识别 30171ms"
+          },
+          "fallback": true,
+          "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）"
+        }
+      ],
+      "external_semantic_success": true,
+      "final_branch_status": "ok",
+      "final_branch_detail": "体系路由 6856ms；卖点识别 30171ms",
+      "actual_codes": [
+        "learning_report"
+      ],
+      "actual_names": [
+        "学情报告反馈"
+      ],
+      "result_selling_points": [],
+      "has_selling_point": true,
+      "expected_code_present": true,
+      "query_type": "ambiguous_business_intent_search",
+      "top_result_titles": [
+        "老师给学生做详细规划",
+        "家长看到学习结果",
+        "真人老师督学",
+        "老师帮学生分析问题",
+        "配套功能学情报告"
+      ],
+      "result_count": 12,
+      "total_duration_ms": 38359,
+      "fallback": true,
+      "fallback_reason": "搜索已降级：meilisearch不可用（Meilisearch 不可用：[Errno 8] nodename nor servname provided, or not known）",
+      "recorded_at": "2026-07-23T13:30:10.509275+08:00"
+    }
+  ]
+}

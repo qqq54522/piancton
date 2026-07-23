@@ -21,6 +21,44 @@ def test_evidence_point_catalog_loads_green_source_expressions():
     assert short_lesson.concept_code == "animation_explanation"
 
 
+def test_all_green_points_keep_structured_source_paths():
+    catalog = load_evidence_point_catalog()
+
+    assert all(point.source_paths for point in catalog.points)
+    for point in catalog.points:
+        for source_path in point.source_paths:
+            assert source_path[0].level == "system"
+            assert source_path[-1].level == "evidence_expression"
+            assert any(node.level == "selling_point" for node in source_path)
+
+    assert sum(1 for point in catalog.points if point.system_code == "sync_cultivation") == 10
+    transition = catalog.by_code["ep_cultivation_transition_course"]
+    assert [node.level for node in transition.source_paths[0]] == [
+        "system",
+        "selling_point",
+        "proof_group",
+        "proof_group",
+        "evidence_expression",
+    ]
+    assert transition.source_paths[0][-1].label == "小升初、初升高过渡课"
+    assert len(catalog.by_code["ep_cultivation_expert_titles"].source_paths) == 2
+    transfer_logic = catalog.by_code["ep_exam_transfer_logic"]
+    assert len(transfer_logic.source_paths) == 1
+    assert transfer_logic.review_notes == (
+        "2026-07-23 人工确认：AI 拍题精学讲解完成后自动推送几道相似题，"
+        "这个后续能力同时证明“举一反三”；该说明是人工校准关系，不冒充原图绿色点。",
+    )
+
+
+def test_cultivation_learning_loop_keeps_stage_transition_parent():
+    learning_loop = load_evidence_point_catalog().by_code[
+        "ep_cultivation_learning_loop"
+    ]
+
+    assert learning_loop.proof_point_code == "pp_cultivation_stage_transition_plan"
+    assert learning_loop.concept_code == "stage_transition"
+
+
 def test_evidence_expression_can_establish_its_parent_proof_point():
     query = "孩子会听懂但不会做，想找讲完还有例题和变式训练的"
     service = QueryUnderstandingService()
@@ -40,6 +78,29 @@ def test_evidence_expression_can_establish_its_parent_proof_point():
     assert [item.code for item in understanding.matched_evidence_points] == [
         "ep_exam_variant_expansion"
     ]
+
+
+def test_photo_explanation_followed_by_similar_questions_proves_transfer():
+    query = "AI拍题精学讲解完会自动推送几道相似题"
+    service = QueryUnderstandingService()
+    understanding = service.present_recognized_concepts(
+        query,
+        service.understand_locally(query),
+        [],
+    )
+
+    assert understanding is not None
+    matched_names = {
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in understanding.matched_business_concepts
+    }
+    assert {"AI拍题精学", "举一反三"}.issubset(matched_names)
+    assert "pp_exam_transfer_variant_practice" in {
+        item.code for item in understanding.matched_proof_points
+    }
+    assert "ep_exam_transfer_logic" in {
+        item.code for item in understanding.matched_evidence_points
+    }
 
 
 def test_model_evidence_points_are_canonicalized_and_unknown_codes_are_dropped():

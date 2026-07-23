@@ -19,6 +19,12 @@ EVIDENCE_POINTS_PATH = (
 
 
 @dataclass(frozen=True)
+class EvidencePointSourcePathNode:
+    level: str
+    label: str
+
+
+@dataclass(frozen=True)
 class EvidencePointDefinition:
     code: str
     name: str
@@ -27,6 +33,8 @@ class EvidencePointDefinition:
     concept_code: str
     source_ref: str
     search_terms: tuple[str, ...] = ()
+    source_paths: tuple[tuple[EvidencePointSourcePathNode, ...], ...] = ()
+    review_notes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,23 @@ def load_evidence_point_catalog(
                     for value in payload.get("searchTerms", [])
                     if str(value).strip()
                 ),
+                source_paths=tuple(
+                    tuple(
+                        EvidencePointSourcePathNode(
+                            level=str(node.get("level") or "").strip(),
+                            label=str(node.get("label") or "").strip(),
+                        )
+                        for node in path_nodes
+                        if isinstance(node, dict)
+                    )
+                    for path_nodes in payload.get("sourcePaths", [])
+                    if isinstance(path_nodes, list)
+                ),
+                review_notes=tuple(
+                    str(value).strip()
+                    for value in payload.get("reviewNotes", [])
+                    if str(value).strip()
+                ),
             )
         )
     codes = [item.code for item in points]
@@ -92,6 +117,23 @@ def load_evidence_point_catalog(
         raise ValueError("证据表达点目录存在空 code 或名称")
     if len(codes) != len(set(codes)):
         raise ValueError("证据表达点 code 必须全局唯一")
+    allowed_path_levels = {
+        "system",
+        "selling_point",
+        "proof_group",
+        "evidence_expression",
+    }
+    for point in points:
+        if any(not note for note in point.review_notes):
+            raise ValueError(f"证据表达点人工校准说明不能为空：{point.code}")
+        for source_path in point.source_paths:
+            if not source_path:
+                raise ValueError(f"证据表达点来源路径不能为空：{point.code}")
+            if any(
+                not node.label or node.level not in allowed_path_levels
+                for node in source_path
+            ):
+                raise ValueError(f"证据表达点来源路径节点无效：{point.code}")
     digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()[:12]
     return EvidencePointCatalog(
         version=f"{raw.get('version', '')}+evidence-{digest}",

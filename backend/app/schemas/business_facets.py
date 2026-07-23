@@ -12,6 +12,11 @@ class ProofPointFacetRead(ApiModel):
     concept_code: str
 
 
+class EvidencePointSourcePathNodeRead(ApiModel):
+    level: str
+    label: str
+
+
 class EvidencePointFacetRead(ApiModel):
     code: str
     name: str
@@ -19,6 +24,10 @@ class EvidencePointFacetRead(ApiModel):
     system_code: str
     concept_code: str
     source_ref: str
+    source_paths: List[List[EvidencePointSourcePathNodeRead]] = Field(
+        default_factory=list
+    )
+    review_notes: List[str] = Field(default_factory=list)
 
 
 class BusinessFacetCatalogRead(ApiModel):

@@ -1451,6 +1451,17 @@ export interface components {
             conceptCode: string;
             /** Sourceref */
             sourceRef: string;
+            /** Sourcepaths */
+            sourcePaths?: components["schemas"]["EvidencePointSourcePathNodeRead"][][];
+            /** Reviewnotes */
+            reviewNotes?: string[];
+        };
+        /** EvidencePointSourcePathNodeRead */
+        EvidencePointSourcePathNodeRead: {
+            /** Level */
+            level: string;
+            /** Label */
+            label: string;
         };
         /** ExpandedSearchTerm */
         ExpandedSearchTerm: {

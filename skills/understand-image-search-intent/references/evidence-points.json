@@ -1,69 +1,779 @@
 {
-  "version": "2026-07-21.1",
+  "version": "2026-07-23.4",
   "description": "原始六体系脑图绿色制作文字。它们是证明点下的证据表达与做图依据，不自动证明产品事实或素材已经存在。",
   "points": [
-    {"code": "ep_school_national_textbook_sync", "proofPointCode": "pp_textbook_version_coverage", "name": "国家教材版本同步", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_course_catalog_sync", "proofPointCode": "pp_textbook_version_selection", "name": "课程目录同步", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_short_animation_lesson", "proofPointCode": "pp_animation_pedagogy_design", "name": "一节动画课5-8分钟讲透一个知识点", "sourceRef": "01-sync-school.png", "searchTerms": ["5-8分钟讲透知识点", "短时单点讲透"]},
-    {"code": "ep_school_animation_makes_abstract_easy", "proofPointCode": "pp_subject_animation_visualization", "name": "把抽象知识点变成简单易懂的动画课程", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_animation_research_process", "proofPointCode": "pp_animation_pedagogy_design", "name": "动画课经过教研、编剧和认知心理专家协同打磨", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_animation_scale_numbers", "proofPointCode": "pp_animation_scale_data", "name": "动画课程相关规模数据", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_authority_certificate", "proofPointCode": "pp_authority_awards", "name": "权威证书与认可说明", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_physics_visualization", "proofPointCode": "pp_subject_animation_visualization", "name": "物理电磁感应课程动画呈现", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_math_visualization", "proofPointCode": "pp_subject_animation_visualization", "name": "数学复杂知识动画化呈现", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_humanities_video", "proofPointCode": "pp_subject_animation_visualization", "name": "文科知识视频课程呈现", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_learn_practice_flow", "proofPointCode": "pp_learn_practice_loop", "name": "学练测闭环流程图", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_immediate_practice_page", "proofPointCode": "pp_learn_practice_loop", "name": "学完立即做题的强化练习页面", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_quiz_flow_animation", "proofPointCode": "pp_learn_practice_loop", "name": "知识点视频结束后自动进入专属习题组", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_question_bank_dimensions", "proofPointCode": "pp_quiz_bank_scale", "name": "三万多道题匹配教材、题型和难度", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_auto_error_book", "proofPointCode": "pp_quiz_companion_features", "name": "自动错题本", "sourceRef": "01-sync-school.png"},
-    {"code": "ep_school_lesson_report", "proofPointCode": "pp_quiz_companion_features", "name": "练测场景下的学情数据报告", "sourceRef": "01-sync-school.png"},
+    {
+      "code": "ep_school_national_textbook_sync",
+      "proofPointCode": "pp_textbook_version_coverage",
+      "name": "国家教材版本同步",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱的课程版本与孩子学校教材完全一致"},
+        {"level": "proof_group", "label": "app产品功能"},
+        {"level": "proof_group", "label": "教材版本选择页"},
+        {"level": "evidence_expression", "label": "国家教材版本同步"}
+      ]]
+    },
+    {
+      "code": "ep_school_course_catalog_sync",
+      "proofPointCode": "pp_textbook_version_selection",
+      "name": "课程目录同步",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱的课程版本与孩子学校教材完全一致"},
+        {"level": "proof_group", "label": "app产品功能"},
+        {"level": "proof_group", "label": "教材版本选择页"},
+        {"level": "evidence_expression", "label": "课程目录同步"}
+      ]]
+    },
+    {
+      "code": "ep_school_short_animation_lesson",
+      "proofPointCode": "pp_animation_pedagogy_design",
+      "name": "一节动画课5-8分钟讲透一个知识点",
+      "sourceRef": "01-sync-school.png",
+      "searchTerms": ["5-8分钟讲透知识点", "短时单点讲透"],
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "官方产品底层设计证据（品牌自证，权威背书）"},
+        {"level": "proof_group", "label": "官方产品定位与教研逻辑"},
+        {"level": "evidence_expression", "label": "我们的一节动画课是5-8分钟就能讲透一个知识点"}
+      ]]
+    },
+    {
+      "code": "ep_school_animation_makes_abstract_easy",
+      "proofPointCode": "pp_subject_animation_visualization",
+      "name": "把抽象知识点变成简单易懂的动画课程",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "官方产品底层设计证据（品牌自证，权威背书）"},
+        {"level": "proof_group", "label": "官方产品定位与教研逻辑"},
+        {"level": "evidence_expression", "label": "我们是把抽象的知识点变成简单易懂的动画课程，让孩子更好理解"}
+      ]]
+    },
+    {
+      "code": "ep_school_animation_research_process",
+      "proofPointCode": "pp_animation_pedagogy_design",
+      "name": "动画课经过教研、编剧和认知心理专家协同打磨",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "官方产品底层设计证据（品牌自证，权威背书）"},
+        {"level": "proof_group", "label": "官方产品定位与教研逻辑"},
+        {"level": "evidence_expression", "label": "单节动画微课研发周期6-8周、由学科教研员+动画编剧+认知心理学家三轮打磨"}
+      ]]
+    },
+    {
+      "code": "ep_school_animation_scale_numbers",
+      "proofPointCode": "pp_animation_scale_data",
+      "name": "动画课程相关规模数据",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "官方产品底层设计证据（品牌自证，权威背书）"},
+        {"level": "proof_group", "label": "官方数据规模（1.3亿用户验证）"},
+        {"level": "evidence_expression", "label": "里面的相关数据"}
+      ]]
+    },
+    {
+      "code": "ep_school_authority_certificate",
+      "proofPointCode": "pp_authority_awards",
+      "name": "权威证书与认可说明",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "官方产品底层设计证据（品牌自证，权威背书）"},
+        {"level": "proof_group", "label": "国家级权威奖项认可（官方资质证据）"},
+        {"level": "evidence_expression", "label": "一个证书左面一句话"}
+      ]]
+    },
+    {
+      "code": "ep_school_physics_visualization",
+      "proofPointCode": "pp_subject_animation_visualization",
+      "name": "物理电磁感应课程动画呈现",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "分学科动画拆解落地案例（具象证明“动画拆解、秒懂难点”）"},
+        {"level": "proof_group", "label": "理科（数学/物理/化学）：抽象原理动态可视化"},
+        {"level": "evidence_expression", "label": "呈现我们：物理《电磁感应》这节课程"}
+      ]]
+    },
+    {
+      "code": "ep_school_math_visualization",
+      "proofPointCode": "pp_subject_animation_visualization",
+      "name": "数学复杂知识动画化呈现",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "分学科动画拆解落地案例（具象证明“动画拆解、秒懂难点”）"},
+        {"level": "proof_group", "label": "理科（数学/物理/化学）：抽象原理动态可视化"},
+        {"level": "evidence_expression", "label": "呈现我们：数学课把复杂变成动画形式"}
+      ]]
+    },
+    {
+      "code": "ep_school_humanities_video",
+      "proofPointCode": "pp_subject_animation_visualization",
+      "name": "文科知识视频课程呈现",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：动画讲透知识点，把“枯燥”变“秒懂”"},
+        {"level": "proof_group", "label": "分学科动画拆解落地案例（具象证明“动画拆解、秒懂难点”）"},
+        {"level": "proof_group", "label": "文科/地理：看不见的地理现象故事化"},
+        {"level": "evidence_expression", "label": "文科找一个能证明我们文科的视频截图"}
+      ]]
+    },
+    {
+      "code": "ep_school_learn_practice_flow",
+      "proofPointCode": "pp_learn_practice_loop",
+      "name": "学练测闭环流程图",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的课程学完就有测试习题让孩子做"},
+        {"level": "proof_group", "label": "产品原生功能证据"},
+        {"level": "proof_group", "label": "「学完即练」产品闭环设计"},
+        {"level": "evidence_expression", "label": "学练测诊闭环的图"}
+      ]]
+    },
+    {
+      "code": "ep_school_immediate_practice_page",
+      "proofPointCode": "pp_learn_practice_loop",
+      "name": "学完立即做题的强化练习页面",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的课程学完就有测试习题让孩子做"},
+        {"level": "proof_group", "label": "产品原生功能证据"},
+        {"level": "proof_group", "label": "「学完即练」产品闭环设计"},
+        {"level": "evidence_expression", "label": "强化练习题的页面“学完立即做题”"}
+      ]]
+    },
+    {
+      "code": "ep_school_quiz_flow_animation",
+      "proofPointCode": "pp_learn_practice_loop",
+      "name": "知识点视频结束后自动进入专属习题组",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的课程学完就有测试习题让孩子做"},
+        {"level": "proof_group", "label": "产品原生功能证据"},
+        {"level": "proof_group", "label": "「学完即练」产品闭环设计"},
+        {"level": "evidence_expression", "label": "2期补充一个动效：点开知识点视频→完整观看结束→弹窗直接进入本知识点专属习题组"}
+      ]]
+    },
+    {
+      "code": "ep_school_question_bank_dimensions",
+      "proofPointCode": "pp_quiz_bank_scale",
+      "name": "三万多道题匹配教材、题型和难度",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的课程学完就有测试习题让孩子做"},
+        {"level": "proof_group", "label": "产品原生功能证据"},
+        {"level": "proof_group", "label": "分层随堂题库规模与题型支撑"},
+        {"level": "evidence_expression", "label": "3w多题，匹配教材，各种题型，各种难度"}
+      ]]
+    },
+    {
+      "code": "ep_school_auto_error_book",
+      "proofPointCode": "pp_quiz_companion_features",
+      "name": "自动错题本",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的课程学完就有测试习题让孩子做"},
+        {"level": "proof_group", "label": "产品原生功能证据"},
+        {"level": "proof_group", "label": "配套联动功能，强化“学完测试”价值"},
+        {"level": "evidence_expression", "label": "自动错题本"}
+      ]]
+    },
+    {
+      "code": "ep_school_lesson_report",
+      "proofPointCode": "pp_quiz_companion_features",
+      "name": "练测场景下的学情数据报告",
+      "sourceRef": "01-sync-school.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步校内体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的课程学完就有测试习题让孩子做"},
+        {"level": "proof_group", "label": "产品原生功能证据"},
+        {"level": "proof_group", "label": "配套联动功能，强化“学完测试”价值"},
+        {"level": "evidence_expression", "label": "【做题这个场景下】学情数据报告"}
+      ]]
+    },
 
-    {"code": "ep_exam_expert_credentials", "proofPointCode": "pp_exam_reform_expert_research", "name": "命题与教材专家身份说明", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_media_report", "proofPointCode": "pp_exam_reform_validation", "name": "新课标改革相关媒体报道", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_school_adoption", "proofPointCode": "pp_exam_reform_school_practice", "name": "学校使用新中考题库的落地证明", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_new_format_screenshot", "proofPointCode": "pp_exam_new_format_course_practice", "name": "新中考培优专项页面", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_old_new_question_comparison", "proofPointCode": "pp_exam_reform_trend_alignment", "name": "新旧题型对比", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_prediction_data", "proofPointCode": "pp_exam_reform_validation", "name": "预测与真题相似度数据证明", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_targeted_training", "proofPointCode": "pp_exam_focus_targeted_modules", "name": "精准定向题型训练", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_key_topic_system", "proofPointCode": "pp_exam_focus_targeted_modules", "name": "学科重难点系统讲解", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_stage_key_points", "proofPointCode": "pp_exam_focus_stage_review", "name": "期中、期末和模考一键划重点", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_frequent_errors", "proofPointCode": "pp_exam_focus_high_frequency_errors", "name": "全网易错题型汇总", "sourceRef": "02-sync-exam-a.png"},
-    {"code": "ep_exam_principle_animation_flow", "proofPointCode": "pp_exam_transfer_principle_first", "name": "生活场景引入、原理推导、例题演示和变式拓展", "sourceRef": "03-sync-exam-b.png"},
-    {"code": "ep_exam_variant_expansion", "proofPointCode": "pp_exam_transfer_variant_practice", "name": "讲完例题后进行同类变式拓展", "sourceRef": "03-sync-exam-b.png", "searchTerms": ["例题和变式训练", "讲完还有同类题"]},
-    {"code": "ep_exam_socratic_prompt", "proofPointCode": "pp_exam_transfer_guided_reasoning", "name": "苏格拉底式提问", "sourceRef": "03-sync-exam-b.png"},
-    {"code": "ep_exam_knowledge_animation_push", "proofPointCode": "pp_exam_transfer_guided_reasoning", "name": "定位知识点并推送相关动画课", "sourceRef": "03-sync-exam-b.png"},
-    {"code": "ep_exam_transfer_logic", "proofPointCode": "pp_exam_transfer_variant_practice", "name": "拆分基层逻辑并做到举一反三", "sourceRef": "03-sync-exam-b.png"},
+    {
+      "code": "ep_exam_expert_credentials",
+      "proofPointCode": "pp_exam_reform_expert_research",
+      "name": "命题与教材专家身份说明",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱有专门针对“新中考”“新课标”的课程，精准预测“新考法”"},
+        {"level": "proof_group", "label": "原中考命题专家教研团队"},
+        {"level": "proof_group", "label": "洋葱专属原中考命题/教材编写专家教研团队"},
+        {"level": "evidence_expression", "label": "强调专家的title"}
+      ]]
+    },
+    {
+      "code": "ep_exam_media_report",
+      "proofPointCode": "pp_exam_reform_validation",
+      "name": "新课标改革相关媒体报道",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱有专门针对“新中考”“新课标”的课程，精准预测“新考法”"},
+        {"level": "proof_group", "label": "完全对标2022版新课标改革要求"},
+        {"level": "proof_group", "label": "行业媒体权威佐证（芥末堆GET2024教育峰会）"},
+        {"level": "evidence_expression", "label": "相关的媒体宣传的照片+找红雾要"}
+      ]]
+    },
+    {
+      "code": "ep_exam_school_adoption",
+      "proofPointCode": "pp_exam_reform_school_practice",
+      "name": "学校使用新中考题库的落地证明",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱有专门针对“新中考”“新课标”的课程，精准预测“新考法”"},
+        {"level": "proof_group", "label": "完全对标2022版新课标改革要求"},
+        {"level": "proof_group", "label": "校内落地佐证"},
+        {"level": "evidence_expression", "label": "全国23万+中学、1.1亿学生在校使用洋葱学园"}
+      ]]
+    },
+    {
+      "code": "ep_exam_new_format_screenshot",
+      "proofPointCode": "pp_exam_new_format_course_practice",
+      "name": "新中考培优专项页面",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱有专门针对“新中考”“新课标”的课程，精准预测“新考法”"},
+        {"level": "proof_group", "label": "专门打造“新中考专项课程+专属题库”"},
+        {"level": "proof_group", "label": "独立产品线命名：新中考培优专项课"},
+        {"level": "evidence_expression", "label": "新中考培优的截图"}
+      ]]
+    },
+    {
+      "code": "ep_exam_old_new_question_comparison",
+      "proofPointCode": "pp_exam_reform_trend_alignment",
+      "name": "新旧题型对比",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱有专门针对“新中考”“新课标”的课程，精准预测“新考法”"},
+        {"level": "proof_group", "label": "专门打造“新中考专项课程+专属题库”"},
+        {"level": "proof_group", "label": "题库题型差异化设计（对比新旧中考题型）"},
+        {"level": "evidence_expression", "label": "p1:新旧题型对比"}
+      ]]
+    },
+    {
+      "code": "ep_exam_prediction_data",
+      "proofPointCode": "pp_exam_reform_validation",
+      "name": "预测与真题相似度数据证明",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱有专门针对“新中考”“新课标”的课程，精准预测“新考法”"},
+        {"level": "proof_group", "label": "押题命中率&效果数据证明"},
+        {"level": "proof_group", "label": "题型覆盖数据"},
+        {"level": "evidence_expression", "label": "相关数据的证明"}
+      ]]
+    },
+    {
+      "code": "ep_exam_targeted_training",
+      "proofPointCode": "pp_exam_focus_targeted_modules",
+      "name": "精准定向题型训练",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱【培优课】有针对每学科的重难点的专项学习模块"},
+        {"level": "proof_group", "label": "APP内原生功能"},
+        {"level": "evidence_expression", "label": "【专项突破】精准定向题型训练"}
+      ]]
+    },
+    {
+      "code": "ep_exam_key_topic_system",
+      "proofPointCode": "pp_exam_focus_targeted_modules",
+      "name": "学科重难点系统讲解",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱【培优课】有针对每学科的重难点的专项学习模块"},
+        {"level": "proof_group", "label": "APP内原生功能"},
+        {"level": "evidence_expression", "label": "【重难点培优】学科重难点系统讲解"}
+      ]]
+    },
+    {
+      "code": "ep_exam_stage_key_points",
+      "proofPointCode": "pp_exam_focus_stage_review",
+      "name": "期中、期末和模考一键划重点",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱【培优课】有针对每学科的重难点的专项学习模块"},
+        {"level": "proof_group", "label": "APP内原生功能"},
+        {"level": "evidence_expression", "label": "【考前突击】期中/期末/模考一键划重点"}
+      ]]
+    },
+    {
+      "code": "ep_exam_frequent_errors",
+      "proofPointCode": "pp_exam_focus_high_frequency_errors",
+      "name": "全网易错题型汇总",
+      "sourceRef": "02-sync-exam-a.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱【培优课】有针对每学科的重难点的专项学习模块"},
+        {"level": "proof_group", "label": "APP内原生功能"},
+        {"level": "evidence_expression", "label": "【高频错题】全网易错题型汇总"}
+      ]]
+    },
+    {
+      "code": "ep_exam_principle_animation_flow",
+      "proofPointCode": "pp_exam_transfer_principle_first",
+      "name": "生活场景引入、原理推导、例题演示和变式拓展",
+      "sourceRef": "03-sync-exam-b.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的教学理念是教孩子原理不是教具体题型解法"},
+        {"level": "proof_group", "label": "官方顶层教学理念"},
+        {"level": "proof_group", "label": "功能/课程体系直接对应"},
+        {"level": "proof_group", "label": "同步动画课：先原理，后题型"},
+        {"level": "evidence_expression", "label": "动画课：1）生活场景引入→2）推导知识底层原理→3）基础例题演示逻辑→4）同类变式拓展"}
+      ]]
+    },
+    {
+      "code": "ep_exam_variant_expansion",
+      "proofPointCode": "pp_exam_transfer_variant_practice",
+      "name": "讲完例题后进行同类变式拓展",
+      "sourceRef": "03-sync-exam-b.png",
+      "searchTerms": ["例题和变式训练", "讲完还有同类题"],
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的教学理念是教孩子原理不是教具体题型解法"},
+        {"level": "proof_group", "label": "官方顶层教学理念"},
+        {"level": "proof_group", "label": "功能/课程体系直接对应"},
+        {"level": "proof_group", "label": "同步动画课：先原理，后题型"},
+        {"level": "evidence_expression", "label": "同类变式拓展"}
+      ]]
+    },
+    {
+      "code": "ep_exam_socratic_prompt",
+      "proofPointCode": "pp_exam_transfer_guided_reasoning",
+      "name": "苏格拉底式提问",
+      "sourceRef": "03-sync-exam-b.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的教学理念是教孩子原理不是教具体题型解法"},
+        {"level": "proof_group", "label": "官方顶层教学理念"},
+        {"level": "proof_group", "label": "功能/课程体系直接对应"},
+        {"level": "proof_group", "label": "AI拍题精学功能（针对性解决家长痛点）"},
+        {"level": "evidence_expression", "label": "苏格拉底式提问"}
+      ]]
+    },
+    {
+      "code": "ep_exam_knowledge_animation_push",
+      "proofPointCode": "pp_exam_transfer_guided_reasoning",
+      "name": "定位知识点并推送相关动画课",
+      "sourceRef": "03-sync-exam-b.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的教学理念是教孩子原理不是教具体题型解法"},
+        {"level": "proof_group", "label": "官方顶层教学理念"},
+        {"level": "proof_group", "label": "功能/课程体系直接对应"},
+        {"level": "proof_group", "label": "AI拍题精学功能（针对性解决家长痛点）"},
+        {"level": "evidence_expression", "label": "定位知识点推送动画课"}
+      ]]
+    },
+    {
+      "code": "ep_exam_transfer_logic",
+      "proofPointCode": "pp_exam_transfer_variant_practice",
+      "name": "讲解当前题后推送相似题并做到举一反三",
+      "sourceRef": "03-sync-exam-b.png",
+      "searchTerms": ["AI拍题精学讲解完会自动推送几道相似题", "拍题讲解后推送相似题", "讲完自动推几道相似题"],
+      "sourcePaths": [[
+        {"level": "system", "label": "同步考点体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的教学理念是教孩子原理不是教具体题型解法"},
+        {"level": "proof_group", "label": "官方顶层教学理念"},
+        {"level": "proof_group", "label": "功能/课程体系直接对应"},
+        {"level": "proof_group", "label": "AI拍题精学功能（针对性解决家长痛点）"},
+        {"level": "evidence_expression", "label": "AI拍题：拍照后不直接给答案→苏格拉底式提问→定位知识点→推送相关动画课"}
+      ]],
+      "reviewNotes": [
+        "2026-07-23 人工确认：AI 拍题精学讲解完成后自动推送几道相似题，这个后续能力同时证明“举一反三”；该说明是人工校准关系，不冒充原图绿色点。"
+      ]
+    },
 
-    {"code": "ep_cultivation_expert_titles", "proofPointCode": "pp_cultivation_expert_team_credentials", "name": "命题与教材专家身份说明", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_textbook_coverage", "proofPointCode": "pp_cultivation_stage_full_cycle_coverage", "name": "主流教材匹配", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_school_progress", "proofPointCode": "pp_cultivation_stage_full_cycle_coverage", "name": "根据学校进度同步目录和教学", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_multiple_solutions", "proofPointCode": "pp_cultivation_method_multiple_paths", "name": "培优课一题多解与精讲拆解", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_transition_course", "proofPointCode": "pp_cultivation_stage_bridge_courses", "name": "小升初和初升高过渡课程", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_ai_plan", "proofPointCode": "pp_cultivation_stage_transition_plan", "name": "AI定制课程与智能规划", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_learning_loop", "proofPointCode": "pp_cultivation_expert_path_design", "name": "完整教、学、练、评闭环", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_full_cycle", "proofPointCode": "pp_cultivation_stage_full_cycle_coverage", "name": "从低年级到高年级全覆盖并衔接升学阶段", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_visual_derivation", "proofPointCode": "pp_cultivation_method_transfer_foundation", "name": "动画微课可视化推导而非直接灌输公式答案", "sourceRef": "04-sync-cultivation.png"},
-    {"code": "ep_cultivation_method_model", "proofPointCode": "pp_cultivation_method_multiple_paths", "name": "万能解题思维模型应对复杂题", "sourceRef": "04-sync-cultivation.png"},
+    {
+      "code": "ep_cultivation_expert_titles",
+      "proofPointCode": "pp_cultivation_expert_team_credentials",
+      "name": "命题与教材专家身份说明",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点一：课程由中高考命题专家与教材编者领衔设计"},
+          {"level": "proof_group", "label": "教研专家团队公示图"},
+          {"level": "evidence_expression", "label": "强调几个专家的 title"}
+        ],
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "专属专家教研团队"},
+          {"level": "evidence_expression", "label": "专家的 title"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_textbook_coverage",
+      "proofPointCode": "pp_cultivation_stage_full_cycle_coverage",
+      "name": "主流教材匹配",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "课程设计逻辑匹配痛点"},
+          {"level": "evidence_expression", "label": "主流教材匹配"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_school_progress",
+      "proofPointCode": "pp_cultivation_stage_full_cycle_coverage",
+      "name": "根据学校进度同步目录和教学",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "分层课程兼顾“同步跟进 + 拔高培优”"},
+          {"level": "evidence_expression", "label": "同步学校进度，根据学校进度教学，同步目录"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_multiple_solutions",
+      "proofPointCode": "pp_cultivation_method_multiple_paths",
+      "name": "培优课一题多解与精讲拆解",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "分层课程兼顾“同步跟进 + 拔高培优”"},
+          {"level": "evidence_expression", "label": "培优课一题多解，精讲拆解"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_transition_course",
+      "proofPointCode": "pp_cultivation_stage_bridge_courses",
+      "name": "小升初和初升高过渡课程",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "分层课程兼顾“同步跟进 + 拔高培优”"},
+          {"level": "evidence_expression", "label": "小升初、初升高过渡课"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_ai_plan",
+      "proofPointCode": "pp_cultivation_stage_transition_plan",
+      "name": "AI定制课程与智能规划",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "“解放家长”配套体系"},
+          {"level": "evidence_expression", "label": "AI 定制课程，智能规划"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_learning_loop",
+      "proofPointCode": "pp_cultivation_stage_transition_plan",
+      "name": "完整教、学、练、评闭环",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "“解放家长”配套体系"},
+          {"level": "evidence_expression", "label": "完整教-学-练-评闭环"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_full_cycle",
+      "proofPointCode": "pp_cultivation_stage_full_cycle_coverage",
+      "name": "从低年级到高年级全覆盖并衔接升学阶段",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点二：从小学到高中毕业，过渡衔接和跟进度拔高一站式解决"},
+          {"level": "proof_group", "label": "覆盖小学至高中毕业全学段"},
+          {"level": "proof_group", "label": "“解放家长”配套体系"},
+          {"level": "evidence_expression", "label": "从低年级到高年级全包，小升初、初升高衔接，一站式省心"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_visual_derivation",
+      "proofPointCode": "pp_cultivation_method_transfer_foundation",
+      "name": "动画微课可视化推导而非直接灌输公式答案",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点三：教“万能解法”，而不是“死记硬背”"},
+          {"level": "proof_group", "label": "课程产品设计"},
+          {"level": "evidence_expression", "label": "动画微课：可视化推导，不直接灌输公式套路"}
+        ]
+      ]
+    },
+    {
+      "code": "ep_cultivation_method_model",
+      "proofPointCode": "pp_cultivation_method_multiple_paths",
+      "name": "万能解题思维模型应对复杂题",
+      "sourceRef": "04-sync-cultivation.png",
+      "sourcePaths": [
+        [
+          {"level": "system", "label": "同步培养体系【业务原版】"},
+          {"level": "selling_point", "label": "核心卖点三：教“万能解法”，而不是“死记硬背”"},
+          {"level": "proof_group", "label": "课程产品设计"},
+          {"level": "evidence_expression", "label": "培优课体系：专攻“万能解题思维模型”，应对变式题"}
+        ]
+      ]
+    },
 
-    {"code": "ep_planning_input_page", "proofPointCode": "pp_planning_personal_inputs", "name": "AI定制过程中的八类个人条件输入页面", "sourceRef": "05-sync-planning.png"},
-    {"code": "ep_planning_daily_schedule", "proofPointCode": "pp_planning_generated_schedule", "name": "每日精细化课表与自动规划结果页面", "sourceRef": "05-sync-planning.png"},
-    {"code": "ep_planning_media_material", "proofPointCode": "pp_planning_founder_ai_view", "name": "AI定制方法相关媒体宣传材料", "sourceRef": "05-sync-planning.png"},
+    {
+      "code": "ep_planning_input_page",
+      "proofPointCode": "pp_planning_personal_inputs",
+      "name": "AI定制过程中的八类个人条件输入页面",
+      "sourceRef": "05-sync-planning.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步规划体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：AI定制班根据孩子真实情况和八个条件量身制定学习计划"},
+        {"level": "proof_group", "label": "官方8大维度输入生成专属计划"},
+        {"level": "evidence_expression", "label": "ai定制过程页面：【学生学习周期】【在读年级】【具体要提升的学科】【主要学习的目的-考前冲刺/日程跟学】【针对的具体考试】【孩子真实成绩水平】【教材版本】【打算什么时候学习】"}
+      ]]
+    },
+    {
+      "code": "ep_planning_daily_schedule",
+      "proofPointCode": "pp_planning_generated_schedule",
+      "name": "每日精细化课表与自动规划结果页面",
+      "sourceRef": "05-sync-planning.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步规划体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：AI定制班根据孩子真实情况和八个条件量身制定学习计划"},
+        {"level": "proof_group", "label": "官方8大维度输入生成专属计划"},
+        {"level": "evidence_expression", "label": "ai定制结果页面：每日精细化课表，无需家长手动规划。"}
+      ]]
+    },
+    {
+      "code": "ep_planning_media_material",
+      "proofPointCode": "pp_planning_founder_ai_view",
+      "name": "AI定制方法相关媒体宣传材料",
+      "sourceRef": "05-sync-planning.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步规划体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：AI定制班根据孩子真实情况和八个条件量身制定学习计划"},
+        {"level": "proof_group", "label": "创始人背书：杨临风的核心观点"},
+        {"level": "evidence_expression", "label": "相关媒体宣传图"}
+      ]]
+    },
 
-    {"code": "ep_selfstudy_instant_tutor", "proofPointCode": "pp_selfstudy_tutor_interactive_qa", "name": "学习过程中随时唤醒AI私教并即时互动答疑", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_socratic_guidance", "proofPointCode": "pp_selfstudy_photo_socratic_guidance", "name": "苏格拉底式提问", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_animation_fallback", "proofPointCode": "pp_selfstudy_photo_knowledge_fallback", "name": "理解不足时推送相关动画课", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_fast_preview", "proofPointCode": "pp_selfstudy_preview_dual_entry", "name": "极速预习", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_fast_review", "proofPointCode": "pp_selfstudy_preview_dual_entry", "name": "极速复习", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_offline_error_upload", "proofPointCode": "pp_selfstudy_error_photo_capture", "name": "线下错题拍照上传", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_error_library_search", "proofPointCode": "pp_selfstudy_error_classification_review", "name": "线上错题库精准查阅", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_similar_question_push", "proofPointCode": "pp_selfstudy_error_variant_recommendation", "name": "同类型题自动推送强化", "sourceRef": "06-sync-self-study.png"},
-    {"code": "ep_selfstudy_repeat_core_logic", "proofPointCode": "pp_selfstudy_error_targeted_practice", "name": "围绕薄弱点反复训练核心逻辑", "sourceRef": "06-sync-self-study.png"},
+    {
+      "code": "ep_selfstudy_instant_tutor",
+      "proofPointCode": "pp_selfstudy_tutor_interactive_qa",
+      "name": "学习过程中随时唤醒AI私教并即时互动答疑",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：洋葱的AI私教功能，在孩子学习过程中可以随时唤醒AI私教"},
+        {"level": "evidence_expression", "label": "学习过程随时唤醒AI私教，即时互动答疑"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_socratic_guidance",
+      "proofPointCode": "pp_selfstudy_photo_socratic_guidance",
+      "name": "苏格拉底式提问",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱独创的“AI拍题精学”功能"},
+        {"level": "proof_group", "label": "独创AI拍题精学，苏格拉底式提问+动画课兜底"},
+        {"level": "evidence_expression", "label": "苏格拉底式提问"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_animation_fallback",
+      "proofPointCode": "pp_selfstudy_photo_knowledge_fallback",
+      "name": "理解不足时推送相关动画课",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱独创的“AI拍题精学”功能"},
+        {"level": "proof_group", "label": "独创AI拍题精学，苏格拉底式提问+动画课兜底"},
+        {"level": "evidence_expression", "label": "推送相关动画课"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_fast_preview",
+      "proofPointCode": "pp_selfstudy_preview_dual_entry",
+      "name": "极速预习",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的极速预习/复习功能"},
+        {"level": "proof_group", "label": "APP官方功能"},
+        {"level": "evidence_expression", "label": "极速预习"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_fast_review",
+      "proofPointCode": "pp_selfstudy_preview_dual_entry",
+      "name": "极速复习",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点三：洋葱的极速预习/复习功能"},
+        {"level": "proof_group", "label": "APP官方功能"},
+        {"level": "evidence_expression", "label": "极速复习"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_offline_error_upload",
+      "proofPointCode": "pp_selfstudy_error_photo_capture",
+      "name": "线下错题拍照上传",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点四：洋葱的AI错题本功能"},
+        {"level": "proof_group", "label": "实操功能"},
+        {"level": "evidence_expression", "label": "线下错题拍照上传"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_error_library_search",
+      "proofPointCode": "pp_selfstudy_error_classification_review",
+      "name": "线上错题库精准查阅",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点四：洋葱的AI错题本功能"},
+        {"level": "proof_group", "label": "实操功能"},
+        {"level": "evidence_expression", "label": "线上错题库精准查阅"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_similar_question_push",
+      "proofPointCode": "pp_selfstudy_error_variant_recommendation",
+      "name": "同类型题自动推送强化",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点四：洋葱的AI错题本功能"},
+        {"level": "proof_group", "label": "实操功能"},
+        {"level": "evidence_expression", "label": "同类型题自动推送强化"}
+      ]]
+    },
+    {
+      "code": "ep_selfstudy_repeat_core_logic",
+      "proofPointCode": "pp_selfstudy_error_targeted_practice",
+      "name": "围绕薄弱点反复训练核心逻辑",
+      "sourceRef": "06-sync-self-study.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步自学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点四：洋葱的AI错题本功能"},
+        {"level": "proof_group", "label": "实操功能"},
+        {"level": "evidence_expression", "label": "反题海核心逻辑"}
+      ]]
+    },
 
-    {"code": "ep_companion_teacher_diagnosis", "proofPointCode": "pp_companion_teacher_diagnosis_plan", "name": "老师帮学生分析问题", "sourceRef": "07-sync-companion.png"},
-    {"code": "ep_companion_supervision_scene", "proofPointCode": "pp_companion_teacher_follow_up", "name": "真人老师督学场景", "sourceRef": "07-sync-companion.png"},
-    {"code": "ep_companion_teacher_plan", "proofPointCode": "pp_companion_teacher_diagnosis_plan", "name": "真人老师给学生做详细学习规划", "sourceRef": "07-sync-companion.png"},
-    {"code": "ep_companion_wechat_report", "proofPointCode": "pp_companion_report_parent_delivery", "name": "微信小程序推送周报", "sourceRef": "07-sync-companion.png"},
-    {"code": "ep_companion_parent_report", "proofPointCode": "pp_companion_report_core_metrics", "name": "家长查看周报中的详细学习数据", "sourceRef": "07-sync-companion.png"}
+    {
+      "code": "ep_companion_teacher_diagnosis",
+      "proofPointCode": "pp_companion_teacher_diagnosis_plan",
+      "name": "老师帮学生分析问题",
+      "sourceRef": "07-sync-companion.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步伴学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：真人老师督学，替家长接管孩子的问题分析、计划制定、定期督促"},
+        {"level": "proof_group", "label": "产品功能"},
+        {"level": "evidence_expression", "label": "老师帮学生分析问题"}
+      ]]
+    },
+    {
+      "code": "ep_companion_supervision_scene",
+      "proofPointCode": "pp_companion_teacher_follow_up",
+      "name": "真人老师督学场景",
+      "sourceRef": "07-sync-companion.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步伴学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：真人老师督学，替家长接管孩子的问题分析、计划制定、定期督促"},
+        {"level": "proof_group", "label": "产品功能"},
+        {"level": "evidence_expression", "label": "证明我们真人老师督学的场景"}
+      ]]
+    },
+    {
+      "code": "ep_companion_teacher_plan",
+      "proofPointCode": "pp_companion_teacher_diagnosis_plan",
+      "name": "真人老师给学生做详细学习规划",
+      "sourceRef": "07-sync-companion.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步伴学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点一：真人老师督学，替家长接管孩子的问题分析、计划制定、定期督促"},
+        {"level": "proof_group", "label": "产品功能"},
+        {"level": "evidence_expression", "label": "证明真人老师可以给学生做详细的学习规划"}
+      ]]
+    },
+    {
+      "code": "ep_companion_wechat_report",
+      "proofPointCode": "pp_companion_report_parent_delivery",
+      "name": "微信小程序推送周报",
+      "sourceRef": "07-sync-companion.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步伴学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱学园学情报告功能，家长能够看到孩子本周的学习报告"},
+        {"level": "proof_group", "label": "产品功能"},
+        {"level": "proof_group", "label": "周报内容匹配"},
+        {"level": "evidence_expression", "label": "微信小程序推送周报"}
+      ]]
+    },
+    {
+      "code": "ep_companion_parent_report",
+      "proofPointCode": "pp_companion_report_core_metrics",
+      "name": "家长查看周报中的详细学习数据",
+      "sourceRef": "07-sync-companion.png",
+      "sourcePaths": [[
+        {"level": "system", "label": "同步伴学体系【业务原版】"},
+        {"level": "selling_point", "label": "核心卖点二：洋葱学园学情报告功能，家长能够看到孩子本周的学习报告"},
+        {"level": "proof_group", "label": "真实用户实测"},
+        {"level": "evidence_expression", "label": "家长在看周报，能看到详细数据"}
+      ]]
+    }
   ]
 }

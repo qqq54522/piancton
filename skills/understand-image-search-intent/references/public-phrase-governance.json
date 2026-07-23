@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-21.5",
+  "version": "2026-07-23.1",
   "frozenSellingPointMap": "selling-point-map.json",
   "purpose": "在不改变六大体系、16 个核心卖点、稳定 code、主体系和语义边界的前提下，治理公共话术入口与自然语言覆盖。",
   "entryRules": {
@@ -45,11 +45,11 @@
   "interpretationSignals": [
     {"code": "animation_explanation", "signals": ["动画课"]},
     {"code": "instant_quiz", "signals": ["到底会没会", "会没会", "随时能看到学习成果"]},
-    {"code": "transfer_practice", "signals": ["换个数字", "换种说法", "换种问法"]},
+    {"code": "transfer_practice", "signals": ["换个数字", "换种说法", "换种问法", "讲完自动推相似题", "讲完再做几道同类题"]},
     {"code": "expert_planning", "signals": ["真正出过卷", "编过教材的人"]},
-    {"code": "universal_method", "signals": ["只背答案", "自己分析"]},
+    {"code": "universal_method", "signals": ["一题多解", "同一道题不同解法", "同题多种解法"]},
     {"code": "ai_learning_plan", "signals": ["先学什么", "系统自动排", "与你水平相匹配的虚拟班级"]},
-    {"code": "photo_guided_learning", "signals": ["拒绝直接给答案", "思路点拨", "启发式提问还原思考过程", "AI先问步骤、讲思路"]},
+    {"code": "photo_guided_learning", "signals": ["拒绝直接给答案", "思路点拨", "启发式提问还原思考过程", "AI先问步骤、讲思路", "拍完题讲解", "拍题讲解后"]},
     {"code": "ai_error_book", "signals": ["错题后再练", "从错题出发复练"]},
     {"code": "learning_report", "signals": ["每周看看学了什么", "学了多久", "随时能看到学习成果"]}
   ],
@@ -104,7 +104,7 @@
     {"id": "novice-transfer", "level": "novice", "query": "这道题会做换个数字换种说法又不会", "expectedCode": "transfer_practice"},
     {"id": "novice-planning", "level": "novice", "query": "想找真正出过卷编过教材的人设计的课", "expectedCode": "expert_planning"},
     {"id": "novice-transition", "level": "novice", "query": "孩子马上初升高怕难度突然变大接不上", "expectedCode": "stage_transition"},
-    {"id": "novice-method", "level": "novice", "query": "不想让孩子只背答案希望他能自己分析", "expectedCode": "universal_method"},
+    {"id": "novice-method", "level": "novice", "query": "不想只看一种解法，希望同一道题能用不同方法来解", "expectedCode": "universal_method"},
     {"id": "novice-ai-plan", "level": "novice", "query": "我不知道孩子每天先学什么想让系统自动排", "expectedCode": "ai_learning_plan"},
     {"id": "novice-ai-tutor", "level": "novice", "query": "孩子晚上写作业卡住了家里没人会讲", "expectedCode": "ai_tutor_qa"},
     {"id": "novice-photo-guided", "level": "novice", "query": "怕孩子拍题只抄答案想让它一步步带着想", "expectedCode": "photo_guided_learning"},

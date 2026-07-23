@@ -476,6 +476,25 @@ def test_business_facets_and_asset_classification_support_green_expression_level
         item["code"] == "ep_exam_variant_expansion"
         for item in catalog.json()["evidencePoints"]
     )
+    transition_point = next(
+        item
+        for item in catalog.json()["evidencePoints"]
+        if item["code"] == "ep_cultivation_transition_course"
+    )
+    assert transition_point["sourceRef"] == "04-sync-cultivation.png"
+    assert transition_point["sourcePaths"][0][-1] == {
+        "level": "evidence_expression",
+        "label": "小升初、初升高过渡课",
+    }
+    transfer_logic = next(
+        item
+        for item in catalog.json()["evidencePoints"]
+        if item["code"] == "ep_exam_transfer_logic"
+    )
+    assert transfer_logic["reviewNotes"] == [
+        "2026-07-23 人工确认：AI 拍题精学讲解完成后自动推送几道相似题，"
+        "这个后续能力同时证明“举一反三”；该说明是人工校准关系，不冒充原图绿色点。"
+    ]
 
     updated = client.patch(
         f"/api/asset-groups/{image['assetGroupId']}/business-classification",

@@ -11,6 +11,7 @@ COPY backend/requirements.txt .
 RUN pip install --root-user-action=ignore -r requirements.txt
 
 COPY backend /app/backend
+COPY docs /app/docs
 COPY skills /app/skills
 COPY taxonomy /app/taxonomy
 COPY docker/backend-entrypoint.sh /usr/local/bin/piancton-entrypoint

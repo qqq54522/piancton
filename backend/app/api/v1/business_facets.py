@@ -36,6 +36,14 @@ def get_business_facets(_: User = Depends(get_current_user)):
                 system_code=item.system_code,
                 concept_code=item.concept_code,
                 source_ref=item.source_ref,
+                source_paths=[
+                    [
+                        {"level": node.level, "label": node.label}
+                        for node in source_path
+                    ]
+                    for source_path in item.source_paths
+                ],
+                review_notes=list(item.review_notes),
             )
             for item in evidence.points
         ],
