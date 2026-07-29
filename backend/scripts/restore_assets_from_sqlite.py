@@ -18,7 +18,6 @@ from pathlib import Path, PurePosixPath
 
 from sqlalchemy import create_engine, text
 
-
 ASSET_TABLE_COLUMNS = {
     "asset_groups": (
         "id", "title", "primary_image_id", "approval_status", "publish_status",
@@ -75,10 +74,18 @@ def copy_to_stage(image_rows: list[dict], source_root: Path, staging_root: Path)
                 continue
             relative = safe_relative(str(storage_key))
             is_thumbnail = key_name == "thumbnail_storage_key"
-            source = source_root / ".thumbnails" / relative if is_thumbnail else source_root / relative
+            source = (
+                source_root / ".thumbnails" / relative
+                if is_thumbnail
+                else source_root / relative
+            )
             if not source.is_file():
                 raise FileNotFoundError(f"missing source file for {image['title']}: {source}")
-            target = staging_root / ".thumbnails" / relative if is_thumbnail else staging_root / relative
+            target = (
+                staging_root / ".thumbnails" / relative
+                if is_thumbnail
+                else staging_root / relative
+            )
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
 
@@ -172,7 +179,12 @@ def restore(args: argparse.Namespace) -> dict[str, int]:
             target.execute(text("DELETE FROM images"))
             target.execute(text("DELETE FROM asset_groups"))
             target.execute(text("DELETE FROM image_title_reservations"))
-            insert_rows(target, "asset_groups", ASSET_TABLE_COLUMNS["asset_groups"], payload["asset_groups"])
+            insert_rows(
+                target,
+                "asset_groups",
+                ASSET_TABLE_COLUMNS["asset_groups"],
+                payload["asset_groups"],
+            )
             insert_rows(target, "images", ASSET_TABLE_COLUMNS["images"], payload["images"])
             insert_rows(
                 target,

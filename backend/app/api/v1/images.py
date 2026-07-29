@@ -6,6 +6,7 @@ from fastapi import (
     Depends,
     File,
     Form,
+    HTTPException,
     Query,
     Request,
     UploadFile,
@@ -114,7 +115,7 @@ def upload_image(
         title or original_name.rsplit(".", 1)[0],
         user.username,
         [item for item in expected_search_words.split("\n") if item.strip()],
-        channel,
+        _required_channel(channel),
         style_label,
         is_scene_image,
     )
@@ -143,6 +144,16 @@ def upload_image(
             session_factory,
         )
     return image
+
+
+def _required_channel(value: Optional[str]) -> str:
+    channel = (value or "").strip()
+    if not channel:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "channel_required", "message": "请先选择使用渠道"},
+        )
+    return channel
 
 
 @router.get("/trash", response_model=list[ImageRead])

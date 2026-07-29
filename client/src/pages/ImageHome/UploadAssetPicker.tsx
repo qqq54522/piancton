@@ -15,8 +15,8 @@ interface UploadAssetPickerProps {
 export default function UploadAssetPicker({ files, previews, onSelect, onRemove }: UploadAssetPickerProps) {
   if (!files.length) {
     return (
-      <label className="group flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-primary/25 bg-card px-6 text-center transition hover:border-primary/45 hover:bg-accent/35">
-        <div className="flex size-12 items-center justify-center rounded-2xl bg-accent text-primary transition-transform group-hover:scale-105">
+      <label className="group flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-foreground/15 bg-card px-6 text-center transition hover:border-foreground/35 hover:bg-[#f7f7f5]">
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-[#f1f1ef] text-foreground transition-transform group-hover:scale-105">
           <Upload className="size-5" />
         </div>
         <span className="mt-4 text-sm font-semibold text-foreground">选择主图</span>
@@ -41,9 +41,9 @@ export default function UploadAssetPicker({ files, previews, onSelect, onRemove 
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Images className="size-4 text-primary" />已选择 {files.length} 张
+          <Images className="size-4 text-foreground" />已选择 {files.length} 张
         </div>
-        <label className="cursor-pointer text-xs font-medium text-primary hover:underline">
+        <label className="cursor-pointer text-xs font-medium text-foreground hover:underline">
           重新选择
           <input
             type="file"

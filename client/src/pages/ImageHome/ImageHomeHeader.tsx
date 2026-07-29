@@ -1,35 +1,46 @@
 import { Link } from 'react-router-dom';
 import { FileClock, Upload } from 'lucide-react';
 
-import PageHeader from '@client/src/components/PageHeader';
 import { Button } from '@client/src/components/ui/button';
 import { CanRole } from '@client/src/lib/auth';
 import { PRODUCT_NAME } from '@client/src/lib/branding';
 
 const ImageHomeHeader = ({
   isDesigner,
+  isBusiness,
   onOpenUpload,
 }: {
   isDesigner: boolean;
+  isBusiness: boolean;
   onOpenUpload: () => void;
-}) => (
-  <PageHeader
-    eyebrow="Selling Point Library"
-    title={PRODUCT_NAME}
-    description="用一句业务需求找到可用素材；上传、版本和业务关系都在同一个素材组中持续维护。"
-    actions={isDesigner ? (
-      <div className="flex items-center gap-2">
+}) => {
+  if (isBusiness) return null;
+
+  return (
+  <header className="flex items-center justify-between gap-4">
+    <div className="min-w-0">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Asset Library</p>
+      <h1
+        title={PRODUCT_NAME}
+        className="mt-1 text-xl font-semibold tracking-normal text-foreground sm:text-2xl"
+      >
+        {PRODUCT_NAME}
+      </h1>
+    </div>
+    {isDesigner ? (
+      <div className="flex shrink-0 items-center gap-2">
         <CanRole roles={['designer']}>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" asChild>
             <Link to="/trash"><FileClock className="mr-1.5 size-4" />回收站</Link>
           </Button>
-          <Button onClick={onOpenUpload}>
+          <Button size="sm" className="bg-foreground text-background hover:bg-foreground/88" onClick={onOpenUpload}>
             <Upload className="mr-1.5 size-4" />上传主图
           </Button>
         </CanRole>
       </div>
-    ) : undefined}
-  />
-);
+    ) : null}
+  </header>
+  );
+};
 
 export default ImageHomeHeader;

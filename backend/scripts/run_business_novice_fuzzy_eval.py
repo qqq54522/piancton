@@ -5,7 +5,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +15,6 @@ from app.api.dependencies import get_search_ai_service
 from app.core.errors import AppError
 from app.db.session import SessionLocal
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
-
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 SOURCE_DOC = (
@@ -117,7 +116,8 @@ def _understanding_to_json(understanding, name_to_code: dict[str, str]) -> dict[
     concepts = [
         {
             "name": item.concept,
-            "code": name_to_code.get(item.concept) or name_to_code.get(item.concept.split(" > ")[-1]),
+            "code": name_to_code.get(item.concept)
+            or name_to_code.get(item.concept.split(" > ")[-1]),
             "relation": item.relation,
             "weight": item.weight,
             "reason": item.reason,
@@ -182,7 +182,11 @@ def _render_md(report: dict[str, Any]) -> str:
         if item["expectedStatus"] == "探索型":
             check = "探索待人工看"
         rows.append(
-            "| {number} | {query} | {expected_status} | {expected} | {query_type} | {actual} | {actual_codes} | {check} | {latency}ms | {error} |  |".format(
+            (
+                "| {number} | {query} | {expected_status} | {expected} | "
+                "{query_type} | {actual} | {actual_codes} | {check} | "
+                "{latency}ms | {error} |  |"
+            ).format(
                 number=item["number"],
                 query=item["query"],
                 expected_status=item["expectedStatus"],
@@ -213,7 +217,11 @@ def _render_md(report: dict[str, Any]) -> str:
         "",
         "## 逐条对照表",
         "",
-        "| # | 测试话术 | 预期状态 | 预期卖点 | 实际查询状态 | GPT-5.5 实际识别卖点 | 实际 code | 自动检查 | 耗时 | 错误 | 人工判断 |",
+        (
+            "| # | 测试话术 | 预期状态 | 预期卖点 | 实际查询状态 | "
+            "GPT-5.5 实际识别卖点 | 实际 code | 自动检查 | 耗时 | "
+            "错误 | 人工判断 |"
+        ),
         "|---:|---|---|---|---|---|---|---|---:|---|---|",
         *rows,
         "",
@@ -304,7 +312,10 @@ def main() -> None:
         },
         "results": results,
     }
-    RESULT_JSON.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    RESULT_JSON.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     RESULT_MD.write_text(_render_md(report), encoding="utf-8")
     print(f"wrote {RESULT_JSON}")
     print(f"wrote {RESULT_MD}")

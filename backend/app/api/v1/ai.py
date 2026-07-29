@@ -7,6 +7,7 @@ from app.api.dependencies import (
     get_asset_phrase_suggestion_service,
     get_image_analysis_service,
     get_image_service,
+    get_search_ai_service,
     require_roles,
     require_write_role,
 )
@@ -41,7 +42,7 @@ def provider_status(
 def understand_search(
     payload: SearchIntentRequest,
     _: User = Depends(require_write_role),
-    service: AiService = Depends(get_ai_service),
+    service: AiService = Depends(get_search_ai_service),
 ):
     return service.understand_search(payload.keyword)
 
@@ -50,7 +51,7 @@ def understand_search(
 def match_selling_points(
     payload: SellingPointRequest,
     _: User = Depends(require_write_role),
-    service: AiService = Depends(get_ai_service),
+    service: AiService = Depends(get_search_ai_service),
 ):
     return service.match_selling_points(payload.copy_text)
 

@@ -39,14 +39,14 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
         files={"file": ("primary.png", png_file(), "image/png")},
         data={
             "title": "只上传主图",
-            "channel": "官网",
+            "channel": "官网、手机端大图",
             "autoAnalyze": "false",
         },
     )
     assert uploaded.status_code == 201
     image = uploaded.json()
     assert "tags" not in image
-    assert image["channel"] == "官网"
+    assert image["channel"] == "官网、手机端大图"
     group_id = image["assetGroupId"]
     index_events.clear()
 
@@ -57,7 +57,6 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
         data={
             "title": "竖版延展",
             "assetRole": "derivative",
-            "channel": "朋友圈",
             "autoAnalyze": "false",
         },
     )
@@ -67,6 +66,10 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
     variant_id = next(
         item["id"] for item in variant.json()["images"] if item["id"] != image["id"]
     )
+    variant_image = next(
+        item for item in variant.json()["images"] if item["id"] == variant_id
+    )
+    assert variant_image["channel"] == image["channel"]
     assert ("upsert", variant_id) in index_events
     index_events.clear()
 
@@ -80,6 +83,10 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
     group = replaced.json()
     assert group["primaryImageId"] != image["id"]
     assert group["title"] == "新版主图"
+    new_primary = next(
+        item for item in group["images"] if item["id"] == group["primaryImageId"]
+    )
+    assert new_primary["channel"] == image["channel"]
     previous = next(item for item in group["images"] if item["id"] == image["id"])
     assert previous["assetRole"] == "revision"
     assert previous["isCurrent"] is False
@@ -88,6 +95,48 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
         ("delete", image["id"]),
         ("upsert", group["primaryImageId"]),
     ]
+
+
+def test_phase5_asset_version_writes_inherit_primary_channel(client):
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={"title": "主图", "channel": "PPT、手机端大图", "autoAnalyze": "false"},
+    ).json()
+    group_id = primary["assetGroupId"]
+
+    variant = client.post(
+        f"/api/asset-groups/{group_id}/images",
+        headers=headers,
+        files={"file": ("vertical.png", png_file("green"), "image/png")},
+        data={
+            "title": "缺渠道延展",
+            "assetRole": "derivative",
+            "autoAnalyze": "false",
+        },
+    )
+    assert variant.status_code == 201
+    variant_image = next(
+        item for item in variant.json()["images"] if item["id"] != primary["id"]
+    )
+    assert variant_image["channel"] == primary["channel"]
+
+    replaced = client.post(
+        f"/api/asset-groups/{group_id}/primary-image",
+        headers=headers,
+        files={"file": ("new-primary.png", png_file("red"), "image/png")},
+        data={"title": "缺渠道替换", "autoAnalyze": "false"},
+    )
+    assert replaced.status_code == 201
+    primary_image = next(
+        item
+        for item in replaced.json()["images"]
+        if item["id"] == replaced.json()["primaryImageId"]
+    )
+    assert primary_image["channel"] == primary["channel"]
 
 
 def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
@@ -105,7 +154,7 @@ def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
         "/api/images/upload",
         headers=headers,
         files={"file": ("primary.png", png_file(), "image/png")},
-        data={"title": "主图", "autoAnalyze": "false"},
+        data={"title": "主图", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
 
     variant = client.post(
@@ -157,7 +206,7 @@ def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
         "/api/images/upload",
         headers=headers,
         files={"file": ("primary.png", png_file(), "image/png")},
-        data={"title": "主图", "autoAnalyze": "false"},
+        data={"title": "主图", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
     group_id = primary["assetGroupId"]
     analyzed = client.post(f"/api/ai/images/{primary['id']}/analyze", headers=headers)
@@ -217,7 +266,7 @@ def test_phase5_designer_can_remove_and_restore_asset_search_phrase(
         "/api/images/upload",
         headers=headers,
         files={"file": ("primary.png", png_file(), "image/png")},
-        data={"title": "话术删除测试主图", "autoAnalyze": "false"},
+        data={"title": "话术删除测试主图", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
     group_id = primary["assetGroupId"]
 
@@ -274,7 +323,7 @@ def test_phase5_designer_can_trash_variant_but_not_primary(client, monkeypatch):
         "/api/images/upload",
         headers=headers,
         files={"file": ("primary.png", png_file(), "image/png")},
-        data={"title": "保留主图", "autoAnalyze": "false"},
+        data={"title": "保留主图", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
     group_id = primary["assetGroupId"]
     variant_group = client.post(
@@ -331,7 +380,7 @@ def test_phase5_batch_accepts_ai_concept_suggestions(client, db_factory):
         "/api/images/upload",
         headers=headers,
         files={"file": ("concept.png", png_file(), "image/png")},
-        data={"title": "关系审核", "autoAnalyze": "false"},
+        data={"title": "关系审核", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
 
     with db_factory() as db:
@@ -372,13 +421,13 @@ def test_phase5_system_filter_asset_metadata_and_result_feedback(client, db_fact
         "/api/images/upload",
         headers=headers,
         files={"file": ("first.png", png_file(), "image/png")},
-        data={"title": "体系筛选素材一", "autoAnalyze": "false"},
+        data={"title": "体系筛选素材一", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
     client.post(
         "/api/images/upload",
         headers=headers,
         files={"file": ("second.png", png_file("yellow"), "image/png")},
-        data={"title": "体系筛选素材二", "autoAnalyze": "false"},
+        data={"title": "体系筛选素材二", "channel": "PPT", "autoAnalyze": "false"},
     )
 
     with db_factory() as db:
@@ -461,7 +510,7 @@ def test_business_facets_and_asset_classification_support_green_expression_level
         "/api/images/upload",
         headers=headers,
         files={"file": ("expression.png", png_file(), "image/png")},
-        data={"title": "例题后变式训练", "autoAnalyze": "false"},
+        data={"title": "例题后变式训练", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
 
     with db_factory() as db:
@@ -524,7 +573,7 @@ def test_asset_business_classification_saves_proof_and_evidence_facets(client, d
         "/api/images/upload",
         headers=headers,
         files={"file": ("facet.png", png_file(), "image/png")},
-        data={"title": "短时动画课", "autoAnalyze": "false"},
+        data={"title": "短时动画课", "channel": "PPT", "autoAnalyze": "false"},
     ).json()
     with db_factory() as db:
         concept = BusinessConcept(code="animation_explanation", name="动画精讲")

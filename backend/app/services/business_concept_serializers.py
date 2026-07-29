@@ -18,6 +18,7 @@ def concept_to_read(concept: BusinessConcept) -> BusinessConceptRead:
         name=concept.name,
         concept_type=concept.concept_type,
         definition=concept.definition,
+        recommendation_text=concept.recommendation_text,
         status=concept.status,
         version=concept.version,
         replaced_by_concept_id=concept.replaced_by_concept_id,

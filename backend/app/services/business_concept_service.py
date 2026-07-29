@@ -47,6 +47,7 @@ class BusinessConceptService:
             name=payload.name.strip(),
             concept_type=payload.concept_type.strip(),
             definition=(payload.definition or "").strip() or None,
+            recommendation_text=(payload.recommendation_text or "").strip() or None,
             system_links=self._system_links(payload.system_links),
         )
         self.concepts.add(concept)
@@ -67,7 +68,14 @@ class BusinessConceptService:
             and not concept.replaced_by_concept_id
         ):
             raise AppError("concept_replacement_required", "合并概念必须指定替代概念")
-        for field in ("name", "concept_type", "definition", "status", "replaced_by_concept_id"):
+        for field in (
+            "name",
+            "concept_type",
+            "definition",
+            "recommendation_text",
+            "status",
+            "replaced_by_concept_id",
+        ):
             if field in values:
                 value = values[field]
                 if isinstance(value, str):

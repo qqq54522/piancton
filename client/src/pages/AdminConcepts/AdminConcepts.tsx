@@ -24,14 +24,14 @@ export default function AdminConcepts() {
   }
 
   return (
-    <div className="page-shell">
+    <div className="page-shell flex lg:h-screen lg:flex-col lg:overflow-hidden">
       <PageHeader
         eyebrow="Selling Point Language"
         title="卖点与公共话术"
         description="公共话术在卖点层只维护一次，所有关联素材自动继承；单张图片的画面和文案差异继续留在素材详情。"
       />
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="mt-6 grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ConceptList
           concepts={concepts.data ?? []}
           selectedId={selected?.id}
@@ -39,8 +39,8 @@ export default function AdminConcepts() {
         />
 
         {selected ? (
-          <main className="surface-card p-5 sm:p-6">
-            <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+          <main className="surface-card flex min-h-0 flex-col overflow-hidden p-5 sm:p-6">
+            <div className="shrink-0 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl font-semibold tracking-tight">{selected.name}</h2>
@@ -59,7 +59,7 @@ export default function AdminConcepts() {
               </div>
             </div>
 
-            <div className="my-5 flex gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm leading-6 text-blue-900">
+            <div className="my-5 flex shrink-0 gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm leading-6 text-blue-900">
               <Sparkles className="mt-1 size-4 shrink-0 text-blue-600" />
               <p>AI建议和搜索反馈只作为候选来源；确认、修改或停用后，才会进入正式公共话术并影响关联素材搜索。</p>
             </div>

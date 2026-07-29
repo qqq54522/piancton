@@ -40,6 +40,18 @@ class Settings(BaseSettings):
     fallback2_base_url: str = ""
     fallback2_api_key: str = ""
     fallback2_temperature: float = 0.2
+    image_analysis_model_name: str = ""
+    image_analysis_base_url: str = ""
+    image_analysis_api_key: str = ""
+    image_analysis_temperature: float = 0.2
+    asset_phrase_model_name: str = ""
+    asset_phrase_base_url: str = ""
+    asset_phrase_api_key: str = ""
+    asset_phrase_temperature: float = 0.2
+    search_fallback_model_name: str = ""
+    search_fallback_base_url: str = ""
+    search_fallback_api_key: str = ""
+    search_fallback_temperature: float = 0.2
     search_backend: str = "database"
     meilisearch_url: str = ""
     meilisearch_api_key: str = ""
@@ -58,9 +70,12 @@ class Settings(BaseSettings):
     search_total_timeout_seconds: float = 2.5
     search_meilisearch_timeout_seconds: float = 0.2
     search_embedding_timeout_seconds: float = 2.5
-    search_understanding_timeout_seconds: float = 30.0
-    search_system_routing_timeout_seconds: float = 8.0
-    search_selling_point_timeout_seconds: float = 20.0
+    search_understanding_timeout_seconds: float = 75.0
+    search_system_routing_timeout_seconds: float = 15.0
+    search_selling_point_timeout_seconds: float = 25.0
+    search_proof_point_timeout_seconds: float = 20.0
+    search_candidate_review_timeout_seconds: float = 20.0
+    search_candidate_review_limit: int = 5
     search_understanding_grace_seconds: float = 5.0
     search_understanding_retry_attempts: int = 1
     search_understanding_retry_backoff_seconds: float = 1.0
@@ -82,9 +97,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    settings = Settings()
-    settings.storage_dir.mkdir(parents=True, exist_ok=True)
-    (settings.storage_dir / ".staging").mkdir(parents=True, exist_ok=True)
-    (settings.storage_dir / ".trash").mkdir(parents=True, exist_ok=True)
-    (settings.storage_dir / ".thumbnails").mkdir(parents=True, exist_ok=True)
-    return settings
+    return Settings()

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import (
     BusinessConcept,
@@ -22,6 +24,7 @@ def create_concept_image(
     title: str = "知识点动画讲解",
     summary: str = "一张用于解释同步校内知识点的功能图。",
     phrase: str = "孩子听不懂老师讲课",
+    recommendation_text: str | None = None,
     origin: str = "manual",
     review_status: str = "accepted",
     role: str = "expresses",
@@ -37,6 +40,7 @@ def create_concept_image(
     concept = BusinessConcept(
         code=code,
         name=name,
+        recommendation_text=recommendation_text,
         system_links=[ConceptSystemLink(system_tag=system)],
         search_phrases=[
             ConceptSearchPhrase(
@@ -98,6 +102,23 @@ def test_search_reuses_versioned_business_phrase(db_factory):
 
     assert [item.image.id for item in response.results] == [image.id]
     assert any("动画精讲" in reason for reason in response.results[0].match_reasons)
+
+
+def test_search_result_concept_match_includes_manual_recommendation_text(db_factory):
+    with db_factory() as db:
+        image = create_concept_image(
+            db,
+            code="instant_quiz",
+            name="课后小测",
+            phrase="课后测完当天看结果",
+            recommendation_text="有没有能体现课后小测后当天会不会一眼看出来的图",
+        )
+        response = SearchService(db).search("课后测完当天看结果", 12)
+
+    assert [item.image.id for item in response.results] == [image.id]
+    match = response.results[0].matched_query_concepts[0]
+    assert match.concept_name == "课后小测"
+    assert match.recommendation_text == "有没有能体现课后小测后当天会不会一眼看出来的图"
 
 
 def test_search_uses_summary_but_ignores_legacy_objective_content_tags(db_factory):

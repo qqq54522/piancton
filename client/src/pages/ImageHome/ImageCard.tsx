@@ -10,26 +10,74 @@ import { rememberImageHomeScroll } from '@client/src/features/images/searchNavig
 interface ImageCardProps {
   image: ImageItem;
   overlay?: React.ReactNode;
+  onImageLoad?: () => void;
+  variant?: 'grid' | 'masonry';
 }
 
-const ImageCard = ({ image, overlay }: ImageCardProps) => {
+const imageAspectRatio = (image: ImageItem) => {
+  if (image.aspectRatio && image.aspectRatio > 0) return String(image.aspectRatio);
+  if (image.width && image.height) return `${image.width} / ${image.height}`;
+  return '4 / 3';
+};
+
+const ImageCard = ({ image, overlay, onImageLoad, variant = 'grid' }: ImageCardProps) => {
   const imageUrl = useImageUrl(image.thumbnailUrl);
   const { ability, isLoading } = useAuth();
   const isDesigner = !isLoading && ability.can('designer', ROLE_SUBJECT);
+
+  if (variant === 'masonry') {
+    return (
+      <Link
+        to={`/image/${image.id}`}
+        state={{ from: '/' }}
+        onClick={rememberImageHomeScroll}
+        className="group block overflow-hidden rounded-2xl bg-transparent transition duration-200 hover:-translate-y-0.5"
+      >
+        <div
+          className="relative overflow-hidden rounded-2xl bg-muted shadow-sm ring-1 ring-border/50 transition group-hover:shadow-lg group-hover:ring-foreground/20"
+          style={{ aspectRatio: imageAspectRatio(image) }}
+        >
+          <img
+            src={imageUrl}
+            alt={image.title}
+            className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
+            loading="lazy"
+            onLoad={onImageLoad}
+          />
+          {overlay && <div className="absolute inset-0 overflow-hidden">{overlay}</div>}
+          {isDesigner && (
+            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/55 px-2 py-1 text-[11px] font-medium text-white opacity-90 backdrop-blur-sm transition group-hover:bg-black/70">
+              {image.variantCount > 1 && <span className="flex items-center gap-1"><Images className="size-3" />{image.variantCount}</span>}
+              <span className="flex items-center gap-1"><Download className="size-3" />{image.downloadCount}</span>
+            </div>
+          )}
+        </div>
+        <div className="mt-2 px-1">
+          <div className="min-w-0">
+            <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{image.title}</h3>
+            {image.width && image.height ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">{image.width}×{image.height}</p>
+            ) : null}
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   return (
     <Link
       to={`/image/${image.id}`}
       state={{ from: '/' }}
       onClick={rememberImageHomeScroll}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={imageUrl}
           alt={image.title}
-        className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           loading="lazy"
+          onLoad={onImageLoad}
         />
         {overlay && <div className="absolute inset-0 overflow-hidden">{overlay}</div>}
         {isDesigner && (

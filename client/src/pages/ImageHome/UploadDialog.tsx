@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ImagePlus, Info, Loader2, Sparkles } from 'lucide-react';
+import { CheckCircle2, ImagePlus, Info, Loader2, Plus, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as assetApi from '@client/src/api/asset';
@@ -15,7 +15,6 @@ import {
   DialogTitle,
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
-import { Select } from '@client/src/components/ui/select';
 import { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
 import { useAssetPhraseSuggestions } from '@client/src/features/ai/useAssetPhraseSuggestions';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
@@ -26,6 +25,8 @@ import UploadAssetPicker from './UploadAssetPicker';
 import UploadAssetPhraseGenerator from './UploadAssetPhraseGenerator';
 import ConceptPhraseInheritancePanel from './ConceptPhraseInheritancePanel';
 import UploadSearchPhraseFields from './UploadSearchPhraseFields';
+import { addCustomChannel, useChannelOptions } from './channelOptions';
+import { joinChannelValues } from './channelValue';
 import { normalizeExpectedSearchWords } from './uploadSearchPhrases';
 
 interface UploadDialogProps {
@@ -37,9 +38,11 @@ interface UploadDialogProps {
 const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
-  const [channel, setChannel] = useState('');
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+  const [addingChannel, setAddingChannel] = useState(false);
+  const [draftChannel, setDraftChannel] = useState('');
   const [styleLabel, setStyleLabel] = useState('');
-  const [sceneType, setSceneType] = useState('');
+  const [isSceneImage, setIsSceneImage] = useState(false);
   const [conceptId, setConceptId] = useState('');
   const [proofPointCode, setProofPointCode] = useState('');
   const [evidencePointCode, setEvidencePointCode] = useState('');
@@ -51,6 +54,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const provider = useProviderStatus(open);
   const concepts = useBusinessConcepts(open);
   const facets = useBusinessFacets(open);
+  const channelOptions = useChannelOptions();
   const selectedConcept = concepts.data?.find((concept) => concept.id === conceptId);
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -80,9 +84,11 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const reset = () => {
     setFiles([]);
     setTitle('');
-    setChannel('');
+    setSelectedChannels([]);
+    setAddingChannel(false);
+    setDraftChannel('');
     setStyleLabel('');
-    setSceneType('');
+    setIsSceneImage(false);
     setConceptId('');
     setProofPointCode('');
     setEvidencePointCode('');
@@ -115,9 +121,17 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     reset();
     onOpenChange(false);
   };
+  const submitCustomChannel = () => {
+    const nextChannel = addCustomChannel(draftChannel);
+    if (!nextChannel) return;
+    setSelectedChannels((items) => [...new Set([...items, nextChannel])]);
+    setDraftChannel('');
+    setAddingChannel(false);
+  };
 
   const submit = async () => {
     if (!files.length) return toast.error('请选择图片');
+    if (selectedChannels.length === 0) return toast.error('请先选择使用渠道');
     setUploading(true);
     try {
       const automaticRenames: string[] = [];
@@ -128,9 +142,9 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
         const image = await imageApi.uploadImage({
           file,
           title: fileTitle,
-          channel,
-          styleLabel,
-          isSceneImage: sceneType ? sceneType === 'scene' : undefined,
+          channel: joinChannelValues(selectedChannels),
+          styleLabel: styleLabel.trim() || undefined,
+          isSceneImage,
           expectedSearchWords: normalizeExpectedSearchWords(expectedSearchWords),
           autoAnalyze: true,
         });
@@ -169,7 +183,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
       >
         <DialogHeader className="border-b border-border/80 px-5 py-4 pr-14 sm:px-6 sm:py-5">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f1f1ef] text-foreground">
               <ImagePlus className="size-5" />
             </div>
             <div>
@@ -184,10 +198,10 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
         <div className="grid min-h-0 overflow-y-auto lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
           <section className="border-b border-border/80 bg-secondary/35 p-5 sm:p-6 lg:border-b-0 lg:border-r">
             <div className="mb-4 flex items-center gap-3">
-              <span className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">1</span>
+              <span className="flex size-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">1</span>
               <div>
                 <h2 className="text-sm font-semibold">选择图片</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">图片是唯一必填项</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">图片和使用渠道为必填项</p>
               </div>
             </div>
             <UploadAssetPicker
@@ -197,19 +211,19 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
               onRemove={(file) => setFiles((items) => items.filter((item) => item !== file))}
             />
             {files.length > 1 && (
-              <div className="mt-3 flex gap-2 rounded-xl border border-primary/10 bg-accent/65 px-3 py-2.5 text-xs leading-5 text-accent-foreground">
+              <div className="mt-3 flex gap-2 rounded-xl border border-border/80 bg-[#f7f7f5] px-3 py-2.5 text-xs leading-5 text-foreground/70">
                 <Info className="mt-0.5 size-3.5 shrink-0" />
-                右侧渠道、风格、图片类型、卖点和话术会应用到本次选中的全部图片；图片名称默认使用各自文件名。
+                右侧渠道、场景图、卖点和话术会应用到本次选中的全部图片；图片名称默认使用各自文件名。
               </div>
             )}
           </section>
 
           <section className="p-5 sm:p-6">
             <div className="mb-5 flex items-center gap-3">
-              <span className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">2</span>
+              <span className="flex size-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">2</span>
               <div>
                 <h2 className="text-sm font-semibold">补充素材信息</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">全部可选，留空也能直接发布</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">使用渠道必填，卖点和话术可发布后继续完善</p>
               </div>
             </div>
 
@@ -243,55 +257,109 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                 <div className="mb-3">
                   <p className="text-sm font-semibold">业务筛选信息</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    由设计师人工填写，只用于业务端在推荐结果中继续缩小范围，不触发 AI 分析。
+                    使用渠道由设计师人工确认，用于业务端按渠道精确找图，不触发 AI 分析。
                   </p>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="block">
+                <div className="space-y-4">
+                  <div>
                     <span className="field-label">使用渠道</span>
-                    <Input
-                      value={channel}
-                      onChange={(event) => setChannel(event.target.value)}
-                      placeholder="例如：官网"
-                      list="asset-channel-suggestions"
-                      maxLength={100}
-                    />
-                    <datalist id="asset-channel-suggestions">
-                      <option value="官网" />
-                      <option value="朋友圈" />
-                      <option value="公众号" />
-                      <option value="小红书" />
-                      <option value="线下物料" />
-                    </datalist>
-                    <span className="field-hint">每个版本填写一个主要渠道</span>
-                  </label>
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {channelOptions.map((item) => (
+                        <Button
+                          key={item}
+                          type="button"
+                          variant={selectedChannels.includes(item) ? 'default' : 'outline'}
+                          size="sm"
+                          disabled={uploading}
+                          className={selectedChannels.includes(item) ? 'bg-foreground text-background hover:bg-foreground/88' : undefined}
+                          onClick={() => setSelectedChannels((items) => (
+                            items.includes(item)
+                              ? items.filter((channel) => channel !== item)
+                              : [...items, item]
+                          ))}
+                        >
+                          {item}
+                        </Button>
+                      ))}
+                      {addingChannel ? (
+                        <div className="flex min-w-44 items-center gap-1 rounded-xl border border-border bg-white px-2 py-1">
+                          <Input
+                            value={draftChannel}
+                            onChange={(event) => setDraftChannel(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') submitCustomChannel();
+                              if (event.key === 'Escape') {
+                                setDraftChannel('');
+                                setAddingChannel(false);
+                              }
+                            }}
+                            placeholder="新增渠道"
+                            maxLength={24}
+                            disabled={uploading}
+                            className="h-7 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
+                            autoFocus
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 bg-foreground px-2 text-xs text-background hover:bg-foreground/88"
+                            disabled={uploading || !draftChannel.trim()}
+                            onClick={submitCustomChannel}
+                          >
+                            添加
+                          </Button>
+                          <button
+                            type="button"
+                            aria-label="取消新增渠道"
+                            disabled={uploading}
+                            onClick={() => {
+                              setDraftChannel('');
+                              setAddingChannel(false);
+                            }}
+                            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={uploading}
+                          onClick={() => setAddingChannel(true)}
+                        >
+                          <Plus className="size-3.5" />添加渠道
+                        </Button>
+                      )}
+                    </div>
+                    <span className="field-hint">每张主图至少选择一个适用渠道；可多选，新增渠道会同步出现在首页筛选里。</span>
+                  </div>
                   <label className="block">
                     <span className="field-label">画面风格</span>
                     <Input
                       value={styleLabel}
-                      onChange={(event) => setStyleLabel(event.target.value)}
-                      placeholder="例如：官网风格"
-                      list="asset-style-suggestions"
                       maxLength={100}
+                      disabled={uploading}
+                      placeholder="例如：官网风格、数据卡片、轻插画"
+                      onChange={(event) => setStyleLabel(event.target.value)}
                     />
-                    <datalist id="asset-style-suggestions">
-                      <option value="官网风格" />
-                      <option value="活动专题风格" />
-                      <option value="社交媒体风格" />
-                      <option value="品牌宣传风格" />
-                      <option value="产品功能展示风格" />
-                    </datalist>
-                    <span className="field-hint">可直接输入新的风格名称</span>
+                    <span className="field-hint">可选，用于业务端按画面风格继续缩小结果。</span>
                   </label>
-                  <label className="block">
-                    <span className="field-label">是否为场景图</span>
-                    <Select value={sceneType} onChange={(event) => setSceneType(event.target.value)}>
-                      <option value="">暂不标注</option>
-                      <option value="scene">是，场景图</option>
-                      <option value="nonScene">否，功能或内容图</option>
-                    </Select>
-                    <span className="field-hint">未标注不会被自动判定</span>
-                  </label>
+                  <div className="flex items-center gap-3">
+                    <span className="field-label mb-0">场景图</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-label="场景图"
+                      aria-checked={isSceneImage}
+                      disabled={uploading}
+                      onClick={() => setIsSceneImage((value) => !value)}
+                      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isSceneImage ? 'border-foreground bg-foreground' : 'border-border bg-muted'}`}
+                    >
+                      <span className={`absolute left-1 size-5 rounded-full bg-white shadow-sm transition-transform ${isSceneImage ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -299,7 +367,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                 <div className="mb-3">
                   <p className="text-sm font-semibold">业务表达层级</p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    依次选择卖点、证明点和作图依据的证据表达点；六大体系会自动带出。
+                    选择素材主要表达的卖点和证明点；六大体系会自动带出。
                   </p>
                 </div>
                 <BusinessClassificationFields
@@ -320,9 +388,6 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                   }}
                   onEvidencePointChange={setEvidencePointCode}
                 />
-                <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-                  证据表达点就是原业务文档绿色区域的作图文案；不知道时可以先留空，之后在素材详情补充。
-                </p>
               </div>
 
               {selectedConcept && (
@@ -356,9 +421,9 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
 
               <div className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-card px-3.5 py-3 text-xs leading-5 text-muted-foreground">
                 {provider.isLoading ? (
-                  <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
+                  <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-foreground" />
                 ) : provider.data?.configured ? (
-                  <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-foreground" />
                 ) : (
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
                 )}
@@ -376,10 +441,10 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
 
         <DialogFooter className="border-t border-border/80 bg-card px-5 py-4 sm:px-6">
           <div className="mr-auto hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-            <CheckCircle2 className="size-4 text-success" />只要选择图片即可发布
+            <CheckCircle2 className="size-4 text-success" />选择图片和使用渠道即可发布
           </div>
           <Button variant="outline" onClick={close} disabled={uploading}>取消</Button>
-          <Button onClick={submit} disabled={uploading || !files.length} className="min-w-28">
+          <Button onClick={submit} disabled={uploading || !files.length || selectedChannels.length === 0} className="min-w-28 bg-foreground text-background hover:bg-foreground/88">
             {uploading && <Loader2 className="size-4 animate-spin" />}
             {uploading ? '正在上传' : files.length > 1 ? `发布 ${files.length} 张` : '上传并发布'}
           </Button>

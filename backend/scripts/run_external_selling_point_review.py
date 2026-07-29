@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -15,7 +15,6 @@ from app.ai.contracts import ModelRequest
 from app.ai.factory import get_model_provider
 from app.api.dependencies import get_search_service
 from app.db.session import SessionLocal
-
 
 SELLING_POINTS = {
     "school_sync": "孩子校外学习内容要跟学校当前教材、章节和授课进度对应",
@@ -78,7 +77,11 @@ def _generate_candidates(service) -> list[dict[str, str]]:
         group = codes[group_index : group_index + 4]
         catalog_lines = []
         for code in group:
-            intent = next(item for item in service.query_understanding.catalog.intents if item.code == code)
+            intent = next(
+                item
+                for item in service.query_understanding.catalog.intents
+                if item.code == code
+            )
             forbidden = list(
                 dict.fromkeys(
                     [
@@ -104,7 +107,8 @@ def _generate_candidates(service) -> list[dict[str, str]]:
         prompt = """
 生成自然、真实、可供业务负责人审批的中文图片搜索话术。
 每个 code 生成 18 条，必须是单一卖点，不包含证明点、品牌数字、奖项、学校案例或具体效果承诺。
-必须使用业务小白会说的间接表达、生活情境、代词和同义改写；不要直接写卖点名称，不要逐字复述 avoid_verbatim 中的任何短语。
+必须使用业务小白会说的间接表达、生活情境、代词和同义改写；
+不要直接写卖点名称，不要逐字复述 avoid_verbatim 中的任何短语。
 每条 18～55 个汉字，彼此语义和句式明显不同。只返回：
 {"items":[{"code":"稳定code","query":"自然搜索话术"}]}
 目标目录：
@@ -349,9 +353,15 @@ def report(data_path: Path, report_path: Path) -> None:
         "## 口径",
         "",
         "- 本报告只评核心卖点，不评证明点、证据表达点或具体图片质量。",
-        "- 100 条话术在执行前均通过本地预检，确认会触发外部查询理解；随后严格串行逐条运行线上同款搜索依赖。",
+        (
+            "- 100 条话术在执行前均通过本地预检，确认会触发外部查询理解；"
+            "随后严格串行逐条运行线上同款搜索依赖。"
+        ),
         "- “外部语义成功”要求查询诊断中 `query_understanding=ok` 且不是缓存结果。",
-        "- “产出卖点”只表示实际响应至少返回一个稳定卖点；是否符合业务含义，最终以负责人逐条审批为准。",
+        (
+            "- “产出卖点”只表示实际响应至少返回一个稳定卖点；"
+            "是否符合业务含义，最终以负责人逐条审批为准。"
+        ),
         "- `expected_code_present` 仅作自动预检，不替代人工审批。",
         "",
         "## 汇总",
@@ -367,7 +377,10 @@ def report(data_path: Path, report_path: Path) -> None:
         "",
         "## 逐条审批表",
         "",
-        "| # | ID | 测试话术 | 预设卖点 | 实际识别卖点 | 结果卡卖点 | 外部语义 | 搜索结果降级 | 耗时 | 自动检查 | 业务审批 | 审批备注 |",
+        (
+            "| # | ID | 测试话术 | 预设卖点 | 实际识别卖点 | 结果卡卖点 | "
+            "外部语义 | 搜索结果降级 | 耗时 | 自动检查 | 业务审批 | 审批备注 |"
+        ),
         "|---:|---|---|---|---|---|---|---|---:|---|---|---|",
     ]
     for index, case in enumerate(cases, start=1):

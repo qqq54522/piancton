@@ -20,6 +20,7 @@ class BusinessConcept(Base):
     name: Mapped[str] = mapped_column(String(150), index=True)
     concept_type: Mapped[str] = mapped_column(String(50), default="business_term", index=True)
     definition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recommendation_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
     replaced_by_concept_id: Mapped[Optional[str]] = mapped_column(

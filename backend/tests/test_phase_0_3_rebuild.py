@@ -244,6 +244,7 @@ def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_fact
         data={
             "title": "V2 分析测试",
             "expectedSearchWords": "负责人手工搜索语",
+            "channel": "PPT",
             "autoAnalyze": "false",
         },
     ).json()

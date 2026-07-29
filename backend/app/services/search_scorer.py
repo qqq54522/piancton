@@ -94,6 +94,7 @@ class SearchScorer:
             matched_query_concepts=matched_query_concepts,
             primary_proof_point_code=proof_code,
             primary_proof_point_name=proof.name if proof else None,
+            primary_proof_point_claim=proof.claim if proof else None,
             primary_evidence_point_code=evidence_code,
             primary_evidence_point_name=evidence.name if evidence else None,
         )
@@ -191,6 +192,7 @@ class SearchScorer:
                 concept_code=link.concept.code,
                 concept_name=link.concept.name,
                 relation_role=link.relation_role,
+                recommendation_text=link.concept.recommendation_text,
             )
             for link in ordered
         ]

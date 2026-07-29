@@ -1,22 +1,24 @@
 import type { ScoredImageMatch } from '@client/src/types/api';
+import type { ImageChannelIntent } from './channelIntent';
+import { channelValueIncludes, splitChannelValue } from './channelValue';
+import { CHANNEL_VALUES } from './channelRecommendations';
 
 export type SceneImageFilter = 'all' | 'scene' | 'nonScene';
 
 export interface SearchRefinements {
   channel: string;
-  style: string;
+  channelIntent: ImageChannelIntent | null;
   scene: SceneImageFilter;
 }
 
 export interface SearchRefinementOptions {
   channels: string[];
-  styles: string[];
   hasKnownSceneType: boolean;
 }
 
 export const EMPTY_SEARCH_REFINEMENTS: SearchRefinements = {
   channel: '',
-  style: '',
+  channelIntent: null,
   scene: 'all',
 };
 
@@ -24,21 +26,23 @@ export function collectSearchRefinementOptions(
   items: ScoredImageMatch[],
 ): SearchRefinementOptions {
   const channels = new Set<string>();
-  const styles = new Set<string>();
   let hasKnownSceneType = false;
 
   items.forEach((item) => {
     item.availableVariants.forEach((variant) => {
-      if (variant.channel?.trim()) channels.add(variant.channel.trim());
+      splitChannelValue(variant.channel).forEach((channel) => channels.add(channel));
     });
-    if (item.image.channel?.trim()) channels.add(item.image.channel.trim());
-    if (item.image.styleLabel?.trim()) styles.add(item.image.styleLabel.trim());
+    splitChannelValue(item.image.channel).forEach((channel) => channels.add(channel));
     if (typeof item.image.isSceneImage === 'boolean') hasKnownSceneType = true;
   });
 
   return {
-    channels: [...channels].sort((left, right) => left.localeCompare(right, 'zh-CN')),
-    styles: [...styles].sort((left, right) => left.localeCompare(right, 'zh-CN')),
+    channels: [
+      ...CHANNEL_VALUES,
+      ...[...channels]
+        .filter((channel) => !CHANNEL_VALUES.includes(channel))
+        .sort((left, right) => left.localeCompare(right, 'zh-CN')),
+    ],
     hasKnownSceneType,
   };
 }
@@ -47,15 +51,19 @@ export function filterResultsByRefinements(
   items: ScoredImageMatch[],
   refinements: SearchRefinements,
 ): ScoredImageMatch[] {
+  const intentChannels = refinements.channel
+    ? []
+    : refinements.channelIntent?.candidateChannels ?? [];
+
   return items.filter((item) => {
     const variants = item.availableVariants.length > 0
       ? item.availableVariants
       : [{ channel: item.image.channel }];
     if (
       refinements.channel
-      && !variants.some((variant) => variant.channel?.trim() === refinements.channel)
+      && !variants.some((variant) => channelValueIncludes(variant.channel, refinements.channel))
     ) return false;
-    if (refinements.style && item.image.styleLabel?.trim() !== refinements.style) return false;
+    if (intentChannels.length > 0 && !matchHasAnyChannel(item, intentChannels)) return false;
     if (refinements.scene === 'scene' && item.image.isSceneImage !== true) return false;
     if (refinements.scene === 'nonScene' && item.image.isSceneImage !== false) return false;
     return true;
@@ -64,6 +72,15 @@ export function filterResultsByRefinements(
 
 export function activeRefinementCount(refinements: SearchRefinements): number {
   return Number(Boolean(refinements.channel))
-    + Number(Boolean(refinements.style))
+    + (!refinements.channel ? refinements.channelIntent?.candidateChannels.length ?? 0 : 0)
     + Number(refinements.scene !== 'all');
+}
+
+function matchHasAnyChannel(item: ScoredImageMatch, channels: string[]): boolean {
+  const variants = item.availableVariants.length > 0
+    ? item.availableVariants
+    : [{ channel: item.image.channel }];
+  return variants.some((variant) => {
+    return channels.some((channel) => channelValueIncludes(variant.channel, channel));
+  });
 }

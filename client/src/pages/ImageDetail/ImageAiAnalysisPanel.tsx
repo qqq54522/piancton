@@ -16,12 +16,12 @@ const ProfileTagGroup = ({ title, items }: { title: string; items: string[] }) =
   return (
     <div className="space-y-1.5">
       <span className="text-[11px] font-medium text-muted-foreground">{title}</span>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex min-w-0 max-w-full flex-wrap gap-1.5 overflow-hidden">
         {items.map((item) => (
           <Badge
             key={item}
             variant="outline"
-            className="border-primary/20 bg-primary/5 text-primary/70"
+            className="max-w-full whitespace-normal break-words border-border bg-[#f7f7f5] text-left leading-5 text-foreground/70"
           >
             {item}
           </Badge>
@@ -48,6 +48,7 @@ const ImageAiAnalysisPanel = ({
   const visibleGroups = detail.semanticProfile
     ? visibleSemanticProfileGroups(detail.semanticProfile)
     : [];
+  // 页面只展示画面事实、场景和素材独有搜索表达；其余 V3 字段留在后端契约内。
 
   return (
     <CanRole roles={['designer']}>
@@ -59,7 +60,6 @@ const ImageAiAnalysisPanel = ({
               {active && <Loader2 className="mr-1 size-3 animate-spin" />}{status}
             </Badge>
           </div>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">页面只展示画面事实、场景和素材独有搜索表达；业务卖点在下方确认</p>
         </div>
         <Button
           variant="outline"
@@ -75,12 +75,12 @@ const ImageAiAnalysisPanel = ({
       {detail.imageSummary && (
         <div className="mt-5">
           <span className="text-sm font-medium">语义总结</span>
-          <p className="mt-1.5 rounded-lg border border-primary/10 bg-primary/5 px-3 py-2 text-sm leading-relaxed">{detail.imageSummary}</p>
+          <p className="mt-1.5 rounded-lg border border-border/80 bg-[#f7f7f5] px-3 py-2 text-sm leading-relaxed">{detail.imageSummary}</p>
         </div>
       )}
 
       {visibleGroups.length > 0 && (
-        <div className="mt-5 space-y-3 border-l border-primary/20 pl-3">
+        <div className="mt-5 min-w-0 space-y-3 overflow-x-hidden border-l border-border pl-3">
           {visibleGroups.map((group) => (
             <ProfileTagGroup key={group.key} title={group.title} items={group.items} />
           ))}

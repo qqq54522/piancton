@@ -87,6 +87,7 @@ class SearchResultConceptMatch(ApiModel):
     concept_code: str
     concept_name: str
     relation_role: Literal["expresses", "supports", "visual_related"]
+    recommendation_text: Optional[str] = None
 
 
 class ScoredImage(ApiModel):
@@ -104,6 +105,7 @@ class ScoredImage(ApiModel):
     matched_query_concepts: List[SearchResultConceptMatch] = Field(default_factory=list)
     primary_proof_point_code: Optional[str] = None
     primary_proof_point_name: Optional[str] = None
+    primary_proof_point_claim: Optional[str] = None
     primary_evidence_point_code: Optional[str] = None
     primary_evidence_point_name: Optional[str] = None
 

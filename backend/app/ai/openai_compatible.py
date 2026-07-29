@@ -3,8 +3,10 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -22,13 +24,25 @@ SEARCH_TASK_ROLES = {
         "共享词不能被当作唯一体系证据，也不得提前判断卖点或具体图片。"
     ),
     "search_intent_understanding": (
-        "你是业务方搜索话术的第二层卖点决策员，并负责可选的证明点识别。"
+        "你是业务方搜索话术的第二层卖点决策员。"
         "你只能在第一层候选体系和当前启用目录内判断；"
         "必须区分主动作或产品入口、使用对象、目的结果与讲解方法，"
         "若句式是‘通过/借助/采用X，帮你/从而Y’，X是核心方法谓词，Y是结果；"
         "不得让通用结果词或方法细节覆盖更主要的入口证据；"
+        "本层不得判断证明点、证据表达点或图片。"
+    ),
+    "search_proof_point_understanding": (
+        "你是业务方搜索话术的第三层证明点决策员。"
+        "你只能在第二层已经确认的卖点及其直属证明点目录内判断；"
+        "不得新增、删除或改写卖点，也不得选择图片；"
         "只有原话明确点名功能、方法、案例、数据或具体证据时才输出证明点；"
-        "每个证明点还必须从该证明点已有搜索语言中原样选择一至三条最具体的 evidence_terms。"
+        "每个证明点必须从现有搜索语言中原样选择一至三条 evidence_terms。"
+    ),
+    "search_candidate_review": (
+        "你是图片搜索结果的第四层候选复核员。"
+        "你不重新判断体系、卖点或证明点，不扩大候选范围；"
+        "只比较用户原话、已确认搜索理解和候选图片文字证据，判断每张候选图是否承接本次需求。"
+        "没有直接冲突时优先保留，只有候选图与已确认意图明显不一致时才排除。"
     ),
 }
 
@@ -56,6 +70,7 @@ class OpenAICompatibleModelProvider:
         self.model_name = model_name
         self.timeout_seconds = timeout_seconds
         self.temperature = temperature
+        self.last_attempts: list[dict[str, Any]] = []
 
     @property
     def configured(self) -> bool:
@@ -65,20 +80,48 @@ class OpenAICompatibleModelProvider:
         if not self.configured:
             raise ModelProviderNotConfigured("OpenAI-compatible 模型 Provider 尚未配置完整")
 
+        started = time.monotonic()
+        status = "failed"
+        error = ""
         payload = {
             "model": self.model_name,
             "messages": self._messages(request),
             "temperature": self.temperature,
             "response_format": {"type": "json_object"},
         }
-        if request.timeout_seconds is None:
-            response_payload = self._post_chat_completions(payload)
-        else:
-            response_payload = self._post_chat_completions(
-                payload,
-                timeout_seconds=request.timeout_seconds,
-            )
-        return self._extract_json(response_payload)
+        try:
+            if request.timeout_seconds is None:
+                response_payload = self._post_chat_completions(payload)
+            else:
+                response_payload = self._post_chat_completions(
+                    payload,
+                    timeout_seconds=request.timeout_seconds,
+                )
+            result = self._extract_json(response_payload)
+            status = "ok"
+            return result
+        except Exception as exc:
+            error = _safe_attempt_error(exc)
+            raise
+        finally:
+            self.last_attempts = [
+                {
+                    "provider": self.provider_label,
+                    "model": self.model_name,
+                    "status": status,
+                    "duration_ms": _elapsed_ms(started),
+                    "error": error,
+                }
+            ]
+
+    @property
+    def provider_label(self) -> str:
+        host = urlparse(self.base_url).hostname or self.base_url
+        if "laozhang" in host:
+            return "laozhang"
+        if "ohmygpt" in host:
+            return "ohmygpt"
+        return host
 
     def _messages(self, request: ModelRequest) -> list[dict[str, Any]]:
         role = SEARCH_TASK_ROLES.get(
@@ -202,3 +245,12 @@ class OpenAICompatibleModelProvider:
             if isinstance(value, dict):
                 return value
         raise ModelProviderError("模型没有返回可解析的 JSON 对象")
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((time.monotonic() - started) * 1000))
+
+
+def _safe_attempt_error(exc: Exception) -> str:
+    message = str(exc).strip() or exc.__class__.__name__
+    return message[:120]

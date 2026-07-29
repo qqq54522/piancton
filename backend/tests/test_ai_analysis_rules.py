@@ -291,6 +291,12 @@ def test_search_intent_normalizes_catalog_codes_to_chinese_names():
                 "excluded_concepts": ["instant_quiz"],
                 "search_strategy": "优先召回动画精讲",
             },
+            {
+                "original_query": "孩子听不懂老师讲课",
+                "matched_proof_points": [],
+                "matched_evidence_points": [],
+                "search_strategy": "查询停留在动画精讲卖点层",
+            },
         ]
     )
     result = AiService(provider).understand_search("孩子听不懂老师讲课")
@@ -301,6 +307,7 @@ def test_search_intent_normalizes_catalog_codes_to_chinese_names():
     assert [request.task for request in provider.requests] == [
         "search_system_routing",
         "search_intent_understanding",
+        "search_proof_point_understanding",
     ]
     assert "animation_explanation" not in provider.requests[0].prompt
     assert "`animation_explanation` / 动画精讲" in provider.requests[1].prompt

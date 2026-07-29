@@ -178,6 +178,7 @@ export interface BusinessConcept {
   name: string;
   conceptType: string;
   definition?: string | null;
+  recommendationText?: string | null;
   status: string;
   version: number;
   systemLinks: ConceptSystemLink[];
@@ -225,6 +226,7 @@ export interface ScoredImageMatch {
   matchedQueryConcepts: SearchResultConceptMatch[];
   primaryProofPointCode?: string | null;
   primaryProofPointName?: string | null;
+  primaryProofPointClaim?: string | null;
   primaryEvidencePointCode?: string | null;
   primaryEvidencePointName?: string | null;
 }
@@ -233,6 +235,7 @@ export interface SearchResultConceptMatch {
   conceptCode: string;
   conceptName: string;
   relationRole: 'expresses' | 'supports' | 'visual_related';
+  recommendationText?: string | null;
 }
 
 export interface SearchBranchStatus {

@@ -17,7 +17,6 @@ from app.schemas.ai import (
     SearchConceptMatch,
     SearchEvidencePointMatch,
     SearchProofPointMatch,
-    SearchSystemCandidate,
     SearchSystemRouting,
     SearchUnderstanding,
 )
@@ -44,7 +43,7 @@ AMBIGUOUS_CONFIDENCE_GAP = 0.05
 UNCERTAIN_FALLBACK_CONFIDENCE = 0.74
 EXPLORATION_CONFIDENCE = 0.88
 EXPLORATION_OVERRIDE_THRESHOLD = 0.9
-LOCAL_MATCHER_VERSION = "2026-07-23.1"
+LOCAL_MATCHER_VERSION = "2026-07-27.2"
 TRANSFER_TRAINING_PHRASES = ("变式训练", "同类题训练")
 TRANSFER_TRAINING_CONTEXT = (
     "例题",
@@ -78,6 +77,17 @@ QUIZ_MEASUREMENT_CONTEXT = (
     "反馈",
     "分数",
     "测一测",
+)
+EXAM_STAGE_MARKERS = ("月考", "期中", "期末", "模考", "中考", "高考", "考试", "考前")
+EXAM_FOCUS_MARKERS = (
+    "划重点",
+    "一键划重点",
+    "抓重点",
+    "重点梳理",
+    "重点复习",
+    "冲刺",
+    "突击",
+    "高频考点",
 )
 TRUSTED_LOCAL_QUERY_TYPES = frozenset(
     {
@@ -303,22 +313,11 @@ class QueryUnderstandingService:
         keyword: str,
         local_understanding: SearchUnderstanding | None,
     ) -> bool:
-        # 可信卖点仍跳过完整两层判断；但查询还带有未落点的具体细节时，
-        # 允许在已确认父卖点内补一次证明点，避免把自然语言穷举进词表。
         return bool(
             keyword.strip()
             and self.ai_service
             and self.ai_service.provider.configured
-            and (
-                not self._has_trusted_local_understanding(local_understanding)
-                or (
-                    self.supports_staged_model
-                    and self.needs_proof_point_completion(
-                        keyword,
-                        local_understanding,
-                    )
-                )
-            )
+            and not self._is_manual_business_filter(local_understanding)
         )
 
     def needs_proof_point_completion(
@@ -363,30 +362,7 @@ class QueryUnderstandingService:
     ) -> SearchUnderstanding | None:
         if not self.ai_service or not self.supports_staged_model:
             return None
-        active_codes = self._active_concept_codes(local_understanding)
-        system_codes = tuple(
-            dict.fromkeys(
-                point.system_code
-                for point in self.proof_points.catalog.points
-                if point.concept_code in active_codes
-            )
-        )
-        if not system_codes:
-            return None
-        routing = SearchSystemRouting(
-            original_query=keyword,
-            route_type="single_system" if len(system_codes) == 1 else "multi_system",
-            candidate_systems=[
-                SearchSystemCandidate(
-                    code=system_code,
-                    relation="primary" if index == 0 else "related",
-                    reason="本地已确认卖点，仅补全其父体系内证明点",
-                    weight=0.99 if index == 0 else 0.9,
-                )
-                for index, system_code in enumerate(system_codes[:3])
-            ],
-        )
-        return self.understand_with_model_route(keyword, routing)
+        return self.ai_service.understand_proof_points(keyword, local_understanding)
 
     def arbitrate_model_understanding(
         self,
@@ -410,6 +386,9 @@ class QueryUnderstandingService:
                 local_understanding.original_query,
                 local_understanding,
                 model_matches=list(model_understanding.matched_proof_points),
+                model_evidence_matches=list(
+                    model_understanding.matched_evidence_points
+                ),
             )
         return model_understanding
 
@@ -427,7 +406,10 @@ class QueryUnderstandingService:
         return bool(
             self.ai_service
             and callable(getattr(self.ai_service, "route_search_system", None))
-            and callable(getattr(self.ai_service, "understand_search_from_route", None))
+            and callable(
+                getattr(self.ai_service, "understand_selling_points_from_route", None)
+            )
+            and callable(getattr(self.ai_service, "understand_proof_points", None))
         )
 
     def route_with_model(self, keyword: str) -> SearchSystemRouting:
@@ -461,6 +443,85 @@ class QueryUnderstandingService:
             return None
         return _with_negated_concepts(
             self.ai_service.understand_search_from_route(query, routing),
+            self._negated_intent_names(query),
+        )
+
+    def understand_selling_points_with_model_route(
+        self,
+        keyword: str,
+        routing: SearchSystemRouting,
+    ) -> SearchUnderstanding | None:
+        query = keyword.strip()
+        if not query or not self.ai_service or not self.supports_staged_model:
+            return None
+        try:
+            result = _with_negated_concepts(
+                self.ai_service.understand_selling_points_from_route(query, routing),
+                self._negated_intent_names(query),
+            )
+        except AppError:
+            repaired = self._repair_routed_selling_point_understanding(query, routing)
+            if repaired is not None:
+                return repaired
+            raise
+        if not result.matched_business_concepts:
+            repaired = self._repair_routed_selling_point_understanding(query, routing)
+            if repaired is not None:
+                return repaired
+        return result
+
+    def model_attempts_detail(self) -> str:
+        provider = getattr(self.ai_service, "provider", None)
+        attempts = getattr(provider, "last_attempts", None)
+        if not isinstance(attempts, list) or not attempts:
+            return ""
+        parts = []
+        for attempt in attempts:
+            if not isinstance(attempt, dict):
+                continue
+            provider_name = str(attempt.get("provider") or "unknown")
+            model = str(attempt.get("model") or "unknown")
+            status = str(attempt.get("status") or "unknown")
+            duration_ms = int(attempt.get("duration_ms") or 0)
+            error = str(attempt.get("error") or "").strip()
+            suffix = f"，{error}" if error else ""
+            parts.append(f"{provider_name}/{model} {status} {duration_ms}ms{suffix}")
+        return "；".join(parts)
+
+    def review_candidates_with_model(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        candidates: list[dict],
+    ):
+        query = keyword.strip()
+        if (
+            not query
+            or not candidates
+            or not self.ai_service
+            or not self.ai_service.provider.configured
+            or not callable(
+                getattr(self.ai_service, "review_search_candidates", None)
+            )
+        ):
+            return None
+        return self.ai_service.review_search_candidates(
+            keyword=query,
+            understanding=understanding,
+            candidates=candidates,
+        )
+
+    def understand_proof_points_with_model(
+        self,
+        keyword: str,
+        selling_points: SearchUnderstanding,
+    ) -> SearchUnderstanding | None:
+        query = keyword.strip()
+        if not query or not self.ai_service or not self.supports_staged_model:
+            return None
+        return _with_negated_concepts(
+            self.ai_service.understand_proof_points(query, selling_points),
             self._negated_intent_names(query),
         )
 
@@ -617,12 +678,17 @@ class QueryUnderstandingService:
         understanding: SearchUnderstanding,
         *,
         model_matches=None,
+        model_evidence_matches=None,
     ) -> SearchUnderstanding:
         proof_matches, evidence_matches = self._proof_and_evidence_matches(
             query,
             self._active_concept_codes(understanding),
             list(model_matches or understanding.matched_proof_points),
-            list(understanding.matched_evidence_points),
+            list(
+                model_evidence_matches
+                if model_evidence_matches is not None
+                else understanding.matched_evidence_points
+            ),
         )
         return understanding.model_copy(
             update={
@@ -886,6 +952,65 @@ class QueryUnderstandingService:
             search_strategy="没有可信卖点主通道，使用图片话术和画面语义全局召回并排除否定卖点",
         )
 
+    def _repair_routed_selling_point_understanding(
+        self,
+        query: str,
+        routing: SearchSystemRouting,
+    ) -> SearchUnderstanding | None:
+        system_codes = self.routed_system_codes(routing)
+        if "sync_exam" not in system_codes or not _is_exam_stage_focus_query(query):
+            return None
+        intent = next(
+            (item for item in self.catalog.intents if item.code == "focused_excellence"),
+            None,
+        )
+        if intent is None:
+            return None
+        negated = self._negated_intent_names(query)
+        if intent.display_name in negated or intent.name in negated:
+            return None
+        proof_matches, evidence_matches = self._proof_and_evidence_matches(
+            query,
+            {"focused_excellence"},
+            [],
+            [],
+        )
+        if not proof_matches and (
+            proof := self.proof_points.catalog.by_code.get("pp_exam_focus_stage_review")
+        ):
+            proof_matches = [
+                SearchProofPointMatch(
+                    code=proof.code,
+                    concept_code=proof.concept_code,
+                    name=proof.name,
+                    reason="考试阶段重点梳理强信号保护性补全",
+                    weight=0.9,
+                    evidence_terms=["月考/期中/期末", "划重点"],
+                )
+            ]
+        return SearchUnderstanding(
+            original_query=query,
+            normalized_query=intent.name,
+            search_intent=f"用户在找“{intent.name}”中考试阶段重点梳理相关素材",
+            query_type="business_intent_search",
+            expanded_terms=[],
+            matched_business_concepts=[
+                SearchConceptMatch(
+                    concept=intent.display_name,
+                    relation="direct",
+                    reason=(
+                        "第一层已路由到同步考点，且原话命中考试阶段重点梳理强信号；"
+                        "第二层模型结构不稳定时按知识库强别名保护性补全"
+                    ),
+                    weight=0.92,
+                )
+            ],
+            matched_proof_points=proof_matches,
+            matched_evidence_points=evidence_matches,
+            excluded_concepts=list(negated),
+            search_strategy="按同步考点强别名补全卖点后继续进入候选召回与第四层复核",
+        )
+
     def _match_intent(
         self,
         keyword: str,
@@ -992,6 +1117,18 @@ def _matched_terms(needle: str, terms: tuple[str, ...]) -> list[str]:
         if normalized in needle or (len(needle) >= 4 and needle in normalized):
             matched.append(term)
     return matched
+
+
+def _is_exam_stage_focus_query(query: str) -> bool:
+    needle = _normalize(query)
+    if not needle:
+        return False
+    explicit = ("一键划重点", "月考划重点", "期中划重点", "期末划重点", "期末冲刺")
+    if any(_normalize(term) in needle for term in explicit):
+        return True
+    has_exam = any(_normalize(term) in needle for term in EXAM_STAGE_MARKERS)
+    has_focus = any(_normalize(term) in needle for term in EXAM_FOCUS_MARKERS)
+    return has_exam and has_focus
 
 
 def _contextual_exact_only_matches(

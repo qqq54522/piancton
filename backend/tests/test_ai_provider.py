@@ -2,10 +2,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from app.ai import factory
-from app.ai.contracts import ModelRequest
+from app.ai.contracts import ModelProviderError, ModelRequest
 from app.ai.fallback import FallbackModelProvider
 from app.ai.openai_compatible import OpenAICompatibleModelProvider
 from app.api.dependencies import _provider_attempt_count
+from app.schemas.ai import SearchUnderstanding
+from app.services.ai_service import AiService
 
 
 def test_openai_compatible_provider_extracts_json_from_markdown_wrapped_content(monkeypatch):
@@ -116,11 +118,197 @@ def test_search_tasks_receive_layer_specific_decision_roles():
             input_text="一键拍照",
         )
     )[0]["content"]
+    proof_point_system = provider._messages(
+        ModelRequest(
+            task="search_proof_point_understanding",
+            prompt="Return JSON",
+            input_text="一键拍照",
+        )
+    )[0]["content"]
 
     assert "第一层路由决策员" in router_system
     assert "不得提前判断卖点或具体图片" in router_system
     assert "第二层卖点决策员" in selling_point_system
     assert "不得让通用结果词或方法细节覆盖更主要的入口证据" in selling_point_system
+    assert "本层不得判断证明点" in selling_point_system
+    assert "第三层证明点决策员" in proof_point_system
+    assert "不得新增、删除或改写卖点" in proof_point_system
+
+
+def test_ai_service_runs_strict_system_selling_point_proof_point_chain():
+    class RecordingProvider:
+        name = "recording"
+        configured = True
+
+        def __init__(self):
+            self.requests = []
+
+        def generate_json(self, request):
+            self.requests.append(request)
+            if request.task == "search_system_routing":
+                return {
+                    "original_query": request.input_text,
+                    "route_type": "single_system",
+                    "candidate_systems": [
+                        {
+                            "code": "sync_school",
+                            "relation": "primary",
+                            "reason": "动画讲解",
+                            "weight": 0.98,
+                        }
+                    ],
+                }
+            if request.task == "search_intent_understanding":
+                return {
+                    "original_query": "想找短小的动画课",
+                    "normalized_query": "动画精讲",
+                    "search_intent": "动画讲解",
+                    "query_type": "business_intent_search",
+                    "matched_business_concepts": [
+                        {
+                            "concept": "animation_explanation",
+                            "relation": "direct",
+                            "reason": "明确要求动画讲解",
+                            "weight": 0.98,
+                        }
+                    ],
+                    "matched_proof_points": [],
+                    "matched_evidence_points": [],
+                }
+            return {
+                "original_query": "想找短小的动画课",
+                "matched_proof_points": [
+                    {
+                        "code": "pp_animation_pedagogy_design",
+                        "concept_code": "animation_explanation",
+                        "name": "模型名称会被规范化",
+                        "reason": "短小、单点讲透",
+                        "weight": 0.95,
+                        "evidence_terms": ["5-8 分钟动画微课"],
+                    }
+                ],
+                "matched_evidence_points": [],
+            }
+
+    provider = RecordingProvider()
+    result = AiService(provider).understand_search("想找短小的动画课")
+
+    assert [request.task for request in provider.requests] == [
+        "search_system_routing",
+        "search_intent_understanding",
+        "search_proof_point_understanding",
+    ]
+    assert "### 证明点" not in provider.requests[1].prompt
+    assert "候选体系证据表达点目录" not in provider.requests[1].prompt
+    assert "pp_animation_pedagogy_design" in provider.requests[2].prompt
+    assert "pp_school_quiz_immediate_feedback" not in provider.requests[2].prompt
+    assert [item.code for item in result.matched_proof_points] == [
+        "pp_animation_pedagogy_design"
+    ]
+
+
+def test_ai_service_normalizes_system_route_shape_and_keeps_scoped_proof_hints():
+    class RecordingProvider:
+        name = "recording"
+        configured = True
+
+        def generate_json(self, request):
+            if request.task == "search_system_routing":
+                return {
+                    "route_type": "single",
+                    "systems": [
+                        {
+                            "system": "同步校内",
+                            "reason": "模型用中文体系名返回",
+                            "weight": "0.96",
+                        }
+                    ],
+                }
+            return {
+                "original_query": request.input_text,
+                "normalized_query": "动画精讲",
+                "search_intent": "短时间讲透一个知识点",
+                "query_type": "single_intent_search",
+                "matched_business_concepts": [
+                    {
+                        "concept": "animation_explanation",
+                        "relation": "direct",
+                        "reason": "模型返回稳定卖点 code",
+                        "weight": 0.97,
+                    }
+                ],
+                "matched_proof_points": [
+                    {
+                        "code": "pp_animation_pedagogy_design",
+                        "concept_code": "animation_explanation",
+                        "name": "模型名称会被规范化",
+                        "reason": "短时间讲透一个知识点",
+                        "weight": 0.94,
+                        "evidence_terms": ["5-8 分钟动画微课"],
+                    },
+                    {
+                        "code": "pp_photo_guided_socratic_method",
+                        "concept_code": "photo_guided_learning",
+                        "name": "跨卖点证明点会被丢弃",
+                        "reason": "越界",
+                        "weight": 0.9,
+                        "evidence_terms": [],
+                    },
+                ],
+                "matched_evidence_points": [],
+            }
+
+    service = AiService(RecordingProvider())
+    routing = service.route_search_system("一节课不长，一个点能讲透")
+    result = service.understand_selling_points_from_route(
+        "一节课不长，一个点能讲透",
+        routing,
+    )
+
+    assert [item.code for item in routing.candidate_systems] == ["sync_school"]
+    assert routing.route_type == "single_system"
+    assert [item.code for item in result.matched_proof_points] == [
+        "pp_animation_pedagogy_design"
+    ]
+
+
+def test_ai_service_accepts_search_understanding_shorthand_payload():
+    class ShorthandProvider:
+        name = "shorthand"
+        configured = True
+
+        def generate_json(self, request):
+            return {
+                "query_state": "business_intent_search",
+                "matched_business_concepts": [
+                    {
+                        "code": "learning_report",
+                        "evidence": ["家长可以查看学习结果"],
+                        "concept": "",
+                    }
+                ],
+                "matched_proof_points": [],
+                "matched_evidence_points": [],
+                "excluded_concepts": [],
+                "expanded_terms": ["学习结果查看", "学习反馈"],
+                "search_strategy": "指向向家长反馈学习结果/学习情况的卖点。",
+            }
+
+    service = AiService(ShorthandProvider())
+    result = service._run(
+        ModelRequest(
+            task="search_intent_understanding",
+            prompt="Return JSON",
+            input_text="第一层候选体系：sync_companion\n原始查询：家长可以查看学习结果",
+        ),
+        result_type=SearchUnderstanding,
+    )
+
+    assert result.original_query == "家长可以查看学习结果"
+    assert result.query_type == "business_intent_search"
+    assert result.matched_business_concepts[0].concept.endswith("学情报告反馈")
+    assert result.matched_business_concepts[0].relation == "direct"
+    assert result.expanded_terms[0].term == "学习结果查看"
 
 
 def test_factory_respects_explicit_provider_order(monkeypatch):
@@ -153,11 +341,56 @@ def test_factory_respects_explicit_provider_order(monkeypatch):
     ]
 
 
-def test_provider_order_keeps_unspecified_slots_as_fallbacks():
-    assert factory._provider_order("fallback2") == (
-        "fallback2",
+def test_factory_isolates_image_phrase_and_search_credentials(monkeypatch):
+    settings = SimpleNamespace(
+        model_provider="openai_compatible",
+        model_provider_order="primary",
+        model_name="gpt-5.5",
+        model_base_url="https://primary.example.test/v1",
+        model_api_key="search-primary-key",
+        model_temperature=0.2,
+        model_timeout_seconds=120,
+        image_analysis_model_name="gpt-5.5",
+        image_analysis_base_url="https://primary.example.test/v1",
+        image_analysis_api_key="image-key",
+        image_analysis_temperature=0.2,
+        asset_phrase_model_name="gpt-5.5",
+        asset_phrase_base_url="https://primary.example.test/v1",
+        asset_phrase_api_key="phrase-key",
+        asset_phrase_temperature=0.2,
+        search_fallback_model_name="gpt-5.5",
+        search_fallback_base_url="https://fallback.example.test/v1",
+        search_fallback_api_key="search-fallback-key",
+        search_fallback_temperature=0.2,
+    )
+    monkeypatch.setattr(factory, "get_settings", lambda: settings)
+
+    image = factory.get_model_provider(purpose="image_analysis")
+    phrase = factory.get_model_provider(purpose="asset_phrase")
+    search = factory.get_model_provider(purpose="search")
+
+    assert isinstance(image, OpenAICompatibleModelProvider)
+    assert image.api_key == "image-key"
+    assert isinstance(phrase, OpenAICompatibleModelProvider)
+    assert phrase.api_key == "phrase-key"
+    assert isinstance(search, FallbackModelProvider)
+    assert [item.api_key for item in search.providers] == [
+        "search-primary-key",
+        "search-fallback-key",
+    ]
+    assert [item.base_url for item in search.providers] == [
+        "https://primary.example.test/v1",
+        "https://fallback.example.test/v1",
+    ]
+
+
+def test_provider_order_uses_only_explicit_slots():
+    assert factory._provider_order("primary") == ("primary",)
+    assert factory._provider_order("fallback2") == ("fallback2",)
+    assert factory._provider_order("") == (
         "primary",
         "fallback1",
+        "fallback2",
     )
 
 
@@ -175,3 +408,140 @@ def test_fallback_chain_exposes_attempt_count_for_search_budget():
     assert chain.attempt_count == 3
     assert _provider_attempt_count(chain) == 3
     assert _provider_attempt_count(providers[0]) == 1
+
+
+def test_fallback_chain_records_provider_attempts():
+    class Provider:
+        configured = True
+
+        def __init__(self, provider_label: str, *, fails: bool):
+            self.provider_label = provider_label
+            self.model_name = "gpt-5.5"
+            self.fails = fails
+            self.last_attempts = []
+
+        def generate_json(self, _request):
+            self.last_attempts = [
+                {
+                    "provider": self.provider_label,
+                    "model": self.model_name,
+                    "status": "failed" if self.fails else "ok",
+                    "duration_ms": 12,
+                    "error": "模型服务调用失败" if self.fails else "",
+                }
+            ]
+            if self.fails:
+                raise ModelProviderError("模型服务调用失败")
+            return {"ok": True}
+
+    chain = FallbackModelProvider(
+        [
+            Provider("laozhang", fails=True),
+            Provider("ohmygpt", fails=False),
+        ]
+    )
+
+    assert chain.generate_json(ModelRequest(task="search_system_routing", prompt="")) == {
+        "ok": True
+    }
+    assert [(item["provider"], item["status"]) for item in chain.last_attempts] == [
+        ("laozhang", "failed"),
+        ("ohmygpt", "ok"),
+    ]
+
+
+def test_ai_service_fallback_chain_tries_next_provider_on_invalid_structure():
+    class Provider:
+        configured = True
+        model_name = "gpt-5.5"
+
+        def __init__(self, provider_label: str, payload):
+            self.provider_label = provider_label
+            self.payload = payload
+            self.last_attempts = []
+
+        def generate_json(self, _request):
+            self.last_attempts = [
+                {
+                    "provider": self.provider_label,
+                    "model": self.model_name,
+                    "status": "ok",
+                    "duration_ms": 9,
+                    "error": "",
+                }
+            ]
+            return self.payload
+
+    chain = FallbackModelProvider(
+        [
+            Provider(
+                "laozhang",
+                {
+                    "original_query": "期中期末一键划重点",
+                    "route_type": "single_system",
+                    "candidate_systems": [],
+                },
+            ),
+            Provider(
+                "ohmygpt",
+                {
+                    "original_query": "期中期末一键划重点",
+                    "route_type": "single_system",
+                    "candidate_systems": [
+                        {
+                            "code": "sync_exam",
+                            "relation": "primary",
+                            "reason": "考试阶段重点梳理",
+                            "weight": 0.97,
+                        }
+                    ],
+                },
+            ),
+        ]
+    )
+
+    result = AiService(chain).route_search_system("期中期末一键划重点")
+
+    assert [item.code for item in result.candidate_systems] == ["sync_exam"]
+    assert [(item["provider"], item["status"]) for item in chain.last_attempts] == [
+        ("laozhang", "failed"),
+        ("ohmygpt", "ok"),
+    ]
+    assert "业务体系路由必须至少返回一个候选体系" in chain.last_attempts[0]["error"]
+
+
+def test_fallback_chain_error_includes_sanitized_attempt_summary():
+    class FailingProvider:
+        configured = True
+        model_name = "gpt-5.5"
+
+        def __init__(self, provider_label: str):
+            self.provider_label = provider_label
+            self.last_attempts = []
+
+        def generate_json(self, _request):
+            self.last_attempts = [
+                {
+                    "provider": self.provider_label,
+                    "model": self.model_name,
+                    "status": "failed",
+                    "duration_ms": 7,
+                    "error": "模型服务返回异常状态：400",
+                }
+            ]
+            raise ModelProviderError("模型服务返回异常状态：400")
+
+    chain = FallbackModelProvider(
+        [FailingProvider("laozhang"), FailingProvider("ohmygpt")]
+    )
+
+    try:
+        chain.generate_json(ModelRequest(task="search_system_routing", prompt=""))
+    except ModelProviderError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("expected fallback chain to fail")
+
+    assert "laozhang/gpt-5.5 failed" in message
+    assert "ohmygpt/gpt-5.5 failed" in message
+    assert "sk-" not in message

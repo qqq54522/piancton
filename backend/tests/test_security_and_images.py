@@ -27,7 +27,7 @@ def upload(client, headers, title: str = "real") -> dict:
         "/api/images/upload",
         headers=headers,
         files={"file": (f"{title}.png", png_file(), "image/png")},
-        data={"title": title, "autoAnalyze": "false"},
+        data={"title": title, "channel": "PPT", "autoAnalyze": "false"},
     )
     assert response.status_code == 201
     return response.json()
@@ -56,9 +56,18 @@ def test_upload_preview_download_and_phase6_detail_contract(client):
         "/api/images/upload",
         headers=headers,
         files={"file": ("fake.png", b"not-an-image", "image/png")},
-        data={"title": "fake", "autoAnalyze": "false"},
+        data={"title": "fake", "channel": "PPT", "autoAnalyze": "false"},
     )
     assert invalid.status_code == 415
+
+    missing_channel = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("missing-channel.png", png_file(), "image/png")},
+        data={"title": "missing channel", "autoAnalyze": "false"},
+    )
+    assert missing_channel.status_code == 422
+    assert missing_channel.json()["detail"]["code"] == "channel_required"
 
     image = upload(client, headers)
     assert image["assetGroupId"]
@@ -194,9 +203,9 @@ def test_designer_can_generate_editable_pre_upload_asset_phrases(client):
                 ]
             }
 
-    app.dependency_overrides[dependencies.get_ai_service] = lambda: AiService(
-        Provider()
-    )
+    app.dependency_overrides[
+        dependencies.get_asset_phrase_ai_service
+    ] = lambda: AiService(Provider())
     headers = admin_headers(client)
     response = client.post(
         "/api/ai/asset-search-phrases",
@@ -310,7 +319,7 @@ def test_upload_size_limit(client, monkeypatch):
         "/api/images/upload",
         headers=headers,
         files={"file": ("large.png", png_file(), "image/png")},
-        data={"title": "large", "autoAnalyze": "false"},
+        data={"title": "large", "channel": "PPT", "autoAnalyze": "false"},
     )
     assert response.status_code == 413
 

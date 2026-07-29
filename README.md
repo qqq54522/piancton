@@ -104,6 +104,54 @@ MODEL_TIMEOUT_SECONDS=120
 如果 API Key 曾经粘贴到聊天、截图或公共文档里，上线前请在模型平台重新生成
 一个新 Key，并废弃旧 Key。
 
+### 密钥配置清单
+
+真实密钥只写入本机或服务器上的 `.env` / `backend/.env`，不要提交到 GitHub，
+即使仓库是私有仓库也一样。仓库中只保留下面这些变量名和示例占位符。
+
+```env
+# 通用 AI 能力
+MODEL_PROVIDER=openai_compatible
+MODEL_NAME=your-model-name
+MODEL_BASE_URL=https://api.example.com/v1
+MODEL_API_KEY=replace-with-your-secret-key
+
+# 图片分析专用；不填时回退到通用模型配置
+IMAGE_ANALYSIS_MODEL_NAME=your-vision-model
+IMAGE_ANALYSIS_BASE_URL=https://api.example.com/v1
+IMAGE_ANALYSIS_API_KEY=replace-with-your-secret-key
+
+# 上传前素材话术生成专用；不填时回退到通用模型配置
+ASSET_PHRASE_MODEL_NAME=your-text-model
+ASSET_PHRASE_BASE_URL=https://api.example.com/v1
+ASSET_PHRASE_API_KEY=replace-with-your-secret-key
+
+# 搜索理解兜底模型
+SEARCH_FALLBACK_MODEL_NAME=your-search-fallback-model
+SEARCH_FALLBACK_BASE_URL=https://api.example.com/v1
+SEARCH_FALLBACK_API_KEY=replace-with-your-secret-key
+
+# 可选 Provider 槽位
+FALLBACK1_NAME=your-fallback-model
+FALLBACK1_BASE_URL=https://api.example.com/v1
+FALLBACK1_API_KEY=replace-with-your-secret-key
+FALLBACK2_NAME=your-second-fallback-model
+FALLBACK2_BASE_URL=https://api.example.com/v1
+FALLBACK2_API_KEY=replace-with-your-secret-key
+
+# 可选搜索增强
+MEILISEARCH_API_KEY=replace-with-a-search-master-key
+EMBEDDING_BASE_URL=https://api.example.com/v1
+EMBEDDING_API_KEY=replace-with-your-secret-key
+EMBEDDING_MODEL_NAME=your-embedding-model
+RERANKER_BASE_URL=https://api.example.com/v1
+RERANKER_API_KEY=replace-with-your-secret-key
+RERANKER_MODEL_NAME=your-reranker-model
+```
+
+Docker 部署时从 `.env.docker.example` 复制为 `.env` 后填写；本地直接启动后端时
+从 `backend/.env.example` 复制为 `backend/.env` 后填写。
+
 ## Docker 部署
 
 推荐的服务器方案是只安装 Docker Engine 和 Docker Compose。PostgreSQL 由

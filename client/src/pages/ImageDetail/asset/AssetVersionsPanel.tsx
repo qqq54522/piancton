@@ -88,7 +88,10 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-xs font-medium">{image.title}</p>
                 <div className="flex shrink-0 items-center gap-1">
-                  <Badge variant={image.id === group.primaryImageId ? 'default' : 'outline'} className="text-[10px]">
+                  <Badge
+                    variant={image.id === group.primaryImageId ? 'default' : 'outline'}
+                    className={`text-[10px] ${image.id === group.primaryImageId ? 'bg-foreground text-background' : ''}`}
+                  >
                     {image.id === group.primaryImageId ? '正式主图' : image.isCurrent ? '可用版本' : '历史版本'}
                   </Badge>
                   {editable && image.id !== group.primaryImageId && (

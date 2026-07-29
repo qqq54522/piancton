@@ -8,12 +8,18 @@ interface SearchResultGridProps {
   items: ScoredImageMatch[];
   keyword: string;
   searchLogId?: string | null;
+  showSearchContext: boolean;
 }
 
-function SearchResultGrid({ items, keyword, searchLogId }: SearchResultGridProps) {
+function SearchResultGrid({
+  items,
+  keyword,
+  searchLogId,
+  showSearchContext,
+}: SearchResultGridProps) {
   return (
     <motion.div
-      className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4"
       initial="hidden"
       animate="visible"
       variants={staggerVariants}
@@ -24,6 +30,7 @@ function SearchResultGrid({ items, keyword, searchLogId }: SearchResultGridProps
           scored={scored}
           keyword={keyword}
           searchLogId={searchLogId}
+          showSearchContext={showSearchContext}
         />
       ))}
     </motion.div>

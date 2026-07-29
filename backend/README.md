@@ -68,7 +68,7 @@ make docker-up
 - `MEILISEARCH_INDEX`，默认 `images`
 - `SEARCH_TIMEOUT_SECONDS`，默认 2 秒
 
-在线搜索由一条限时异步编排统一执行：配置查询理解模型时，先只用六体系路由判断需要读取的体系，再完整加载候选体系 Skill 原文件、完整规则和候选体系卖点目录完成第二层识别；按需加载只缩小体系范围，不压缩已命中体系知识。体系路由与卖点识别分别使用 `SEARCH_SYSTEM_ROUTING_TIMEOUT_SECONDS` 和 `SEARCH_SELLING_POINT_TIMEOUT_SECONDS`，不再共用一个小于两层合计耗时的外层预算。第一层已确认业务体系而第二层失败时，没有可信 accepted 卖点关系就返回空，禁止放开全库弱召回。本地固定目录、数据库、Meilisearch 和 Embedding 并行准备候选，候选融合后最多调用一次 Reranker；Reranker 的可选总预算从查询理解完成后开始。
+在线搜索由一条限时异步编排统一执行。配置 GPT-5.5 时，自然语言搜索严格串行执行三级理解：第一层只判断六大体系，第二层只读取候选体系卖点摘要和当前启用卖点，第三层只读取已命中卖点的直属证明点。三个阶段分别使用 `SEARCH_SYSTEM_ROUTING_TIMEOUT_SECONDS`、`SEARCH_SELLING_POINT_TIMEOUT_SECONDS` 和 `SEARCH_PROOF_POINT_TIMEOUT_SECONDS`，默认预算为 `8s/20s/20s`。第二层不得输出证明点，第三层不得改写卖点；只有完整成功结果进入查询理解缓存。任一必要层失败时记录降级并遵守精度保护，不把全库弱召回伪装成业务结果。本地固定目录、数据库、Meilisearch 和 Embedding 并行准备候选，候选融合后最多调用一次 Reranker。
 
 重建派生搜索索引：
 

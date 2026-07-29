@@ -21,7 +21,5 @@ RUN chmod +x /usr/local/bin/piancton-entrypoint \
     && mkdir -p /data/images \
     && chown -R piancton:piancton /app /data/images
 
-USER piancton
-
 EXPOSE 8000
 ENTRYPOINT ["piancton-entrypoint"]

@@ -1,6 +1,7 @@
 import pytest
 
 from app.ai.skill_loader import (
+    build_proof_point_prompt,
     build_selling_point_prompt,
     build_system_routing_prompt,
     build_task_prompt,
@@ -57,16 +58,14 @@ def test_search_intent_prompt_progressively_loads_only_routed_system():
         ),
     )
 
-    assert "# 同步自学体系" in prompt
+    assert "## 同步自学运行时意图摘要" in prompt
     assert "同步自学运行时意图摘要" in prompt
-    assert "## 体系业务原文" in prompt
-    assert "> 身边有 AI 名师，随时随地帮助解决难题，孩子自驱式完成学习。" in prompt
-    assert "## 第一批意图用例" in prompt
-    assert "## 待确认" in prompt
-    assert "`ai_tutor_qa` / AI 私教随时答疑" in prompt
-    assert "`photo_guided_learning` / AI 拍题精学" in prompt
-    assert "角色职责与证据顺序" in prompt
-    assert "对象与主动作决定候选范围" in prompt
+    assert "`ai_tutor_qa` / AI私教答疑" in prompt
+    assert "`photo_guided_learning` / AI拍题精学" in prompt
+    assert "第二层：候选体系内卖点判断" in prompt
+    assert "matched_proof_points` 必须是空数组" in prompt
+    assert "### 证明点" not in prompt
+    assert "候选体系证据表达点目录" not in prompt
     assert "# 同步校内体系" not in prompt
     assert "# 同步伴学体系" not in prompt
     assert "# 六大体系跨体系校准" not in prompt
@@ -81,13 +80,21 @@ def test_multi_system_selling_point_prompt_adds_cross_system_calibration():
         catalog_text="# 候选体系目录",
     )
 
-    assert "# 同步规划体系" in prompt
-    assert "### 原版价值与痛点拆解" in prompt
-    assert "# 同步伴学体系" in prompt
-    assert "### 证明点" in prompt
-    assert "# 六大体系跨体系校准" in prompt
-    assert "## 16 个卖点最小充分证据" in prompt
+    assert "## 同步规划运行时意图摘要" in prompt
+    assert "## 同步伴学运行时意图摘要" in prompt
+    assert "## 跨体系运行时校准摘要" in prompt
+    assert "### 证明点" not in prompt
     assert "# 同步考点体系" not in prompt
+
+
+def test_third_layer_prompt_only_loads_selected_selling_point_proofs():
+    prompt = build_proof_point_prompt(("animation_explanation",))
+
+    assert "第三层：已命中卖点内证明点判断" in prompt
+    assert "pp_animation_pedagogy_design" in prompt
+    assert "ep_school_short_animation_lesson" in prompt
+    assert "pp_school_quiz_immediate_feedback" not in prompt
+    assert "pp_companion_report_core_metrics" not in prompt
 
 
 def test_full_search_intent_prompt_cannot_be_built_without_system_route():

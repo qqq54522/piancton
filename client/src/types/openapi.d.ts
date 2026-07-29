@@ -1736,6 +1736,8 @@ export interface components {
             primaryProofPointCode?: string | null;
             /** Primaryproofpointname */
             primaryProofPointName?: string | null;
+            /** Primaryproofpointclaim */
+            primaryProofPointClaim?: string | null;
             /** Primaryevidencepointcode */
             primaryEvidencePointCode?: string | null;
             /** Primaryevidencepointname */

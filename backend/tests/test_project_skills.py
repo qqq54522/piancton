@@ -14,6 +14,7 @@ FORMAL_SKILLS = {
     "manage-image-library",
     "match-copy-selling-points",
     "operate-model-providers",
+    "understand-image-channel-intent",
     "understand-image-search-intent",
 }
 
@@ -53,6 +54,8 @@ def test_runtime_model_tasks_load_the_current_skill_rules():
         "image_content_analysis": ("analyze-image-asset",),
         "asset_search_phrase_generation": ("generate-asset-search-phrases",),
         "search_intent_understanding": ("understand-image-search-intent",),
+        "search_proof_point_understanding": ("understand-image-search-intent",),
+        "search_candidate_review": ("understand-image-search-intent",),
         "copy_selling_point_matching": ("match-copy-selling-points",),
     }
     for skill_names in MODEL_SKILLS.values():

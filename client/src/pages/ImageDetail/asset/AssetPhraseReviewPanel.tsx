@@ -69,9 +69,9 @@ function AssetPhraseReviewPanel({
   return (
     <section className="surface-card p-5 sm:p-6">
       {inherited.length > 0 && (
-        <div className="mb-5 rounded-2xl border border-primary/15 bg-accent/45 p-4">
+        <div className="mb-5 rounded-2xl border border-border/80 bg-[#f7f7f5] p-4">
           <div className="flex items-start gap-2.5">
-            <BookOpenText className="mt-0.5 size-4 shrink-0 text-primary" />
+            <BookOpenText className="mt-0.5 size-4 shrink-0 text-foreground/70" />
             <div className="min-w-0 flex-1">
               <h2 className="text-sm font-semibold">从卖点继承的公共话术</h2>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -121,7 +121,7 @@ function AssetPhraseReviewPanel({
         <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
           <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">已确认 {accepted.length}</span>
           {pendingAi.length > 0 && (
-            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] text-primary">待确认 {pendingAi.length}</span>
+            <span className="rounded-full bg-foreground/10 px-2.5 py-1 text-[11px] text-foreground">待确认 {pendingAi.length}</span>
           )}
         </div>
       </div>

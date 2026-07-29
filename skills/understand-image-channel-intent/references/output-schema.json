@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ImageChannelIntent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "channelFamily",
+    "channelSize",
+    "exactChannel",
+    "candidateChannels",
+    "scenePreference",
+    "confidence",
+    "evidence",
+    "recommendation"
+  ],
+  "properties": {
+    "channelFamily": {
+      "type": "string",
+      "enum": ["ppt", "brand_manual", "mobile", "website", "unknown"]
+    },
+    "channelSize": {
+      "type": "string",
+      "enum": ["large", "small", "unspecified"]
+    },
+    "exactChannel": {
+      "type": ["string", "null"],
+      "enum": ["PPT", "品牌手册", "手机端大图", "手机端小图", "官网大图", "官网小图", null]
+    },
+    "candidateChannels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["PPT", "品牌手册", "手机端大图", "手机端小图", "官网大图", "官网小图"]
+      },
+      "uniqueItems": true
+    },
+    "scenePreference": {
+      "type": "string",
+      "enum": ["scene", "non_scene", "unspecified"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "recommendation": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

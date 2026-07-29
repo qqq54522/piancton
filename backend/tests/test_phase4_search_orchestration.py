@@ -9,6 +9,8 @@ from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase
 from app.models.image import Image
 from app.schemas.ai import (
+    SearchCandidateReviewDecision,
+    SearchCandidateReviewResult,
     SearchConceptMatch,
     SearchProofPointMatch,
     SearchSystemCandidate,
@@ -85,7 +87,11 @@ def test_phase4_external_branches_start_in_parallel(db_factory, monkeypatch):
             barrier.wait(timeout=1)
             return []
 
-        monkeypatch.setattr(service.meilisearch_recall, "recall_candidates", meili)
+        monkeypatch.setattr(
+            service.orchestrator.external_branches.meilisearch,
+            "recall_candidates",
+            meili,
+        )
         response = service.search("完全未知的复杂搜索句子", 12)
 
     diagnostics = response.search_diagnostics
@@ -122,7 +128,7 @@ def test_phase4_staged_model_uses_independent_layer_budgets(db_factory):
         def routed_system_codes(self, _routing):
             return ("sync_self_study",)
 
-        def understand_search_from_route(self, keyword: str, _routing):
+        def understand_selling_points_from_route(self, keyword: str, _routing):
             time.sleep(0.02)
             return SearchUnderstanding(
                 original_query=keyword,
@@ -139,6 +145,10 @@ def test_phase4_staged_model_uses_independent_layer_budgets(db_factory):
                 ],
                 search_strategy="只召回已审核 AI 拍题精学素材",
             )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            time.sleep(0.02)
+            return selling_points
 
     with db_factory() as db:
         image = _image("拍题精学素材", "guided.png")
@@ -167,6 +177,7 @@ def test_phase4_staged_model_uses_independent_layer_budgets(db_factory):
             understanding_timeout_seconds=0.025,
             system_routing_timeout_seconds=0.06,
             selling_point_timeout_seconds=0.06,
+            proof_point_timeout_seconds=0.06,
         ).search("拍一道不会的题，分步告诉我思路", 12)
 
     assert [item.image.id for item in response.results] == [image.id]
@@ -178,6 +189,7 @@ def test_phase4_staged_model_uses_independent_layer_budgets(db_factory):
     assert branch.status == "ok"
     assert "体系路由" in (branch.detail or "")
     assert "卖点识别" in (branch.detail or "")
+    assert "证明点识别" in (branch.detail or "")
 
 
 def test_phase4_second_layer_timeout_does_not_open_global_recall(
@@ -208,9 +220,12 @@ def test_phase4_second_layer_timeout_does_not_open_global_recall(
         def routed_system_codes(self, _routing):
             return ("sync_self_study",)
 
-        def understand_search_from_route(self, _keyword: str, _routing):
+        def understand_selling_points_from_route(self, _keyword: str, _routing):
             time.sleep(0.08)
             return _understanding(_keyword)
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            return selling_points
 
     query = "一键拍照后帮我分析思路，但别直接给最终答案"
     with db_factory() as db:
@@ -227,7 +242,7 @@ def test_phase4_second_layer_timeout_does_not_open_global_recall(
             understanding_grace_seconds=0,
         )
         monkeypatch.setattr(
-            service.meilisearch_recall,
+            service.orchestrator.external_branches.meilisearch,
             "recall_candidates",
             lambda _keyword, _limit: [],
         )
@@ -242,6 +257,489 @@ def test_phase4_second_layer_timeout_does_not_open_global_recall(
     )
     assert branch.status == "timed_out"
     assert "精度保护" in (branch.detail or "")
+
+
+def test_phase4_third_layer_timeout_marks_understanding_incomplete(db_factory):
+    class Provider:
+        configured = True
+
+    class SlowThirdLayerAi:
+        provider = Provider()
+        knowledge = None
+
+        def route_search_system(self, keyword: str):
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_self_study",
+                        relation="primary",
+                        reason="拍题后分步分析",
+                        weight=0.97,
+                    )
+                ],
+            )
+
+        def routed_system_codes(self, _routing):
+            return ("sync_self_study",)
+
+        def understand_selling_points_from_route(self, keyword: str, _routing):
+            return SearchUnderstanding(
+                original_query=keyword,
+                normalized_query="AI拍题精学",
+                search_intent="拍题后分步分析思路",
+                query_type="business_intent_search",
+                matched_business_concepts=[
+                    SearchConceptMatch(
+                        concept="AI拍题精学",
+                        relation="direct",
+                        reason="命中同步自学体系下的拍题精学卖点",
+                        weight=0.97,
+                    )
+                ],
+                search_strategy="继续判断直属证明点",
+            )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            time.sleep(0.08)
+            return selling_points
+
+    with db_factory() as db:
+        response = SearchService(
+            db,
+            ai_service=SlowThirdLayerAi(),
+            system_routing_timeout_seconds=0.03,
+            selling_point_timeout_seconds=0.03,
+            proof_point_timeout_seconds=0.01,
+            understanding_grace_seconds=0,
+        ).search("拍题后分步分析思路", 12)
+
+    branch = next(
+        item
+        for item in response.search_diagnostics.branches
+        if item.source == "query_understanding"
+    )
+    assert branch.status == "timed_out"
+    assert "证明点识别" in (branch.detail or "")
+    assert "证明点层未完成" in (branch.detail or "")
+
+
+def test_phase4_candidate_review_filters_top_candidates(db_factory):
+    class Provider:
+        configured = True
+
+    class ReviewAi:
+        provider = Provider()
+        knowledge = None
+
+        def route_search_system(self, keyword: str):
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_companion",
+                        relation="primary",
+                        reason="家长查看学习结果",
+                        weight=0.92,
+                    )
+                ],
+            )
+
+        def routed_system_codes(self, _routing):
+            return ("sync_companion",)
+
+        def understand_selling_points_from_route(self, keyword: str, _routing):
+            return SearchUnderstanding(
+                original_query=keyword,
+                normalized_query="学情报告反馈",
+                search_intent="家长查看学习结果",
+                query_type="business_intent_search",
+                matched_business_concepts=[
+                    SearchConceptMatch(
+                        concept="学情报告反馈",
+                        relation="direct",
+                        reason="家长查看学习结果",
+                        weight=0.95,
+                    )
+                ],
+                search_strategy="按学情报告反馈召回",
+            )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            return selling_points
+
+        def review_search_candidates(self, *, keyword, understanding, candidates):
+            return SearchCandidateReviewResult(
+                decisions=[
+                    SearchCandidateReviewDecision(
+                        image_id=item["image_id"],
+                        decision=(
+                            "exclude"
+                            if "错题" in item["title"]
+                            else "keep"
+                        ),
+                        confidence=0.9,
+                        reason="第四层候选图与用户原话对照",
+                    )
+                    for item in candidates
+                ],
+                review_strategy="测试第四层过滤",
+            )
+
+    query = "家长可以查看学习结果"
+    with db_factory() as db:
+        concept = BusinessConcept(code="learning_report", name="学情报告反馈")
+        good = _image("家长看到学习结果", "learning-report.png")
+        bad = _image("错题同类题精准强化", "error-book.png")
+        good_group = AssetGroup(
+            title=good.title,
+            created_by="designer",
+            images=[good],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        bad_group = AssetGroup(
+            title=bad.title,
+            created_by="designer",
+            images=[bad],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="supports",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([concept, good_group, bad_group])
+        db.flush()
+        good_group.primary_image_id = good.id
+        bad_group.primary_image_id = bad.id
+        db.commit()
+
+        response = SearchService(
+            db,
+            ai_service=ReviewAi(),
+            system_routing_timeout_seconds=0.05,
+            selling_point_timeout_seconds=0.05,
+            proof_point_timeout_seconds=0.05,
+            candidate_review_timeout_seconds=0.05,
+        ).search(query, 12)
+
+    assert [item.image.id for item in response.results] == [good.id]
+    branch = next(
+        item
+        for item in response.search_diagnostics.branches
+        if item.source == "candidate_review"
+    )
+    assert branch.status == "ok"
+    assert "应用" in (branch.detail or "")
+
+
+def test_phase4_candidate_review_uses_cache_for_same_context(db_factory):
+    class Provider:
+        configured = True
+
+    class CachedReviewAi:
+        provider = Provider()
+        knowledge = None
+
+        def __init__(self):
+            self.review_calls = 0
+
+        def route_search_system(self, keyword: str):
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_companion",
+                        relation="primary",
+                        reason="家长查看学习结果",
+                        weight=0.92,
+                    )
+                ],
+            )
+
+        def routed_system_codes(self, _routing):
+            return ("sync_companion",)
+
+        def understand_selling_points_from_route(self, keyword: str, _routing):
+            return SearchUnderstanding(
+                original_query=keyword,
+                normalized_query="学情报告反馈",
+                search_intent="家长查看学习结果",
+                query_type="business_intent_search",
+                matched_business_concepts=[
+                    SearchConceptMatch(
+                        concept="学情报告反馈",
+                        relation="direct",
+                        reason="家长查看学习结果",
+                        weight=0.95,
+                    )
+                ],
+                search_strategy="按学情报告反馈召回",
+            )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            return selling_points
+
+        def review_search_candidates(self, *, keyword, understanding, candidates):
+            self.review_calls += 1
+            return SearchCandidateReviewResult(
+                decisions=[
+                    SearchCandidateReviewDecision(
+                        image_id=item["image_id"],
+                        decision="keep",
+                        confidence=0.9,
+                        reason="第四层缓存测试",
+                    )
+                    for item in candidates
+                ],
+                review_strategy="缓存测试",
+            )
+
+    query = "家长可以查看学习结果"
+    with db_factory() as db:
+        concept = BusinessConcept(code="learning_report", name="学情报告反馈")
+        image = _image("家长看到学习结果", "learning-report.png")
+        group = AssetGroup(
+            title=image.title,
+            created_by="designer",
+            images=[image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([concept, group])
+        db.flush()
+        group.primary_image_id = image.id
+        db.commit()
+
+        ai = CachedReviewAi()
+        service = SearchService(
+            db,
+            ai_service=ai,
+            cache_ttl_seconds=300,
+            cache_max_entries=16,
+            system_routing_timeout_seconds=0.05,
+            selling_point_timeout_seconds=0.05,
+            proof_point_timeout_seconds=0.05,
+            candidate_review_timeout_seconds=0.05,
+        )
+        first = service.search(query, 12)
+        second = service.search(query, 12)
+
+    assert len(first.results) == 1
+    assert len(second.results) == 1
+    assert ai.review_calls == 1
+    branch = next(
+        item
+        for item in second.search_diagnostics.branches
+        if item.source == "candidate_review"
+    )
+    assert branch.cache_hit is True
+    assert "缓存命中" in (branch.detail or "")
+
+
+def test_phase4_candidate_review_limits_reviewed_candidates(db_factory):
+    class Provider:
+        configured = True
+
+    class LimitedReviewAi:
+        provider = Provider()
+        knowledge = None
+
+        def __init__(self):
+            self.reviewed_counts = []
+
+        def route_search_system(self, keyword: str):
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_companion",
+                        relation="primary",
+                        reason="家长查看学习结果",
+                        weight=0.92,
+                    )
+                ],
+            )
+
+        def routed_system_codes(self, _routing):
+            return ("sync_companion",)
+
+        def understand_selling_points_from_route(self, keyword: str, _routing):
+            return SearchUnderstanding(
+                original_query=keyword,
+                normalized_query="学情报告反馈",
+                search_intent="家长查看学习结果",
+                query_type="business_intent_search",
+                matched_business_concepts=[
+                    SearchConceptMatch(
+                        concept="学情报告反馈",
+                        relation="direct",
+                        reason="家长查看学习结果",
+                        weight=0.95,
+                    )
+                ],
+                search_strategy="按学情报告反馈召回",
+            )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            return selling_points
+
+        def review_search_candidates(self, *, keyword, understanding, candidates):
+            self.reviewed_counts.append(len(candidates))
+            return SearchCandidateReviewResult(
+                decisions=[
+                    SearchCandidateReviewDecision(
+                        image_id=item["image_id"],
+                        decision="keep",
+                        confidence=0.9,
+                        reason="候选数限制测试",
+                    )
+                    for item in candidates
+                ],
+                review_strategy="候选数限制测试",
+            )
+
+    query = "家长可以查看学习结果"
+    with db_factory() as db:
+        concept = BusinessConcept(code="learning_report", name="学情报告反馈")
+        groups = []
+        for index in range(7):
+            image = _image(f"学习结果素材 {index}", f"learning-report-{index}.png")
+            group = AssetGroup(
+                title=image.title,
+                created_by="designer",
+                images=[image],
+                concept_links=[
+                    AssetConceptLink(
+                        concept=concept,
+                        relation_role="expresses",
+                        origin="manual",
+                        review_status="accepted",
+                    )
+                ],
+            )
+            groups.append(group)
+        db.add_all([concept, *groups])
+        db.flush()
+        for group in groups:
+            group.primary_image_id = group.images[0].id
+        db.commit()
+
+        ai = LimitedReviewAi()
+        response = SearchService(
+            db,
+            ai_service=ai,
+            candidate_review_limit=3,
+            system_routing_timeout_seconds=0.05,
+            selling_point_timeout_seconds=0.05,
+            proof_point_timeout_seconds=0.05,
+            candidate_review_timeout_seconds=0.05,
+        ).search(query, 12)
+
+    assert len(response.results) == 7
+    assert ai.reviewed_counts == [3]
+    branch = next(
+        item
+        for item in response.search_diagnostics.branches
+        if item.source == "candidate_review"
+    )
+    assert "复核 3 张候选" in (branch.detail or "")
+
+
+def test_phase4_repairs_exam_stage_focus_when_second_layer_is_invalid(db_factory):
+    class Provider:
+        configured = True
+
+    class InvalidSecondLayerAi:
+        provider = Provider()
+        knowledge = None
+
+        def route_search_system(self, keyword: str):
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_exam",
+                        relation="primary",
+                        reason="考试阶段重点",
+                        weight=0.98,
+                    )
+                ],
+            )
+
+        def routed_system_codes(self, _routing):
+            return ("sync_exam",)
+
+        def understand_selling_points_from_route(self, _keyword: str, _routing):
+            raise AppError(
+                "model_response_invalid",
+                "模型返回内容不符合项目结构要求",
+                status_code=502,
+            )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            return selling_points
+
+    query = "月考期中期末一键划重点"
+    with db_factory() as db:
+        image = _image("考前专项突破", "exam-focus.png")
+        concept = BusinessConcept(code="focused_excellence", name="专项培优")
+        group = AssetGroup(
+            title=image.title,
+            created_by="designer",
+            images=[image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([concept, group])
+        db.flush()
+        group.primary_image_id = image.id
+        db.commit()
+
+        response = SearchService(
+            db,
+            ai_service=InvalidSecondLayerAi(),
+            understanding_timeout_seconds=0.2,
+            system_routing_timeout_seconds=0.05,
+            selling_point_timeout_seconds=0.05,
+            proof_point_timeout_seconds=0.05,
+        ).search(query, 12)
+
+    assert [item.image.id for item in response.results] == [image.id]
+    assert response.fallback is False
+    branch = next(
+        item
+        for item in response.search_diagnostics.branches
+        if item.source == "query_understanding"
+    )
+    assert branch.status == "ok"
+    assert "卖点识别" in (branch.detail or "")
 
 
 def test_phase4_all_external_failures_keep_database_results(db_factory, monkeypatch):
@@ -277,7 +775,7 @@ def test_phase4_all_external_failures_keep_database_results(db_factory, monkeypa
             raise RuntimeError("meilisearch down")
 
         monkeypatch.setattr(
-            service.meilisearch_recall,
+            service.orchestrator.external_branches.meilisearch,
             "recall_candidates",
             meili_failure,
         )
@@ -311,7 +809,7 @@ def test_phase4_slow_branch_times_out_without_delaying_database(db_factory, monk
             return []
 
         monkeypatch.setattr(
-            service.meilisearch_recall,
+            service.orchestrator.external_branches.meilisearch,
             "recall_candidates",
             slow_meili,
         )
@@ -407,7 +905,7 @@ def test_phase4_catalog_edit_supersedes_cached_model_understanding(db_factory):
 
         second = SearchService(db, ai_service=ai, caches=caches).search("独家暗号", 12)
 
-    assert ai.calls == 1
+    assert ai.calls == 2
     assert second.search_understanding is not None
     assert second.search_understanding.normalized_query == "缓存刷新卖点"
     assert second.search_diagnostics is not None
@@ -416,9 +914,9 @@ def test_phase4_catalog_edit_supersedes_cached_model_understanding(db_factory):
         for item in second.search_diagnostics.branches
         if item.source == "query_understanding"
     )
-    assert understanding_branch.status == "skipped"
+    assert understanding_branch.status == "ok"
     assert understanding_branch.cache_hit is False
-    assert understanding_branch.detail == "本地高置信业务证据已满足，无需模型补充"
+    assert understanding_branch.detail is None
 
 
 def test_phase4_versioned_concept_phrase_recalls_confirmed_asset(db_factory):
@@ -938,7 +1436,7 @@ def test_phase4_explicit_socratic_query_unlocks_method_asset(db_factory):
     )
 
 
-def test_phase4_trusted_method_predicate_skips_wrong_model(db_factory):
+def test_phase4_trusted_method_predicate_survives_wrong_model(db_factory):
     query = "通过启发式提问，还原思考过程，帮你从解一题到通一类"
 
     class Provider:
@@ -949,12 +1447,23 @@ def test_phase4_trusted_method_predicate_skips_wrong_model(db_factory):
         knowledge = None
 
         def route_search_system(self, keyword: str):
-            raise AssertionError("本地方法谓词已形成可信判断，不应再调用模型")
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_exam",
+                        relation="primary",
+                        reason="模型错误路由",
+                        weight=0.93,
+                    )
+                ],
+            )
 
         def routed_system_codes(self, _routing):
-            return ("sync_cultivation",)
+            return ("sync_exam",)
 
-        def understand_search_from_route(self, keyword: str, _routing):
+        def understand_selling_points_from_route(self, keyword: str, _routing):
             return SearchUnderstanding(
                 original_query=keyword,
                 normalized_query="万能解法",
@@ -970,6 +1479,9 @@ def test_phase4_trusted_method_predicate_skips_wrong_model(db_factory):
                 ],
                 search_strategy="错误模型结果",
             )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            return selling_points
 
     with db_factory() as db:
         photo_guided = BusinessConcept(
@@ -1036,8 +1548,9 @@ def test_phase4_trusted_method_predicate_skips_wrong_model(db_factory):
         for item in response.search_diagnostics.branches
         if item.source == "query_understanding"
     )
-    assert understanding_branch.status == "skipped"
-    assert understanding_branch.detail == "本地高置信业务证据已满足，无需模型补充"
+    assert understanding_branch.status == "ok"
+    assert "体系路由" in (understanding_branch.detail or "")
+    assert "证明点识别" in (understanding_branch.detail or "")
 
 
 def test_phase4_objectless_photo_explain_query_returns_rapid_assets_not_global(
@@ -1345,7 +1858,7 @@ def test_phase4_asset_phrase_priority_beats_higher_generic_source_score(db_facto
             score=0.65,
             reasons=("卖点内候选",),
         )
-        match = service.concept_recall.match(query)[0]
+        match = service.orchestrator.concept_recall.match(query)[0]
         understanding = _understanding(query).model_copy(
             update={
                 "matched_business_concepts": [
@@ -1358,7 +1871,7 @@ def test_phase4_asset_phrase_priority_beats_higher_generic_source_score(db_facto
                 ]
             }
         )
-        routed = service.ranking.route_confirmed_concepts(
+        routed = service.orchestrator.ranking.route_confirmed_concepts(
             [generic_hit, exact_hit],
             [match],
             keyword=query,
@@ -1671,8 +2184,7 @@ def test_phase4_animation_course_quality_query_cannot_leak_global_results(
         for item in response.search_diagnostics.branches
         if item.source == "query_understanding"
     )
-    assert understanding_branch.status == "skipped"
-    assert understanding_branch.detail == "本地高置信业务证据已满足，无需模型补充"
+    assert understanding_branch.status == "ok"
 
 
 def test_phase4_short_animation_micro_lesson_query_only_returns_matching_detail(
@@ -1754,7 +2266,7 @@ def test_phase4_short_animation_micro_lesson_query_only_returns_matching_detail(
     )
 
 
-def test_phase4_unseen_proof_paraphrase_uses_scoped_completion_and_filters_siblings(
+def test_phase4_unseen_proof_paraphrase_uses_three_layers_and_filters_siblings(
     db_factory,
 ):
     query = "要动画讲解的，别拖太久，每回只消化一个小点"
@@ -1765,16 +2277,30 @@ def test_phase4_unseen_proof_paraphrase_uses_scoped_completion_and_filters_sibli
     class ScopedProofAi:
         provider = Provider()
         knowledge = None
+        route_calls = 0
+        selling_calls = 0
         proof_calls = 0
 
-        def route_search_system(self, _keyword: str):
-            raise AssertionError("可信卖点已确认，证明点补全不应重复调用体系路由")
+        def route_search_system(self, keyword: str):
+            self.route_calls += 1
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_school",
+                        relation="primary",
+                        reason="动画讲解",
+                        weight=0.98,
+                    )
+                ],
+            )
 
-        def understand_search_from_route(self, keyword: str, routing):
-            self.proof_calls += 1
-            assert [item.code for item in routing.candidate_systems] == [
-                "sync_school"
-            ]
+        def routed_system_codes(self, _routing):
+            return ("sync_school",)
+
+        def understand_selling_points_from_route(self, keyword: str, _routing):
+            self.selling_calls += 1
             return SearchUnderstanding(
                 original_query=keyword,
                 normalized_query="动画精讲",
@@ -1788,16 +2314,23 @@ def test_phase4_unseen_proof_paraphrase_uses_scoped_completion_and_filters_sibli
                         weight=0.98,
                     )
                 ],
-                matched_proof_points=[
-                    SearchProofPointMatch(
-                        code="pp_animation_pedagogy_design",
-                        concept_code="animation_explanation",
-                        name="官方产品定位与教研方法论",
-                        reason="别拖太久、每回只消化一个小点",
-                        weight=0.96,
-                        evidence_terms=["5-8 分钟动画微课"],
-                    )
-                ],
+            )
+
+        def understand_proof_points(self, _keyword: str, selling_points):
+            self.proof_calls += 1
+            return selling_points.model_copy(
+                update={
+                    "matched_proof_points": [
+                        SearchProofPointMatch(
+                            code="pp_animation_pedagogy_design",
+                            concept_code="animation_explanation",
+                            name="官方产品定位与教研方法论",
+                            reason="别拖太久、每回只消化一个小点",
+                            weight=0.96,
+                            evidence_terms=["5-8 分钟动画微课"],
+                        )
+                    ]
+                }
             )
 
     ai = ScopedProofAi()
@@ -1848,7 +2381,7 @@ def test_phase4_unseen_proof_paraphrase_uses_scoped_completion_and_filters_sibli
             understanding_timeout_seconds=1,
         ).search(query, 12)
 
-    assert ai.proof_calls == 1
+    assert (ai.route_calls, ai.selling_calls, ai.proof_calls) == (1, 1, 1)
     assert [item.image.id for item in response.results] == [short_lesson.id]
     assert response.search_understanding is not None
     assert [
@@ -1860,7 +2393,9 @@ def test_phase4_unseen_proof_paraphrase_uses_scoped_completion_and_filters_sibli
         if item.source == "query_understanding"
     )
     assert branch.status == "ok"
-    assert branch.detail == "已确认卖点内证明点补全"
+    assert "体系路由" in (branch.detail or "")
+    assert "卖点识别" in (branch.detail or "")
+    assert "证明点识别" in (branch.detail or "")
 
 
 def test_phase4_photo_guided_flow_does_not_route_to_fallback_animation(
@@ -2171,7 +2706,7 @@ def test_phase4_ai_tutor_queries_only_return_reviewed_ai_tutor_assets(
             raise AssertionError("本地可信卖点已满足时不应调用 Meilisearch")
 
         monkeypatch.setattr(
-            service.meilisearch_recall,
+            service.orchestrator.external_branches.meilisearch,
             "recall_candidates",
             meili_must_not_run,
         )
@@ -2191,8 +2726,7 @@ def test_phase4_ai_tutor_queries_only_return_reviewed_ai_tutor_assets(
         for item in response.search_diagnostics.branches
         if item.source == "query_understanding"
     )
-    assert understanding_branch.status == "skipped"
-    assert understanding_branch.detail == "本地高置信业务证据已满足，无需模型补充"
+    assert understanding_branch.status == "ok"
     meili_branch = next(
         item
         for item in response.search_diagnostics.branches

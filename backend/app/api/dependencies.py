@@ -144,6 +144,14 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
         selling_point_timeout_seconds=(
             settings.search_selling_point_timeout_seconds * provider_attempts
         ),
+        proof_point_timeout_seconds=(
+            settings.search_proof_point_timeout_seconds * provider_attempts
+        ),
+        candidate_review_timeout_seconds=(
+            settings.search_candidate_review_timeout_seconds * provider_attempts
+            + settings.search_understanding_grace_seconds * provider_attempts
+        ),
+        candidate_review_limit=settings.search_candidate_review_limit,
         understanding_grace_seconds=settings.search_understanding_grace_seconds,
         understanding_retry_attempts=settings.search_understanding_retry_attempts,
         understanding_retry_backoff_seconds=(
@@ -170,13 +178,20 @@ def get_search_ops_service(db: Session = Depends(get_db)) -> SearchOpsService:
 
 def get_ai_service(db: Session = Depends(get_db)) -> AiService:
     return AiService(
-        get_model_provider(),
+        get_model_provider(purpose="image_analysis"),
+        knowledge=AiKnowledgeService(db).knowledge(),
+    )
+
+
+def get_asset_phrase_ai_service(db: Session = Depends(get_db)) -> AiService:
+    return AiService(
+        get_model_provider(purpose="asset_phrase"),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
 
 def get_asset_phrase_suggestion_service(
-    ai: AiService = Depends(get_ai_service),
+    ai: AiService = Depends(get_asset_phrase_ai_service),
 ) -> AssetPhraseSuggestionService:
     return AssetPhraseSuggestionService(
         ai,
@@ -187,17 +202,25 @@ def get_asset_phrase_suggestion_service(
     )
 
 
-def get_search_ai_service(db: Session) -> AiService:
+def get_search_ai_service(db: Session = Depends(get_db)) -> AiService:
     provider_timeout = max(
         settings.search_understanding_timeout_seconds,
         settings.search_system_routing_timeout_seconds,
         settings.search_selling_point_timeout_seconds,
+        settings.search_proof_point_timeout_seconds,
     )
     return AiService(
-        get_model_provider(timeout_seconds=max(1, ceil(provider_timeout))),
+        get_model_provider(
+            timeout_seconds=max(1, ceil(provider_timeout)),
+            purpose="search",
+        ),
         knowledge=AiKnowledgeService(db).knowledge(),
         system_routing_timeout_seconds=(settings.search_system_routing_timeout_seconds),
         selling_point_timeout_seconds=(settings.search_selling_point_timeout_seconds),
+        proof_point_timeout_seconds=(settings.search_proof_point_timeout_seconds),
+        candidate_review_timeout_seconds=(
+            settings.search_candidate_review_timeout_seconds
+        ),
     )
 
 

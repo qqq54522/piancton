@@ -32,15 +32,13 @@ function AssetBusinessClassificationPanel({
   );
   const [conceptId, setConceptId] = useState(expressed?.conceptId ?? '');
   const [proofPointCode, setProofPointCode] = useState(group.primaryProofPointCode ?? '');
-  const [evidencePointCode, setEvidencePointCode] = useState(
-    group.primaryEvidencePointCode ?? '',
-  );
+  const [evidencePointCode, setEvidencePointCode] = useState(group.primaryEvidencePointCode ?? '');
 
   useEffect(() => {
     setConceptId(expressed?.conceptId ?? '');
     setProofPointCode(group.primaryProofPointCode ?? '');
     setEvidencePointCode(group.primaryEvidencePointCode ?? '');
-  }, [expressed?.conceptId, group.primaryEvidencePointCode, group.primaryProofPointCode]);
+  }, [expressed?.conceptId, group.primaryProofPointCode, group.primaryEvidencePointCode]);
 
   const save = async () => {
     try {
@@ -61,7 +59,7 @@ function AssetBusinessClassificationPanel({
         <div>
           <h3 className="text-base font-semibold">业务表达层级</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            标注素材主要属于哪个卖点、证明点，以及原业务文档中的具体作图文案。
+            标注素材主要属于哪个卖点和证明点。
           </p>
         </div>
         <Button

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TypeVar
 
@@ -14,6 +15,8 @@ from app.ai.contracts import (
 from app.ai.knowledge import AiKnowledge
 from app.ai.normalizer import normalize_model_payload
 from app.ai.skill_loader import (
+    build_candidate_review_prompt,
+    build_proof_point_prompt,
     build_selling_point_prompt,
     build_system_routing_prompt,
     build_task_prompt,
@@ -24,11 +27,17 @@ from app.domain.ai_taxonomy import (
     BUSINESS_CONCEPT_CATALOG,
     BUSINESS_CONCEPT_CODES,
 )
+from app.domain.evidence_points import load_evidence_point_catalog
+from app.domain.proof_points import load_proof_point_catalog
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
 from app.schemas.ai import (
     AssetSearchPhraseSuggestion,
     ImageAnalysisResult,
     ProviderStatus,
+    SearchCandidateReviewResult,
+    SearchEvidencePointMatch,
+    SearchProofPointMatch,
+    SearchProofPointUnderstanding,
     SearchSystemRouting,
     SearchUnderstanding,
     SellingPointMatchResult,
@@ -58,12 +67,16 @@ class AiService:
         *,
         system_routing_timeout_seconds: float | None = None,
         selling_point_timeout_seconds: float | None = None,
+        proof_point_timeout_seconds: float | None = None,
+        candidate_review_timeout_seconds: float | None = None,
     ):
         # D027：knowledge 携带数据库当前启用卖点；缺省时回退静态种子目录。
         self.provider = provider
         self.knowledge = knowledge
         self.system_routing_timeout_seconds = system_routing_timeout_seconds
         self.selling_point_timeout_seconds = selling_point_timeout_seconds
+        self.proof_point_timeout_seconds = proof_point_timeout_seconds
+        self.candidate_review_timeout_seconds = candidate_review_timeout_seconds
 
     def provider_status(self) -> ProviderStatus:
         return ProviderStatus(
@@ -166,6 +179,14 @@ class AiService:
         keyword: str,
         routing: SearchSystemRouting,
     ) -> SearchUnderstanding:
+        selling_points = self.understand_selling_points_from_route(keyword, routing)
+        return self.understand_proof_points(keyword, selling_points)
+
+    def understand_selling_points_from_route(
+        self,
+        keyword: str,
+        routing: SearchSystemRouting,
+    ) -> SearchUnderstanding:
         system_codes = self._validated_routed_system_codes(routing)
         if not system_codes:
             query_type = (
@@ -203,7 +224,76 @@ class AiService:
             SearchUnderstanding,
         )
         self._validate_routed_concepts(result, system_codes)
-        return result
+        return self._with_scoped_proof_point_hints(result)
+
+    def understand_proof_points(
+        self,
+        keyword: str,
+        selling_points: SearchUnderstanding,
+    ) -> SearchUnderstanding:
+        concept_codes = self._matched_concept_codes(selling_points)
+        if not concept_codes:
+            return selling_points
+        available_proofs = {
+            item.concept_code for item in load_proof_point_catalog().points
+        }
+        concept_codes = tuple(
+            code for code in concept_codes if code in available_proofs
+        )
+        if not concept_codes:
+            return selling_points
+        result = self._run(
+            ModelRequest(
+                task="search_proof_point_understanding",
+                prompt=build_proof_point_prompt(concept_codes),
+                input_text=(
+                    f"第二层已命中卖点：{', '.join(concept_codes)}\n"
+                    f"原始查询：{keyword}"
+                ),
+                timeout_seconds=self.proof_point_timeout_seconds,
+            ),
+            SearchProofPointUnderstanding,
+        )
+        proof_matches, evidence_matches = self._scoped_proof_point_matches(
+            result.matched_proof_points,
+            result.matched_evidence_points,
+            concept_codes,
+        )
+        return selling_points.model_copy(
+            update={
+                "matched_proof_points": proof_matches,
+                "matched_evidence_points": evidence_matches,
+                "search_strategy": (
+                    result.search_strategy or selling_points.search_strategy
+                ),
+            }
+        )
+
+    def review_search_candidates(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        candidates: list[dict],
+    ) -> SearchCandidateReviewResult:
+        if not candidates:
+            return SearchCandidateReviewResult(decisions=[])
+        payload = {
+            "query": keyword,
+            "understanding": (
+                understanding.model_dump(mode="json") if understanding else None
+            ),
+            "candidates": candidates,
+        }
+        return self._run(
+            ModelRequest(
+                task="search_candidate_review",
+                prompt=build_candidate_review_prompt(),
+                input_text=json.dumps(payload, ensure_ascii=False),
+                timeout_seconds=self.candidate_review_timeout_seconds,
+            ),
+            SearchCandidateReviewResult,
+        )
 
     def routed_system_codes(
         self,
@@ -325,6 +415,165 @@ class AiService:
                 details={"concepts": invalid, "systems": list(system_codes)},
             )
 
+    def _matched_concept_codes(
+        self,
+        result: SearchUnderstanding,
+    ) -> tuple[str, ...]:
+        catalog = load_taxonomy_catalog()
+        active_codes = (
+            self.knowledge.concept_codes
+            if self.knowledge
+            else frozenset(node.code for node in catalog.image_label_nodes)
+        )
+        display_names = (
+            dict(self.knowledge.concept_display_names)
+            if self.knowledge
+            else {
+                node.code: (
+                    f"{catalog.node_by_code[node.parent_code].name} > {node.name}"
+                    if node.parent_code
+                    else node.name
+                )
+                for node in catalog.image_label_nodes
+            }
+        )
+        code_by_name = {
+            name: code for code, name in display_names.items() if code in active_codes
+        }
+        code_by_name.update(
+            {
+                catalog.node_by_code[code].name: code
+                for code in active_codes
+                if code in catalog.node_by_code
+            }
+        )
+        codes = []
+        for item in result.matched_business_concepts:
+            code = (
+                item.concept
+                if item.concept in active_codes
+                else code_by_name.get(item.concept)
+            )
+            if code and code not in codes:
+                codes.append(code)
+        return tuple(codes)
+
+    def _with_scoped_proof_point_hints(
+        self,
+        result: SearchUnderstanding,
+    ) -> SearchUnderstanding:
+        if not result.matched_proof_points and not result.matched_evidence_points:
+            return result
+        concept_codes = self._matched_concept_codes(result)
+        proof_matches, evidence_matches = self._scoped_proof_point_matches(
+            result.matched_proof_points,
+            result.matched_evidence_points,
+            concept_codes,
+        )
+        return result.model_copy(
+            update={
+                "matched_proof_points": proof_matches,
+                "matched_evidence_points": evidence_matches,
+            }
+        )
+
+    @staticmethod
+    def _scoped_proof_point_matches(
+        proof_points: list[SearchProofPointMatch],
+        evidence_points: list[SearchEvidencePointMatch],
+        concept_codes: tuple[str, ...],
+    ) -> tuple[list[SearchProofPointMatch], list[SearchEvidencePointMatch]]:
+        allowed_concepts = set(concept_codes)
+        if not allowed_concepts:
+            return [], []
+        proof_catalog = load_proof_point_catalog().by_code
+        evidence_catalog = load_evidence_point_catalog().by_code
+
+        scoped_proofs: list[SearchProofPointMatch] = []
+        seen_proofs: set[str] = set()
+        for item in proof_points:
+            definition = proof_catalog.get(item.code)
+            if definition is None or definition.concept_code not in allowed_concepts:
+                continue
+            if definition.code in seen_proofs:
+                continue
+            scoped_proofs.append(
+                item.model_copy(
+                    update={
+                        "code": definition.code,
+                        "concept_code": definition.concept_code,
+                        "name": definition.name,
+                        "evidence_terms": list(item.evidence_terms[:3]),
+                    }
+                )
+            )
+            seen_proofs.add(definition.code)
+
+        scoped_evidence: list[SearchEvidencePointMatch] = []
+        for item in evidence_points:
+            definition = evidence_catalog.get(item.code)
+            if definition is None or definition.concept_code not in allowed_concepts:
+                continue
+            proof = proof_catalog.get(definition.proof_point_code)
+            if proof is None:
+                continue
+            if proof.code not in seen_proofs:
+                scoped_proofs.append(
+                    SearchProofPointMatch(
+                        code=proof.code,
+                        concept_code=proof.concept_code,
+                        name=proof.name,
+                        reason=f"由证据表达点反向定位：{definition.name}",
+                        weight=item.weight,
+                        evidence_terms=[definition.name],
+                    )
+                )
+                seen_proofs.add(proof.code)
+            scoped_evidence.append(
+                item.model_copy(
+                    update={
+                        "code": definition.code,
+                        "proof_point_code": definition.proof_point_code,
+                        "concept_code": definition.concept_code,
+                        "name": definition.name,
+                    }
+                )
+            )
+        active_proofs = {item.code for item in scoped_proofs}
+        return scoped_proofs, [
+            item for item in scoped_evidence if item.proof_point_code in active_proofs
+        ]
+
+    @staticmethod
+    def _validate_proof_point_scope(
+        result: SearchProofPointUnderstanding,
+        concept_codes: tuple[str, ...],
+    ) -> None:
+        allowed = set(concept_codes)
+        invalid_proofs = sorted(
+            item.code
+            for item in result.matched_proof_points
+            if item.concept_code not in allowed
+        )
+        proof_codes = {item.code for item in result.matched_proof_points}
+        invalid_evidence = sorted(
+            item.code
+            for item in result.matched_evidence_points
+            if item.concept_code not in allowed
+            or item.proof_point_code not in proof_codes
+        )
+        if invalid_proofs or invalid_evidence:
+            raise AppError(
+                "model_response_invalid",
+                "第三层模型返回了已命中卖点之外的证明点",
+                status_code=502,
+                details={
+                    "proof_points": invalid_proofs,
+                    "evidence_points": invalid_evidence,
+                    "concepts": list(concept_codes),
+                },
+            )
+
     def _catalog_text(self) -> str | None:
         return self.knowledge.catalog_text if self.knowledge else None
 
@@ -384,6 +633,36 @@ class AiService:
         )
 
     def _run(self, request: ModelRequest, result_type: type[ResultModel]) -> ResultModel:
+        def validate(payload):
+            return result_type.model_validate(
+                normalize_model_payload(
+                    request,
+                    payload,
+                    concept_display_names=(
+                        dict(self.knowledge.concept_display_names)
+                        if self.knowledge
+                        else None
+                    ),
+                )
+            )
+
+        validated_runner = getattr(self.provider, "generate_validated_json", None)
+        if callable(validated_runner):
+            try:
+                return validated_runner(request, validate)
+            except ModelProviderNotConfigured as exc:
+                raise AppError(
+                    "provider_not_configured",
+                    str(exc),
+                    status_code=503,
+                ) from exc
+            except ModelProviderError as exc:
+                raise AppError(
+                    "model_provider_error",
+                    str(exc),
+                    status_code=502,
+                ) from exc
+
         try:
             payload = self.provider.generate_json(request)
         except ModelProviderNotConfigured as exc:
@@ -399,17 +678,7 @@ class AiService:
                 status_code=502,
             ) from exc
         try:
-            return result_type.model_validate(
-                normalize_model_payload(
-                    request,
-                    payload,
-                    concept_display_names=(
-                        dict(self.knowledge.concept_display_names)
-                        if self.knowledge
-                        else None
-                    ),
-                )
-            )
+            return validate(payload)
         except ValidationError as exc:
             raise AppError(
                 "model_response_invalid",

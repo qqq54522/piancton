@@ -4,10 +4,12 @@ import type { ScoredImageMatch, SearchUnderstanding } from '@client/src/types/ap
 import {
   filterResultsByIntent,
   resultMatchExplanation,
+  resultRecommendationCopy,
   searchEvidencePointOptions,
   searchIntentOptions,
   searchIntentTitle,
   searchProofPointOptions,
+  resultRecommendedPoint,
 } from './searchConceptPresentation';
 
 describe('search concept presentation', () => {
@@ -34,13 +36,13 @@ describe('search concept presentation', () => {
         { conceptCode: 'photo', conceptName: 'AI拍题精学', relationRole: 'expresses' },
       ],
       expressedConcepts: ['AI拍题精学', 'AI私教答疑'],
-    } as ScoredImageMatch;
+    } as unknown as ScoredImageMatch;
     const second = {
       matchedQueryConcepts: [
         { conceptCode: 'tutor', conceptName: 'AI私教答疑', relationRole: 'supports' },
       ],
       expressedConcepts: ['AI私教答疑'],
-    } as ScoredImageMatch;
+    } as unknown as ScoredImageMatch;
 
     expect(filterResultsByIntent([first, second], 'AI私教答疑')).toEqual([second]);
     expect(filterResultsByIntent([first, second], null)).toEqual([first, second]);
@@ -73,7 +75,7 @@ describe('search concept presentation', () => {
     expect(searchIntentTitle('business_intent_search')).toBe('本次识别到的卖点');
   });
 
-  it('shows reviewed business and asset-phrase evidence instead of internal recall sources', () => {
+  it('shows clean business language instead of internal recall sources', () => {
     const scored = {
       matchedQueryConcepts: [
         { conceptCode: 'tutor', conceptName: 'AI私教答疑', relationRole: 'expresses' },
@@ -86,11 +88,57 @@ describe('search concept presentation', () => {
       ],
     } as ScoredImageMatch;
 
-    expect(resultMatchExplanation(scored)).toBe(
-      '主要表达“AI私教答疑”；卖点表达命中：AI私教',
-    );
+    expect(resultMatchExplanation(scored)).toBe('AI私教');
     expect(resultMatchExplanation(scored)).not.toContain('Embedding');
     expect(resultMatchExplanation(scored)).not.toContain('语义扩展');
+  });
+
+  it('uses manual recommendation text from the current query selling point', () => {
+    const scored = {
+      matchedQueryConcepts: [
+        {
+          conceptCode: 'instant_quiz',
+          conceptName: '课后小测',
+          relationRole: 'expresses',
+          recommendationText: '有没有能体现课后小测后当天会不会一眼看出来的图',
+        },
+        {
+          conceptCode: 'learning_report',
+          conceptName: '学情报告反馈',
+          relationRole: 'supports',
+          recommendationText: '这张图也可以讲报告，但本次搜索没有命中它',
+        },
+      ],
+      primaryProofPointName: '课后数据反馈',
+      primaryProofPointClaim: '旧的证明点兜底文案',
+      matchReasons: [
+        '卖点内素材独有话术命中：旧素材话术',
+      ],
+    } as ScoredImageMatch;
+
+    expect(resultRecommendedPoint(scored)).toBe('课后小测');
+    expect(resultMatchExplanation(scored)).toBe(
+      '有没有能体现课后小测后当天会不会一眼看出来的图',
+    );
+  });
+
+  it('splits recommendation text into primary and secondary display levels', () => {
+    const scored = ({
+      matchedQueryConcepts: [
+        {
+          conceptCode: 'school',
+          conceptName: '同步校内',
+          relationRole: 'expresses',
+          recommendationText: '洋葱的课程版本与孩子学校教材完全一致\n洋葱的所有课程都是针对现在主流的教材版本对应设计的',
+        },
+      ],
+      matchReasons: [],
+    } as unknown) as ScoredImageMatch;
+
+    expect(resultRecommendationCopy(scored)).toEqual({
+      primary: '洋葱的课程版本与孩子学校教材完全一致',
+      secondary: ['洋葱的所有课程都是针对现在主流的教材版本对应设计的'],
+    });
   });
 
   it('uses accepted asset-specific language as the within-selling-point explanation', () => {
@@ -105,11 +153,11 @@ describe('search concept presentation', () => {
     } as ScoredImageMatch;
 
     expect(resultMatchExplanation(scored)).toBe(
-      '可以支持“同步校内”；素材独有话术命中：学校学到哪课程就讲到哪',
+      '学校学到哪课程就讲到哪',
     );
   });
 
-  it('presents proof-point confidence and includes it in the result explanation', () => {
+  it('presents proof-point confidence and keeps the query selling point as recommendation point', () => {
     const understanding = {
       matchedProofPoints: [
         {
@@ -124,6 +172,8 @@ describe('search concept presentation', () => {
       matchedQueryConcepts: [
         { conceptName: 'AI错题本', relationRole: 'expresses' },
       ],
+      primaryProofPointName: '线下错题拍照上传与归档',
+      primaryProofPointClaim: '把学生线下错题拍照保存，自动整理成个人错题本，后续可以反复复练。',
       matchReasons: [
         '证明点匹配：线下错题拍照上传与归档（100%）',
       ],
@@ -132,8 +182,22 @@ describe('search concept presentation', () => {
     expect(searchProofPointOptions(understanding)).toEqual([
       { name: '线下错题拍照上传与归档', weight: 0.97 },
     ]);
+    expect(resultRecommendedPoint(scored)).toBe('AI错题本');
+    expect(resultMatchExplanation(scored)).toBe('把学生线下错题拍照保存，自动整理成个人错题本，后续可以反复复练。');
+  });
+
+  it('keeps cards with the same proof point on the same recommendation copy', () => {
+    const scored = {
+      primaryProofPointName: '全网与群体高频易错题功能',
+      matchReasons: [
+        '证明点匹配：全网与群体高频易错题功能（92%）',
+        '卖点内素材独有话术命中：找一张能体现专门练全网高频错题、集中突破难题的图',
+      ],
+    } as ScoredImageMatch;
+
+    expect(resultRecommendedPoint(scored)).toBe('全网与群体高频易错题功能');
     expect(resultMatchExplanation(scored)).toBe(
-      '主要表达“AI错题本”；证明点：线下错题拍照上传与归档（100%）',
+      '依托上亿学生答题数据，系统自动标记全学科高频易错题，区分共性易错坑点；同时内置个人专属错题本，自动收录孩子自身错题。',
     );
   });
 

@@ -173,10 +173,11 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "本次没有识别出可靠卖点" in search_result
     assert "外部语义增强未在时限内完成" in search_result
     assert "「{keyword}」的素材结果" not in search_result
-    assert "推荐结果后再缩小" in global_search
-    assert "按使用渠道筛选" in global_search
-    assert "按画面风格筛选" in global_search
-    assert "按场景图筛选" in global_search
+    assert "推荐结果后再缩小" in ux_rules or "推荐结果后再缩小" in _read(
+        "docs/DEVELOPMENT_GUARDRAILS.md"
+    )
+    assert 'aria-label="按使用渠道筛选"' in global_search
+    assert 'aria-label="按场景图筛选"' in global_search
     concept_presentation = _read(
         "client/src/pages/ImageHome/SemanticSearchResult/searchConceptPresentation.ts"
     )
@@ -185,8 +186,8 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "本次识别到的卖点" in concept_presentation
     assert "你可能在找" in concept_presentation
     assert "本次需求同时涉及" in concept_presentation
-    assert "匹配" in search_card
-    assert "matchedQueryConcepts" in search_card
+    assert "resultRecommendedPoint" in search_card
+    assert "matchedQueryConcepts" in concept_presentation
     assert "没有合适素材提交需求" in search_constants
     assert "label: '提交素材需求'" not in search_constants
     assert "@client/src/components/ui/select" in search_card

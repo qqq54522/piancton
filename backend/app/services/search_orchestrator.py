@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import time
 
-from app.core.errors import AppError
-from app.domain.search_query_expansion import ExpandedQuery
 from app.schemas.image import SearchResponse
 from app.services.concept_search_recall import ConceptSearchRecallService
 from app.services.database_search_recall import DatabaseSearchRecallService
@@ -17,10 +15,21 @@ from app.services.search_concept_context import (
 )
 from app.services.search_diagnostics_service import SearchDiagnosticsService
 from app.services.search_external_branches import SearchExternalBranches
-from app.services.search_models import (
-    ConceptMatch,
-    SearchBranchDiagnostic,
-    SearchHit,
+from app.services.search_models import SearchBranchDiagnostic
+from app.services.search_orchestrator_helpers import (
+    concept_hits as recall_concept_hits,
+)
+from app.services.search_orchestrator_helpers import (
+    concept_queries,
+    confirmed_route,
+    diagnostics_for_sources,
+    elapsed_ms,
+    explicit_or_local_understanding,
+    merge_added_concept_hits,
+    start_external_branches,
+)
+from app.services.search_orchestrator_helpers import (
+    database_hits as recall_database_hits,
 )
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_rerank_coordinator import SearchRerankCoordinator
@@ -66,39 +75,21 @@ class AsyncSearchOrchestrator:
         evidence_point_code: str | None = None,
     ) -> SearchResponse:
         started = time.monotonic()
-        explicit_understanding = None
-        if concept_code:
-            explicit_understanding = self.query_understanding.explicit_understanding(
-                keyword,
-                concept_code=concept_code,
-                proof_point_code=proof_point_code,
-                evidence_point_code=evidence_point_code,
-            )
-            if explicit_understanding is None:
-                raise AppError(
-                    "invalid_business_filter",
-                    "所选卖点、证明点或证据表达点已失效",
-                )
-        local_understanding = (
-            explicit_understanding
-            or self.query_understanding.understand_locally(keyword)
+        local_understanding, explicit_filter = explicit_or_local_understanding(
+            self.query_understanding,
+            keyword,
+            concept_code,
+            proof_point_code,
+            evidence_point_code,
         )
         local_expansions = self.expansion.queries_from_understanding(local_understanding)
         external_query = self.expansion.external_keyword(keyword, local_expansions)
 
-        meili_task = self.external_branches.start_meilisearch(
-            external_query,
-            limit,
-            local_understanding,
+        meili_task, embedding_branch, understanding_branch = start_external_branches(
+            self.external_branches, external_query, keyword, limit, local_understanding
         )
-        embedding_result, embedding_task = self.external_branches.start_embedding(
-            keyword,
-            local_understanding,
-        )
-        understanding_result, understanding_task = self.external_branches.start_understanding(
-            keyword,
-            local_understanding,
-        )
+        embedding_result, embedding_task = embedding_branch
+        understanding_result, understanding_task = understanding_branch
 
         concept_started = time.monotonic()
         understanding_matches = matches_from_understanding(
@@ -107,28 +98,30 @@ class AsyncSearchOrchestrator:
         )
         concept_matches = (
             understanding_matches
-            if explicit_understanding is not None
+            if explicit_filter
             else merge_concept_matches(
                 self.concept_recall.match(keyword),
                 understanding_matches,
             )
         )
-        concept_hits = self.concept_recall.recall(
-            concept_matches,
-            limit=max(limit * 3, self.candidate_limit),
+        concept_hits = recall_concept_hits(
+            self.concept_recall, concept_matches, limit, self.candidate_limit
         )
         concept_diagnostic = SearchBranchDiagnostic(
             source="local_concepts",
             status="ok",
-            duration_ms=_elapsed_ms(concept_started),
+            duration_ms=elapsed_ms(concept_started),
             result_count=len(concept_hits),
         )
 
         database_started = time.monotonic()
-        database_hits = self._database_hits(
+        database_hits = recall_database_hits(
+            self.database_recall,
+            self.expansion,
             keyword,
             limit,
-            [*local_expansions, *self._concept_queries(concept_matches)],
+            self.candidate_limit,
+            [*local_expansions, *concept_queries(concept_matches)],
         )
 
         meili_result = await meili_task
@@ -154,30 +147,33 @@ class AsyncSearchOrchestrator:
             model_expansions = self.expansion.queries_from_understanding(understanding)
             database_hits = self.ranking.merge_hits(
                 database_hits,
-                self._database_hits(keyword, limit, model_expansions),
+                recall_database_hits(
+                    self.database_recall,
+                    self.expansion,
+                    keyword,
+                    limit,
+                    self.candidate_limit,
+                    model_expansions,
+                ),
             )
 
         understood_matches = matches_from_understanding(understanding, self.concept_recall)
         if model_understanding_succeeded:
-            # 模型成功只表示结构化调用完成。final_understanding 已在查询理解层
-            # 完成本地强证据/模型仲裁；这里使用仲裁后的封闭卖点集合，防止相邻
-            # 卖点和全局语义候选重新混入可信通道。
             concept_matches = understood_matches
-            concept_hits = self.concept_recall.recall(
-                concept_matches,
-                limit=max(limit * 3, self.candidate_limit),
+            concept_hits = recall_concept_hits(
+                self.concept_recall, concept_matches, limit, self.candidate_limit
             )
         else:
             added_matches = new_concept_matches(concept_matches, understood_matches)
-            if added_matches:
-                concept_matches = merge_concept_matches(concept_matches, added_matches)
-                concept_hits = self.ranking.merge_hits(
-                    concept_hits,
-                    self.concept_recall.recall(
-                        added_matches,
-                        limit=max(limit * 3, self.candidate_limit),
-                    ),
-                )
+            concept_matches, concept_hits = merge_added_concept_hits(
+                concept_matches=concept_matches,
+                concept_hits_value=concept_hits,
+                added_matches=added_matches,
+                concept_recall=self.concept_recall,
+                ranking=self.ranking,
+                limit=limit,
+                candidate_limit=self.candidate_limit,
+            )
 
         profile = self.query_profile.build(
             keyword,
@@ -185,22 +181,22 @@ class AsyncSearchOrchestrator:
             understanding=understanding,
         )
         if (
-            explicit_understanding is None
+            not explicit_filter
             and
             not model_understanding_succeeded
             and profile.normalized_query != keyword.strip()
         ):
             normalized_matches = self.concept_recall.match(profile.normalized_query)
             added_matches = new_concept_matches(concept_matches, normalized_matches)
-            if added_matches:
-                concept_matches = merge_concept_matches(concept_matches, added_matches)
-                concept_hits = self.ranking.merge_hits(
-                    concept_hits,
-                    self.concept_recall.recall(
-                        added_matches,
-                        limit=max(limit * 3, self.candidate_limit),
-                    ),
-                )
+            concept_matches, concept_hits = merge_added_concept_hits(
+                concept_matches=concept_matches,
+                concept_hits_value=concept_hits,
+                added_matches=added_matches,
+                concept_recall=self.concept_recall,
+                ranking=self.ranking,
+                limit=limit,
+                candidate_limit=self.candidate_limit,
+            )
         profile = self.query_profile.build(
             keyword,
             concept_matches=concept_matches,
@@ -215,7 +211,7 @@ class AsyncSearchOrchestrator:
         database_diagnostic = SearchBranchDiagnostic(
             source="database",
             status="ok",
-            duration_ms=_elapsed_ms(database_started),
+            duration_ms=elapsed_ms(database_started),
             result_count=len(database_hits),
         )
         meili_hits = self.external_branches.hydrate_meilisearch(meili_result)
@@ -234,14 +230,9 @@ class AsyncSearchOrchestrator:
         )
 
         hits = self.ranking.fuse_sources([concept_hits, database_hits, meili_hits, embedding_hits])
-        concept_route = self.ranking.route_confirmed_concepts(
-            hits,
-            concept_matches,
-            keyword=keyword,
-            understanding=understanding,
+        hits, active_concept_matches = confirmed_route(
+            self.ranking, hits, concept_matches, keyword, understanding
         )
-        hits = concept_route.hits
-        active_concept_matches = list(concept_route.active_matches)
         if precision_lock and not active_concept_matches:
             # 第一层已经确认这是业务查询，但第二层没有在预算内完成。
             # 此时绝不能把全库 Meili/Embedding 候选冒充成卖点结果。
@@ -250,13 +241,13 @@ class AsyncSearchOrchestrator:
         hits = self.ranking.collapse_asset_groups(hits)
         hits = hits[: max(limit, self.candidate_limit)]
 
-        branch_diagnostics = [
+        branch_diagnostics = diagnostics_for_sources(
             concept_diagnostic,
             database_diagnostic,
-            meili_result.diagnostic,
-            embedding_result.diagnostic,
-            understanding_result.diagnostic,
-        ]
+            meili_result,
+            embedding_result,
+            understanding_result,
+        )
         optional_rerank_started = time.monotonic()
         (
             hits,
@@ -269,17 +260,22 @@ class AsyncSearchOrchestrator:
             search_started=optional_rerank_started,
             trusted_business_route=bool(active_concept_matches),
         )
-        concept_route = self.ranking.route_confirmed_concepts(
-            hits,
-            concept_matches,
-            keyword=keyword,
-            understanding=understanding,
+        hits, active_concept_matches = confirmed_route(
+            self.ranking, hits, concept_matches, keyword, understanding
         )
-        hits = concept_route.hits
-        active_concept_matches = list(concept_route.active_matches)
         branch_diagnostics.append(reranker_diagnostic)
 
-        total_duration_ms = _elapsed_ms(started)
+        candidate_review_result = await self.external_branches.review_candidates(
+            keyword=keyword,
+            understanding=understanding,
+            hits=hits[: max(limit, self.candidate_limit)],
+            limit=limit,
+        )
+        if candidate_review_result.value is not None:
+            hits = candidate_review_result.value
+        branch_diagnostics.append(candidate_review_result.diagnostic)
+
+        total_duration_ms = elapsed_ms(started)
         search_diagnostics = self.diagnostics.build(
             total_duration_ms=total_duration_ms,
             branches=branch_diagnostics,
@@ -300,27 +296,3 @@ class AsyncSearchOrchestrator:
             search_diagnostics=search_diagnostics,
             query_concept_matches=active_concept_matches,
         )
-
-    def _database_hits(
-        self,
-        keyword: str,
-        limit: int,
-        extra_queries: list[ExpandedQuery],
-    ) -> list[SearchHit]:
-        return self.database_recall.search_queries(
-            self.expansion.database_queries(keyword, extra_queries),
-            limit=max(limit * 3, self.candidate_limit),
-        )
-
-    def _concept_queries(self, matches: list[ConceptMatch]) -> list[ExpandedQuery]:
-        return [
-            ExpandedQuery(
-                term=item.name,
-                score=item.score,
-                reasons=item.reasons,
-            )
-            for item in matches
-        ]
-
-def _elapsed_ms(started: float) -> int:
-    return max(0, round((time.monotonic() - started) * 1000))

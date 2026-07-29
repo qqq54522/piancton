@@ -1,18 +1,15 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { RotateCcw, X } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 
 import { submitSearchFeedback } from '@client/src/api/image';
 import { Button } from '@client/src/components/ui/button';
 import type { SearchFeedbackType, SemanticSearchResponse } from '@client/src/types/api';
+import { channelIntentLabel } from '../channelIntent';
+import { channelRecommendationFor } from '../channelRecommendations';
 import SearchFeedbackPanel from './SearchFeedbackPanel';
 import SearchResultGrid from './SearchResultGrid';
-import {
-  searchEvidencePointOptions,
-  searchIntentOptions,
-  searchIntentTitle,
-  searchProofPointOptions,
-} from './searchConceptPresentation';
+import { searchIntentTitle } from './searchConceptPresentation';
 import {
   activeRefinementCount,
   filterResultsByRefinements,
@@ -23,7 +20,11 @@ interface SemanticSearchResultProps {
   keyword: string;
   result: SemanticSearchResponse;
   refinements: SearchRefinements;
+  showSearchContext: boolean;
+  manualFilterOpen: boolean;
+  showBusinessAccount: boolean;
   onClear: () => void;
+  onRetry: () => void;
 }
 
 
@@ -31,27 +32,23 @@ const SemanticSearchResult = ({
   keyword,
   result,
   refinements,
+  showSearchContext,
+  manualFilterOpen,
+  showBusinessAccount,
   onClear,
+  onRetry,
 }: SemanticSearchResultProps) => {
   const [feedbackNote, setFeedbackNote] = useState('');
   const [submittedFeedback, setSubmittedFeedback] = useState<SearchFeedbackType | null>(null);
-  const intentions = useMemo(
-    () => searchIntentOptions(result.searchUnderstanding),
-    [result.searchUnderstanding],
-  );
-  const proofPoints = useMemo(
-    () => searchProofPointOptions(result.searchUnderstanding),
-    [result.searchUnderstanding],
-  );
-  const evidencePoints = useMemo(
-    () => searchEvidencePointOptions(result.searchUnderstanding),
-    [result.searchUnderstanding],
-  );
   const visibleResults = useMemo(
     () => filterResultsByRefinements(result.results, refinements),
     [refinements, result.results],
   );
   const refinementCount = activeRefinementCount(refinements);
+  const intentTitle = searchIntentTitle(result.searchUnderstanding?.queryType);
+  const channelRecommendation = channelRecommendationFor(refinements.channel);
+  const channelIntent = refinements.channel ? null : refinements.channelIntent;
+  const channelIntentRecommendation = channelIntent?.recommendation;
   const feedbackMutation = useMutation({
     mutationFn: (feedbackType: SearchFeedbackType) => submitSearchFeedback({
       searchLogId: result.searchLogId,
@@ -67,92 +64,88 @@ const SemanticSearchResult = ({
 
   return (
     <div className="mt-6">
-      <div className="mb-4 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-        <p className="text-sm text-muted-foreground">
-          {refinementCount > 0
-            ? `当前显示 ${visibleResults.length} 组，已应用 ${refinementCount} 个精细筛选`
-            : result.matchSummary || `找到 ${result.results.length} 组素材`}
-        </p>
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          <X className="mr-1 size-3.5" />
-          清除搜索
-        </Button>
-      </div>
+      {showSearchContext && (
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
+          <p className="text-sm text-muted-foreground">
+            {refinementCount > 0
+              ? `当前显示 ${visibleResults.length} 组，已应用 ${refinementCount} 个渠道/场景筛选`
+              : result.matchSummary || `${intentTitle}，找到 ${result.results.length} 组素材`}
+          </p>
+          <Button variant="ghost" size="sm" onClick={onClear}>
+            <X className="mr-1 size-3.5" />
+            清除搜索
+          </Button>
+        </div>
+      )}
 
       {result.fallback && (
-        <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-          <AlertTriangle className="size-3.5 text-amber-600" />
-          <span className="text-xs text-amber-700">
-            {result.results.length === 0
-              ? '卖点理解未在时限内完成；为避免返回无关素材，本次没有放开全库结果，请稍后重试。'
-              : '本次没有识别出可靠卖点，外部语义增强未在时限内完成；已显示基础搜索结果，可换一种说法或稍后重试。'}
-          </span>
-        </div>
-      )}
-
-      {intentions.length > 0 && (
-        <div className="mb-4 rounded-xl border border-primary/15 bg-primary/[0.035] px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-medium text-foreground">
-              {searchIntentTitle(result.searchUnderstanding?.queryType)}
-            </span>
-            {intentions.map((intent) => (
-              <span
-                key={intent.name}
-                className="rounded border border-primary/20 bg-background px-2 py-1 text-xs text-foreground"
+        <div className="flex min-h-[360px] items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-base font-semibold text-muted-foreground">查找通道出现了一些问题，请稍后再试</h2>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {result.fallbackReason || '外部语义增强未在时限内完成'}
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                onClick={onRetry}
               >
-                {intent.name}
-              </span>
-            ))}
+                <RotateCcw className="size-4" />
+                重新尝试
+              </Button>
+              <Button type="button" variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground" onClick={onClear}>
+                清除搜索
+              </Button>
+            </div>
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            上方业务层级已自动联动；识别不准确时可直接改选卖点、证明点或证据表达点。
-          </p>
-          {proofPoints.length > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-primary/10 pt-2">
-              <span className="text-[11px] font-medium text-foreground">进一步命中证明点</span>
-              {proofPoints.map((point) => (
-                <span key={point.name} className="rounded border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
-                  {point.name} · {Math.round(point.weight * 100)}%
-                </span>
-              ))}
-            </div>
-          )}
-          {evidencePoints.length > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-primary/10 pt-2">
-              <span className="text-[11px] font-medium text-foreground">进一步命中证据表达点</span>
-              {evidencePoints.map((point) => (
-                <span key={point.name} className="rounded border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
-                  {point.name} · {Math.round(point.weight * 100)}%
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
-      {visibleResults.length > 0 ? (
+      {!result.fallback && (channelRecommendation || channelIntentRecommendation) && (
+        <div className="mb-4 flex flex-col gap-1 rounded-xl border border-border/80 bg-[#f7f7f5] px-4 py-2.5">
+          <p className="text-xs font-semibold leading-5 text-foreground">
+            {channelRecommendation
+              ? `推荐${channelRecommendation.value}`
+              : `已理解：${channelIntentLabel(channelIntent)}使用场景`}
+          </p>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {channelRecommendation?.description ?? channelIntentRecommendation}
+          </p>
+        </div>
+      )}
+
+      {!result.fallback && visibleResults.length > 0 ? (
         <SearchResultGrid
           items={visibleResults}
           keyword={keyword}
           searchLogId={result.searchLogId}
+          showSearchContext={showSearchContext}
         />
-      ) : (
+      ) : !result.fallback ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20">
           <p className="text-sm text-muted-foreground">
             {refinementCount > 0
               ? '当前筛选组合下没有素材，可放宽一个条件'
-              : '暂时没有找到合适素材'}
+              : (result.searchUnderstanding?.matchedBusinessConcepts.length ?? 0) === 0
+                ? '本次没有识别出可靠卖点，暂时没有找到合适素材'
+                : '暂时没有找到合适素材'}
           </p>
         </div>
-      )}
+      ) : null}
 
-      <SearchFeedbackPanel
-        feedbackNote={feedbackNote}
-        feedbackMutation={feedbackMutation}
-        submittedFeedback={submittedFeedback}
-        onFeedbackNoteChange={setFeedbackNote}
-      />
+      {showSearchContext && !result.fallback && (
+        <SearchFeedbackPanel
+          feedbackNote={feedbackNote}
+          feedbackMutation={feedbackMutation}
+          manualFilterOpen={manualFilterOpen}
+          showBusinessAccount={showBusinessAccount}
+          submittedFeedback={submittedFeedback}
+          onFeedbackNoteChange={setFeedbackNote}
+        />
+      )}
     </div>
   );
 };

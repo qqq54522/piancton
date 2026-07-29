@@ -7,7 +7,7 @@ from functools import lru_cache
 from threading import Lock
 from typing import Generic, TypeVar
 
-from app.schemas.ai import SearchUnderstanding
+from app.schemas.ai import SearchCandidateReviewResult, SearchUnderstanding
 
 T = TypeVar("T")
 
@@ -52,6 +52,7 @@ class TtlCache(Generic[T]):
 class SearchCaches:
     understanding: TtlCache[SearchUnderstanding]
     embedding_vectors: TtlCache[tuple[float, ...]]
+    candidate_reviews: TtlCache[SearchCandidateReviewResult]
 
 
 def build_search_caches(*, ttl_seconds: float, max_entries: int) -> SearchCaches:
@@ -61,6 +62,10 @@ def build_search_caches(*, ttl_seconds: float, max_entries: int) -> SearchCaches
             max_entries=max_entries,
         ),
         embedding_vectors=TtlCache(
+            ttl_seconds=ttl_seconds,
+            max_entries=max_entries,
+        ),
+        candidate_reviews=TtlCache(
             ttl_seconds=ttl_seconds,
             max_entries=max_entries,
         ),

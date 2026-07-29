@@ -45,7 +45,7 @@ class ImageAnalysisService:
             status="queued",
             taxonomy_version=catalog.version,
             model_provider=settings.model_provider,
-            model_name=settings.model_name,
+            model_name=settings.image_analysis_model_name or settings.model_name,
         )
         image.analysis_runs.append(analysis_run)
         self.images.save(image)
@@ -80,14 +80,16 @@ class ImageAnalysisService:
             analysis_run.status = "succeeded"
             analysis_run.taxonomy_version = catalog.version
             analysis_run.model_provider = settings.model_provider
-            analysis_run.model_name = settings.model_name
+            analysis_run.model_name = (
+                settings.image_analysis_model_name or settings.model_name
+            )
         else:
             analysis_run = AnalysisRun(
                 task="image_content_analysis",
                 status="succeeded",
                 taxonomy_version=catalog.version,
                 model_provider=settings.model_provider,
-                model_name=settings.model_name,
+                model_name=settings.image_analysis_model_name or settings.model_name,
             )
 
         self.images.replace_ai_profile(

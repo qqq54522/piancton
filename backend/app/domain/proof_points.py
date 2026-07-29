@@ -145,6 +145,28 @@ def load_proof_point_catalog(
     )
 
 
+def render_proof_points_for_prompt(concept_codes: tuple[str, ...]) -> str:
+    selected = [
+        item
+        for item in load_proof_point_catalog().points
+        if item.concept_code in concept_codes
+    ]
+    lines = [
+        "# 已命中卖点下的证明点候选",
+        "只能选择下列直属证明点；查询只停留在卖点层时返回空数组。",
+    ]
+    for item in selected:
+        search_terms = "、".join(item.search_terms)
+        lines.append(
+            f"- `{item.code}`｜父卖点 `{item.concept_code}`｜{item.name}"
+        )
+        if item.claim:
+            lines.append(f"  - 论断：{item.claim}")
+        if search_terms:
+            lines.append(f"  - 搜索语言：{search_terms}")
+    return "\n".join(lines)
+
+
 def semantic_text(value: str) -> str:
     ignored = set(" ，。；;：:、,.!?！？“”‘’\"'（）()《》<>[]【】-_")
     normalized = "".join(char.lower() for char in value if char not in ignored)

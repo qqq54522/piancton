@@ -23,6 +23,44 @@ QUERY_TYPE_ALIASES = {
     "unknown": "no_reliable_intent_search",
 }
 
+SYSTEM_CODE_ALIASES = {
+    "sync_school": "sync_school",
+    "同步校内": "sync_school",
+    "校内同步": "sync_school",
+    "校内": "sync_school",
+    "sync_exam": "sync_exam",
+    "同步考点": "sync_exam",
+    "考点同步": "sync_exam",
+    "考点": "sync_exam",
+    "sync_cultivation": "sync_cultivation",
+    "同步培养": "sync_cultivation",
+    "长期培养": "sync_cultivation",
+    "培养": "sync_cultivation",
+    "sync_planning": "sync_planning",
+    "同步规划": "sync_planning",
+    "学习规划": "sync_planning",
+    "规划": "sync_planning",
+    "sync_self_study": "sync_self_study",
+    "同步自学": "sync_self_study",
+    "自学": "sync_self_study",
+    "sync_companion": "sync_companion",
+    "同步伴学": "sync_companion",
+    "伴学": "sync_companion",
+}
+
+ROUTE_TYPE_ALIASES = {
+    "single": "single_system",
+    "single_intent": "single_system",
+    "single_business": "single_system",
+    "multi": "multi_system",
+    "multi_intent": "multi_system",
+    "ambiguous": "ambiguous_system",
+    "visual": "visual_scene",
+    "visual_search": "visual_scene",
+    "unknown": "no_reliable_system",
+    "no_reliable": "no_reliable_system",
+}
+
 DEFAULT_CONCEPT_SUGGESTION_REASON = (
     "模型返回稳定 code，系统已转换为业务概念建议；模型未提供具体适配证据和相邻概念边界。"
 )
@@ -43,9 +81,17 @@ def normalize_model_payload(
     against Pydantic schemas, and invalid model output becomes a domain error.
     """
 
-    if request.task == "search_intent_understanding":
+    if request.task == "search_system_routing":
+        return _normalize_system_routing_payload(payload, request.input_text or "")
+    if request.task == "search_candidate_review":
+        return _normalize_candidate_review_payload(payload)
+    if request.task in {
+        "search_intent_understanding",
+        "search_proof_point_understanding",
+    }:
         return _normalize_search_understanding_payload(
             payload,
+            original_query=_query_from_input_text(request.input_text or ""),
             concept_display_names=concept_display_names,
         )
     if request.task == "asset_search_phrase_generation":
@@ -76,6 +122,168 @@ def normalize_model_payload(
         ]
 
     return normalized
+
+
+def _normalize_candidate_review_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    raw_decisions = (
+        payload.get("decisions")
+        or payload.get("reviews")
+        or payload.get("candidates")
+        or []
+    )
+    decisions = []
+    if isinstance(raw_decisions, list):
+        for item in raw_decisions:
+            decision = _normalize_candidate_review_decision(item)
+            if decision is not None:
+                decisions.append(decision)
+    return {
+        "decisions": decisions,
+        "review_strategy": str(
+            payload.get("review_strategy")
+            or payload.get("strategy")
+            or payload.get("search_strategy")
+            or ""
+        ),
+    }
+
+
+def _normalize_candidate_review_decision(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    image_id = str(
+        value.get("image_id")
+        or value.get("imageId")
+        or value.get("id")
+        or ""
+    ).strip()
+    if not image_id:
+        return None
+    raw_decision = str(
+        value.get("decision")
+        or value.get("action")
+        or value.get("verdict")
+        or ""
+    ).strip().lower()
+    decision_aliases = {
+        "pass": "keep",
+        "accept": "keep",
+        "matched": "keep",
+        "relevant": "keep",
+        "lower": "demote",
+        "weak": "demote",
+        "maybe": "demote",
+        "reject": "exclude",
+        "remove": "exclude",
+        "irrelevant": "exclude",
+    }
+    decision = decision_aliases.get(raw_decision, raw_decision)
+    if decision not in {"keep", "demote", "exclude"}:
+        decision = "demote"
+    return {
+        "image_id": image_id,
+        "decision": decision,
+        "confidence": _normalize_weight(
+            value.get("confidence") or value.get("score"),
+            0.75,
+        ),
+        "reason": str(
+            value.get("reason")
+            or value.get("rationale")
+            or value.get("evidence")
+            or "模型返回候选复核简写，系统已补齐结构字段。"
+        ),
+    }
+
+
+def _normalize_system_routing_payload(
+    payload: dict[str, Any],
+    original_query: str,
+) -> dict[str, Any]:
+    normalized = dict(payload)
+    normalized["original_query"] = (
+        str(normalized.get("original_query") or original_query).strip()
+    )
+    route_type = str(normalized.get("route_type") or "").strip()
+    normalized["route_type"] = ROUTE_TYPE_ALIASES.get(route_type, route_type)
+
+    candidates = normalized.get("candidate_systems")
+    if not isinstance(candidates, list):
+        candidates = (
+            normalized.get("systems")
+            or normalized.get("candidateSystems")
+            or normalized.get("candidates")
+        )
+    normalized_candidates = []
+    if isinstance(candidates, list):
+        for index, item in enumerate(candidates):
+            candidate = _normalize_system_candidate(item, index)
+            if candidate is not None:
+                normalized_candidates.append(candidate)
+    normalized["candidate_systems"] = normalized_candidates
+
+    if not normalized.get("route_type"):
+        if len(normalized_candidates) == 1:
+            normalized["route_type"] = "single_system"
+        elif len(normalized_candidates) > 1:
+            normalized["route_type"] = "ambiguous_system"
+        else:
+            normalized["route_type"] = "no_reliable_system"
+
+    excluded = normalized.get("excluded_systems")
+    normalized["excluded_systems"] = excluded if isinstance(excluded, list) else []
+    return normalized
+
+
+def _normalize_system_candidate(value: Any, index: int) -> dict[str, Any] | None:
+    if isinstance(value, str):
+        code = _normalize_system_code(value)
+        if not code:
+            return None
+        return {
+            "code": code,
+            "relation": "primary" if index == 0 else "related",
+            "reason": "模型返回体系简写，系统已按封闭体系 code 归一化。",
+            "weight": 0.9 if index == 0 else 0.75,
+        }
+    if not isinstance(value, dict):
+        return None
+    normalized = dict(value)
+    raw_code = (
+        normalized.get("code")
+        or normalized.get("system_code")
+        or normalized.get("systemCode")
+        or normalized.get("name")
+        or normalized.get("system")
+    )
+    code = _normalize_system_code(str(raw_code or ""))
+    if not code:
+        return None
+    relation = str(normalized.get("relation") or "").strip()
+    normalized.update(
+        code=code,
+        relation=relation if relation in {"primary", "related"} else (
+            "primary" if index == 0 else "related"
+        ),
+        reason=str(normalized.get("reason") or "模型返回体系候选，系统已归一化。"),
+        weight=_normalize_weight(normalized.get("weight"), 0.9 if index == 0 else 0.75),
+    )
+    return normalized
+
+
+def _normalize_system_code(value: str) -> str | None:
+    key = value.strip()
+    if not key:
+        return None
+    return SYSTEM_CODE_ALIASES.get(key)
+
+
+def _normalize_weight(value: Any, default: float) -> float:
+    try:
+        weight = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(0.0, min(1.0, weight))
 
 
 def _normalize_asset_search_phrase_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -111,10 +319,30 @@ def _normalize_semantic_profile(
 def _normalize_search_understanding_payload(
     payload: dict[str, Any],
     *,
+    original_query: str,
     concept_display_names: dict[str, str] | None,
 ) -> dict[str, Any]:
     catalog = load_taxonomy_catalog()
     normalized = dict(payload)
+    normalized["original_query"] = str(
+        normalized.get("original_query")
+        or normalized.get("originalQuery")
+        or original_query
+    ).strip()
+    normalized["normalized_query"] = str(
+        normalized.get("normalized_query")
+        or normalized.get("normalizedQuery")
+        or normalized.get("normalized")
+        or normalized.get("query")
+        or normalized["original_query"]
+    ).strip()
+    normalized["search_intent"] = str(
+        normalized.get("search_intent")
+        or normalized.get("searchIntent")
+        or normalized.get("intent")
+        or normalized.get("search_strategy")
+        or normalized["normalized_query"]
+    ).strip()
 
     expanded_terms = normalized.get("expanded_terms")
     if isinstance(expanded_terms, list):
@@ -170,10 +398,22 @@ def _normalize_search_understanding_payload(
             for item in excluded_concepts
         ]
     normalized["query_type"] = _normalize_query_type(
-        str(normalized.get("query_type") or "").strip(),
+        str(
+            normalized.get("query_type")
+            or normalized.get("query_status")
+            or normalized.get("query_state")
+            or ""
+        ).strip(),
         normalized.get("matched_business_concepts"),
     )
     return normalized
+
+
+def _query_from_input_text(value: str) -> str:
+    marker = "原始查询："
+    if marker in value:
+        return value.rsplit(marker, 1)[-1].strip()
+    return value.strip()
 
 
 def _normalize_query_type(value: str, matched_concepts: Any) -> str:
@@ -196,11 +436,40 @@ def _normalize_search_term(
     node_by_code: dict[str, Any],
     concept_display_names: dict[str, str] | None,
 ) -> Any:
+    if isinstance(value, str):
+        term = _display_name_from_code(value, node_by_code, concept_display_names) or value.strip()
+        return {
+            "term": term,
+            "relation": "strong",
+            "reason": "模型返回字符串扩展词，系统已补齐结构字段。",
+            "weight": 0.85,
+        }
     if not isinstance(value, dict):
         return value
     normalized = dict(value)
-    term = str(normalized.get("term") or "").strip()
-    normalized["term"] = _display_name_from_code(term, node_by_code, concept_display_names) or term
+    term = str(
+        normalized.get("term")
+        or normalized.get("normalized")
+        or normalized.get("source")
+        or normalized.get("text")
+        or ""
+    ).strip()
+    normalized["term"] = (
+        _display_name_from_code(term, node_by_code, concept_display_names) or term
+    )
+    relation = str(normalized.get("relation") or "").strip()
+    normalized["relation"] = (
+        relation if relation in {"exact", "strong", "medium", "weak"} else "strong"
+    )
+    normalized["reason"] = str(
+        normalized.get("reason")
+        or normalized.get("source")
+        or "模型返回简写扩展词，系统已补齐结构字段。"
+    )
+    normalized["weight"] = _normalize_weight(
+        normalized.get("weight") or normalized.get("score"),
+        0.85,
+    )
     return normalized
 
 
@@ -212,9 +481,29 @@ def _normalize_search_concept(
     if not isinstance(value, dict):
         return value
     normalized = dict(value)
-    concept = str(normalized.get("concept") or "").strip()
+    concept = str(
+        normalized.get("concept")
+        or normalized.get("code")
+        or normalized.get("concept_code")
+        or normalized.get("conceptCode")
+        or normalized.get("name")
+        or ""
+    ).strip()
     normalized["concept"] = (
         _display_name_from_code(concept, node_by_code, concept_display_names) or concept
+    )
+    relation = str(normalized.get("relation") or "").strip()
+    normalized["relation"] = relation if relation in {"direct", "related", "fallback"} else "direct"
+    evidence = normalized.get("evidence")
+    evidence_text = "、".join(str(item) for item in evidence) if isinstance(evidence, list) else ""
+    normalized["reason"] = str(
+        normalized.get("reason")
+        or evidence_text
+        or "模型返回卖点简写，系统已补齐结构字段。"
+    )
+    normalized["weight"] = _normalize_weight(
+        normalized.get("weight") or normalized.get("confidence") or normalized.get("score"),
+        0.9,
     )
     return normalized
 

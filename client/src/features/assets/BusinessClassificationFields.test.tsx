@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type {
@@ -12,7 +12,7 @@ import { BusinessClassificationFields } from './BusinessClassificationFields';
 describe('BusinessClassificationFields', () => {
   afterEach(cleanup);
 
-  it('keeps the original source path collapsed until a green point is selected', () => {
+  it('exposes concept, proof point, and scoped evidence point fields', () => {
     const concepts = [
       { id: 'concept-1', code: 'stage_transition', name: '学段衔接' },
     ] as BusinessConcept[];
@@ -60,15 +60,11 @@ describe('BusinessClassificationFields', () => {
       />,
     );
 
-    const details = container.querySelector('details');
-    expect(details?.open).toBe(false);
-    fireEvent.click(screen.getByText('查看原图推导路径'));
-    expect(details?.open).toBe(true);
-    expect(screen.getByText('覆盖小学至高中毕业全学段')).toBeTruthy();
-    expect(screen.getByText('小升初、初升高过渡课')).toBeTruthy();
-    expect(screen.getByText('人工确认关系')).toBeTruthy();
-    expect(
-      screen.getByText('人工确认：该功能同时支持相邻卖点，不属于原图绿色路径。'),
-    ).toBeTruthy();
+    expect(container.querySelectorAll('select')).toHaveLength(3);
+    expect(screen.getByText('主要表达卖点')).toBeTruthy();
+    expect(screen.getByText('证明点')).toBeTruthy();
+    expect(screen.getByText('证据表达点')).toBeTruthy();
+    expect(screen.getByText('小升初和初升高过渡课程')).toBeTruthy();
+    expect(screen.queryByText('查看原图推导路径')).toBeNull();
   });
 });

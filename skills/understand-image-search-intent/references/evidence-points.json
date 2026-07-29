@@ -631,7 +631,7 @@
     },
     {
       "code": "ep_selfstudy_animation_fallback",
-      "proofPointCode": "pp_selfstudy_photo_knowledge_fallback",
+      "proofPointCode": "pp_selfstudy_photo_question_recognition",
       "name": "理解不足时推送相关动画课",
       "sourceRef": "06-sync-self-study.png",
       "sourcePaths": [[

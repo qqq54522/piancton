@@ -39,10 +39,10 @@ export default function ConceptPhraseInheritancePanel({ concept }: { concept: Bu
   };
 
   return (
-    <section className="rounded-2xl border border-primary/15 bg-accent/45 p-4">
+    <section className="rounded-2xl border border-border/80 bg-[#f7f7f5] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 gap-2.5">
-          <BookOpenText className="mt-0.5 size-4 shrink-0 text-primary" />
+          <BookOpenText className="mt-0.5 size-4 shrink-0 text-foreground/70" />
           <div>
             <h3 className="text-sm font-semibold">已继承“{concept.name}”公共话术</h3>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -73,7 +73,7 @@ export default function ConceptPhraseInheritancePanel({ concept }: { concept: Bu
           </p>
         </div>
       ) : canManage ? (
-        <div className="mt-3 rounded-xl border border-dashed border-primary/25 bg-card/70 p-3">
+        <div className="mt-3 rounded-xl border border-dashed border-border bg-card/70 p-3">
           <p className="mb-2 text-xs font-medium">这个卖点还没有公共话术，先补充一种通用说法</p>
           <div className="flex gap-2">
             <Input
@@ -86,7 +86,7 @@ export default function ConceptPhraseInheritancePanel({ concept }: { concept: Bu
               maxLength={300}
               className="h-9 bg-card"
             />
-            <Button size="sm" onClick={addPhrase} disabled={!phrase.trim() || actions.addPhrase.isPending}>
+            <Button size="sm" className="bg-foreground text-background hover:bg-foreground/88" onClick={addPhrase} disabled={!phrase.trim() || actions.addPhrase.isPending}>
               <Plus className="size-4" />添加
             </Button>
           </div>

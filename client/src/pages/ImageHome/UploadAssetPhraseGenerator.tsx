@@ -21,11 +21,11 @@ export default function UploadAssetPhraseGenerator({
   hint,
 }: UploadAssetPhraseGeneratorProps) {
   return (
-    <div className="mt-3 rounded-xl border border-primary/15 bg-accent/55 p-3">
+    <div className="mt-3 rounded-xl border border-border/80 bg-[#f7f7f5] p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="flex items-center gap-2 text-xs font-semibold text-accent-foreground">
-            <Sparkles className="size-4 text-primary" />AI 生成业务搜索话术
+          <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Sparkles className="size-4 text-foreground/70" />AI 生成业务搜索话术
           </p>
           <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{hint}</p>
         </div>
@@ -46,6 +46,7 @@ export default function UploadAssetPhraseGenerator({
           <Button
             type="button"
             size="sm"
+            className="bg-foreground text-background hover:bg-foreground/88"
             onClick={onGenerate}
             disabled={disabled || generating}
           >

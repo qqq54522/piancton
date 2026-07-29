@@ -49,6 +49,7 @@ class BusinessConceptCreate(ApiModel):
     name: str = Field(min_length=1, max_length=150)
     concept_type: str = Field(default="business_term", min_length=1, max_length=50)
     definition: Optional[str] = Field(default=None, max_length=5000)
+    recommendation_text: Optional[str] = Field(default=None, max_length=5000)
     system_links: List[ConceptSystemLinkInput] = Field(default_factory=list)
 
 
@@ -56,6 +57,7 @@ class BusinessConceptUpdate(ApiModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=150)
     concept_type: Optional[str] = Field(default=None, min_length=1, max_length=50)
     definition: Optional[str] = Field(default=None, max_length=5000)
+    recommendation_text: Optional[str] = Field(default=None, max_length=5000)
     status: Optional[Literal["draft", "active", "deprecated", "merged"]] = None
     replaced_by_concept_id: Optional[str] = None
     system_links: Optional[List[ConceptSystemLinkInput]] = None
@@ -67,6 +69,7 @@ class BusinessConceptRead(ApiModel):
     name: str
     concept_type: str
     definition: Optional[str] = None
+    recommendation_text: Optional[str] = None
     status: str
     version: int
     replaced_by_concept_id: Optional[str] = None

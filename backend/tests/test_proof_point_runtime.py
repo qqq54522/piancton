@@ -6,15 +6,17 @@ from app.domain.proof_points import load_proof_point_catalog
 from app.schemas.ai import (
     SearchConceptMatch,
     SearchProofPointMatch,
+    SearchSystemCandidate,
+    SearchSystemRouting,
     SearchUnderstanding,
 )
 from app.services.query_understanding_service import QueryUnderstandingService
 
 
-def test_proof_point_catalog_loads_all_six_systems_and_56_points():
+def test_proof_point_catalog_loads_all_six_systems_and_55_points():
     catalog = load_proof_point_catalog()
 
-    assert len(catalog.points) == 56
+    assert len(catalog.points) == 55
     assert {item.system_code for item in catalog.points} == {
         "sync_school",
         "sync_exam",
@@ -24,6 +26,18 @@ def test_proof_point_catalog_loads_all_six_systems_and_56_points():
         "sync_companion",
     }
     assert all(item.concept_code and item.search_terms for item in catalog.points)
+
+
+def test_photo_guided_learning_proof_points_follow_green_node_granularity():
+    catalog = load_proof_point_catalog()
+
+    names = [
+        item.name
+        for item in catalog.points
+        if item.concept_code == "photo_guided_learning"
+    ]
+
+    assert names == ["AI拍题精学", "苏格拉底式提问", "第三方测评"]
 
 
 def test_local_understanding_adds_specific_proof_but_not_generic_selling_point():
@@ -103,11 +117,21 @@ def test_unseen_detail_requests_scoped_proof_completion_but_generic_lookup_does_
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, _keyword: str):
-            raise AssertionError("父卖点已确认，不应重新调用体系路由")
+        def route_search_system(self, keyword: str):
+            return SearchSystemRouting(
+                original_query=keyword,
+                route_type="single_system",
+                candidate_systems=[
+                    SearchSystemCandidate(
+                        code="sync_school",
+                        relation="primary",
+                        reason="动画讲解",
+                        weight=0.98,
+                    )
+                ],
+            )
 
-        def understand_search_from_route(self, keyword: str, routing):
-            assert [item.code for item in routing.candidate_systems] == ["sync_school"]
+        def understand_selling_points_from_route(self, keyword: str, routing):
             return SearchUnderstanding(
                 original_query=keyword,
                 normalized_query="动画精讲",
@@ -121,16 +145,22 @@ def test_unseen_detail_requests_scoped_proof_completion_but_generic_lookup_does_
                         weight=0.98,
                     )
                 ],
-                matched_proof_points=[
-                    SearchProofPointMatch(
-                        code="pp_animation_pedagogy_design",
-                        concept_code="animation_explanation",
-                        name="官方产品定位与教研方法论",
-                        reason="别拖太久、每回只消化一个小点",
-                        weight=0.96,
-                        evidence_terms=["5-8 分钟动画微课"],
-                    )
-                ],
+            )
+
+        def understand_proof_points(self, keyword: str, selling_points):
+            return selling_points.model_copy(
+                update={
+                    "matched_proof_points": [
+                        SearchProofPointMatch(
+                            code="pp_animation_pedagogy_design",
+                            concept_code="animation_explanation",
+                            name="官方产品定位与教研方法论",
+                            reason="别拖太久、每回只消化一个小点",
+                            weight=0.96,
+                            evidence_terms=["5-8 分钟动画微课"],
+                        )
+                    ]
+                }
             )
 
     service = QueryUnderstandingService(ai_service=ScopedAi())
@@ -144,7 +174,7 @@ def test_unseen_detail_requests_scoped_proof_completion_but_generic_lookup_does_
     assert service.should_use_model(query, local)
     assert generic is not None
     assert not service.needs_proof_point_completion("帮我找动画精讲图片", generic)
-    assert not service.should_use_model("帮我找动画精讲图片", generic)
+    assert service.should_use_model("帮我找动画精讲图片", generic)
 
     model = service.complete_proof_points_with_model(query, local)
     merged = service.arbitrate_model_understanding(local, model)

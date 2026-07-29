@@ -1,0 +1,6 @@
+interface:
+  display_name: "渠道意图识别"
+  short_description: "识别 PPT、品牌手册、手机端、官网及大图小图语境"
+  default_prompt: "Use $understand-image-channel-intent to identify the intended asset channel, size context, scene preference, and user-facing recommendation."
+policy:
+  allow_implicit_invocation: true

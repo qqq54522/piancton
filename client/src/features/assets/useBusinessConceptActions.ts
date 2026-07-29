@@ -36,5 +36,16 @@ export function useBusinessConceptActions() {
     onSuccess: update,
   });
 
-  return { addPhrase, updatePhrase };
+  const updateConcept = useMutation({
+    mutationFn: ({
+      conceptId,
+      input,
+    }: {
+      conceptId: string;
+      input: conceptApi.UpdateBusinessConceptInput;
+    }) => conceptApi.updateBusinessConcept(conceptId, input),
+    onSuccess: update,
+  });
+
+  return { addPhrase, updatePhrase, updateConcept };
 }

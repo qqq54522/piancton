@@ -69,6 +69,7 @@ class AssetService:
         requested_title = title.strip() or Path(original_name).stem
         resolved_title = self.image_titles.resolve(requested_title)
         version_no = max((image.version_no for image in group.images), default=0) + 1
+        resolved_channel = self._resolve_version_channel(group, channel)
         image = Image(
             title=resolved_title,
             file_name=original_name,
@@ -82,7 +83,7 @@ class AssetService:
             width=staged.width,
             height=staged.height,
             aspect_ratio=staged.width / staged.height,
-            channel=(channel or "").strip() or None,
+            channel=resolved_channel,
             version_no=version_no,
             is_current=True,
         )
@@ -121,6 +122,7 @@ class AssetService:
             (image for image in group.images if image.id == group.primary_image_id),
             None,
         )
+        resolved_channel = self._resolve_version_channel(group, channel, previous_primary)
         if previous_primary:
             previous_primary.asset_role = "revision"
             previous_primary.is_current = False
@@ -137,7 +139,7 @@ class AssetService:
             width=staged.width,
             height=staged.height,
             aspect_ratio=staged.width / staged.height,
-            channel=(channel or "").strip() or None,
+            channel=resolved_channel,
             version_no=version_no,
             is_current=True,
         )
@@ -186,3 +188,20 @@ class AssetService:
         if not group:
             raise NotFoundError("asset_group_not_found", "素材组不存在")
         return group
+
+    def _resolve_version_channel(
+        self,
+        group: AssetGroup,
+        channel: str | None,
+        primary: Image | None = None,
+    ) -> str | None:
+        requested = (channel or "").strip()
+        if requested:
+            return requested
+        primary_image = primary or next(
+            (image for image in group.images if image.id == group.primary_image_id),
+            None,
+        )
+        if not primary_image:
+            return None
+        return (primary_image.channel or "").strip() or None

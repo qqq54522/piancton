@@ -1,268 +1,260 @@
-import { ChevronDown, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowUpDown, BriefcaseBusiness, Check, LogOut, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { Input } from '@client/src/components/ui/input';
-import { Select } from '@client/src/components/ui/select';
-import type {
-  BusinessConcept,
-  BusinessFacetCatalog,
-  TagWithCount,
-} from '@client/src/types/api';
+import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
+import { Button } from '@client/src/components/ui/button';
 import {
-  activeRefinementCount,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@client/src/components/ui/dropdown-menu';
+import { Input } from '@client/src/components/ui/input';
+import { useAuth } from '@client/src/lib/auth';
+import {
   type SceneImageFilter,
   type SearchRefinementOptions,
   type SearchRefinements,
 } from './searchResultFilters';
+import { addCustomChannel, useChannelOptions } from './channelOptions';
 
 interface GlobalImageSearchProps {
   input: string;
-  systems: TagWithCount[];
-  selectedSystemCode: string | null;
-  selectedConceptCode: string | null;
-  selectedProofPointCode: string | null;
-  selectedEvidencePointCode: string | null;
-  businessConcepts: BusinessConcept[];
-  businessFacets: BusinessFacetCatalog;
   refinementOptions: SearchRefinementOptions;
   refinements: SearchRefinements;
   refinementsReady: boolean;
+  sortBy: 'createdAt' | 'downloadCount';
+  showBusinessAccount: boolean;
+  manualFilterOpen: boolean;
   onInputChange: (value: string) => void;
-  onSystemChange: (value: string | null) => void;
-  onConceptChange: (value: string | null) => void;
-  onProofPointChange: (value: string | null) => void;
-  onEvidencePointChange: (value: string | null) => void;
   onChannelChange: (value: string) => void;
-  onStyleChange: (value: string) => void;
   onSceneChange: (value: SceneImageFilter) => void;
+  onSortByChange: (value: 'createdAt' | 'downloadCount') => void;
+  onManualFilterOpenChange: (open: boolean) => void;
   onClear: () => void;
   onSearch: (value?: string) => void;
 }
 
 const GlobalImageSearch = ({
   input,
-  systems,
-  selectedSystemCode,
-  selectedConceptCode,
-  selectedProofPointCode,
-  selectedEvidencePointCode,
-  businessConcepts,
-  businessFacets,
   refinementOptions,
   refinements,
-  refinementsReady,
+  sortBy,
+  showBusinessAccount,
+  manualFilterOpen,
   onInputChange,
-  onSystemChange,
-  onConceptChange,
-  onProofPointChange,
-  onEvidencePointChange,
   onChannelChange,
-  onStyleChange,
   onSceneChange,
+  onSortByChange,
+  onManualFilterOpenChange,
   onClear,
   onSearch,
 }: GlobalImageSearchProps) => {
-  const [refinementsOpen, setRefinementsOpen] = useState(false);
-  const activeCount = activeRefinementCount(refinements);
-  const selectedSystem = systems.find((system) => system.code === selectedSystemCode);
-  const visibleConcepts = selectedSystem
-    ? businessConcepts.filter((concept) => concept.systemLinks.some(
-      (link) => link.systemTagId === selectedSystem.id && link.status === 'active',
-    ))
-    : businessConcepts;
-  const visibleProofPoints = businessFacets.proofPoints.filter(
-    (point) => point.conceptCode === selectedConceptCode,
-  );
-  const visibleEvidencePoints = businessFacets.evidencePoints.filter(
-    (point) => point.proofPointCode === selectedProofPointCode,
-  );
-  useEffect(() => {
-    if (activeCount > 0) setRefinementsOpen(true);
-  }, [activeCount]);
+  const [addingChannel, setAddingChannel] = useState(false);
+  const [draftChannel, setDraftChannel] = useState('');
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const channelOptions = useChannelOptions(refinementOptions.channels);
+  const canAddChannel = !showBusinessAccount;
+  const intentChannels = refinements.channel
+    ? []
+    : refinements.channelIntent?.candidateChannels ?? [];
+
+  const sceneSelected = refinements.scene === 'scene';
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+  const submitCustomChannel = () => {
+    const channel = addCustomChannel(draftChannel);
+    if (!channel) return;
+    setDraftChannel('');
+    setAddingChannel(false);
+    onChannelChange(channel);
+  };
 
   return (
-  <section className="relative mt-7 overflow-hidden rounded-[28px] border border-primary/10 bg-gradient-to-br from-indigo-50 via-card to-sky-50/70 px-4 py-5 shadow-sm sm:px-6 sm:py-6">
-    <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-primary/8 blur-3xl" />
-    <div className="relative">
-      <div className="mb-3 flex items-center gap-2 text-xs font-medium text-accent-foreground">
-        <Sparkles className="size-4" />统一搜索会自动理解卖点、痛点、画面与使用场景
-      </div>
-      <div className="relative max-w-4xl">
-        <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground/70" />
-        <Input
-          aria-label="搜索业务素材"
-          placeholder="例如：家长不用盯学习、蓝色竖版学习周报、孩子拍题只抄答案"
-          value={input}
-          onChange={(event) => onInputChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') onSearch();
-          }}
-          className="h-14 rounded-2xl border-white/80 bg-white pl-12 pr-28 text-base shadow-md shadow-slate-900/5 md:text-base"
-        />
-        {input && (
+    <section className="mt-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-foreground/55" />
+          <Input
+            aria-label="搜索业务素材"
+            placeholder="搜索可用素材，例如：家长看学习结果、PPT首屏、手机端小图"
+            value={input}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') onSearch();
+            }}
+            className="h-14 rounded-[22px] border-transparent bg-[#f1f1ef] pl-12 pr-32 text-base shadow-none transition-colors hover:bg-[#ececea] focus-visible:border-transparent focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-foreground/10 md:text-base"
+          />
+          {input && (
+            <button
+              type="button"
+              aria-label="清空搜索"
+              onClick={onClear}
+              className="absolute right-24 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-foreground/55 transition-colors hover:bg-black/5 hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
           <button
             type="button"
-            aria-label="清空搜索"
-            onClick={onClear}
-            className="absolute right-24 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            onClick={() => onSearch()}
+            className="absolute right-2 top-1/2 z-10 flex h-10 -translate-y-1/2 items-center rounded-[18px] bg-foreground px-4 text-sm font-semibold text-background shadow-sm transition hover:bg-foreground/88 active:translate-y-[calc(-50%+1px)]"
           >
-            <X className="size-4" />
+            搜索
           </button>
+        </div>
+        {showBusinessAccount && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border/70 bg-white shadow-xs transition-colors hover:bg-[#f1f1ef]"
+                aria-label="打开账号菜单"
+              >
+                <Avatar className="size-9 border border-border bg-[#f1f1ef]">
+                  <AvatarFallback className="bg-[#f1f1ef] text-foreground">
+                    <BriefcaseBusiness className="size-4" />
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+              <DropdownMenuLabel className="px-2.5 py-2">
+                <span className="block text-xs font-semibold">{user?.username}</span>
+                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">当前身份：业务用户</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={handleLogout}>
+                <LogOut className="size-4" />退出并切换账号
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-        <button
-          type="button"
-          onClick={() => onSearch()}
-          className="absolute right-2 top-1/2 z-10 flex h-10 -translate-y-1/2 items-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:brightness-[0.97] active:translate-y-[calc(-50%+1px)]"
-        >
-          搜索素材
-        </button>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2.5 lg:flex-row lg:items-center" aria-label="六大体系筛选">
-        <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <SlidersHorizontal className="size-3.5" />按体系缩小范围
-          <span className="font-normal text-muted-foreground/70">（可选）</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div
+          className="flex min-w-0 items-center gap-4 overflow-x-auto pb-1 pr-2"
+          aria-label="按使用渠道筛选"
+        >
           <button
             type="button"
-            onClick={() => onSystemChange(null)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${selectedSystemCode === null ? 'border-primary/20 bg-primary text-primary-foreground shadow-sm' : 'border-white bg-white/80 text-muted-foreground hover:border-primary/25 hover:text-foreground'}`}
+            aria-expanded={manualFilterOpen}
+            aria-label={manualFilterOpen ? '收起卖点筛选' : '展开卖点筛选'}
+            onClick={() => onManualFilterOpenChange(!manualFilterOpen)}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-sm transition ${manualFilterOpen ? 'bg-foreground text-background' : 'bg-white text-foreground ring-1 ring-border/70 hover:bg-[#f1f1ef]'}`}
+            title="展开卖点筛选"
           >
-            全部体系
+            <SlidersHorizontal className="size-4" />
           </button>
-          {systems.map((system) => (
+          <button
+            type="button"
+            className={`relative h-10 shrink-0 px-0 text-sm font-semibold transition-colors after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full after:rounded-full after:transition-opacity ${refinements.channel || intentChannels.length > 0 ? 'text-muted-foreground after:bg-transparent hover:text-foreground' : 'text-foreground after:bg-foreground'}`}
+            onClick={() => onChannelChange('')}
+          >
+            全部渠道
+          </button>
+          {channelOptions.map((channel) => (
             <button
-              key={system.id}
+              key={channel}
               type="button"
-              onClick={() => onSystemChange(system.code ?? null)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${selectedSystemCode === system.code ? 'border-primary/20 bg-primary text-primary-foreground shadow-sm' : 'border-white bg-white/80 text-muted-foreground hover:border-primary/25 hover:text-foreground'}`}
+              className={`relative h-10 shrink-0 px-0 text-sm font-semibold transition-colors after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full after:rounded-full after:transition-opacity ${refinements.channel === channel || intentChannels.includes(channel) ? 'text-foreground after:bg-foreground' : 'text-muted-foreground after:bg-transparent hover:text-foreground'}`}
+              onClick={() => onChannelChange(channel)}
             >
-              {system.name.replace(/体系$/, '')}
+              {channel}
             </button>
           ))}
+          {canAddChannel && addingChannel ? (
+            <div className="flex min-w-44 shrink-0 items-center gap-1 rounded-xl border border-border bg-white px-2 py-1">
+              <Input
+                value={draftChannel}
+                onChange={(event) => setDraftChannel(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') submitCustomChannel();
+                  if (event.key === 'Escape') {
+                    setDraftChannel('');
+                    setAddingChannel(false);
+                  }
+                }}
+                placeholder="新增渠道"
+                maxLength={24}
+                className="h-7 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
+                autoFocus
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 bg-foreground px-2 text-xs text-background hover:bg-foreground/88"
+                disabled={!draftChannel.trim()}
+                onClick={submitCustomChannel}
+              >
+                添加
+              </Button>
+              <button
+                type="button"
+                aria-label="取消新增渠道"
+                onClick={() => {
+                  setDraftChannel('');
+                  setAddingChannel(false);
+                }}
+                className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          ) : canAddChannel ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-10 shrink-0 rounded-none px-0 font-semibold text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground"
+              onClick={() => setAddingChannel(true)}
+            >
+              <Plus className="size-3.5" />添加渠道
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          <button
+            type="button"
+            role="switch"
+            aria-label="按场景图筛选"
+            aria-checked={sceneSelected}
+            onClick={() => onSceneChange(sceneSelected ? 'all' : 'scene')}
+            className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors ${sceneSelected ? 'border-foreground bg-foreground text-background shadow-sm' : 'border-border bg-white text-foreground shadow-xs hover:bg-[#f1f1ef]'}`}
+          >
+            <span className={`relative h-4 w-8 shrink-0 rounded-full transition-colors ${sceneSelected ? 'bg-white/25' : 'bg-[#e5e5e1]'}`}>
+              <span className={`absolute left-0 top-0.5 size-3 rounded-full bg-white shadow-sm transition-transform ${sceneSelected ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+            </span>
+            场景图
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="rounded-full bg-white">
+                <ArrowUpDown className="size-4" />
+                {sortBy === 'downloadCount' ? '下载较多' : '最近上传'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40 rounded-xl p-1.5">
+              <DropdownMenuItem className="justify-between rounded-lg" onClick={() => onSortByChange('createdAt')}>
+                <span>最近上传</span>
+                {sortBy === 'createdAt' && <Check className="size-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="justify-between rounded-lg" onClick={() => onSortByChange('downloadCount')}>
+                <span>下载较多</span>
+                {sortBy === 'downloadCount' && <Check className="size-4" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-
-      <div className="mt-3 grid gap-3 border-t border-primary/10 pt-3 sm:grid-cols-3">
-        <label className="block">
-          <span className="field-label">卖点</span>
-          <Select
-            aria-label="按卖点筛选"
-            value={selectedConceptCode ?? ''}
-            onChange={(event) => onConceptChange(event.target.value || null)}
-          >
-            <option value="">全部卖点</option>
-            {visibleConcepts.map((concept) => (
-              <option key={concept.code} value={concept.code}>{concept.name}</option>
-            ))}
-          </Select>
-        </label>
-        <label className="block">
-          <span className="field-label">证明点</span>
-          <Select
-            aria-label="按证明点筛选"
-            value={selectedProofPointCode ?? ''}
-            disabled={!selectedConceptCode}
-            onChange={(event) => onProofPointChange(event.target.value || null)}
-          >
-            <option value="">全部证明点</option>
-            {visibleProofPoints.map((point) => (
-              <option key={point.code} value={point.code}>{point.name}</option>
-            ))}
-          </Select>
-        </label>
-        <label className="block">
-          <span className="field-label">证据表达点</span>
-          <Select
-            aria-label="按证据表达点筛选"
-            value={selectedEvidencePointCode ?? ''}
-            disabled={!selectedProofPointCode}
-            onChange={(event) => onEvidencePointChange(event.target.value || null)}
-          >
-            <option value="">全部证据表达点</option>
-            {visibleEvidencePoints.map((point) => (
-              <option key={point.code} value={point.code}>{point.name}</option>
-            ))}
-          </Select>
-        </label>
-        <p className="text-[11px] leading-5 text-muted-foreground sm:col-span-3">
-          搜索会自动选中识别到的业务层级；不准确时可在这里逐层改选，结果会按所选层级重新匹配。
-        </p>
-      </div>
-
-      <div className="mt-3 border-t border-primary/10 pt-3">
-        <button
-          type="button"
-          aria-expanded={refinementsOpen}
-          onClick={() => setRefinementsOpen((value) => !value)}
-          className="flex w-full items-center justify-between gap-3 rounded-xl px-1 py-1 text-left"
-        >
-          <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <SlidersHorizontal className="size-3.5" />精细筛选
-            <span className="font-normal text-muted-foreground/70">（推荐结果后再缩小）</span>
-            {activeCount > 0 && (
-              <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                已选 {activeCount}
-              </span>
-            )}
-          </span>
-          <ChevronDown className={`mr-1 size-4 text-muted-foreground transition-transform ${refinementsOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        {refinementsOpen && (
-          <div className="mt-3 grid gap-3 rounded-2xl border border-white/90 bg-white/65 p-3 shadow-sm sm:grid-cols-3">
-            <label className="block">
-              <span className="field-label">使用渠道</span>
-              <Select
-                aria-label="按使用渠道筛选"
-                value={refinements.channel}
-                disabled={!refinementsReady || refinementOptions.channels.length === 0}
-                onChange={(event) => onChannelChange(event.target.value)}
-              >
-                <option value="">全部渠道</option>
-                {refinementOptions.channels.map((channel) => (
-                  <option key={channel} value={channel}>{channel}</option>
-                ))}
-              </Select>
-            </label>
-            <label className="block">
-              <span className="field-label">画面风格</span>
-              <Select
-                aria-label="按画面风格筛选"
-                value={refinements.style}
-                disabled={!refinementsReady || refinementOptions.styles.length === 0}
-                onChange={(event) => onStyleChange(event.target.value)}
-              >
-                <option value="">全部风格</option>
-                {refinementOptions.styles.map((style) => (
-                  <option key={style} value={style}>{style}</option>
-                ))}
-              </Select>
-            </label>
-            <label className="block">
-              <span className="field-label">图片类型</span>
-              <Select
-                aria-label="按场景图筛选"
-                value={refinements.scene}
-                disabled={!refinementsReady || !refinementOptions.hasKnownSceneType}
-                onChange={(event) => onSceneChange(event.target.value as SceneImageFilter)}
-              >
-                <option value="all">全部类型</option>
-                <option value="scene">只看场景图</option>
-                <option value="nonScene">只看非场景图</option>
-              </Select>
-            </label>
-            <p className="text-[11px] leading-5 text-muted-foreground sm:col-span-3">
-              {refinementsReady
-                ? '筛选不会重新调用 AI，也不会改变推荐顺序；未标注的素材不会被误判为“非场景图”。'
-                : '完成一次搜索后，可按设计师人工维护的渠道、风格和场景图标记继续筛选。'}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  </section>
+    </section>
   );
 };
 

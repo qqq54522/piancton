@@ -10,6 +10,14 @@ import {
   EMPTY_SEARCH_REFINEMENTS,
   type SceneImageFilter,
 } from '@client/src/pages/ImageHome/searchResultFilters';
+import {
+  understandImageChannelIntent,
+  type ImageChannelIntent,
+} from '@client/src/pages/ImageHome/channelIntent';
+import {
+  isChannelIntentInCatalog,
+  useChannelIntentEntries,
+} from '@client/src/pages/ImageHome/channelIntentCatalog';
 import type {
   BusinessConcept,
   ImageItem,
@@ -20,7 +28,10 @@ import type {
 interface SearchResult {
   semantic: SemanticSearchResponse | null;
   images: ImageItem[];
+  source: SearchResultSource;
 }
+
+type SearchResultSource = 'typed' | 'manual';
 
 interface SearchBusinessFilters {
   systemCode: string | null;
@@ -33,7 +44,7 @@ interface StoredSearchState extends SearchBusinessFilters {
   input: string;
   keyword: string;
   channel: string;
-  style: string;
+  channelIntent: ImageChannelIntent | null;
   scene: SceneImageFilter;
   result: SearchResult | null;
 }
@@ -47,13 +58,13 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
   const [selectedSystemCode, setSelectedSystemCode] = useState<string | null>(initial.systemCode);
   const [selectedConceptCode, setSelectedConceptCode] = useState<string | null>(initial.conceptCode);
   const [selectedProofPointCode, setSelectedProofPointCode] = useState<string | null>(initial.proofPointCode);
-  const [selectedEvidencePointCode, setSelectedEvidencePointCode] = useState<string | null>(initial.evidencePointCode);
   const [selectedChannel, setSelectedChannel] = useState(initial.channel);
-  const [selectedStyle, setSelectedStyle] = useState(initial.style);
+  const [channelIntent, setChannelIntent] = useState<ImageChannelIntent | null>(initial.channelIntent);
   const [selectedScene, setSelectedScene] = useState<SceneImageFilter>(initial.scene);
   const [searchResult, setSearchResult] = useState<SearchResult | null>(initial.result);
   const conceptsQuery = useBusinessConcepts();
   const facetsQuery = useBusinessFacets();
+  const channelIntentEntries = useChannelIntentEntries();
   const concepts = useMemo(() => conceptsQuery.data ?? [], [conceptsQuery.data]);
   const facets = useMemo(
     () => facetsQuery.data ?? { proofPoints: [], evidencePoints: [] },
@@ -74,21 +85,21 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     mutationFn: async (payload: {
       keyword: string;
       preserveSelectedFilters: boolean;
+      source: SearchResultSource;
     } & SearchBusinessFilters): Promise<SearchResult> => {
-      try {
-        const semantic = await imageApi.semanticSearch({
-          keyword: payload.keyword,
-          limit: 12,
-          systemCode: payload.systemCode,
-          conceptCode: payload.conceptCode,
-          proofPointCode: payload.proofPointCode,
-          evidencePointCode: payload.evidencePointCode,
-        });
-        return { semantic, images: semantic.results.map((result) => result.image) };
-      } catch {
-        const fallback = await imageApi.fetchImages({ keyword: payload.keyword, limit: 12 });
-        return { semantic: null, images: fallback.items };
-      }
+      const semantic = await imageApi.semanticSearch({
+        keyword: payload.keyword,
+        limit: 12,
+        systemCode: payload.systemCode,
+        conceptCode: payload.conceptCode,
+        proofPointCode: payload.proofPointCode,
+        evidencePointCode: payload.evidencePointCode,
+      });
+      return {
+        semantic,
+        images: semantic.results.map((result) => result.image),
+        source: payload.source,
+      };
     },
     onSuccess: (result, payload) => {
       setSearchResult(result);
@@ -97,14 +108,15 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
         setSelectedSystemCode(payload.systemCode);
         setSelectedConceptCode(payload.conceptCode);
         setSelectedProofPointCode(payload.proofPointCode);
-        setSelectedEvidencePointCode(payload.evidencePointCode);
         return;
       }
       const recognized = recognizedBusinessFilters(result.semantic, concepts, systemCodeForConcept);
       setSelectedConceptCode(payload.conceptCode ?? recognized.conceptCode);
       setSelectedProofPointCode(payload.proofPointCode ?? recognized.proofPointCode);
-      setSelectedEvidencePointCode(payload.evidencePointCode ?? recognized.evidencePointCode);
       setSelectedSystemCode(payload.systemCode ?? recognized.systemCode);
+    },
+    onError: () => {
+      setSearchResult(null);
     },
   });
   const semanticResult = searchResult?.semantic ?? null;
@@ -112,9 +124,13 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     () => collectSearchRefinementOptions(semanticResult?.results ?? []),
     [semanticResult],
   );
+  const knownChannelValues = useMemo(
+    () => new Set(channelIntentEntries.map((entry) => entry.value)),
+    [channelIntentEntries],
+  );
   const resetRefinements = useCallback(() => {
     setSelectedChannel(EMPTY_SEARCH_REFINEMENTS.channel);
-    setSelectedStyle(EMPTY_SEARCH_REFINEMENTS.style);
+    setChannelIntent(EMPTY_SEARCH_REFINEMENTS.channelIntent);
     setSelectedScene(EMPTY_SEARCH_REFINEMENTS.scene);
   }, []);
 
@@ -135,88 +151,92 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
       proofPointCode: filters?.proofPointCode === undefined
         ? startsNewQuery ? null : selectedProofPointCode
         : filters.proofPointCode,
-      evidencePointCode: filters?.evidencePointCode === undefined
-        ? startsNewQuery ? null : selectedEvidencePointCode
-        : filters.evidencePointCode,
+      evidencePointCode: null,
     };
     setGlobalSearchInput(nextKeyword);
     setGlobalSearchKeyword(nextKeyword);
+    setSearchResult(null);
     if (startsNewQuery) {
       setSelectedSystemCode(null);
       setSelectedConceptCode(null);
       setSelectedProofPointCode(null);
-      setSelectedEvidencePointCode(null);
     }
     resetRefinements();
+    const nextChannelIntent = understandImageChannelIntent(nextKeyword, channelIntentEntries);
+    setChannelIntent(isChannelIntentInCatalog(nextChannelIntent, channelIntentEntries) ? nextChannelIntent : null);
     semanticSearch.mutate({
       keyword: nextKeyword,
       ...nextFilters,
       preserveSelectedFilters: filters !== undefined || !startsNewQuery,
+      source: 'typed',
     });
   }, [
     globalSearchInput,
     globalSearchKeyword,
+    channelIntentEntries,
     resetRefinements,
     selectedConceptCode,
-    selectedEvidencePointCode,
     selectedProofPointCode,
     selectedSystemCode,
     semanticSearch,
   ]);
 
-  const rerunWith = useCallback((filters: SearchBusinessFilters) => {
-    if (globalSearchKeyword) executeGlobalSearch(globalSearchKeyword, filters);
-  }, [executeGlobalSearch, globalSearchKeyword]);
+  const rerunWith = useCallback((filters: SearchBusinessFilters, fallbackKeyword?: string | null) => {
+    const typedKeyword = globalSearchKeyword.trim();
+    if (typedKeyword) {
+      executeGlobalSearch(typedKeyword, filters);
+      return;
+    }
+    const manualKeyword = fallbackKeyword?.trim();
+    if (!manualKeyword) {
+      setSearchResult(null);
+      setGlobalSearchInput('');
+      setGlobalSearchKeyword('');
+      resetRefinements();
+      semanticSearch.reset();
+      return;
+    }
+    setGlobalSearchInput('');
+    setGlobalSearchKeyword('');
+    resetRefinements();
+    semanticSearch.mutate({
+      keyword: manualKeyword,
+      ...filters,
+      preserveSelectedFilters: true,
+      source: 'manual',
+    });
+  }, [executeGlobalSearch, globalSearchKeyword, resetRefinements, semanticSearch]);
 
   const selectSystem = useCallback((systemCode: string | null) => {
     const filters = { systemCode, conceptCode: null, proofPointCode: null, evidencePointCode: null };
+    const systemName = systems.find((system) => system.code === systemCode)?.name;
     setSelectedSystemCode(systemCode);
     setSelectedConceptCode(null);
     setSelectedProofPointCode(null);
-    setSelectedEvidencePointCode(null);
-    rerunWith(filters);
-  }, [rerunWith]);
+    rerunWith(filters, systemName);
+  }, [rerunWith, systems]);
 
   const selectConcept = useCallback((conceptCode: string | null) => {
-    const systemCode = conceptCode ? systemCodeForConcept(conceptCode) : selectedSystemCode;
+    const concept = concepts.find((item) => item.code === conceptCode);
+    const systemCode = conceptCode ? systemCodeForConcept(conceptCode) : null;
     const filters = { systemCode, conceptCode, proofPointCode: null, evidencePointCode: null };
     setSelectedSystemCode(systemCode);
     setSelectedConceptCode(conceptCode);
     setSelectedProofPointCode(null);
-    setSelectedEvidencePointCode(null);
-    rerunWith(filters);
-  }, [rerunWith, selectedSystemCode, systemCodeForConcept]);
+    rerunWith(filters, concept?.name);
+  }, [concepts, rerunWith, systemCodeForConcept]);
 
   const selectProofPoint = useCallback((proofPointCode: string | null) => {
     const proof = facets.proofPoints.find((item) => item.code === proofPointCode);
     const conceptCode = proof?.conceptCode ?? selectedConceptCode;
+    const concept = concepts.find((item) => item.code === conceptCode);
     const systemCode = systemCodeForConcept(conceptCode);
     const filters = { systemCode, conceptCode, proofPointCode, evidencePointCode: null };
     setSelectedSystemCode(systemCode);
     setSelectedConceptCode(conceptCode);
     setSelectedProofPointCode(proofPointCode);
-    setSelectedEvidencePointCode(null);
-    rerunWith(filters);
-  }, [facets.proofPoints, rerunWith, selectedConceptCode, systemCodeForConcept]);
-
-  const selectEvidencePoint = useCallback((evidencePointCode: string | null) => {
-    const evidence = facets.evidencePoints.find((item) => item.code === evidencePointCode);
-    const proofPointCode = evidence?.proofPointCode ?? selectedProofPointCode;
-    const conceptCode = evidence?.conceptCode ?? selectedConceptCode;
-    const systemCode = systemCodeForConcept(conceptCode);
-    const filters = { systemCode, conceptCode, proofPointCode, evidencePointCode };
-    setSelectedSystemCode(systemCode);
-    setSelectedConceptCode(conceptCode);
-    setSelectedProofPointCode(proofPointCode);
-    setSelectedEvidencePointCode(evidencePointCode);
-    rerunWith(filters);
-  }, [
-    facets.evidencePoints,
-    rerunWith,
-    selectedConceptCode,
-    selectedProofPointCode,
-    systemCodeForConcept,
-  ]);
+    rerunWith(filters, proof?.name ?? concept?.name);
+  }, [concepts, facets.proofPoints, rerunWith, selectedConceptCode, systemCodeForConcept]);
 
   const clearGlobalSearch = useCallback(() => {
     setGlobalSearchInput('');
@@ -224,12 +244,30 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     setSelectedSystemCode(null);
     setSelectedConceptCode(null);
     setSelectedProofPointCode(null);
-    setSelectedEvidencePointCode(null);
     setSearchResult(null);
     resetRefinements();
     semanticSearch.reset();
     window.sessionStorage.removeItem(SEARCH_STATE_KEY);
   }, [resetRefinements, semanticSearch]);
+
+  const setChannelIntentRefinement = useCallback((nextChannelIntent: ImageChannelIntent | null) => {
+    setSelectedChannel('');
+    setChannelIntent(nextChannelIntent);
+  }, []);
+
+  const selectChannelRefinement = useCallback((channel: string) => {
+    setChannelIntent(null);
+    setSelectedChannel(channel);
+  }, []);
+
+  useEffect(() => {
+    if (channelIntent && !isChannelIntentInCatalog(channelIntent, channelIntentEntries)) {
+      setChannelIntent(null);
+    }
+    if (selectedChannel && !knownChannelValues.has(selectedChannel)) {
+      setSelectedChannel('');
+    }
+  }, [channelIntent, channelIntentEntries, knownChannelValues, selectedChannel]);
 
   useEffect(() => {
     const state: StoredSearchState = {
@@ -238,9 +276,9 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
       systemCode: selectedSystemCode,
       conceptCode: selectedConceptCode,
       proofPointCode: selectedProofPointCode,
-      evidencePointCode: selectedEvidencePointCode,
+      evidencePointCode: null,
       channel: selectedChannel,
-      style: selectedStyle,
+      channelIntent,
       scene: selectedScene,
       result: searchResult,
     };
@@ -249,12 +287,11 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     globalSearchInput,
     globalSearchKeyword,
     searchResult,
+    channelIntent,
     selectedChannel,
     selectedConceptCode,
-    selectedEvidencePointCode,
     selectedProofPointCode,
     selectedScene,
-    selectedStyle,
     selectedSystemCode,
   ]);
 
@@ -267,21 +304,22 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     globalSearchInput,
     globalSearchKeyword,
     globalSearchLoading: semanticSearch.isPending,
+    globalSearchError: semanticSearch.isError,
+    globalSearchSource: searchResult?.source ?? 'typed',
+    hasManualSearchResult: searchResult?.source === 'manual',
     refinementOptions,
-    searchRefinements: { channel: selectedChannel, style: selectedStyle, scene: selectedScene },
+    searchRefinements: { channel: selectedChannel, channelIntent, scene: selectedScene },
     selectedConceptCode,
-    selectedEvidencePointCode,
     selectedProofPointCode,
     selectedSystemCode,
     selectConcept,
-    selectEvidencePoint,
     selectProofPoint,
     selectSystem,
     semanticResult,
+    setChannelIntentRefinement,
     setGlobalSearchInput,
-    setSelectedChannel,
+    setSelectedChannel: selectChannelRefinement,
     setSelectedScene,
-    setSelectedStyle,
     systems,
   };
 }
@@ -295,13 +333,17 @@ function readSearchState(): StoredSearchState {
     proofPointCode: null,
     evidencePointCode: null,
     channel: '',
-    style: '',
+    channelIntent: null,
     scene: 'all',
     result: null,
   };
   try {
     const raw = window.sessionStorage.getItem(SEARCH_STATE_KEY);
-    return raw ? { ...empty, ...JSON.parse(raw) as StoredSearchState } : empty;
+    const parsed = raw ? { ...empty, ...JSON.parse(raw) as StoredSearchState } : empty;
+    if (parsed.result && !parsed.result.source) {
+      parsed.result = { ...parsed.result, source: 'typed' };
+    }
+    return parsed;
   } catch {
     return empty;
   }
@@ -327,6 +369,6 @@ function recognizedBusinessFilters(
     systemCode: systemCodeForConcept(conceptCode),
     conceptCode,
     proofPointCode: evidence?.proofPointCode ?? proof?.code ?? null,
-    evidencePointCode: evidence?.code ?? null,
+    evidencePointCode: null,
   };
 }

@@ -143,7 +143,7 @@ function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptRevie
               onClick={() => setIsManualOpen((current) => !current)}
               className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 isManualOpen
-                  ? 'border-primary bg-primary'
+                  ? 'border-foreground bg-foreground'
                   : 'border-border bg-secondary'
               }`}
             >

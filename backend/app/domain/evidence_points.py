@@ -47,11 +47,18 @@ class EvidencePointCatalog:
         return {item.code: item for item in self.points}
 
 
-def render_evidence_points_for_prompt(system_codes: tuple[str, ...]) -> str:
+def render_evidence_points_for_prompt(
+    system_codes: tuple[str, ...] = (),
+    *,
+    concept_codes: tuple[str, ...] = (),
+) -> str:
     selected = [
         item
         for item in load_evidence_point_catalog().points
-        if item.system_code in system_codes
+        if (
+            (not system_codes or item.system_code in system_codes)
+            and (not concept_codes or item.concept_code in concept_codes)
+        )
     ]
     lines = [
         "# 候选体系证据表达点目录",

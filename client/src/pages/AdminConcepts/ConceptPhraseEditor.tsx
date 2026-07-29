@@ -88,8 +88,8 @@ export default function ConceptPhraseEditor({ concept }: { concept: BusinessConc
   };
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-2xl border border-primary/15 bg-accent/45 p-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <section className="shrink-0 rounded-2xl border border-primary/15 bg-accent/45 p-4">
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             value={newPhrase}
@@ -120,28 +120,11 @@ export default function ConceptPhraseEditor({ concept }: { concept: BusinessConc
         </p>
       </section>
 
-      <PhraseGroup
-        title={`已启用公共话术 · ${groups.publicPhrases.length}`}
-        emptyText="还没有公共话术，可以从真实业务搜索说法开始补充。"
-        phrases={groups.publicPhrases}
-        editingId={editingId}
-        editingValue={editingValue}
-        onEditingValueChange={setEditingValue}
-        onEdit={(phrase) => {
-          setEditingId(phrase.id);
-          setEditingValue(phrase.phrase);
-        }}
-        onCancel={() => setEditingId(null)}
-        onSave={(phrase) => updatePhrase(phrase, { phrase: editingValue.trim() })}
-        onToggle={(phrase) => updatePhrase(phrase, { reviewStatus: 'rejected' })}
-      />
-
-      {groups.keywords.length > 0 && (
+      <div className="mt-5 min-h-0 flex-1 space-y-5 overflow-y-auto pr-1 compact-scrollbar">
         <PhraseGroup
-          title={`辅助关键词 · ${groups.keywords.length}`}
-          description="仅帮助“教材、版本、章节”等短词精确召回，不等同于完整业务话术。"
-          emptyText=""
-          phrases={groups.keywords}
+          title={`已启用公共话术 · ${groups.publicPhrases.length}`}
+          emptyText="还没有公共话术，可以从真实业务搜索说法开始补充。"
+          phrases={groups.publicPhrases}
           editingId={editingId}
           editingValue={editingValue}
           onEditingValueChange={setEditingValue}
@@ -152,43 +135,62 @@ export default function ConceptPhraseEditor({ concept }: { concept: BusinessConc
           onCancel={() => setEditingId(null)}
           onSave={(phrase) => updatePhrase(phrase, { phrase: editingValue.trim() })}
           onToggle={(phrase) => updatePhrase(phrase, { reviewStatus: 'rejected' })}
-          collapsible
         />
-      )}
 
-      {groups.pending.length > 0 && (
-        <PhraseGroup
-          title={`待确认候选 · ${groups.pending.length}`}
-          description="AI建议和搜索反馈候选在确认前不会作为正式公共话术使用。"
-          emptyText=""
-          phrases={groups.pending}
-          editingId={null}
-          editingValue=""
-          onEditingValueChange={() => undefined}
-          onEdit={() => undefined}
-          onCancel={() => undefined}
-          onSave={() => undefined}
-          onToggle={(phrase) => updatePhrase(phrase, { reviewStatus: 'accepted' })}
-          onReject={(phrase) => updatePhrase(phrase, { reviewStatus: 'rejected' })}
-          mode="pending"
-        />
-      )}
+        {groups.keywords.length > 0 && (
+          <PhraseGroup
+            title={`辅助关键词 · ${groups.keywords.length}`}
+            description="仅帮助“教材、版本、章节”等短词精确召回，不等同于完整业务话术。"
+            emptyText=""
+            phrases={groups.keywords}
+            editingId={editingId}
+            editingValue={editingValue}
+            onEditingValueChange={setEditingValue}
+            onEdit={(phrase) => {
+              setEditingId(phrase.id);
+              setEditingValue(phrase.phrase);
+            }}
+            onCancel={() => setEditingId(null)}
+            onSave={(phrase) => updatePhrase(phrase, { phrase: editingValue.trim() })}
+            onToggle={(phrase) => updatePhrase(phrase, { reviewStatus: 'rejected' })}
+            collapsible
+          />
+        )}
 
-      {groups.inactive.length > 0 && (
-        <PhraseGroup
-          title={`已停用 · ${groups.inactive.length}`}
-          emptyText=""
-          phrases={groups.inactive}
-          editingId={null}
-          editingValue=""
-          onEditingValueChange={() => undefined}
-          onEdit={() => undefined}
-          onCancel={() => undefined}
-          onSave={() => undefined}
-          onToggle={(phrase) => updatePhrase(phrase, { reviewStatus: 'accepted' })}
-          mode="inactive"
-        />
-      )}
+        {groups.pending.length > 0 && (
+          <PhraseGroup
+            title={`待确认候选 · ${groups.pending.length}`}
+            description="AI建议和搜索反馈候选在确认前不会作为正式公共话术使用。"
+            emptyText=""
+            phrases={groups.pending}
+            editingId={null}
+            editingValue=""
+            onEditingValueChange={() => undefined}
+            onEdit={() => undefined}
+            onCancel={() => undefined}
+            onSave={() => undefined}
+            onToggle={(phrase) => updatePhrase(phrase, { reviewStatus: 'accepted' })}
+            onReject={(phrase) => updatePhrase(phrase, { reviewStatus: 'rejected' })}
+            mode="pending"
+          />
+        )}
+
+        {groups.inactive.length > 0 && (
+          <PhraseGroup
+            title={`已停用 · ${groups.inactive.length}`}
+            emptyText=""
+            phrases={groups.inactive}
+            editingId={null}
+            editingValue=""
+            onEditingValueChange={() => undefined}
+            onEdit={() => undefined}
+            onCancel={() => undefined}
+            onSave={() => undefined}
+            onToggle={(phrase) => updatePhrase(phrase, { reviewStatus: 'accepted' })}
+            mode="inactive"
+          />
+        )}
+      </div>
     </div>
   );
 }

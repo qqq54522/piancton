@@ -1,6 +1,15 @@
 from typing import Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    Request,
+    UploadFile,
+    status,
+)
 
 from app.api.dependencies import (
     get_ai_service,
@@ -130,7 +139,6 @@ def replace_asset_primary(
             session_factory=session_factory,
         )
     return group
-
 
 @router.delete("/{group_id}/images/{image_id}", response_model=AssetGroupRead)
 def delete_asset_variant(

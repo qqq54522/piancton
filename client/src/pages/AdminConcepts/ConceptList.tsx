@@ -11,12 +11,12 @@ interface ConceptListProps {
 
 export default function ConceptList({ concepts, selectedId, onSelect }: ConceptListProps) {
   return (
-    <aside className="surface-card overflow-hidden lg:sticky lg:top-24 lg:self-start">
-      <div className="border-b border-border px-4 py-3.5">
+    <aside className="surface-card flex min-h-0 flex-col overflow-hidden lg:h-full lg:self-start">
+      <div className="shrink-0 border-b border-border px-4 py-3.5">
         <p className="text-sm font-semibold">卖点目录</p>
         <p className="mt-1 text-xs text-muted-foreground">公共话术按卖点集中复用</p>
       </div>
-      <div className="max-h-[68vh] overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2 compact-scrollbar">
         {concepts.map((concept) => {
           const phrases = splitAcceptedConceptPhrases(concept.searchPhrases);
           const active = concept.id === selectedId;

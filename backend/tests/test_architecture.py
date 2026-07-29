@@ -185,6 +185,7 @@ def test_search_service_keeps_recall_backends_outside_orchestrator():
 
 def test_phase4_search_orchestration_stays_split_and_bounded():
     facade = ROOT / "services" / "search_service.py"
+    components = ROOT / "services" / "search_service_components.py"
     orchestrator = ROOT / "services" / "search_orchestrator.py"
     facade_source = facade.read_text(encoding="utf-8")
     orchestrator_source = orchestrator.read_text(encoding="utf-8")
@@ -202,8 +203,9 @@ def test_phase4_search_orchestration_stays_split_and_bounded():
 
     assert len(facade_source.splitlines()) <= 150
     assert len(orchestrator_source.splitlines()) <= 300
-    assert "app.services.search_external_branches" in imported_modules(facade)
-    assert "app.services.search_rerank_coordinator" in imported_modules(facade)
+    assert "app.services.search_service_components" in imported_modules(facade)
+    assert "app.services.search_external_branches" in imported_modules(components)
+    assert "app.services.search_rerank_coordinator" in imported_modules(components)
     assert {
         "_start_meilisearch",
         "_start_embedding",
@@ -282,12 +284,13 @@ def test_asset_selection_policy_stays_config_driven_and_bounded():
 
 
 def test_search_service_calls_query_understanding_without_owning_intent_config():
-    path = ROOT / "services" / "search_service.py"
-    imports = imported_modules(path)
-    source = path.read_text(encoding="utf-8")
+    facade = ROOT / "services" / "search_service.py"
+    components = ROOT / "services" / "search_service_components.py"
+    component_imports = imported_modules(components)
+    source = facade.read_text(encoding="utf-8") + components.read_text(encoding="utf-8")
 
-    assert "app.services.query_understanding_service" in imports
-    assert "app.domain.business_intents" not in imports
+    assert "app.services.query_understanding_service" in component_imports
+    assert "app.domain.business_intents" not in component_imports
     assert "AI错题本" not in source
     assert "AI拍题精学" not in source
     assert "专家规划" not in source
@@ -320,11 +323,12 @@ def test_phase_1_to_3_workflows_keep_domain_boundaries_separate():
 
 def test_phase4_async_orchestrator_keeps_io_and_database_boundaries_separate():
     facade = ROOT / "services" / "search_service.py"
+    components = ROOT / "services" / "search_service_components.py"
     orchestrator = ROOT / "services" / "search_orchestrator.py"
     api = ROOT / "api" / "v1" / "images.py"
 
     assert len(facade.read_text(encoding="utf-8").splitlines()) < 150
-    assert "AsyncSearchOrchestrator" in facade.read_text(encoding="utf-8")
+    assert "AsyncSearchOrchestrator" in components.read_text(encoding="utf-8")
     assert "ImageSummaryMatchService" not in facade.read_text(encoding="utf-8")
     assert not any(
         module.startswith(("app.repositories", "sqlalchemy", "httpx"))

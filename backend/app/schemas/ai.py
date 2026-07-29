@@ -155,6 +155,25 @@ class SearchUnderstanding(ApiModel):
     search_strategy: str = ""
 
 
+class SearchProofPointUnderstanding(ApiModel):
+    original_query: str
+    matched_proof_points: List[SearchProofPointMatch] = Field(default_factory=list)
+    matched_evidence_points: List[SearchEvidencePointMatch] = Field(default_factory=list)
+    search_strategy: str = ""
+
+
+class SearchCandidateReviewDecision(ApiModel):
+    image_id: str
+    decision: Literal["keep", "demote", "exclude"]
+    confidence: float = Field(ge=0, le=1)
+    reason: str
+
+
+class SearchCandidateReviewResult(ApiModel):
+    decisions: List[SearchCandidateReviewDecision] = Field(default_factory=list)
+    review_strategy: str = ""
+
+
 class SellingPointRequest(ApiModel):
     copy_text: str = Field(min_length=1, max_length=10000, alias="copy")
 

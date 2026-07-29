@@ -7,16 +7,29 @@ from app.models.user import User
 from app.schemas.business_facets import (
     BusinessFacetCatalogRead,
     EvidencePointFacetRead,
+    EvidencePointSourcePathNodeRead,
     ProofPointFacetRead,
 )
 
 router = APIRouter(prefix="/business-facets", tags=["business-facets"])
+
+BUSINESS_VISIBLE_PROOF_POINT_OVERRIDES = {
+    "pp_selfstudy_photo_external_review",
+}
+
+BUSINESS_HIDDEN_PROOF_POINT_OVERRIDES = {
+    "pp_planning_founder_ai_view",
+}
 
 
 @router.get("", response_model=BusinessFacetCatalogRead)
 def get_business_facets(_: User = Depends(get_current_user)):
     proofs = load_proof_point_catalog()
     evidence = load_evidence_point_catalog()
+    evidence_backed_proof_codes = {item.proof_point_code for item in evidence.points}
+    visible_proof_codes = (
+        evidence_backed_proof_codes | BUSINESS_VISIBLE_PROOF_POINT_OVERRIDES
+    ) - BUSINESS_HIDDEN_PROOF_POINT_OVERRIDES
     return BusinessFacetCatalogRead(
         version=f"{proofs.version}+{evidence.version}",
         proof_points=[
@@ -27,6 +40,7 @@ def get_business_facets(_: User = Depends(get_current_user)):
                 concept_code=item.concept_code,
             )
             for item in proofs.points
+            if item.code in visible_proof_codes
         ],
         evidence_points=[
             EvidencePointFacetRead(
@@ -38,13 +52,17 @@ def get_business_facets(_: User = Depends(get_current_user)):
                 source_ref=item.source_ref,
                 source_paths=[
                     [
-                        {"level": node.level, "label": node.label}
-                        for node in source_path
+                        EvidencePointSourcePathNodeRead(
+                            level=node.level,
+                            label=node.label,
+                        )
+                        for node in path
                     ]
-                    for source_path in item.source_paths
+                    for path in item.source_paths
                 ],
                 review_notes=list(item.review_notes),
             )
             for item in evidence.points
+            if item.proof_point_code in visible_proof_codes
         ],
     )

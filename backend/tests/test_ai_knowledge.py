@@ -292,6 +292,10 @@ def test_background_analysis_uses_database_knowledge(
         def content(self, _image_id):
             return tmp_path / "unused.png", object()
 
+    class FakeStorageProvider:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
     class FakeUnitOfWork:
         def rollback(self):
             raise AssertionError("成功链路不应回滚")
@@ -317,6 +321,11 @@ def test_background_analysis_uses_database_knowledge(
             return expected_result
 
     monkeypatch.setattr(analysis_tasks, "ImageService", FakeImageService)
+    monkeypatch.setattr(
+        analysis_tasks,
+        "LocalStorageProvider",
+        FakeStorageProvider,
+    )
     monkeypatch.setattr(
         analysis_tasks,
         "ImageAnalysisService",

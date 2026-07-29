@@ -23,6 +23,22 @@ export interface UpdateConceptPhraseInput {
   sourceRef?: string | null;
 }
 
+export interface UpdateBusinessConceptInput {
+  name?: string;
+  conceptType?: string;
+  definition?: string | null;
+  recommendationText?: string | null;
+  status?: 'draft' | 'active' | 'deprecated' | 'merged';
+  replacedByConceptId?: string | null;
+}
+
+export async function updateBusinessConcept(
+  conceptId: string,
+  input: UpdateBusinessConceptInput,
+): Promise<BusinessConcept> {
+  return (await api.patch(`/api/business-concepts/${conceptId}`, input)).data;
+}
+
 export async function addConceptPhrase(
   conceptId: string,
   input: CreateConceptPhraseInput,

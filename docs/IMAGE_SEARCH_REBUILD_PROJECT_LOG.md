@@ -1,12 +1,186 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-07-23
+更新时间：2026-07-28
 当前范围：Phase 0～Phase 6；九个正式 Skill 与四类运行时模型任务完成收口
 当前状态：Phase 0～6 工程改造完成；六大体系、16 个核心卖点、三层搜索和人工关系边界保持稳定
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
 
 ---
+
+## 2026-07-28：批量占位素材与一键清理（D166）
+
+### 完成内容
+
+- 将 `backend/scripts/seed_placeholder_assets.py` 升级为批量测试数据工具，支持 `seed`、`status`、`delete` 三个动作。
+- 默认 `seed --count 320`，按 16 个稳定核心卖点循环生成 20 轮批量占位素材。
+- 渠道覆盖单渠道与混合渠道：`PPT`、`品牌手册`、`手机端大图`、`手机端小图`、`官网大图`、`官网小图`、`PPT、品牌手册`、`PPT、手机端大图`、`PPT、官网小图`、`品牌手册、官网大图`、`手机端大图、官网大图`、`手机端小图、官网小图`、`手机端大图、手机端小图`、`PPT、品牌手册、官网大图`。
+- 场景状态覆盖 `true`、`false` 和 `null`，用于测试场景图筛选中的“有/无/未标注”边界。
+- 每第 5 轮额外创建一个相邻卖点 `supports` 关系，用于模拟一张图适配多个卖点的搜索与展示。
+- 新增 `delete --dry-run` 与 `delete`，只清理 `created_by/uploader=placeholder-seed` 且标题以“测试占位”开头的素材，并同步删除搜索索引、素材组、图片、原图和缩略图。
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 当前本地数据库在 D165 原有 16 张基础占位图上新增 320 张批量占位图，当前占位库存共 336 张。
+
+### 验证结果
+
+- `python3 -m py_compile backend/scripts/seed_placeholder_assets.py` 通过。
+- `backend/.venv/bin/ruff check backend/scripts/seed_placeholder_assets.py` 通过。
+- `docker compose exec -T backend python -m scripts.seed_placeholder_assets seed --count 320`：`created=320, skipped_existing=0`。
+- 重复执行 dry-run：`would create=0, skipped_existing=320`，确认批量标题幂等。
+- `status` 显示：`groups=336`、`images=336`；场景分布为 `true=134`、`false=138`、`unset=64`。
+- 数据库确认占位素材关系：`expresses=336`、`supports=64`。
+- `delete --dry-run` 显示将删除 `groups=336`、`images=336`、`files=672`，确认清理范围只覆盖占位素材。
+
+### 边界
+
+- 这些素材仅用于本地搜索和页面压测，不代表真实业务已审核素材。
+- 不改变数据库 schema、上传准入、四层搜索链路、渠道字典、卖点/证明点目录、人工关系规则、Provider 配置或线上数据口径。
+
+### 常用命令
+
+- 查看占位素材分布：`docker compose exec -T backend python -m scripts.seed_placeholder_assets status`
+- 再补一批指定数量：`docker compose exec -T backend python -m scripts.seed_placeholder_assets seed --count 320`
+- 删除前预演：`docker compose exec -T backend python -m scripts.seed_placeholder_assets delete --dry-run`
+- 一键清理占位素材：`docker compose exec -T backend python -m scripts.seed_placeholder_assets delete`
+
+---
+
+## 2026-07-28：本地测试占位素材种子（D165）
+
+### 完成内容
+
+- 新增 `backend/scripts/seed_placeholder_assets.py`，用于真实素材不足时一键生成本地测试占位素材。
+- 默认生成 16 张 “测试占位” PNG 主图，逐一覆盖当前 16 个稳定核心卖点。
+- 渠道循环覆盖 `PPT`、`品牌手册`、`手机端大图`、`手机端小图`、`官网大图`、`官网小图`，并包含 `PPT、品牌手册` 与 `手机端大图、官网大图` 多渠道样例。
+- 每张占位图都会创建 published/approved 素材组、当前主图、人工 accepted `expresses` 卖点关系、accepted 素材独有话术、渠道、画面风格、场景图布尔值、语义总结、Semantic Profile V3，并尽量写入该卖点下可用的主证明点/证据表达点 code。
+- 脚本按标题幂等跳过已有占位素材，重复执行不会重复灌库。
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 当前本地数据库已执行脚本并新增 16 张测试占位图、16 个素材组、16 条 accepted 卖点关系、80 条 accepted 素材话术。
+
+### 验证结果
+
+- `python3 -m py_compile backend/scripts/seed_placeholder_assets.py` 通过。
+- `backend/.venv/bin/ruff check backend/scripts/seed_placeholder_assets.py` 通过。
+- `docker compose exec -T backend python -m scripts.seed_placeholder_assets --dry-run`：执行前显示将创建 16 张；执行后显示 `would create=0, skipped_existing=16`，确认幂等。
+- 容器内查库确认：`images=16`、`groups=16`、`accepted_links=16`、`accepted_phrases=80`，渠道覆盖默认六类及两个多渠道组合。
+
+### 边界
+
+- 这些素材仅用于本地测试库存，不代表真实业务已审核素材。
+- 不改变上传准入、四层搜索链路、渠道字典、卖点/证明点目录、人工关系规则、数据库 schema 或 Provider 配置。
+
+### 下一步
+
+1. 用业务端搜索和渠道筛选实际验证占位素材能否覆盖搜索、详情推荐、下载菜单和反馈模块。
+2. 真实素材补齐后，可按标题前缀筛选这些占位素材，再统一清理或保留为测试数据。
+
+---
+
+## 2026-07-28：卖点结果推荐语人工维护（D161）
+
+### 完成内容
+
+- `business_concepts` 新增可空 `recommendation_text`，用于维护每个卖点在搜索结果卡片下方展示的人工推荐语。
+- 管理员侧边栏新增“推荐语”页面，可按卖点集中编辑推荐语；该文案只影响结果展示，不进入模型 Prompt 或召回排序。
+- 搜索响应中的 `matchedQueryConcepts` 透传当前查询命中卖点的 `recommendationText`。
+- 结果卡片优先展示当前搜索命中卖点及其人工推荐语；同一图片如果 accepted 支持多个卖点，不展示非当前搜索命中的其他卖点文案。
+- 未维护人工推荐语时继续回退到证明点 claim、素材独有话术和既有解释，避免空白。
+
+### 数据迁移
+
+- 新增 `20260728_0020_concept_recommendation_text.py`，为 `business_concepts` 增加 `recommendation_text`。
+
+### 边界
+
+- 不修改体系/卖点/证明点识别、候选召回、排序、Reranker、人工素材关系、渠道过滤或 Provider 配置。
+
+## 2026-07-28：GPT-5.5 Provider 兜底遥测（D155）
+
+### 完成内容
+
+- OpenAI-compatible provider 记录最后一次调用的脱敏 attempt 摘要：provider host 标签、模型名、状态、耗时和错误摘要。
+- Fallback 链汇总每个 provider 尝试；成功切换兜底时写入日志，全部失败时错误信息包含脱敏摘要。
+- 三层搜索诊断 detail 追加体系、卖点、证明点各层 Provider 摘要，便于后台判断每层实际由老张还是 OhMyGPT 完成。
+- 所有遥测只记录 host 标签和错误摘要，不记录、不展示、不写入任何 API key。
+
+### 验证
+
+- `docker compose exec -T backend python -m pytest tests/test_ai_provider.py tests/test_phase4_search_orchestration.py tests/test_search_service.py tests/test_search_index.py -q`：`67 passed`。
+- `git diff --check` 通过。
+- 真实 HTTP 搜索 `家长可以查看学习结果`：总耗时约 `35.442s`，`fallback=false`，`timedOut=false`，`query_understanding=ok`；诊断包含 Provider 摘要：体系 Provider `laozhang/gpt-5.5 ok 7114ms`，卖点 Provider `laozhang/gpt-5.5 ok 10111ms`，证明点 Provider `laozhang/gpt-5.5 ok 7206ms`。
+- 脱敏最小 JSON 健康检查：老张约 `3206ms` 成功，OhMyGPT 约 `2788ms` 成功。
+- 强制主 Provider 失败的兜底测试：主 provider 约 `30ms` 失败，OhMyGPT 约 `2294ms` 接手成功，attempt 摘要未包含密钥。
+
+### 后续建议
+
+- 把分层 Provider attempt 摘要写入搜索日志结构化字段，便于后台页面筛选统计成功率、P95 和错误类型。
+- 补充 10～20 条真实业务话术压测，分别统计老张首发成功率与 OhMyGPT 接手成功率。
+
+## 2026-07-28：GPT-5.5 搜索理解容错接入（D154）
+
+### 完成内容
+
+- 第一层体系路由增加模型返回归一化：兼容 `systems/candidates/candidateSystems`、中文体系名、字符串候选和简写 `route_type`，统一落到封闭六体系 code。
+- 第二层卖点判断不再因为模型顺带返回证明点/证据表达点而整体失败；后端只保留已命中父卖点范围内、目录存在且父链合法的 `pp_`/`ep_`，越界项丢弃。
+- 第三层证明点判断同样改为范围过滤，避免少量跨父卖点或多余证据项报废已完成的卖点理解。
+- 运行预算从体系 `8s`、卖点 `20s`、证明点 `20s`、聚合理解 `30s` 调整为体系 `15s`、卖点 `25s`、证明点 `20s`、聚合理解 `75s`，避免 Provider 网关抖动时第一层还没返回就进入降级。
+- 保留三层模型参与：本轮不恢复本地强证据跳过模型，不改 Prompt 纪律、六体系、16 个卖点、人工 accepted 素材关系、数据库或图片准入。
+
+### 验证
+
+- 重新构建后端镜像并启动：`docker compose up -d --build backend`。
+- `docker compose exec -T backend python -m pytest tests/test_ai_provider.py tests/test_phase4_search_orchestration.py tests/test_search_service.py tests/test_search_index.py -q`：`65 passed`。
+- `git diff --check` 通过。
+- 真实 HTTP 搜索 `家长可以查看学习结果`：最终预算生效后总耗时约 `29.891s`，`fallback=false`，`timedOut=false`，`query_understanding=ok`；诊断为体系路由 `10430ms`、卖点识别 `11103ms`、证明点识别 `8104ms`。模型理解为 `同步伴学体系 > 学情报告反馈`，并命中证明点 `pp_companion_report_core_metrics`，返回 1 张结果。
+
+### 后续建议
+
+- 将 D155 的 Provider attempt 遥测进一步结构化写入搜索日志和后台统计，而不只停留在诊断 detail。
+- 评估新增召回后 top-K 模型复核层：输入用户话术、候选图标题、语义摘要、已采纳素材话术和业务关系，输出相关性/排除原因；该层只复核候选，不作为入口全库裁判。
+
+## 2026-07-28：GPT-5.5 Provider 配置收口（D153）
+
+### 完成内容
+
+- 确认根目录 `.env` 才是 Docker Compose 实际读取的运行配置，`backend/.env` 中已写入的目的专用密钥此前未进入容器。
+- `docker-compose.yml` 新增透传 `IMAGE_ANALYSIS_*`、`ASSET_PHRASE_*`、`SEARCH_FALLBACK_*` 和 `SEARCH_PROOF_POINT_TIMEOUT_SECONDS`。
+- 根目录 `.env` 与 `backend/.env` 已同步为：图片分析、上传前素材话术和搜索主判断均使用 GPT-5.5；搜索兜底使用 OhMyGPT GPT-5.5。
+- 当前运行配置清空 DeepSeek/Kimi fallback 槽位，并清空 SiliconFlow Embedding/Reranker 槽位；Meilisearch 继续保留为本地关键词索引。
+
+### 边界
+
+- 不修改六大体系、16 个卖点、人工素材关系、搜索 Prompt、数据库结构或 Meilisearch 索引职责。
+- DeepSeek/Kimi 及 SiliconFlow 相关历史评测保留为历史记录，不再代表当前默认运行策略。
+
+## 2026-07-27：GPT-5.5 严格三级搜索理解（D152）
+
+### 完成内容
+
+- 自然语言在线搜索改为 `体系 → 卖点 → 证明点` 三次独立模型调用。
+- 第二层只加载候选体系运行时卖点摘要与当前启用卖点，禁止提前输出 `pp_`/`ep_`。
+- 第三层只加载已命中卖点的直属证明点和内部证据表达线索，使用独立 Schema 校验父子范围。
+- 新增 `SEARCH_PROOF_POINT_TIMEOUT_SECONDS`，三级默认预算分别为 `8s/20s/20s`。
+- 只有三级完整成功结果进入查询理解缓存；诊断记录三段独立耗时。
+- 自然语言搜索不再因本地高置信卖点跳过模型；本地判断继续作为防止错误模型覆盖的仲裁真值。手动筛选保持确定性执行。
+
+### 边界
+
+- 纯画面或无可靠体系在第一层结束；第二层没有卖点时不调用第三层。
+- 第二层命中的数据库临时卖点若尚未建立证明点目录，也不空跑第三层。
+- 第三级只做证明点理解，不直接选择图片；图片仍由人工 accepted 关系、素材话术、确定性门槛和最多一次 Reranker 处理。
+- 无数据库迁移，不修改六体系、16 个卖点、人工素材关系或已有素材。
+
+### 验证
+
+- 三层链路、Prompt 边界、Schema 校验、路由仲裁、证明点运行时和三级独立超时编排定向回归 `94 passed`。
+- Ruff 与 `git diff --check` 通过；三级 Prompt 规模分别约为 `2113/2203/1841` 字符。
+- 后端全量回归 `228 passed, 6 failed`；剩余失败为当前工作区既有的服务行数约束、页头品牌断言和证据表达点公开接口旧断言，与 D152 三层链路无直接关系。
 
 ## 2026-07-23：证明点来源与人工校准关系收口（D118）
 
@@ -3699,6 +3873,307 @@ Model：数据结构和关系
 ### 下一步
 
 1. 用真实但非敏感的搜索样本对比 DeepSeek 与 GPT-5.5 的意图、证明点和延迟表现。
+
+---
+
+## 2026-07-28：第四层复核轻缓存与候选数控制（D157）
+
+### 本轮目标
+
+- 将第四层候选图片复核纳入现有 5 分钟搜索轻缓存。
+- 控制第四层默认复核候选数，避免一次把过多图片送入模型。
+
+### 完成内容
+
+- `SearchCaches` 新增 `candidate_reviews` 缓存桶，沿用 `SEARCH_CACHE_TTL_SECONDS` 和 `SEARCH_CACHE_MAX_ENTRIES`。
+- 第四层复核先查缓存，命中后直接应用 cached decisions，并在诊断中标记 `cache_hit=true`。
+- 缓存 key 使用原始查询、前三层结构化理解和候选图稳定上下文；动态 score 与 reasons 不进入 key，避免同一候选轻微排序分数变化导致缓存失效。
+- 新增 `SEARCH_CANDIDATE_REVIEW_LIMIT=5`，默认只复核 Top 5 候选；其余候选保留原排序。
+- Docker Compose、`.env`、`backend/.env` 和 example 环境文件均补充该非敏感配置。
+- `skills/INDEX.md` 补充 `search_candidate_review` 第四层运行时模型映射。
+
+### 修改文件
+
+- `backend/app/services/search_cache.py`
+- `backend/app/services/search_external_branches.py`
+- `backend/app/services/search_service.py`
+- `backend/app/api/dependencies.py`
+- `backend/app/core/config.py`
+- `backend/tests/test_phase4_search_orchestration.py`
+- `.env`
+- `backend/.env`
+- `.env.docker.example`
+- `backend/.env.example`
+- `docker-compose.yml`
+- `skills/INDEX.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库迁移。
+- 缓存仅在后端进程内存中保存，TTL 到期或后端重启即清空，不写数据库、不写文件。
+
+### 测试结果
+
+- 第四层专项：`42 passed`。
+- 搜索核心专项：`72 passed`。
+- 真实 API 连续搜索“月考期中期末一键划重点”：第一遍 `37.09s`，第四层正常调用模型并复核 3 张；第二遍 `0.26s`，`candidate_review.cacheHit=true`，复用第四层缓存后仍返回 3 张。
+
+### 遗留问题
+
+- 第一次未命中缓存时仍需要完整四层模型调用，耗时仍取决于 provider 响应速度。
+- 默认 Top 5 是保守值；如果后续发现第 6～8 张经常需要第四层纠偏，可通过配置调高。
+
+### 下一步
+
+1. 用管理员页面观察连续搜索同一句话时第四层缓存命中情况。
+2. 根据真实查询样本评估 Top 5 是否足够；必要时调整 `SEARCH_CANDIDATE_REVIEW_LIMIT`。
+
+---
+
+## 2026-07-28：第四层候选图片复核与 Provider 校验接力（D156）
+
+### 本轮目标
+
+- 先落地第四层“查询话术 ↔ 候选图片”模型复核。
+- 让老张和 OhMyGPT 在每一层都能稳定接力：第二层、第三层或第四层如果老张失败，OhMyGPT 在同一层接手。
+- 用 10 条真实业务话术验证四层链路、超时情况和候选返回情况。
+
+### 完成内容
+
+- 新增模型任务 `search_candidate_review`，第四层只复核已召回候选，输出 `keep/demote/exclude`，不得新增候选、不得重判体系/卖点/证明点。
+- `AiService` 增加 `review_search_candidates`；`SearchExternalBranches` 在召回、概念路由、Reranker 后追加第四层候选复核，并将诊断写入 `candidate_review` 分支。
+- 第四层候选上下文包含人工 accepted 业务关系、素材独有话术、标题、摘要、画面事实、场景、主证明点和证据点。
+- Provider fallback 改为“生成 + schema 校验”都通过才算成功；HTTP 成功但返回结构无效时，当前 provider 记为 failed 并继续尝试下一个 provider。
+- 第四层外层预算增加 provider 接力缓冲，避免第一家耗尽 per-provider 时间后第二家没有执行机会。
+- 对“月考/期中/期末/考前 + 划重点/冲刺/重点梳理”这种同步考点强别名增加保护性修复：第一层已路由同步考点且第二层结构不稳定时，补全到 `focused_excellence`。
+- 当同卖点已有 accepted 素材但老素材未补证明点字段导致第三层候选被筛空时，保留卖点候选进入第四层复核；明确登记为二期缺口的 `asset_evidence_requirements` 仍保持空结果，不被绕过。
+
+### 修改文件
+
+- `backend/app/ai/contracts.py`
+- `backend/app/ai/fallback.py`
+- `backend/app/ai/normalizer.py`
+- `backend/app/ai/openai_compatible.py`
+- `backend/app/ai/skill_loader.py`
+- `backend/app/api/dependencies.py`
+- `backend/app/core/config.py`
+- `backend/app/schemas/ai.py`
+- `backend/app/services/ai_service.py`
+- `backend/app/services/asset_selection_policy_service.py`
+- `backend/app/services/query_understanding_service.py`
+- `backend/app/services/search_concept_routing_service.py`
+- `backend/app/services/search_external_branches.py`
+- `backend/app/services/search_orchestrator.py`
+- `backend/app/services/search_service.py`
+- `backend/tests/test_ai_provider.py`
+- `backend/tests/test_phase4_search_orchestration.py`
+- `.env.docker.example`
+- `backend/.env.example`
+- `docker-compose.yml`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 无素材关系写入；未新增体系、卖点、证明点或证据点。
+- 运行密钥只在 Git 忽略的环境文件中使用，文档和日志不记录 API key。
+
+### 测试结果
+
+- 后端核心专项：`70 passed`（`tests/test_ai_provider.py`、`tests/test_phase4_search_orchestration.py`、`tests/test_search_service.py`、`tests/test_search_index.py`）。
+- `git diff --check` 通过。
+- Docker 后端已重建并健康；运行时 search provider 链确认包含 `laozhang/gpt-5.5` 与 `ohmygpt/gpt-5.5` 两个已配置 provider。
+- 单条真实搜索“家长可以查看学习结果”：四层均 `ok`，总耗时约 `32.3s`，第四层复核 1 张候选。
+- 10 条真实话术首轮复测均请求成功、无整体 API 失败；其中“通过启发式提问，还原思考过程，帮你从解一题到通一类”验证卖点层老张失败后 OhMyGPT 在同层接手成功。
+- “月考期中期末一键划重点”从首轮卖点层失败/0 候选修复为三层识别 `同步考点体系 > 专项培优`、证明点 `考试阶段重点梳理`，真实复测返回“考前专项突破、考前突击、高频错题”3 张并进入第四层复核。
+- “几分钟讲明白一个知识点”首轮出现第四层 laozhang 失败后外层预算不足，修复预算后单独复测 `candidate_review ok`、无超时，结果收敛为“5-8分钟讲透知识点，学完就练、官方数据规模”2 张。
+
+### 遗留问题
+
+- 四层全模型链路的端到端耗时仍偏高：多数真实话术约 `27s～60s`，需要后续继续做查询理解缓存、候选复核缓存或更细的并发预算优化。
+- 第四层复核会增加一次模型调用；候选越多越慢。当前失败时会保留原排序，保证可降级，但精排质量依赖后续更多样本观察。
+- 部分老素材缺少 `primary_proof_point_code` / `primary_evidence_point_code`，本轮只在不违背二期缺口规则的前提下让它们进入第四层复核；长期仍建议补标老素材证明点。
+
+### 下一步
+
+1. 在管理员页面继续观察搜索诊断中的四层 Provider attempts，重点记录老张结构漂移、超时和 OhMyGPT 接手次数。
+2. 对高频话术建立小型回归集，单独统计第四层前后 Top 结果是否更准。
+3. 补标现有老素材的主证明点/证据点，减少第三层候选对标题和素材独有话术的依赖。
+
+---
+
+## 2026-07-28：渠道必填与精确收窄（D159）
+
+### 本轮目标
+
+- 让“用户带渠道搜索就是精确渠道需求”的口径落到工程行为。
+- 让设计师上传主图、延展版本和替换主图时必须选择主要使用渠道。
+- 避免后续 `PPT/手机端/朋友圈/官网` 搜索因为素材未标渠道而混入其它渠道结果。
+
+### 完成内容
+
+- 主图上传弹窗去掉“暂不标注”，未选择使用渠道时不能发布。
+- 素材详情的“添加延展版本/替换正式主图”弹窗改为渠道下拉选择，未选择渠道时不能提交。
+- 后端 `/api/images/upload`、`/api/asset-groups/{id}/images` 和 `/api/asset-groups/{id}/primary-image` 增加 `channel_required` 校验，缺渠道返回 `422`。
+- 搜索结果后二次筛选从“当前结果中存在匹配渠道才软收窄”改为“存在渠道意图即按候选渠道精确过滤”。
+- 更新上传与搜索筛选相关测试。
+
+### 修改文件
+
+- `backend/app/api/v1/images.py`
+- `backend/app/api/v1/assets.py`
+- `backend/tests/test_security_and_images.py`
+- `backend/tests/test_phase5_endpoints.py`
+- `backend/tests/test_phase_0_3_rebuild.py`
+- `client/src/pages/ImageHome/UploadDialog.tsx`
+- `client/src/pages/ImageDetail/asset/AssetVersionDialog.tsx`
+- `client/src/pages/ImageHome/searchResultFilters.ts`
+- `client/src/pages/ImageHome/searchResultFilters.test.ts`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 不回填旧素材渠道；新写入入口开始强制要求渠道。
+
+### 测试结果
+
+- `npm test -- channelIntent searchResultFilters`：`2 passed / 13 passed`。
+- `npm run typecheck` 通过。
+- Docker 后端精确回归：`tests/test_security_and_images.py::test_upload_preview_download_and_phase6_detail_contract`、`tests/test_phase5_endpoints.py::test_phase5_designer_can_upload_primary_add_variant_and_replace_it`、`tests/test_phase5_endpoints.py::test_phase5_asset_version_writes_require_channel`、`tests/test_phase5_endpoints.py::test_phase5_derivative_upload_never_queues_ai_analysis`、`tests/test_phase_0_3_rebuild.py::test_phase2_upload_creates_group_and_derivative_search_is_deduplicated`，`5 passed`。
+- `git diff --check` 通过。
+
+### 遗留问题
+
+- 历史素材如果缺渠道，不会被本轮自动补齐；需要设计师在详情中逐步补标或后续做一次人工回填。
+- 自定义渠道仍是前端本地词库；多人共享渠道词库仍按 D137 后续方向迁入后端。
+
+### 下一步
+
+1. 用真实搜索验证带渠道话术的结果是否会按渠道精确收窄。
+2. 若历史素材存在空渠道，安排一次人工补标。
+
+---
+
+## 2026-07-28：朋友圈渠道意图归手机端（D158）
+
+### 本轮目标
+
+- 明确“PPT/朋友圈”等使用渠道要和业务卖点搜索并行处理。
+- 让“能在 PPT 用的拍题精学”自动命中 `PPT` 渠道语境。
+- 让“发朋友圈的拍题精学”自动归入手机端，并按大图/小图语境优先推荐对应渠道。
+
+### 完成内容
+
+- 前端渠道意图解析器新增 `朋友圈/微信朋友圈/社媒/社交平台` 手机端家族识别。
+- 普通“发朋友圈/朋友圈素材”默认识别为 `手机端大图`；同时出现 `九宫格/列表/入口/小图/缩略图/信息流` 等紧凑位置词时识别为 `手机端小图`。
+- 新增测试覆盖用户举例：“我想找一张能在 PPT 用的拍题精学”“找一张能发朋友圈的拍题精学”“朋友圈九宫格入口图”。
+- 同步更新 `understand-image-channel-intent` Skill 说明和渠道 taxonomy。
+- 保持 D133/D140 边界：渠道意图只用于结果后二次收窄、筛选按钮高亮和推荐说明，不进入卖点主通道、不改变四层模型搜索。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/channelIntent.ts`
+- `client/src/pages/ImageHome/channelIntent.test.ts`
+- `skills/understand-image-channel-intent/SKILL.md`
+- `skills/understand-image-channel-intent/references/channel-taxonomy.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库迁移。
+- 无素材关系、渠道字段或本地存储结构变更。
+
+### 测试结果
+
+- `npm test -- channelIntent searchResultFilters`：`2 passed / 13 passed`。
+- `npm run typecheck` 通过。
+
+### 遗留问题
+
+- 当前渠道意图仍在前端确定性解析；如后续要多人共享渠道词库，需要按 D137 后续方向迁入后端渠道字典服务。
+- 渠道标签是否足够依赖上传/延展版本时的人工标注；未标注渠道的素材不会被凭空推荐为某个渠道。
+
+### 下一步
+
+1. 用真实搜索“PPT 拍题精学”“朋友圈 拍题精学”“朋友圈九宫格 拍题精学”观察结果高亮和收窄是否符合业务预期。
+2. 如果业务方常说“小红书、公众号、社群、投放页”等，可继续按同一规则补充渠道词库和测试。
+
+---
+
+## 2026-07-29：测试前收口与证据表达点契约修复（D167）
+
+### 本轮目标
+
+- 修复审查中发现的业务 facets 证据表达点契约漂移。
+- 让本地和 Docker 后端关键测试恢复可重复运行。
+- 确认搜索用途的老张 + OhMyGPT GPT-5.5 fallback 链路仍在运行环境中生效。
+- 修正批量占位素材主关系覆盖不足，方便后续用测试图压测 `expresses/supports` 边界。
+
+### 完成内容
+
+- `/api/business-facets` 恢复返回可见证明点下的 `evidencePoints`、`sourcePaths` 与 `reviewNotes`。
+- 上传弹窗和素材详情的“业务表达层级”统一支持“主要表达卖点 / 证明点 / 证据表达点”三级联动；保存时不再把 `evidencePointCode` 固定抹为 `null`。
+- 移除 `get_settings()` 的存储目录创建副作用，目录创建继续由 `LocalStorageProvider` 和写文件脚本负责，避免本地 pytest 导入配置时因 `STORAGE_DIR` 权限失败。
+- 后端 Ruff 全量清理通过，包括 Provider fallback、normalizer、Skill prompt 和历史脚本长行/导入问题。
+- 修复 `backend/scripts/seed_placeholder_assets.py` 的主关系取模逻辑；`seed` 遇到已存在的 `placeholder-seed` 测试素材时，会同步脚本负责的测试元数据和主关系，不触碰正式素材。
+- 重建并重启 backend 容器，让新脚本在 Docker 环境生效；当前四个服务均 healthy。
+- 重建并重启 web 容器，让上传弹窗和素材详情的前端修复在 `http://127.0.0.1` 生效。
+- 脱敏确认运行环境：通用 provider 是单 primary，搜索用途是 2 个已配置 GPT-5.5 provider 的 `FallbackModelProvider`。
+
+### 修改文件
+
+- `backend/app/api/v1/business_facets.py`
+- `backend/app/core/config.py`
+- `backend/app/ai/fallback.py`
+- `backend/app/ai/normalizer.py`
+- `backend/app/ai/skill_loader.py`
+- `backend/scripts/seed_placeholder_assets.py`
+- `backend/scripts/restore_assets_from_sqlite.py`
+- `backend/scripts/run_business_novice_fuzzy_eval.py`
+- `backend/scripts/run_external_selling_point_review.py`
+- `backend/tests/test_business_facets.py`
+- `backend/tests/test_search_service.py`
+- `client/src/features/assets/BusinessClassificationFields.tsx`
+- `client/src/features/assets/BusinessClassificationFields.test.tsx`
+- `client/src/pages/ImageDetail/asset/AssetBusinessClassificationPanel.tsx`
+- `client/src/pages/ImageHome/UploadDialog.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 本地测试占位素材同步：仍为 `groups=336, images=336`。
+- 占位素材关系分布更新为 `expresses=256`、`supports=144`。
+
+### 测试结果
+
+- `backend/.venv/bin/ruff check backend/app backend/scripts backend/tests`：通过。
+- 本地 `pytest backend/tests/test_ai_provider.py backend/tests/test_business_facets.py backend/tests/test_phase5_endpoints.py backend/tests/test_search_service.py -q`：`37 passed`。
+- 本地 `pytest backend/tests/test_phase4_search_orchestration.py -q`：`42 passed`。
+- Docker `python -m pytest tests/test_ai_provider.py tests/test_business_facets.py tests/test_phase5_endpoints.py tests/test_search_service.py -q`：`37 passed`。
+- Docker `python -m pytest tests/test_phase4_search_orchestration.py -q`：`42 passed`。
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test -- BusinessClassificationFields.test.tsx`：`1 passed`。
+- `docker compose ps`：backend、web、postgres、meilisearch 均 healthy。
+
+### 遗留问题
+
+- 本轮未跑真实外部模型搜索 10 条话术；只确认 provider 链路配置和回归测试。
+- 本轮没有用浏览器逐页视觉走查上传弹窗和素材详情，只完成构建、类型、lint 和组件测试。
+
+### 下一步
+
+1. 重建 web 或启动本地前端后，走查上传弹窗、素材详情业务层级保存和搜索结果卡推荐语。
+2. 用 10～20 条真实业务话术复测四层搜索耗时、fallback attempt 和 Top 结果。
+3. 正式测试前保留当前占位素材，测试结束可用 `seed_placeholder_assets delete --dry-run/delete` 清理。
 
 ---
 

@@ -81,12 +81,13 @@ class SearchBranchResult(Generic[T]):
 
 @dataclass(frozen=True)
 class QueryUnderstandingOutcome:
-    """Preserves a successful first-layer route if the second layer times out."""
+    """Preserves completed layers when a later understanding stage fails."""
 
     understanding: SearchUnderstanding | None
     routed_system_codes: tuple[str, ...] = ()
     route_completed: bool = False
     selling_point_completed: bool = False
+    proof_point_completed: bool = False
 
 
 @dataclass(frozen=True)
