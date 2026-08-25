@@ -41,6 +41,13 @@ def tag_to_read(tag, image_count: int = 0) -> TagRead:
 def image_to_read(image: Image) -> ImageRead:
     return ImageRead(
         id=image.id,
+        asset_code=image.asset_group.asset_code if image.asset_group else None,
+        version_code=image.version_code,
+        share_path=(
+            f"/share/{image.version_code}"
+            if image.version_code
+            else None
+        ),
         title=image.title,
         file_name=image.file_name,
         content_url=f"/api/images/{image.id}/content",

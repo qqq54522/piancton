@@ -17,6 +17,7 @@ from app.domain.proof_points import load_proof_point_catalog
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept
 from app.models.image import Image
+from app.services.asset_identity_service import AssetIdentityService
 from app.services.search_index_sync import SearchIndexSync
 
 PLACEHOLDER_PREFIX = "测试占位"
@@ -157,16 +158,19 @@ def build_specs(
             if is_scene_image is False
             else "未标注场景"
         )
-        phrases = tuple(dict.fromkeys([
-            *(ASSET_PHRASES_BY_CODE.get(concept_code) or []),
-            f"{channel}可用{concept.name}",
-            f"{concept.name}测试图",
-            f"{concept.name}{scene_phrase}",
-            *((
-                f"同时可参考{secondary_name}",
-                f"{concept.name}和{secondary_name}混合测试",
-            ) if secondary_name else ()),
-        ]))
+        phrases = tuple(
+            str(item)
+            for item in dict.fromkeys([
+                *(ASSET_PHRASES_BY_CODE.get(concept_code) or []),
+                f"{channel}可用{concept.name}",
+                f"{concept.name}测试图",
+                f"{concept.name}{scene_phrase}",
+                *((
+                    f"同时可参考{secondary_name}",
+                    f"{concept.name}和{secondary_name}混合测试",
+                ) if secondary_name else ()),
+            ])
+        )
         specs.append(
             PlaceholderSpec(
                 serial_no=index + 1,
@@ -429,6 +433,7 @@ def seed(count: int = DEFAULT_PLACEHOLDER_COUNT, dry_run: bool = False) -> tuple
 
         created = skipped = 0
         search_index = SearchIndexSync.from_settings()
+        identities = AssetIdentityService(db)
         for index, spec in enumerate(specs):
             existing = db.scalar(select(Image).where(Image.title == spec.title))
             if existing is not None:
@@ -459,6 +464,7 @@ def seed(count: int = DEFAULT_PLACEHOLDER_COUNT, dry_run: bool = False) -> tuple
 
             concept = concepts[spec.concept_code]
             group = AssetGroup(
+                asset_code=identities.allocate_asset_code(),
                 title=spec.title,
                 approval_status="approved",
                 publish_status="published",
@@ -470,6 +476,7 @@ def seed(count: int = DEFAULT_PLACEHOLDER_COUNT, dry_run: bool = False) -> tuple
             )
             image = Image(
                 id=image_id,
+                version_code=identities.allocate_version_code(group.asset_code, 1),
                 title=spec.title,
                 file_name=(
                     f"placeholder-{spec.serial_no:04d}-"
@@ -532,6 +539,9 @@ def seed(count: int = DEFAULT_PLACEHOLDER_COUNT, dry_run: bool = False) -> tuple
                 for phrase in spec.phrases
             )
             db.add(image)
+            db.flush()
+            identities.register_group(group)
+            identities.register_image(image)
             db.flush()
             search_index.upsert_image(image)
             created += 1

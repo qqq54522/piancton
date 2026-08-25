@@ -1,4 +1,5 @@
-import { Check, Loader2, Trash2 } from 'lucide-react';
+import { Check, Copy, Link2, Loader2, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
@@ -41,6 +42,7 @@ const ImageDetailInfoPanel = ({
           <h1 className="text-2xl font-semibold tracking-tight">
             {detail.title}
           </h1>
+          <IdentityCodePanel detail={detail} />
           <ImageDownloadMenu detail={detail} variants={variants} actions={actions} />
         </div>
 
@@ -107,6 +109,7 @@ const ImageDetailInfoPanel = ({
         <ImageDownloadMenu detail={detail} variants={variants} actions={actions} />
       </div>
 
+      <IdentityCodePanel detail={detail} />
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-secondary/55 p-3 text-xs">
         <div>
           <span className="block text-muted-foreground">上传日期</span>
@@ -144,5 +147,83 @@ const ImageDetailInfoPanel = ({
     </div>
   );
 };
+
+function IdentityCodePanel({ detail }: { detail: ImageDetail }) {
+  const assetCode = detail.assetCode;
+  const versionCode = detail.versionCode;
+  const sharePath = detail.sharePath;
+  if (!assetCode && !versionCode) return null;
+
+  const copy = async (value: string, message: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(message);
+    } catch {
+      toast.error('复制失败，请手动选择编码');
+    }
+  };
+
+  const shareUrl = sharePath
+    ? `${window.location.origin}${sharePath}`
+    : null;
+
+  return (
+    <div className="mt-5 rounded-xl border border-border/80 bg-[#f7f7f5] p-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-foreground">素材身份</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">用于分享和精准查找，不随标题变化</p>
+        </div>
+        {shareUrl && (
+          <button
+            type="button"
+            aria-label="复制分享链接"
+            title="复制分享链接"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-white text-foreground transition hover:bg-foreground hover:text-background"
+            onClick={() => copy(shareUrl, '分享链接已复制')}
+          >
+            <Link2 className="size-4" />
+          </button>
+        )}
+      </div>
+      <div className="mt-3 space-y-2">
+        {assetCode && (
+          <IdentityCodeRow label="素材码" value={assetCode} onCopy={() => copy(assetCode, '素材码已复制')} />
+        )}
+        {versionCode && (
+          <IdentityCodeRow label="版本码" value={versionCode} onCopy={() => copy(versionCode, '版本码已复制')} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IdentityCodeRow({
+  label,
+  value,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-white px-3 py-2">
+      <span className="w-12 shrink-0 text-[11px] text-muted-foreground">{label}</span>
+      <code className="min-w-0 flex-1 truncate text-xs font-semibold tracking-[0.04em] text-foreground">
+        {value}
+      </code>
+      <button
+        type="button"
+        aria-label={`复制${label}`}
+        title={`复制${label}`}
+        className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+        onClick={onCopy}
+      >
+        <Copy className="size-3.5" />
+      </button>
+    </div>
+  );
+}
 
 export default ImageDetailInfoPanel;

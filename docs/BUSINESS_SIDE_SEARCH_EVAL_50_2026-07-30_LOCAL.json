@@ -1,0 +1,4806 @@
+{
+  "generatedAt": "2026-07-30T07:23:17+00:00",
+  "dataset": "taxonomy/business_side_search_eval_2026-07-30.json",
+  "mode": "local_no_external",
+  "note": "production_deps may call configured external model providers. local_no_external uses deterministic local search service only.",
+  "suites": [
+    {
+      "id": "business_precise_25",
+      "title": "业务端精确话术 25 条",
+      "sourceDoc": "docs/BUSINESS_SIDE_PRECISE_SEARCH_EVAL_25_2026-07-30.md",
+      "summary": {
+        "caseCount": 25,
+        "intentHit": "25/25",
+        "queryTypeHit": "24/25",
+        "top5ExpectedAssetHit": "25/25",
+        "zeroResultIds": [],
+        "outOfScopeIds": [],
+        "errorIds": [],
+        "p95LatencyMs": 586.71
+      },
+      "results": [
+        {
+          "id": "BSP001",
+          "query": "我想找一张拍题精学的素材",
+          "expectedCode": "photo_guided_learning",
+          "expectedName": "AI拍题精学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 838.25,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "photo_guided_learning"
+          ],
+          "actualResultCodes": [
+            "photo_guided_learning"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量07｜AI拍题精学｜手机端小图",
+            "测试占位｜批量08｜AI拍题精学｜官网大图",
+            "测试占位｜AI拍题精学｜手机端小图",
+            "测试占位｜批量04｜AI拍题精学｜PPT",
+            "测试占位｜批量18｜AI拍题精学｜PPT"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 835,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 147,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 646,
+                "resultCount": 74,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 4,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP002",
+          "query": "找 AI 拍题分步讲解、不要直接给答案的图",
+          "expectedCode": "photo_guided_learning",
+          "expectedName": "AI拍题精学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 570.86,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "photo_guided_learning"
+          ],
+          "actualResultCodes": [
+            "photo_guided_learning"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量07｜AI拍题精学｜手机端小图",
+            "测试占位｜批量08｜AI拍题精学｜官网大图",
+            "测试占位｜AI拍题精学｜手机端小图",
+            "测试占位｜批量04｜AI拍题精学｜PPT",
+            "测试占位｜批量18｜AI拍题精学｜PPT"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 569,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 28,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 505,
+                "resultCount": 73,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP003",
+          "query": "需要洋葱举一反三的图，体现一道题带一类题",
+          "expectedCode": "transfer_practice",
+          "expectedName": "举一反三",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 338.8,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "transfer_practice"
+          ],
+          "actualResultCodes": [
+            "transfer_practice"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜举一反三｜官网小图",
+            "测试占位｜批量09｜举一反三｜PPT、品牌手册、官网大图",
+            "测试占位｜批量06｜举一反三｜手机端大图、官网大图",
+            "测试占位｜批量04｜举一反三｜PPT、官网小图",
+            "测试占位｜批量16｜举一反三｜PPT、品牌手册"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 337,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 39,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 252,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP004",
+          "query": "找同步校内素材，课程和学校教材版本一致",
+          "expectedCode": "school_sync",
+          "expectedName": "同步校内",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 231.6,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "school_sync"
+          ],
+          "actualResultCodes": [
+            "school_sync"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量18｜同步校内｜手机端小图",
+            "测试占位｜批量06｜同步校内｜官网小图",
+            "测试占位｜批量13｜同步校内｜手机端大图、手机端小图",
+            "测试占位｜批量11｜同步校内｜手机端大图、官网大图",
+            "测试占位｜批量17｜同步校内｜手机端大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 230,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 53,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 144,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP005",
+          "query": "我想要课后小测的图，学完马上检测掌握情况",
+          "expectedCode": "instant_quiz",
+          "expectedName": "课后小测",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 586.71,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "instant_quiz"
+          ],
+          "actualResultCodes": [
+            "instant_quiz",
+            "stage_transition",
+            "new_curriculum_prediction"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "学练测闭环",
+            "配套功能学情报告",
+            "学完即练",
+            "测试占位｜批量01｜课后小测｜手机端大图",
+            "测试占位｜批量15｜课后小测｜手机端大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 583,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 27,
+                "resultCount": 36,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 512,
+                "resultCount": 107,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP006",
+          "query": "找动画精讲素材，能把抽象知识动态讲透",
+          "expectedCode": "animation_explanation",
+          "expectedName": "动画精讲",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 260.63,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "animation_explanation"
+          ],
+          "actualResultCodes": [
+            "animation_explanation",
+            "transfer_practice"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "动画课多专业协同打磨",
+            "5-8分钟讲透知识点，学完就练",
+            "理科（抽象知识可视化）",
+            "文科（抽象知识可视化）",
+            "测试占位｜批量14｜动画精讲｜PPT"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 259,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 53,
+                "resultCount": 32,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 161,
+                "resultCount": 32,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP007",
+          "query": "找新课标新考法预测相关图片，体现跨学科情境题",
+          "expectedCode": "new_curriculum_prediction",
+          "expectedName": "新课标新考法预测",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 267.89,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "new_curriculum_prediction"
+          ],
+          "actualResultCodes": [
+            "new_curriculum_prediction",
+            "focused_excellence"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量10｜新课标新考法预测｜手机端大图、手机端小图",
+            "测试占位｜批量04｜新课标新考法预测｜PPT、品牌手册",
+            "测试占位｜批量07｜新课标新考法预测｜品牌手册、官网大图",
+            "测试占位｜批量11｜新课标新考法预测｜PPT、品牌手册、官网大图",
+            "测试占位｜批量15｜新课标新考法预测｜手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 266,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 27,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 199,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP008",
+          "query": "需要专项培优素材，突出重难点和薄弱点突破",
+          "expectedCode": "focused_excellence",
+          "expectedName": "专项培优",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 399.12,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "focused_excellence"
+          ],
+          "actualResultCodes": [
+            "focused_excellence",
+            "transfer_practice"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量05｜专项培优｜PPT、官网小图",
+            "测试占位｜批量06｜专项培优｜品牌手册、官网大图",
+            "测试占位｜专项培优｜官网大图",
+            "测试占位｜批量10｜专项培优｜PPT、品牌手册、官网大图",
+            "测试占位｜批量01｜专项培优｜官网大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 396,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 28,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 315,
+                "resultCount": 58,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP009",
+          "query": "找专家规划素材，体现命题专家和教材编者设计课程",
+          "expectedCode": "expert_planning",
+          "expectedName": "专家规划",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 223.17,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "expert_planning"
+          ],
+          "actualResultCodes": [
+            "expert_planning"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量04｜专家规划｜品牌手册、官网大图",
+            "测试占位｜批量17｜专家规划｜PPT、官网小图",
+            "测试占位｜专家规划｜PPT、品牌手册",
+            "测试占位｜批量13｜专家规划｜官网大图",
+            "测试占位｜批量09｜专家规划｜PPT"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 222,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 26,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 142,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 2,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP010",
+          "query": "找学段衔接素材，小升初初升高一体化过渡",
+          "expectedCode": "stage_transition",
+          "expectedName": "学段衔接",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 305.41,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "stage_transition"
+          ],
+          "actualResultCodes": [
+            "stage_transition",
+            "universal_method"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量08｜学段衔接｜PPT",
+            "测试占位｜批量06｜学段衔接｜手机端大图、手机端小图",
+            "测试占位｜批量10｜学段衔接｜手机端大图",
+            "测试占位｜批量11｜学段衔接｜手机端小图",
+            "测试占位｜批量12｜学段衔接｜官网大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 304,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 31,
+                "resultCount": 32,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 237,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP011",
+          "query": "找万能解法素材，展示一题多解和底层方法",
+          "expectedCode": "universal_method",
+          "expectedName": "万能解法",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 234.33,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "universal_method"
+          ],
+          "actualResultCodes": [
+            "universal_method",
+            "ai_learning_plan"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量19｜万能解法｜手机端大图、手机端小图",
+            "测试占位｜批量11｜万能解法｜官网大图",
+            "测试占位｜批量07｜万能解法｜PPT",
+            "测试占位｜批量10｜万能解法｜手机端小图",
+            "测试占位｜批量01｜万能解法｜PPT、官网小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 233,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 26,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 158,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP012",
+          "query": "找 AI 定制学习方案素材，体现根据学情安排学习路径",
+          "expectedCode": "ai_learning_plan",
+          "expectedName": "AI定制学习方案",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 282.56,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "ai_learning_plan"
+          ],
+          "actualResultCodes": [
+            "ai_learning_plan",
+            "ai_tutor_qa"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量09｜AI定制学习方案｜手机端小图",
+            "测试占位｜批量13｜AI定制学习方案｜PPT、手机端大图",
+            "测试占位｜批量05｜AI定制学习方案｜PPT、品牌手册、官网大图",
+            "测试占位｜批量06｜AI定制学习方案｜PPT",
+            "测试占位｜批量18｜AI定制学习方案｜手机端大图、手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 281,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 29,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 196,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP013",
+          "query": "需要 AI 私教答疑素材，能随时提问互动辅导",
+          "expectedCode": "ai_tutor_qa",
+          "expectedName": "AI私教答疑",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 309.69,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "ai_tutor_qa"
+          ],
+          "actualResultCodes": [
+            "ai_tutor_qa"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量13｜AI私教答疑｜PPT、官网小图",
+            "测试占位｜批量04｜AI私教答疑｜PPT、品牌手册、官网大图",
+            "测试占位｜批量11｜AI私教答疑｜PPT、品牌手册",
+            "测试占位｜批量16｜AI私教答疑｜手机端小图、官网小图",
+            "测试占位｜批量03｜AI私教答疑｜手机端大图、手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 307,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 21,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 237,
+                "resultCount": 53,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP014",
+          "query": "找极速预习复习素材，课前课后快速过知识点",
+          "expectedCode": "rapid_preview_review",
+          "expectedName": "极速预习复习",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 478.57,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "rapid_preview_review"
+          ],
+          "actualResultCodes": [
+            "rapid_preview_review",
+            "ai_error_book"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量14｜极速预习复习｜手机端小图、官网小图",
+            "测试占位｜批量09｜极速预习复习｜PPT、品牌手册",
+            "测试占位｜批量15｜极速预习复习｜手机端大图、手机端小图",
+            "测试占位｜批量07｜极速预习复习｜官网大图",
+            "测试占位｜批量10｜极速预习复习｜PPT、手机端大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 477,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 62,
+                "resultCount": 35,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 362,
+                "resultCount": 82,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP015",
+          "query": "找 AI 错题本素材，个人错题归档和错因分析",
+          "expectedCode": "ai_error_book",
+          "expectedName": "AI错题本",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 251.64,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "ai_error_book"
+          ],
+          "actualResultCodes": [
+            "ai_error_book",
+            "human_teacher_supervision"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量01｜AI错题本｜PPT、品牌手册、官网大图",
+            "测试占位｜批量05｜AI错题本｜手机端小图",
+            "测试占位｜批量14｜AI错题本｜手机端大图、手机端小图",
+            "测试占位｜批量10｜AI错题本｜PPT、官网小图",
+            "测试占位｜批量16｜AI错题本｜PPT"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 250,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 25,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 188,
+                "resultCount": 35,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP016",
+          "query": "找真人老师督学素材，老师提醒打卡跟进",
+          "expectedCode": "human_teacher_supervision",
+          "expectedName": "真人老师督学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 253.69,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "human_teacher_supervision"
+          ],
+          "actualResultCodes": [
+            "human_teacher_supervision"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "真人老师督学",
+            "老师帮学生分析问题"
+          ],
+          "resultCount": 2,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 253,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 25,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 192,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 2,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 2,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP017",
+          "query": "找学情报告反馈素材，展示学习时长正确率薄弱点",
+          "expectedCode": "learning_report",
+          "expectedName": "学情报告反馈",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 540.96,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "learning_report"
+          ],
+          "actualResultCodes": [
+            "learning_report",
+            "school_sync"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量02｜学情报告反馈｜手机端大图",
+            "测试占位｜批量15｜学情报告反馈｜品牌手册",
+            "测试占位｜批量19｜学情报告反馈｜官网小图",
+            "测试占位｜批量04｜学情报告反馈｜官网大图",
+            "测试占位｜批量20｜学情报告反馈｜PPT、品牌手册"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 539,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 20,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 483,
+                "resultCount": 103,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP018",
+          "query": "找 PPT 用的拍题精学素材",
+          "expectedCode": "photo_guided_learning",
+          "expectedName": "AI拍题精学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 587.72,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "photo_guided_learning"
+          ],
+          "actualResultCodes": [
+            "photo_guided_learning",
+            "rapid_preview_review"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量04｜AI拍题精学｜PPT",
+            "测试占位｜批量18｜AI拍题精学｜PPT",
+            "测试占位｜批量10｜AI拍题精学｜PPT、品牌手册",
+            "测试占位｜批量12｜AI拍题精学｜PPT、官网小图",
+            "测试占位｜批量11｜AI拍题精学｜PPT、手机端大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 586,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 22,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 525,
+                "resultCount": 74,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP019",
+          "query": "找发朋友圈的学情报告素材",
+          "expectedCode": "learning_report",
+          "expectedName": "学情报告反馈",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 286.08,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "learning_report"
+          ],
+          "actualResultCodes": [
+            "learning_report",
+            "school_sync"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量02｜学情报告反馈｜手机端大图",
+            "测试占位｜批量15｜学情报告反馈｜品牌手册",
+            "测试占位｜批量19｜学情报告反馈｜官网小图",
+            "测试占位｜批量04｜学情报告反馈｜官网大图",
+            "测试占位｜批量20｜学情报告反馈｜PPT、品牌手册"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 285,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 21,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 233,
+                "resultCount": 45,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP020",
+          "query": "找官网大图用的 AI 定制学习方案素材",
+          "expectedCode": "ai_learning_plan",
+          "expectedName": "AI定制学习方案",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 248.39,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "ai_learning_plan"
+          ],
+          "actualResultCodes": [
+            "ai_learning_plan",
+            "ai_tutor_qa"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量10｜AI定制学习方案｜官网大图",
+            "测试占位｜批量11｜AI定制学习方案｜官网小图",
+            "测试占位｜批量01｜AI定制学习方案｜品牌手册、官网大图",
+            "测试占位｜批量15｜AI定制学习方案｜品牌手册、官网大图",
+            "测试占位｜批量16｜AI定制学习方案｜手机端大图、官网大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 246,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 24,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 167,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP021",
+          "query": "找品牌手册里的专家规划教研背书素材",
+          "expectedCode": "expert_planning",
+          "expectedName": "专家规划",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 200.82,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "expert_planning"
+          ],
+          "actualResultCodes": [
+            "expert_planning",
+            "stage_transition"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量10｜专家规划｜品牌手册",
+            "测试占位｜专家规划｜PPT、品牌手册",
+            "测试占位｜批量15｜专家规划｜PPT、品牌手册",
+            "测试占位｜批量01｜专家规划｜PPT、品牌手册",
+            "测试占位｜批量04｜专家规划｜品牌手册、官网大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 199,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 25,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 142,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP022",
+          "query": "找手机端小图用的课后小测结果素材",
+          "expectedCode": "instant_quiz",
+          "expectedName": "课后小测",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 407.88,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "instant_quiz"
+          ],
+          "actualResultCodes": [
+            "instant_quiz",
+            "new_curriculum_prediction"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量16｜课后小测｜手机端小图",
+            "测试占位｜批量02｜课后小测｜手机端小图",
+            "测试占位｜批量01｜课后小测｜手机端大图",
+            "测试占位｜批量15｜课后小测｜手机端大图",
+            "测试占位｜课后小测｜手机端大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 406,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 26,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 339,
+                "resultCount": 80,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP023",
+          "query": "找能表达新中考新题型预测的素材",
+          "expectedCode": "new_curriculum_prediction",
+          "expectedName": "新课标新考法预测",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 292.33,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "new_curriculum_prediction"
+          ],
+          "actualResultCodes": [
+            "new_curriculum_prediction",
+            "ai_learning_plan",
+            "focused_excellence"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "数据验证，真命中",
+            "创始人理念",
+            "新中考培优",
+            "测试占位｜批量10｜新课标新考法预测｜手机端大图、手机端小图",
+            "测试占位｜批量04｜新课标新考法预测｜PPT、品牌手册"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 289,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 25,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 220,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP024",
+          "query": "找一张同步考点里专项突破的图片",
+          "expectedCode": "focused_excellence",
+          "expectedName": "专项培优",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 231.84,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "focused_excellence"
+          ],
+          "actualResultCodes": [
+            "focused_excellence",
+            "new_curriculum_prediction"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "考前专项突破",
+            "重难点培优",
+            "高频错题",
+            "考前突击",
+            "测试占位｜批量10｜新课标新考法预测｜手机端大图、手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 230,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 24,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 170,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSP025",
+          "query": "找一张同步伴学里真人老师持续跟进的图",
+          "expectedCode": "human_teacher_supervision",
+          "expectedName": "真人老师督学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 171.44,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "human_teacher_supervision"
+          ],
+          "actualResultCodes": [
+            "human_teacher_supervision",
+            "learning_report"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "老师给学生做详细规划",
+            "测试占位｜批量20｜真人老师督学｜官网小图",
+            "测试占位｜批量03｜真人老师督学｜手机端大图",
+            "测试占位｜批量19｜真人老师督学｜官网大图",
+            "测试占位｜批量04｜真人老师督学｜手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 170,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 21,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 146,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "business_fuzzy_25",
+      "title": "业务端模糊话术 25 条",
+      "sourceDoc": "docs/BUSINESS_SIDE_FUZZY_SEARCH_EVAL_25_2026-07-30.md",
+      "summary": {
+        "caseCount": 25,
+        "intentHit": "18/25",
+        "queryTypeHit": "3/25",
+        "top5ExpectedAssetHit": "17/25",
+        "zeroResultIds": [
+          "BSF002",
+          "BSF004",
+          "BSF005",
+          "BSF014",
+          "BSF022"
+        ],
+        "outOfScopeIds": [
+          "BSF003",
+          "BSF013",
+          "BSF025"
+        ],
+        "errorIds": [],
+        "p95LatencyMs": 328.7
+      },
+      "results": [
+        {
+          "id": "BSF001",
+          "query": "想找能说明孩子在课外学的和学校最近教材章节对得上的图",
+          "expectedCode": "school_sync",
+          "expectedName": "同步校内",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 113.48,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "school_sync"
+          ],
+          "actualResultCodes": [
+            "school_sync",
+            "learning_report",
+            "animation_explanation"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量18｜同步校内｜手机端小图",
+            "测试占位｜批量15｜学情报告反馈｜品牌手册",
+            "测试占位｜批量12｜同步校内｜手机端小图、官网小图",
+            "测试占位｜批量20｜同步校内｜官网小图",
+            "测试占位｜批量06｜同步校内｜官网小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 112,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 65,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 44,
+                "resultCount": 25,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF002",
+          "query": "要一张把看不见的知识变成能动过程的画面",
+          "expectedCode": "animation_explanation",
+          "expectedName": "动画精讲",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 16.5,
+          "error": "",
+          "actualQueryType": null,
+          "actualIntentCodes": [],
+          "actualResultCodes": [],
+          "intentHit": false,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [],
+          "resultCount": 0,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 16,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 6,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 8,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "没有可复核候选"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF003",
+          "query": "刚讲完一个知识点，想配个马上练几题确认的素材",
+          "expectedCode": "instant_quiz",
+          "expectedName": "课后小测",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 71.9,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "animation_explanation"
+          ],
+          "actualResultCodes": [
+            "animation_explanation",
+            "school_sync"
+          ],
+          "intentHit": false,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [
+            "53476a44-8cdc-4552-a4db-da0e889b064c",
+            "629ae621-f189-4c10-ab90-92be45fbf685",
+            "818565de-a6ab-4962-a393-9791023982c5",
+            "2bde972f-2e24-4f87-9611-8a2a8ad60f4e",
+            "9e7cd2f3-0b61-4af7-a604-655aedddc1ab"
+          ],
+          "topTitles": [
+            "测试占位｜批量14｜动画精讲｜PPT",
+            "测试占位｜批量11｜动画精讲｜手机端小图、官网小图",
+            "测试占位｜批量02｜动画精讲｜手机端大图",
+            "测试占位｜批量20｜同步校内｜官网小图",
+            "测试占位｜批量17｜动画精讲｜手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 71,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 23,
+                "resultCount": 32,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 45,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF004",
+          "query": "现在考试越来越像真实场景题，想找能体现这种变化的图",
+          "expectedCode": "new_curriculum_prediction",
+          "expectedName": "新课标新考法预测",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 17.32,
+          "error": "",
+          "actualQueryType": null,
+          "actualIntentCodes": [],
+          "actualResultCodes": [],
+          "intentHit": false,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [],
+          "resultCount": 0,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 17,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 6,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 9,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "没有可复核候选"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF005",
+          "query": "想把孩子容易丢分的模块单独拎出来练的画面",
+          "expectedCode": "focused_excellence",
+          "expectedName": "专项培优",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 17.14,
+          "error": "",
+          "actualQueryType": null,
+          "actualIntentCodes": [],
+          "actualResultCodes": [],
+          "intentHit": false,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [],
+          "resultCount": 0,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 17,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 6,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 9,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "没有可复核候选"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF006",
+          "query": "一题讲完后还能顺着练同一类题的素材",
+          "expectedCode": "transfer_practice",
+          "expectedName": "举一反三",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 168.51,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "transfer_practice"
+          ],
+          "actualResultCodes": [
+            "transfer_practice",
+            "expert_planning"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜举一反三｜官网小图",
+            "测试占位｜批量15｜举一反三｜官网小图",
+            "测试占位｜批量09｜举一反三｜PPT、品牌手册、官网大图",
+            "测试占位｜批量06｜举一反三｜手机端大图、官网大图",
+            "测试占位｜批量04｜举一反三｜PPT、官网小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 167,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 23,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 141,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF007",
+          "query": "想找有教研和命题背景的人参与设计课程的图",
+          "expectedCode": "expert_planning",
+          "expectedName": "专家规划",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 69.06,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "expert_planning"
+          ],
+          "actualResultCodes": [
+            "expert_planning",
+            "transfer_practice"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量04｜专家规划｜品牌手册、官网大图",
+            "测试占位｜批量15｜举一反三｜官网小图",
+            "测试占位｜批量02｜专家规划｜PPT、手机端大图",
+            "测试占位｜批量17｜专家规划｜PPT、官网小图",
+            "测试占位｜批量20｜举一反三｜手机端大图、官网大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 68,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 22,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 42,
+                "resultCount": 25,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF008",
+          "query": "孩子升到新学段怕断层，想找能表达平稳过渡的素材",
+          "expectedCode": "stage_transition",
+          "expectedName": "学段衔接",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 201.0,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "stage_transition"
+          ],
+          "actualResultCodes": [
+            "stage_transition",
+            "universal_method",
+            "ai_learning_plan"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量08｜学段衔接｜PPT",
+            "测试占位｜批量06｜学段衔接｜手机端大图、手机端小图",
+            "测试占位｜批量10｜学段衔接｜手机端大图",
+            "ai定制规划",
+            "测试占位｜批量17｜学段衔接｜品牌手册、官网大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 200,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 24,
+                "resultCount": 32,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 172,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF009",
+          "query": "不是只记公式，想体现底层方法和多种解法的图",
+          "expectedCode": "universal_method",
+          "expectedName": "万能解法",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 68.25,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "universal_method"
+          ],
+          "actualResultCodes": [
+            "universal_method",
+            "stage_transition",
+            "ai_learning_plan"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量19｜万能解法｜手机端大图、手机端小图",
+            "测试占位｜批量11｜万能解法｜官网大图",
+            "测试占位｜批量10｜学段衔接｜手机端大图",
+            "测试占位｜批量07｜万能解法｜PPT",
+            "测试占位｜批量10｜万能解法｜手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 67,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 22,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 42,
+                "resultCount": 25,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF010",
+          "query": "想表达系统会根据孩子情况安排下一步学什么",
+          "expectedCode": "ai_learning_plan",
+          "expectedName": "AI定制学习方案",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 77.9,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "ai_learning_plan"
+          ],
+          "actualResultCodes": [
+            "ai_learning_plan",
+            "ai_tutor_qa",
+            "universal_method"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量09｜AI定制学习方案｜手机端小图",
+            "测试占位｜批量11｜AI定制学习方案｜官网小图",
+            "测试占位｜批量13｜AI定制学习方案｜PPT、手机端大图",
+            "测试占位｜批量15｜AI定制学习方案｜品牌手册、官网大图",
+            "测试占位｜批量10｜万能解法｜手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 76,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 23,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 50,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF011",
+          "query": "孩子做题中途卡住，想找可以继续追问的 AI 辅导图",
+          "expectedCode": "ai_tutor_qa",
+          "expectedName": "AI私教答疑",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 237.11,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "ai_tutor_qa"
+          ],
+          "actualResultCodes": [
+            "ai_tutor_qa",
+            "ai_learning_plan"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "ai私教",
+            "测试占位｜批量13｜AI私教答疑｜PPT、官网小图",
+            "测试占位｜批量04｜AI私教答疑｜PPT、品牌手册、官网大图",
+            "测试占位｜批量15｜AI定制学习方案｜品牌手册、官网大图",
+            "测试占位｜批量11｜AI私教答疑｜PPT、品牌手册"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 235,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 19,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 212,
+                "resultCount": 52,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF012",
+          "query": "拍了不会的题后，希望它先带着孩子想步骤的素材",
+          "expectedCode": "photo_guided_learning",
+          "expectedName": "AI拍题精学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 107.6,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "photo_guided_learning"
+          ],
+          "actualResultCodes": [
+            "photo_guided_learning"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量07｜AI拍题精学｜手机端小图",
+            "测试占位｜批量08｜AI拍题精学｜官网大图",
+            "测试占位｜AI拍题精学｜手机端小图",
+            "测试占位｜批量04｜AI拍题精学｜PPT",
+            "测试占位｜批量18｜AI拍题精学｜PPT"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 106,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 23,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 80,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF013",
+          "query": "课前时间很短，想快速把待学内容过一遍的图",
+          "expectedCode": "rapid_preview_review",
+          "expectedName": "极速预习复习",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 225.33,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "rapid_preview_review"
+          ],
+          "actualResultCodes": [
+            "school_sync",
+            "stage_transition"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [
+            "170de44b-4f56-42c5-9b86-f486d12d0995",
+            "53ed011f-e1f3-4011-ba34-3e09755be1aa",
+            "4b42a605-222c-4f77-a315-afd1baa2fca6",
+            "6cb7729a-fe49-4740-b045-7921862aee5a",
+            "97bb8e7f-d774-4c87-8f53-ebd76f83795f"
+          ],
+          "topTitles": [
+            "测试占位｜批量18｜同步校内｜手机端小图",
+            "测试占位｜批量06｜同步校内｜官网小图",
+            "测试占位｜批量13｜同步校内｜手机端大图、手机端小图",
+            "测试占位｜批量11｜同步校内｜手机端大图、官网大图",
+            "教材同步"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 224,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 20,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 200,
+                "resultCount": 51,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF014",
+          "query": "线下做错的题能沉淀下来以后再复练的图",
+          "expectedCode": "ai_error_book",
+          "expectedName": "AI错题本",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 17.07,
+          "error": "",
+          "actualQueryType": null,
+          "actualIntentCodes": [],
+          "actualResultCodes": [],
+          "intentHit": false,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [],
+          "resultCount": 0,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 17,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 6,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 8,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "没有可复核候选"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF015",
+          "query": "不想只靠家长催，想表达有人持续盯学习过程的图",
+          "expectedCode": "human_teacher_supervision",
+          "expectedName": "真人老师督学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 76.25,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "human_teacher_supervision"
+          ],
+          "actualResultCodes": [
+            "ai_error_book",
+            "human_teacher_supervision",
+            "learning_report"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量05｜AI错题本｜手机端小图",
+            "测试占位｜批量20｜真人老师督学｜官网小图",
+            "测试占位｜批量15｜AI错题本｜PPT、品牌手册、官网大图",
+            "测试占位｜批量10｜AI错题本｜PPT、官网小图",
+            "测试占位｜批量03｜真人老师督学｜手机端大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 75,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 22,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 50,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF016",
+          "query": "业务想展示家长能看到阶段学习数据和薄弱点的报告图",
+          "expectedCode": "learning_report",
+          "expectedName": "学情报告反馈",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 424.59,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "learning_report"
+          ],
+          "actualResultCodes": [
+            "learning_report",
+            "school_sync"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "家长看到学习结果",
+            "测试占位｜批量02｜学情报告反馈｜手机端大图",
+            "测试占位｜批量15｜学情报告反馈｜品牌手册",
+            "测试占位｜批量19｜学情报告反馈｜官网小图",
+            "测试占位｜批量04｜学情报告反馈｜官网大图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 423,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 24,
+                "resultCount": 26,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 351,
+                "resultCount": 58,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF017",
+          "query": "想表达课程不是另起一套，而是跟着课本章节走",
+          "expectedCode": "school_sync",
+          "expectedName": "同步校内",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 328.7,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "school_sync",
+            "rapid_preview_review"
+          ],
+          "actualResultCodes": [
+            "school_sync",
+            "learning_report",
+            "animation_explanation"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量18｜同步校内｜手机端小图",
+            "测试占位｜批量15｜学情报告反馈｜品牌手册",
+            "测试占位｜批量12｜同步校内｜手机端小图、官网小图",
+            "测试占位｜批量20｜同步校内｜官网小图",
+            "测试占位｜批量06｜同步校内｜官网小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 327,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 53,
+                "resultCount": 35,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 269,
+                "resultCount": 56,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF018",
+          "query": "想要那种把难概念讲成小故事、孩子愿意看的画面",
+          "expectedCode": "animation_explanation",
+          "expectedName": "动画精讲",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 90.24,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "animation_explanation"
+          ],
+          "actualResultCodes": [
+            "animation_explanation",
+            "school_sync"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量14｜动画精讲｜PPT",
+            "测试占位｜批量11｜动画精讲｜手机端小图、官网小图",
+            "测试占位｜批量02｜动画精讲｜手机端大图",
+            "测试占位｜批量20｜同步校内｜官网小图",
+            "测试占位｜批量17｜动画精讲｜手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 88,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 25,
+                "resultCount": 32,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 59,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF019",
+          "query": "希望素材能表现学完后马上知道到底会不会",
+          "expectedCode": "instant_quiz",
+          "expectedName": "课后小测",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 77.82,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "instant_quiz"
+          ],
+          "actualResultCodes": [
+            "instant_quiz",
+            "new_curriculum_prediction"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量01｜课后小测｜手机端大图",
+            "测试占位｜批量15｜课后小测｜手机端大图",
+            "测试占位｜课后小测｜手机端大图",
+            "测试占位｜批量19｜课后小测｜PPT、品牌手册",
+            "测试占位｜批量11｜课后小测｜手机端大图、手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 76,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 27,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 46,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF020",
+          "query": "想表达针对压轴题和高频错题集中突破",
+          "expectedCode": "focused_excellence",
+          "expectedName": "专项培优",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 368.27,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "focused_excellence"
+          ],
+          "actualResultCodes": [
+            "focused_excellence"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "高频错题",
+            "考前突击"
+          ],
+          "resultCount": 2,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 368,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 29,
+                "resultCount": 36,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 308,
+                "resultCount": 59,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 2,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 2,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF021",
+          "query": "想表达从一道题的方法迁移到变式题",
+          "expectedCode": "transfer_practice",
+          "expectedName": "举一反三",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 204.35,
+          "error": "",
+          "actualQueryType": "business_intent_search",
+          "actualIntentCodes": [
+            "transfer_practice"
+          ],
+          "actualResultCodes": [
+            "transfer_practice",
+            "universal_method"
+          ],
+          "intentHit": true,
+          "queryTypeHit": true,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "举一反三"
+          ],
+          "resultCount": 1,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 204,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 22,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 144,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务概念已满足"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "本地高置信业务证据已满足，无需模型补充"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 1,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 1,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF022",
+          "query": "想表达小初高是一套连续培养，不是临时补丁",
+          "expectedCode": "stage_transition",
+          "expectedName": "学段衔接",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 23.6,
+          "error": "",
+          "actualQueryType": null,
+          "actualIntentCodes": [],
+          "actualResultCodes": [],
+          "intentHit": false,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [],
+          "resultCount": 0,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 23,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 7,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 13,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "没有可复核候选"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF023",
+          "query": "想表达 AI 会按目标和时间把每天任务排好",
+          "expectedCode": "ai_learning_plan",
+          "expectedName": "AI定制学习方案",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 260.49,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "ai_learning_plan"
+          ],
+          "actualResultCodes": [
+            "ai_learning_plan",
+            "ai_tutor_qa",
+            "universal_method"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量09｜AI定制学习方案｜手机端小图",
+            "测试占位｜批量11｜AI定制学习方案｜官网小图",
+            "测试占位｜批量13｜AI定制学习方案｜PPT、手机端大图",
+            "测试占位｜批量15｜AI定制学习方案｜品牌手册、官网大图",
+            "测试占位｜批量10｜万能解法｜手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 259,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 33,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 221,
+                "resultCount": 27,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF024",
+          "query": "想表达错题不是拍完就完，而是后面能归类复盘",
+          "expectedCode": "ai_error_book",
+          "expectedName": "AI错题本",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 77.54,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "ai_error_book"
+          ],
+          "actualResultCodes": [
+            "ai_error_book",
+            "human_teacher_supervision"
+          ],
+          "intentHit": true,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": true,
+          "top5OutOfScopeAssetIds": [],
+          "topTitles": [
+            "测试占位｜批量01｜AI错题本｜PPT、品牌手册、官网大图",
+            "测试占位｜批量05｜AI错题本｜手机端小图",
+            "测试占位｜批量14｜AI错题本｜手机端大图、手机端小图",
+            "测试占位｜批量15｜AI错题本｜PPT、品牌手册、官网大图",
+            "测试占位｜批量10｜AI错题本｜PPT、官网小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 76,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 24,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 49,
+                "resultCount": 29,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        },
+        {
+          "id": "BSF025",
+          "query": "想表达老师会定期反馈孩子的问题和执行情况",
+          "expectedCode": "human_teacher_supervision",
+          "expectedName": "真人老师督学",
+          "expectedQueryType": "business_intent_search",
+          "latencyMs": 123.04,
+          "error": "",
+          "actualQueryType": "ambiguous_business_intent_search",
+          "actualIntentCodes": [
+            "instant_quiz"
+          ],
+          "actualResultCodes": [
+            "instant_quiz",
+            "new_curriculum_prediction"
+          ],
+          "intentHit": false,
+          "queryTypeHit": false,
+          "top5ExpectedAssetHit": false,
+          "top5OutOfScopeAssetIds": [
+            "6250d2d9-b9b4-495e-9f26-75a29da77477",
+            "1e713a67-5eaa-4870-a749-5cb4d14259ba",
+            "cb5bf1e6-76e0-4c45-bfb5-47199b77a21b",
+            "df0086b0-4737-4ac9-8a38-a34b1a9e7a50",
+            "94a489e6-7a6a-4a33-a46c-8f48e9e0f6ca"
+          ],
+          "topTitles": [
+            "测试占位｜批量01｜课后小测｜手机端大图",
+            "测试占位｜批量15｜课后小测｜手机端大图",
+            "测试占位｜课后小测｜手机端大图",
+            "测试占位｜批量19｜课后小测｜PPT、品牌手册",
+            "测试占位｜批量11｜课后小测｜手机端大图、手机端小图"
+          ],
+          "resultCount": 12,
+          "fallback": false,
+          "fallbackReason": null,
+          "diagnostics": {
+            "totalDurationMs": 121,
+            "timedOut": false,
+            "rerankerUsed": false,
+            "cacheHit": false,
+            "degradedSources": [],
+            "branches": [
+              {
+                "source": "local_concepts",
+                "status": "ok",
+                "durationMs": 29,
+                "resultCount": 30,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "database",
+                "status": "ok",
+                "durationMs": 88,
+                "resultCount": 28,
+                "cacheHit": false,
+                "detail": null
+              },
+              {
+                "source": "meilisearch",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "搜索增强未启用或服务未配置"
+              },
+              {
+                "source": "embedding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "服务未配置"
+              },
+              {
+                "source": "query_understanding",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 0,
+                "cacheHit": false,
+                "detail": "查询理解模型未配置，使用本地固定目录兜底"
+              },
+              {
+                "source": "reranker",
+                "status": "skipped",
+                "durationMs": 0,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "服务未配置或候选不足"
+              },
+              {
+                "source": "candidate_review",
+                "status": "ok",
+                "durationMs": 1,
+                "resultCount": 20,
+                "cacheHit": false,
+                "detail": "第四层候选图片复核未完成，保留原排序"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

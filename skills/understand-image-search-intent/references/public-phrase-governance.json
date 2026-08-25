@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-23.1",
+  "version": "2026-08-24.10",
   "frozenSellingPointMap": "selling-point-map.json",
   "purpose": "在不改变六大体系、16 个核心卖点、稳定 code、主体系和语义边界的前提下，治理公共话术入口与自然语言覆盖。",
   "entryRules": {
@@ -8,6 +8,7 @@
     "novice": "主要表达痛点、担忧和期望结果；优先由 Skill 结合上下文理解，并作为评测用例，不把每个长句都复制进公共话术库。",
     "shared": "跨卖点共用的短词或入口只能整句探索或待消歧，不能在长句中单独触发高置信卖点。",
     "explorationCombination": "无拍摄对象的拍照入口 + 讲解/点拨目的组成的长句，在没有更强单卖点证据时按探索型覆盖固定候选集合，不硬选唯一卖点，也不放行全库兜底。",
+    "composition": "边界唯一的自然语言可按对象、时间、动作和目的等语义轴组合识别；完整长句只进入校准评测，不逐句复制为公共话术。",
     "nonRouting": "提分、学习不好、跟不上、省心等宽泛结果没有对象和动作证据时，不硬判卖点。"
   },
   "limits": {
@@ -60,6 +61,917 @@
       "entryTerms": ["拍照", "拍一下", "一拍", "随手拍"],
       "purposeTerms": ["讲解", "解析", "点拨", "马上讲", "给你讲", "即刻讲"]
     }
+  ],
+  "compositionSignals": [
+    {
+      "id": "new-curriculum-reform-trend",
+      "code": "new_curriculum_prediction",
+      "proofPointCode": "pp_exam_reform_trend_alignment",
+      "termGroups": [
+        {
+          "name": "课标改革或新考试对象",
+          "terms": ["新课标", "新中考", "新高考", "考试改革", "课标改革", "新考法", "新教材考法", "新旧题型", "命题趋势", "考试怎么变", "怎么考"]
+        },
+        {
+          "name": "趋势拆解或变化理解目的",
+          "terms": ["趋势", "变化", "怎么考", "怎么变", "拆解", "理解", "研究", "应对", "新旧区别", "命题", "考法", "改革方向", "宣传图", "卖点"]
+        }
+      ],
+      "excludedTerms": ["教材同步", "教材版本", "版本适配", "人教版", "北师大版", "学校进度", "课后小测", "学完即练", "AI定制班", "学习计划", "每日任务", "个人成绩", "真人", "周报", "错题本", "当前题", "同类题", "变式题", "一题多解", "专项突破", "重难点", "压轴"],
+      "evidenceTerms": ["课标改革方向", "命题趋势", "新旧题型区别"],
+      "confidence": 0.95
+    },
+    {
+      "id": "new-format-course-practice",
+      "code": "new_curriculum_prediction",
+      "proofPointCode": "pp_exam_new_format_course_practice",
+      "termGroups": [
+        {
+          "name": "新题型新情境或跨学科对象",
+          "terms": ["新题型", "新情境", "跨学科", "开放探究", "新中考题型", "新课标题", "新考法", "新题型训练", "跨学科题", "开放探究题"]
+        },
+        {
+          "name": "专项课程题库或训练动作",
+          "terms": ["训练", "练", "课程", "题库", "专项课", "怎么练", "材料", "对比", "新旧题型对比", "不会做", "看不懂", "宣传图", "证明图"]
+        }
+      ],
+      "excludedTerms": ["教材同步", "教材版本", "学校进度", "个人错题", "错题本", "历史错题", "全网高频错题", "高频错题", "当前题", "同类题", "变式题", "一题多解", "万能解法", "AI定制", "真人", "周报"],
+      "evidenceTerms": ["新题型训练", "专属题库", "练新情境题"],
+      "confidence": 0.95
+    },
+    {
+      "id": "transfer-principle-first",
+      "code": "transfer_practice",
+      "proofPointCode": "pp_exam_transfer_principle_first",
+      "termGroups": [
+        {
+          "name": "出题原理或底层逻辑对象",
+          "terms": ["理解原理", "出题原理", "出题逻辑", "底层逻辑", "不是背模板", "不背模板", "不是只记结论", "解题路径", "题目本质"]
+        },
+        {
+          "name": "举一反三或换题迁移目的",
+          "terms": ["举一反三", "换题也会", "一道题会一类题", "一类题", "换数字", "换条件", "换问法", "陌生题", "迁移", "会做", "不慌"]
+        }
+      ],
+      "excludedTerms": ["同一道题", "同题", "一题多解", "不同解法", "不同方法", "不同路径", "万能解法", "错题本", "个人错题", "历史错题", "新课标", "新题型", "考前", "真人", "周报"],
+      "evidenceTerms": ["先讲原理", "理解出题逻辑", "不是只记结论"],
+      "confidence": 0.95
+    },
+    {
+      "id": "transfer-variant-practice",
+      "code": "transfer_practice",
+      "proofPointCode": "pp_exam_transfer_variant_practice",
+      "termGroups": [
+        {
+          "name": "当前题讲完或一道题入口",
+          "terms": ["一道题", "这道题", "当前题", "讲完题", "讲解后", "拍完题讲解后", "例题", "这一题", "会这道题"]
+        },
+        {
+          "name": "同类相似变式迁移动作",
+          "terms": ["同类题", "相似题", "变式题", "换数字", "换条件", "换问法", "一类题", "继续练", "再做", "推荐几道", "迁移训练", "举一反三"]
+        }
+      ],
+      "excludedTerms": ["同一道题不同方法", "同一道题不同解法", "一题多解", "不同方法怎么解", "不同解法", "万能解法", "个人错题", "历史错题", "错题后", "错题本", "自己的错题", "全网", "群体", "高频错题", "真人", "周报"],
+      "evidenceTerms": ["一道题会一类题", "变式题", "同类题迁移"],
+      "confidence": 0.96
+    },
+    {
+      "id": "expert-team-credentials",
+      "code": "expert_planning",
+      "proofPointCode": "pp_cultivation_expert_team_credentials",
+      "termGroups": [
+        {
+          "name": "命题教材或教研专家对象",
+          "terms": ["命题专家", "教材编者", "出题人", "专家团队", "教研专家", "中高考命题专家", "编教材的人", "真正出考卷的人", "专家背书", "专家title"]
+        },
+        {
+          "name": "课程设计把关或依据目的",
+          "terms": ["设计", "把关", "操刀", "课程", "课程体系", "教研", "依据", "背书", "视角", "专家", "证明", "宣传图"]
+        }
+      ],
+      "excludedTerms": ["AI定制", "个性化", "每日任务", "个人课表", "孩子情况", "真实成绩", "学习计划", "新课标", "新题型", "新考法", "命题趋势", "小升初", "初升高", "衔接", "真人老师", "督学", "周报"],
+      "evidenceTerms": ["命题专家是谁", "教材编者设计", "出题人视角"],
+      "confidence": 0.95
+    },
+    {
+      "id": "expert-path-design",
+      "code": "expert_planning",
+      "proofPointCode": "pp_cultivation_expert_path_design",
+      "termGroups": [
+        {
+          "name": "通用课程体系或长期路径对象",
+          "terms": ["课程体系", "长期学习路径", "能力进阶", "课程顺序", "长期设计", "不走弯路", "每一步学习", "系统教研", "教研把关", "学习路径"]
+        },
+        {
+          "name": "专家设计把关或进阶规划动作",
+          "terms": ["设计", "把关", "规划", "进阶", "长期", "课程顺序", "不走弯路", "每一步", "教研", "专家", "体系"]
+        }
+      ],
+      "excludedTerms": ["AI定制", "个性化", "每日任务", "个人课表", "自动生成", "孩子真实成绩", "孩子情况", "每周报告", "周报", "真人老师", "小升初", "初升高", "衔接计划"],
+      "evidenceTerms": ["课程体系怎么设计", "长期学习路径", "专家把关课程顺序"],
+      "confidence": 0.94
+    },
+    {
+      "id": "stage-bridge-courses",
+      "code": "stage_transition",
+      "proofPointCode": "pp_cultivation_stage_bridge_courses",
+      "termGroups": [
+        {
+          "name": "升学新学段或知识断层对象",
+          "terms": ["小升初", "初升高", "幼小衔接", "升学", "新学段", "知识断层", "难度断层", "衔接期", "过渡期", "升学后", "马上初中", "马上高中"]
+        },
+        {
+          "name": "衔接过渡或适应课程动作",
+          "terms": ["衔接", "过渡", "适应", "跟不上", "接不上", "衔接课", "过渡课", "提前适应", "补断层", "平稳", "课程", "宣传图"]
+        }
+      ],
+      "excludedTerms": ["教材版本", "课程目录", "学校进度", "人教版", "北师大版", "个人课表", "每天时间", "AI定制", "学习计划", "真人", "周报", "一题多解", "同类题", "变式题"],
+      "evidenceTerms": ["小升初衔接课", "初升高衔接课", "知识断层怎么补"],
+      "confidence": 0.95
+    },
+    {
+      "id": "stage-full-cycle-coverage",
+      "code": "stage_transition",
+      "proofPointCode": "pp_cultivation_stage_full_cycle_coverage",
+      "termGroups": [
+        {
+          "name": "小初高全学段或长期覆盖对象",
+          "terms": ["小初高", "小初高一体化", "从小学到高中", "小学到高中", "全学段", "12年", "从低年级到高年级", "高中毕业", "学到高中", "到高中", "高中", "长期课程"]
+        },
+        {
+          "name": "连续覆盖或一站式解决动作",
+          "terms": ["一体化", "连续", "全包", "覆盖", "一站式", "持续", "持续学", "不用换体系", "长期", "课程体系", "学习路径", "省心"]
+        }
+      ],
+      "excludedTerms": ["AI定制", "个人课表", "每日任务", "孩子成绩", "真人", "周报", "教材版本同步", "一题多解", "同类题"],
+      "evidenceTerms": ["小初高一体化", "全学段课程", "12 年学习路径"],
+      "confidence": 0.94
+    },
+    {
+      "id": "universal-multiple-paths",
+      "code": "universal_method",
+      "proofPointCode": "pp_cultivation_method_multiple_paths",
+      "termGroups": [
+        {
+          "name": "同一道题或一题多解对象",
+          "terms": ["一题多解", "同一道题", "同题", "这一题", "一道题", "万能解法", "题目多种路径", "条件", "从条件推结论", "通用解法"]
+        },
+        {
+          "name": "不同方法路径或通用拆解动作",
+          "terms": ["不同方法", "不同解法", "不同路径", "多种方法", "多种解法", "万能解法", "通用解法", "从条件推结论", "底层逻辑怎么拆", "多路径"]
+        }
+      ],
+      "excludedTerms": ["同类题", "相似题", "变式题", "换数字", "换条件", "换问法", "推荐几道", "错题本", "个人错题", "历史错题", "拍题后", "新课标", "真人", "周报"],
+      "evidenceTerms": ["一题多解", "通用解法", "题目多种路径"],
+      "confidence": 0.96
+    },
+    {
+      "id": "universal-thinking-foundation",
+      "code": "universal_method",
+      "proofPointCode": "pp_cultivation_method_transfer_foundation",
+      "termGroups": [
+        {
+          "name": "死记硬背或底层思维痛点",
+          "terms": ["死记硬背", "背题", "套公式", "填鸭", "学科思维", "底层方法", "通用方法", "底层思维", "底层原理", "理科思维", "理科脑", "长期后劲", "后劲不足", "初二滑坡", "初三滑坡", "撑不住", "陌生题没思路"]
+        },
+        {
+          "name": "方法思维培养或看透本质目的",
+          "terms": ["培养", "形成", "建立", "看透", "分析", "撑不住", "没思路", "不死记", "不是死记硬背", "不是套公式", "底层方法", "通用方法", "学科思维", "理科思维", "后劲", "自己解开", "长期", "真正理解"]
+        }
+      ],
+      "excludedTerms": ["同类题", "相似题", "变式题", "换数字", "换条件", "换问法", "一道题会一类题", "小升初", "初升高", "衔接", "动画讲解", "动画精讲", "真人", "周报", "AI定制"],
+      "evidenceTerms": ["不死记硬背", "建立理科思维", "底层原理"],
+      "confidence": 0.94
+    },
+    {
+      "id": "teacher-diagnosis-plan",
+      "code": "human_teacher_supervision",
+      "proofPointCode": "pp_companion_teacher_diagnosis_plan",
+      "termGroups": [
+        {
+          "name": "真人老师督学或学习管理对象",
+          "terms": ["真人老师", "真人督学", "真人伴学", "督学老师", "督学", "伴学老师", "专属老师", "人工跟进", "家庭教师", "老师", "学习管理"]
+        },
+        {
+          "name": "诊断分析或阶段计划动作",
+          "terms": ["分析问题", "诊断", "学情诊断", "制定计划", "阶段计划", "学习规划", "详细规划", "孩子哪里要改", "规划", "分析", "计划"]
+        }
+      ],
+      "excludedTerms": ["AI私教", "AI答疑", "随时问AI", "AI老师", "系统自动", "AI定制", "学习计划自动生成", "每日任务", "微信周报", "学习周报", "学情报告", "正确率", "学了多久", "快进", "倍速", "不执行", "提醒", "打卡", "回访", "跟进", "督促", "每天"],
+      "evidenceTerms": ["真人老师分析问题", "老师做学习规划", "阶段计划"],
+      "confidence": 0.95
+    },
+    {
+      "id": "teacher-follow-up-supervision",
+      "code": "human_teacher_supervision",
+      "proofPointCode": "pp_companion_teacher_follow_up",
+      "termGroups": [
+        {
+          "name": "真人老师或执行管理对象",
+          "terms": ["真人老师", "真人督学", "真人伴学", "督学老师", "督学", "伴学老师", "专属老师", "老师", "有人管", "管不住", "叫不动", "自律性差", "一管就吵", "催学", "学习监督", "打卡", "督促", "错题复盘", "学习管理"]
+        },
+        {
+          "name": "持续提醒回访或督促动作",
+          "terms": ["提醒", "打卡", "回访", "跟进", "督促", "监督", "催", "接手", "管理", "持续", "每天", "定期", "错题复盘跟进", "执行"]
+        }
+      ],
+      "excludedTerms": ["AI私教", "AI答疑", "随时问AI", "系统自动", "AI定制", "每日任务", "微信周报", "学习周报", "学情报告", "正确率", "学了多久", "快进", "倍速"],
+      "evidenceTerms": ["老师每天提醒", "真人跟进", "打卡督促"],
+      "confidence": 0.95
+    },
+    {
+      "id": "learning-report-core-metrics",
+      "code": "learning_report",
+      "proofPointCode": "pp_companion_report_core_metrics",
+      "termGroups": [
+        {
+          "name": "学习报告或周期学情对象",
+          "terms": ["学情报告", "学习周报", "周报", "家长报告", "学习报告", "学习反馈", "学习数据", "进度报告", "本周", "每周", "过去一周", "学习成果"]
+        },
+        {
+          "name": "内容时长正确率或薄弱指标",
+          "terms": ["学了什么", "学了多久", "学习时长", "总时长", "正确率", "薄弱点", "薄弱知识点", "学习进度", "课程完成", "高频错题", "学习结果", "掌握情况", "进步点"]
+        }
+      ],
+      "excludedTerms": ["学完即练", "课后小测", "看完课马上", "本节课", "马上看看会不会", "AI错题本", "个人错题", "历史错题", "真人老师督促", "真人跟进", "制定计划", "AI定制", "每日任务"],
+      "evidenceTerms": ["学了什么学了多久", "学习周报", "正确率和薄弱点"],
+      "confidence": 0.97
+    },
+    {
+      "id": "learning-report-behavior-signals",
+      "code": "learning_report",
+      "proofPointCode": "pp_companion_report_behavior_signals",
+      "termGroups": [
+        {
+          "name": "学习行为异常或观看行为对象",
+          "terms": ["快进", "倍速", "开小差", "学习时长异常", "异常", "有没有认真学", "盯屏幕", "分心", "观看时长", "单节时长"]
+        },
+        {
+          "name": "报告查看发现或行为透明动作",
+          "terms": ["报告", "看到", "发现", "记录", "透明", "学习行为", "不用盯", "不用一直盯屏幕", "家长", "查看"]
+        }
+      ],
+      "excludedTerms": ["课后小测", "学完即练", "错题本", "个人错题", "真人老师", "督促", "AI定制", "每日任务"],
+      "evidenceTerms": ["有没有快进", "倍速记录", "学习行为报告"],
+      "confidence": 0.96
+    },
+    {
+      "id": "learning-report-parent-delivery",
+      "code": "learning_report",
+      "proofPointCode": "pp_companion_report_parent_delivery",
+      "termGroups": [
+        {
+          "name": "家长端微信或推送入口对象",
+          "terms": ["微信", "小程序", "家长端", "家长", "推送", "每周自动推送", "每周", "周六", "晚上9点", "沙发上", "不再黑盒"]
+        },
+        {
+          "name": "学习周报报告或总结交付动作",
+          "terms": ["周报", "报告", "学习报告", "学习周报", "学情报告", "学习总结", "查看", "收到", "推送", "看一眼", "黑盒", "透明"]
+        }
+      ],
+      "excludedTerms": ["课后小测", "学完即练", "AI错题本", "个人错题", "真人老师督促", "真人跟进", "制定计划", "AI定制", "每日任务"],
+      "evidenceTerms": ["微信周报", "家长小程序", "每周自动推送"],
+      "confidence": 0.95
+    },
+    {
+      "id": "animation-short-concept-lesson",
+      "code": "animation_explanation",
+      "proofPointCode": "pp_animation_pedagogy_design",
+      "termGroups": [
+        {
+          "name": "动画知识点或课堂听懂对象",
+          "terms": ["动画精讲", "动画讲解", "动画课", "动画", "知识点", "难点", "课堂没听懂", "老师讲太快", "老师讲太深", "课程枯燥", "孩子听不懂", "孩子跟不上", "几分钟", "5-8分钟"]
+        },
+        {
+          "name": "讲透拆解或短时补位目的",
+          "terms": ["精讲", "讲解", "讲透", "讲明白", "讲懂", "秒懂", "拆解", "补位", "变简单", "变有趣", "几分钟", "一个点讲透", "知识点讲透", "重听", "补一下", "宣传图"]
+        }
+      ],
+      "excludedTerms": ["拍题", "拍照讲题", "拍题讲解", "不直接给答案", "苏格拉底", "AI思维教练", "错题本", "历史错题", "个人错题", "同类题", "变式题", "课后小测", "学完即练", "学完即测", "随堂测验", "考前", "临考", "月考", "期末", "专项", "题型突破", "重难点", "压轴", "高分", "学习计划", "学习路径", "周报", "真人"],
+      "evidenceTerms": ["5-8 分钟动画微课"],
+      "confidence": 0.94
+    },
+    {
+      "id": "animation-platform-scale-data",
+      "code": "animation_explanation",
+      "proofPointCode": "pp_animation_scale_data",
+      "evidencePointCode": "ep_school_animation_scale_numbers",
+      "termGroups": [
+        {
+          "name": "用户规模或共同选择对象",
+          "terms": ["官方数据规模", "用户数据", "用户规模", "多少人在用", "同学在用", "班上", "学生教师", "学生和老师", "共同选择", "中小学生用户", "全国中小学生", "在校教师", "1.3亿", "400万", "数据图", "数据背书"]
+        },
+        {
+          "name": "数据验证或规模背书目的",
+          "terms": ["数据", "规模", "背书", "验证", "在用", "使用", "选择", "共同选择", "证明", "大概率", "多少人", "全国", "用户"]
+        }
+      ],
+      "excludedTerms": ["AI定制", "定制班", "个性化", "学习计划", "学习路径", "每日任务", "专属方案", "千人千面", "因材施教", "周报", "真人老师", "错题本", "考前", "专项"],
+      "evidenceTerms": ["用户数据", "多少人在用", "用户规模"],
+      "confidence": 0.96
+    },
+    {
+      "id": "animation-abstract-visualization",
+      "code": "animation_explanation",
+      "proofPointCode": "pp_subject_animation_visualization",
+      "termGroups": [
+        {
+          "name": "抽象原理或看不见知识对象",
+          "terms": ["抽象", "抽象知识", "抽象知识点", "抽象原理", "看不见", "原理", "物理", "数学", "地理", "变化过程", "电磁感应", "垂径定理", "锋面雨", "等高线"]
+        },
+        {
+          "name": "动画可视化或故事化呈现动作",
+          "terms": ["动画", "可视化", "演示", "看得见", "变成动画", "变成看得见", "故事化", "动态演示", "证明图"]
+        }
+      ],
+      "excludedTerms": ["拍题", "拍照讲题", "拍题讲解", "不直接给答案", "苏格拉底", "错题本", "同类题", "变式题", "课后小测", "学完即练", "学完即测", "考前", "临考", "月考", "期末", "专项", "重难点", "学习计划", "周报", "真人"],
+      "evidenceTerms": ["抽象原理可视化", "动画演示原理", "看不见的变成看得见"],
+      "confidence": 0.95
+    },
+    {
+      "id": "instant-quiz-after-learning",
+      "code": "instant_quiz",
+      "proofPointCode": "pp_learn_practice_loop",
+      "termGroups": [
+        {
+          "name": "学完当前课或知识点对象",
+          "terms": ["课后小测", "学练测闭环", "学完即练", "学完即测", "随堂测验", "看完课", "学完", "每节课", "本节课", "当前知识点", "孩子说听懂了", "听懂了", "课堂", "课后"]
+        },
+        {
+          "name": "立即练测或确认掌握动作",
+          "terms": ["小测", "测", "自动测", "测试", "测验", "检测", "做题", "练", "即练", "即测", "马上", "立即", "看看会不会", "到底会没会", "确认掌握", "掌握情况", "掌握没有", "掌握度", "正反馈", "本节掌握度"]
+        }
+      ],
+      "excludedTerms": ["错题本", "历史错题", "个人错题", "长期归档", "以后复习", "错因复盘", "周报", "学习周报", "家长报告", "学情报告", "真人", "老师督学", "考前", "临考", "月考", "期末", "专项", "题型突破", "高频错题", "全网", "群体", "拍题", "拍照讲题", "AI私教", "随时问AI", "学习计划"],
+      "evidenceTerms": ["学完即练流程", "看完课马上测", "学完立即做题"],
+      "confidence": 0.95
+    },
+    {
+      "id": "ai-tutor-instant-qa",
+      "code": "ai_tutor_qa",
+      "proofPointCode": "pp_selfstudy_tutor_interactive_qa",
+      "termGroups": [
+        {
+          "name": "AI私教或学习卡住对象",
+          "terms": ["AI私教", "AI答疑", "AI老师", "随时问AI", "随时问", "即时答疑", "学习助手", "学习中遇到问题", "学习卡住", "写作业卡住", "孩子晚上", "晚上", "家长不会辅导", "没人会讲", "家里没人会讲", "有问题", "不懂的问题", "具体问题"]
+        },
+        {
+          "name": "即时互动提问或继续追问动作",
+          "terms": ["答疑", "问", "提问", "互动", "追问", "回答", "即时", "随时", "随问随答", "卡住", "有人帮", "没人会讲", "讲一下", "解决问题", "具体问题", "辅导", "回应"]
+        }
+      ],
+      "excludedTerms": ["真人", "老师督学", "伴学老师", "定期跟进", "打卡", "周报", "学习报告", "学习计划", "学习路径", "个性化学习", "AI定制班", "拍题精学", "拍照讲题", "拍题讲解", "不直接给答案", "苏格拉底", "AI思维教练", "启发式", "一步步引导", "错题本", "历史错题", "个人错题", "动画精讲", "课后小测", "学完即练"],
+      "evidenceTerms": ["随时问 AI", "AI 私教答疑", "对话框追问"],
+      "confidence": 0.95
+    },
+    {
+      "id": "error-book-photo-archive",
+      "code": "ai_error_book",
+      "proofPointCode": "pp_selfstudy_error_photo_capture",
+      "termGroups": [
+        {
+          "name": "个人纸质错题或错题本对象",
+          "terms": ["AI错题本", "智能错题本", "错题本", "错题", "个人错题", "练习册错题", "试卷错题", "纸质错题", "线下错题", "做错的题", "抄错题"]
+        },
+        {
+          "name": "拍照上传整理或归档动作",
+          "terms": ["拍照", "上传", "录入", "自动整理", "自动归档", "归档", "保存", "收集", "线上", "抄下来麻烦", "整理麻烦", "容易忘", "不用手抄"]
+        }
+      ],
+      "excludedTerms": ["当前不会题", "现在这道题", "拍题讲解", "拍照讲题", "分步引导", "不直接给答案", "苏格拉底", "全网", "群体", "大家容易错", "高频错题", "课后小测", "学完即练", "随堂测验", "周报", "学习报告", "真人"],
+      "evidenceTerms": ["拍照录错题", "练习册错题上传", "线上归档"],
+      "confidence": 0.95
+    },
+    {
+      "id": "error-book-history-review",
+      "code": "ai_error_book",
+      "proofPointCode": "pp_selfstudy_error_classification_review",
+      "termGroups": [
+        {
+          "name": "历史个人错题库对象",
+          "terms": ["AI错题本", "智能错题本", "错题本", "历史错题", "个人错题", "自己的错题", "错题库", "错因", "反复错", "做错的题"]
+        },
+        {
+          "name": "分类查询复盘或精准筛选动作",
+          "terms": ["复习", "复盘", "查询", "查", "筛选", "分类", "按学科", "按知识点", "错因复盘", "精准筛选", "持续复盘", "随时查", "以后复习", "考前打开错题库"]
+        }
+      ],
+      "excludedTerms": ["当前不会题", "现在这道题", "拍题讲解", "拍照讲题", "分步引导", "不直接给答案", "苏格拉底", "全网", "群体", "大家容易错", "高频错题", "课后小测", "学完即练", "随堂测验", "周报", "学习报告", "真人"],
+      "evidenceTerms": ["历史错题查询", "分类归档", "错题复盘"],
+      "confidence": 0.95
+    },
+    {
+      "id": "error-book-personal-variant-practice",
+      "code": "ai_error_book",
+      "proofPointCode": "pp_selfstudy_error_variant_recommendation",
+      "termGroups": [
+        {
+          "name": "个人历史错题入口",
+          "terms": ["AI错题本", "智能错题本", "错题本", "历史错题", "个人错题", "自己的错题", "这道错题", "错题后", "从错题出发", "做错的题"]
+        },
+        {
+          "name": "同类相似变式复练动作",
+          "terms": ["同类题", "相似题", "变式题", "同考点", "再练", "复练", "练几道", "推荐同类题", "同类变式", "练会一类题", "减少重复犯错"]
+        }
+      ],
+      "excludedTerms": ["当前题讲完", "当前题", "拍题后", "拍题讲解", "拍照讲题", "举一反三", "换数字", "换条件", "换问法", "全网", "群体", "大家容易错", "高频错题", "专项", "题型突破", "课后小测", "学完即练", "周报", "真人"],
+      "evidenceTerms": ["错题推荐同类题", "错题后再练", "同考点变式题"],
+      "confidence": 0.96
+    },
+    {
+      "id": "ai-personalized-learning-plan",
+      "code": "ai_learning_plan",
+      "proofPointCode": "pp_planning_generated_schedule",
+      "termGroups": [
+        {
+          "name": "个性化定制或学生差异对象",
+          "terms": ["AI定制班", "定制班", "个性化学习", "千人千面", "个性化课程", "因材施教", "AI定制学习", "AI定制", "专属学习方案", "专属课程方案", "个性化学习路径", "学习路径", "学习计划", "不同学生", "不同基础", "每个孩子", "自己的学习方案", "不是所有孩子学一套", "根据水平", "根据薄弱点", "根据学习情况", "AI个性化推荐", "个性化推荐", "个性化教学", "AI规划", "动态调整"]
+        },
+        {
+          "name": "路径课程计划或推荐调整动作",
+          "terms": ["定制", "个性化", "课程", "学习方案", "学习路径", "安排课程", "推荐内容", "学习计划", "自动生成", "规划学习路径", "教学", "动态调整", "持续调整", "因材施教", "千人千面", "不同内容", "匹配不同内容", "不是所有孩子学一套", "专属", "专属课程", "专属课程方案", "自己的学习方案", "每个孩子都有自己的学习方案", "AI个性化推荐", "根据学习情况"]
+        }
+      ],
+      "excludedTerms": ["真人", "老师督学", "伴学", "周报", "报告", "学习成果", "反馈", "拍题", "拍照", "错题本", "错题归档", "历史错题", "课前", "课后", "预习", "复习", "教材同步", "版本适配", "人教版", "北师大版", "高频错题", "压轴", "重难点", "专项突破", "题型突破", "精准补弱", "一题多解", "同一道题", "不同解法", "命题专家", "教材编者", "出题人", "专家把关", "教研把关", "课程体系", "课程顺序", "长期学习路径", "12年学习路径", "小初高", "从小学到高中", "全学段"],
+      "evidenceTerms": ["专属学习路径", "每日课表", "AI 排每天任务"],
+      "confidence": 0.95
+    },
+    {
+      "id": "rapid-preview-before-class",
+      "code": "rapid_preview_review",
+      "proofPointCode": "pp_selfstudy_preview_dual_entry",
+      "evidencePointCode": "ep_selfstudy_fast_preview",
+      "termGroups": [
+        {
+          "name": "课前新课或上课前对象",
+          "terms": ["极速预习", "快速预习", "课前预习", "新课预习", "提前学", "上课前", "课前", "新课", "明天课程", "先学再听课", "课堂", "上课之前", "新课学习前", "每天晚上", "预习", "新知识"]
+        },
+        {
+          "name": "短时预习或课堂准备目的",
+          "terms": ["极速预习", "快速预习", "预习", "快速", "快速过知识点", "5分钟", "5分钟预习", "十分钟", "十分钟预习", "几分钟", "几分钟快速预习", "轻量预习", "快速了解", "快速了解新知识", "提前学", "提前看", "先学", "先学再听课", "提高课堂效率", "课堂效率", "带着问题进课堂", "课前场景", "预习效率", "证明图", "建立认知", "提前知道课堂重点", "课堂重点", "学习前", "新课学习前", "功能适合每天晚上用", "短时间完成预习", "短时间", "短时"]
+        }
+      ],
+      "excludedTerms": ["考前", "临考", "月考", "期中", "期末", "开学考", "模考", "中考", "高考", "错题本", "错题归档", "历史错题", "个人错题", "拍题", "拍照讲题", "拍题讲解", "不直接给答案", "AI思维教练", "苏格拉底", "学习计划", "学习路径", "个性化学习", "AI定制班", "定制班", "因材施教", "教材同步", "教材版本", "版本适配", "人教版", "北师大版", "专项", "专项突破", "题型突破", "精准补弱", "重难点", "压轴", "高分", "真人", "周报", "学情报告"],
+      "evidenceTerms": ["课前拍课本预习", "五分钟预习", "快速回顾当天重点"],
+      "confidence": 0.95
+    },
+    {
+      "id": "rapid-review-after-class",
+      "code": "rapid_preview_review",
+      "proofPointCode": "pp_selfstudy_preview_dual_entry",
+      "evidencePointCode": "ep_selfstudy_fast_review",
+      "termGroups": [
+        {
+          "name": "课后已学或当天内容对象",
+          "terms": ["极速复习", "快速复习", "课后复习", "知识回顾", "快速回顾", "课后", "学完", "学过", "已学", "当天知识", "当天", "知识点", "回忆", "巩固", "复习", "每天", "查漏补缺", "快速查漏补缺", "碎片时间", "碎片时间学习", "学习效率高"]
+        },
+        {
+          "name": "短时回顾巩固或查漏目的",
+          "terms": ["极速复习", "快速复习", "课后复习", "知识回顾", "回顾", "快速回顾", "快速过一遍", "过一遍", "5分钟", "5分钟复习", "十分钟", "十分钟复习", "碎片化复习", "碎片时间", "碎片时间学习", "快速巩固", "轻量复习", "当天复习", "查漏补缺", "快速查漏补缺", "快速回忆", "重新过一遍", "短时间复习", "每天快速巩固", "花很少时间复习", "学习效率高", "课后巩固", "快速回顾重点", "回顾重点", "重点"]
+        }
+      ],
+      "excludedTerms": ["考前", "临考", "月考", "期中", "期末", "开学考", "模考", "中考", "高考", "考试前", "最后阶段", "错题本", "错题归档", "历史错题", "个人错题", "练习册错题", "错因", "同类题", "变式题", "长期归档", "以后复习", "拍题", "拍照讲题", "拍题讲解", "不直接给答案", "AI思维教练", "苏格拉底", "学习计划", "学习路径", "个性化学习", "AI定制班", "定制班", "因材施教", "教材同步", "教材版本", "版本适配", "人教版", "北师大版", "学校进度", "专项", "专项突破", "题型突破", "精准补弱", "重难点", "压轴", "高分", "真人", "周报", "学情报告"],
+      "evidenceTerms": ["课后拍笔记复习", "快速回顾当天重点"],
+      "confidence": 0.95
+    },
+    {
+      "id": "textbook-version-alignment",
+      "code": "school_sync",
+      "proofPointCode": "pp_textbook_version_coverage",
+      "termGroups": [
+        {
+          "name": "教材版本或校内进度对象",
+          "terms": ["教材", "教材同步", "同步教材", "教材版本", "版本适配", "教材版本覆盖", "人教版", "北师大版", "校内同步", "学校进度", "学校进度学", "多教材版本", "全国教材", "全国教材适配", "不同地区", "教材覆盖", "教材覆盖广", "课程目录", "同步校内"]
+        },
+        {
+          "name": "同步适配覆盖或传播目的",
+          "terms": ["同步", "教材同步", "同步教材", "适配", "版本适配", "覆盖", "教材版本覆盖", "人教版", "北师大版", "跟校内同步", "跟学校进度学", "学校进度学", "多教材版本", "全国教材适配", "不同地区都能用", "覆盖广", "卖点", "宣传", "课程目录同步", "校内同步"]
+        }
+      ],
+      "excludedTerms": ["新课标", "新题型", "新考法", "新情境", "跨学科", "考前", "临考", "月考", "期中", "期末", "模考", "专项", "重难点", "压轴", "拍照", "拍课本", "拍笔记", "课前拍", "课后拍", "动画", "抽象", "学完即练", "学完即测", "小测", "错题", "周报", "真人", "个性化计划", "每日任务", "学习计划"],
+      "evidenceTerms": ["教材版本覆盖", "多版本适配", "全学科同步"],
+      "confidence": 0.94
+    },
+    {
+      "id": "photo-question-learning-entry",
+      "code": "photo_guided_learning",
+      "proofPointCode": "pp_selfstudy_photo_question_recognition",
+      "termGroups": [
+        {
+          "name": "拍题或题目输入对象",
+          "terms": ["拍题精学", "AI拍题", "拍照讲题", "拍题讲解", "AI辅导题目", "拍一道", "整页拍题", "拍题功能", "拍题相关", "题目", "讲题"]
+        },
+        {
+          "name": "讲解学习或证明点目的",
+          "terms": ["精学", "拍题", "讲题", "讲解", "辅导", "学一道", "拍一道学一道", "整页拍题", "核心价值", "证明点", "相关", "题目"]
+        }
+      ],
+      "excludedTerms": ["课本", "笔记", "教材", "课前", "课后", "预习", "复习", "错题本", "错题归档", "历史错题", "以后复习", "长期归档", "同类题", "变式题", "高频错题", "全网", "群体", "学完即练", "学完即测", "小测", "周报", "真人", "每日任务", "课程目录", "教材版本"],
+      "evidenceTerms": ["AI拍题精学", "拍题精学", "拍题讲解"],
+      "confidence": 0.94
+    },
+    {
+      "id": "photo-socratic-value-differentiation",
+      "code": "photo_guided_learning",
+      "proofPointCode": "pp_selfstudy_photo_socratic_guidance",
+      "termGroups": [
+        {
+          "name": "拍题或搜答案对比对象",
+          "terms": ["拍题", "AI拍题", "拍题功能", "普通搜题软件", "搜答案", "拍题不是只给答案", "AI一步步讲题", "拍题后还能追问"]
+        },
+        {
+          "name": "分步引导或学会价值",
+          "terms": ["不是只给答案", "只给答案", "不直接给答案", "一步步讲题", "一步步", "追问", "差异化", "区别", "区别于普通搜题软件", "从搜答案到学会", "学会", "核心价值"]
+        }
+      ],
+      "excludedTerms": ["课本", "笔记", "教材", "课前", "课后", "预习", "复习", "错题本", "错题归档", "历史错题", "以后复习", "长期归档", "高频错题", "全网", "群体", "学完即练", "学完即测", "小测", "周报", "真人", "每日任务", "课程目录", "教材版本"],
+      "evidenceTerms": ["不直接给答案", "苏格拉底式提问", "层层追问"],
+      "confidence": 0.95
+    },
+    {
+      "id": "ai-socratic-thinking-coach",
+      "code": "photo_guided_learning",
+      "proofPointCode": "pp_selfstudy_photo_socratic_guidance",
+      "termGroups": [
+        {
+          "name": "AI思维教练或启发式教学对象",
+          "terms": ["AI思维教练", "思维教练", "苏格拉底式教学", "苏格拉底式引导", "AI引导思考", "AI互动教学", "AI教学", "真正的AI教学", "会提问的AI老师", "AI老师", "洋葱AI", "普通搜题软件", "搜答案", "答案", "思路", "解题思路", "独立思考", "思维能力", "引导式讲题", "启发式学习", "AI追问", "连续追问", "一步一步引导", "一步步引导", "不直接给答案", "不是直接搜答案", "AI不是直接告诉答案", "启发而不是灌输"]
+        },
+        {
+          "name": "追问引导或思路培养动作",
+          "terms": ["AI思维教练", "思维教练", "苏格拉底式教学", "苏格拉底式引导", "引导思考", "不直接给答案", "引导式讲题", "启发式学习", "追问", "AI追问", "连续追问", "一步一步引导", "一步步引导", "培养解题思路", "培养独立思考", "自己想出答案", "不是直接搜答案", "从答案到思路", "培养思维能力", "互动教学", "启发而不是灌输", "不是直接告诉答案", "普通搜题软件的区别", "真正的AI教学", "会提问", "证明点"]
+        }
+      ],
+      "excludedTerms": ["课本", "笔记", "教材", "课前", "课后", "预习", "复习", "错题本", "错题归档", "历史错题", "以后复习", "长期归档", "高频错题", "全网", "群体", "学完即练", "学完即测", "小测", "周报", "真人", "每日任务", "课程目录", "教材版本", "一题多解", "不同解法", "万能解法", "同一道题", "变式题", "同类题"],
+      "evidenceTerms": ["苏格拉底式提问", "层层追问", "还原思考过程"],
+      "confidence": 0.96
+    },
+    {
+      "id": "exam-stage-focus-review",
+      "code": "focused_excellence",
+      "proofPointCode": "pp_exam_focus_stage_review",
+      "termGroups": [
+        {
+          "name": "考试节点或临考时间",
+          "terms": ["考前", "临考", "考试前", "月考", "期中", "期末", "开学考", "模考", "中考", "高考", "最后阶段", "短时间", "考试类型", "考什么"]
+        },
+        {
+          "name": "冲刺复习动作或考前传播目的",
+          "terms": ["突击", "冲刺", "复习", "提分", "快速练", "抓重点", "划重点", "重点", "高效", "几天怎么用", "场景", "宣传", "覆盖", "练什么"]
+        }
+      ],
+      "excludedTerms": ["课前", "课后", "课本", "笔记", "当天", "新课标", "新题型", "新考法", "新情境", "跨学科"],
+      "evidenceTerms": ["考前突击", "月考划重点", "期末冲刺"],
+      "confidence": 0.94
+    },
+    {
+      "id": "targeted-module-breakthrough",
+      "code": "focused_excellence",
+      "proofPointCode": "pp_exam_focus_targeted_modules",
+      "termGroups": [
+        {
+          "name": "专项题型或薄弱对象",
+          "terms": ["专项", "专项突破", "专项练习", "题型", "单项", "针对性", "薄弱题型", "薄弱项", "某类题", "一个题型", "核心题型", "单题型", "精准补弱", "哪里不会", "哪里不会练哪里", "选择题", "填空题", "计算题", "解答题", "压轴题"]
+        },
+        {
+          "name": "突破强化或集中训练动作",
+          "terms": ["突破", "练习", "强化", "针对性训练", "集中练", "专项刷", "刷", "训练", "大量练习", "薄弱题型", "精准补弱", "补弱", "练哪里"]
+        }
+      ],
+      "excludedTerms": ["课前", "课后", "课本", "笔记", "考前", "临考", "月考", "期中", "期末", "模考", "高频错题", "全网", "群体", "大家容易错", "错误率", "个人错题", "错题本", "错因", "同类题", "相似题", "变式题", "举一反三", "换数字", "换条件", "换问法", "新课标", "新考法", "新情境", "跨学科", "开放探究"],
+      "evidenceTerms": ["考前专项突破", "按题型专项", "薄弱章节突破"],
+      "confidence": 0.94
+    },
+    {
+      "id": "difficulty-excellence-upgrade",
+      "code": "focused_excellence",
+      "proofPointCode": "pp_exam_focus_targeted_modules",
+      "termGroups": [
+        {
+          "name": "高阶难题或优生对象",
+          "terms": ["重难点", "重难点培优", "难题", "压轴题", "高分", "冲高分", "优生", "学有余力", "成绩好", "90分", "满分", "高阶", "高阶能力", "不是只教基础", "培优能力"]
+        },
+        {
+          "name": "拔高冲分或继续提升动作",
+          "terms": ["重难点", "重难点培优", "培优", "拔高", "突破", "提升", "冲高分", "往满分冲", "继续提升", "进一步提升", "压轴题提升", "冲刺高分", "高分突破", "难题拔高", "优生拔高", "强调", "宣传图", "高阶能力", "不是只教基础", "培优能力"]
+        }
+      ],
+      "excludedTerms": ["课前", "课后", "课本", "笔记", "考前", "临考", "月考", "期中", "期末", "开学考", "模考", "专项突破", "专项练习", "题型突破", "单项强化", "薄弱题型", "薄弱项", "某类题", "一个题型", "核心题型", "单题型", "精准补弱", "哪里不会", "哪里不会练哪里", "针对性训练", "大量练习", "高频错题", "全网", "群体", "大家容易错", "错误率", "个人错题", "错题本", "错因", "同类题", "相似题", "变式题", "举一反三", "换数字", "换条件", "换问法", "新课标", "新考法", "新情境", "跨学科", "开放探究"],
+      "evidenceTerms": ["重难点培优", "压轴题专项", "高中压轴专题"],
+      "confidence": 0.94
+    }
+  ],
+  "businessCalibrationCases": [
+    {"id": "new-curriculum-trend-01", "query": "新课标新考法", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_reform_trend_alignment"},
+    {"id": "new-curriculum-trend-02", "query": "新中考会怎么考", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_reform_trend_alignment"},
+    {"id": "new-curriculum-trend-03", "query": "课标改革方向", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_reform_trend_alignment"},
+    {"id": "new-curriculum-trend-04", "query": "命题趋势拆解", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_reform_trend_alignment"},
+    {"id": "new-curriculum-trend-05", "query": "想找新旧题型区别的卖点", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_reform_trend_alignment"},
+    {"id": "new-curriculum-trend-06", "query": "销售想讲考试改革怎么应对", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_reform_trend_alignment"},
+    {"id": "new-format-practice-01", "query": "新题型训练", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_new_format_course_practice"},
+    {"id": "new-format-practice-02", "query": "新情境题训练", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_new_format_course_practice"},
+    {"id": "new-format-practice-03", "query": "跨学科题怎么练", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_new_format_course_practice"},
+    {"id": "new-format-practice-04", "query": "开放探究题材料", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_new_format_course_practice"},
+    {"id": "new-format-practice-05", "query": "新中考题型看不懂想练", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_new_format_course_practice"},
+    {"id": "new-format-practice-06", "query": "有没有跨学科新情境题证明图", "expectedCode": "new_curriculum_prediction", "expectedProofPointCode": "pp_exam_new_format_course_practice"},
+    {"id": "transfer-principle-01", "query": "理解原理换题也会", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_principle_first"},
+    {"id": "transfer-principle-02", "query": "出题原理一类题", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_principle_first"},
+    {"id": "transfer-principle-03", "query": "不背模板先讲出题原理让孩子会一类题", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_principle_first"},
+    {"id": "transfer-principle-04", "query": "先讲结论背后的出题逻辑换问法也会", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_principle_first"},
+    {"id": "transfer-principle-05", "query": "看懂题目本质才能迁移", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_principle_first"},
+    {"id": "transfer-principle-06", "query": "不要押题预测只想理解出题逻辑举一反三", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_principle_first"},
+    {"id": "transfer-variant-01", "query": "一道题会一类题", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_variant_practice"},
+    {"id": "transfer-variant-02", "query": "讲完题再做同类题", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_variant_practice"},
+    {"id": "transfer-variant-03", "query": "当前题讲解后推荐相似题", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_variant_practice"},
+    {"id": "transfer-variant-04", "query": "这一题换数字换条件还会做", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_variant_practice"},
+    {"id": "transfer-variant-05", "query": "例题后做变式题", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_variant_practice"},
+    {"id": "transfer-variant-06", "query": "拍完题讲解后自动推送几道相似题", "expectedCode": "transfer_practice", "expectedProofPointCode": "pp_exam_transfer_variant_practice"},
+    {"id": "expert-credentials-01", "query": "命题专家设计课程", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_team_credentials"},
+    {"id": "expert-credentials-02", "query": "教材编者设计课程", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_team_credentials"},
+    {"id": "expert-credentials-03", "query": "出题人视角", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_team_credentials"},
+    {"id": "expert-credentials-04", "query": "专家背书证明图", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_team_credentials"},
+    {"id": "expert-credentials-05", "query": "真正出考卷的人设计的课", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_team_credentials"},
+    {"id": "expert-path-01", "query": "课程体系怎么设计", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_path_design"},
+    {"id": "expert-path-02", "query": "长期学习路径设计", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_path_design"},
+    {"id": "expert-path-03", "query": "专家把关课程顺序", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_path_design"},
+    {"id": "expert-path-04", "query": "不走一点弯路的课程体系", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_path_design"},
+    {"id": "expert-path-05", "query": "系统教研把关课程", "expectedCode": "expert_planning", "expectedProofPointCode": "pp_cultivation_expert_path_design"},
+    {"id": "stage-bridge-01", "query": "小升初衔接课", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_bridge_courses"},
+    {"id": "stage-bridge-02", "query": "初升高衔接课", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_bridge_courses"},
+    {"id": "stage-bridge-03", "query": "知识断层怎么补", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_bridge_courses"},
+    {"id": "stage-bridge-04", "query": "新学段适应慢", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_bridge_courses"},
+    {"id": "stage-bridge-05", "query": "升学后突然跟不上", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_bridge_courses"},
+    {"id": "stage-bridge-06", "query": "小升初过渡课程", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_bridge_courses"},
+    {"id": "stage-cycle-01", "query": "小初高一体化", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_full_cycle_coverage"},
+    {"id": "stage-cycle-02", "query": "从小学到高中一站式", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_full_cycle_coverage"},
+    {"id": "stage-cycle-03", "query": "全学段课程覆盖", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_full_cycle_coverage"},
+    {"id": "stage-cycle-04", "query": "12年学习路径", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_full_cycle_coverage"},
+    {"id": "stage-cycle-05", "query": "从低年级到高年级全包", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_full_cycle_coverage"},
+    {"id": "stage-cycle-06", "query": "不用换体系持续学到高中", "expectedCode": "stage_transition", "expectedProofPointCode": "pp_cultivation_stage_full_cycle_coverage"},
+    {"id": "universal-path-01", "query": "一题多解", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_multiple_paths"},
+    {"id": "universal-path-02", "query": "同一道题不同方法", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_multiple_paths"},
+    {"id": "universal-path-03", "query": "同题不同解法", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_multiple_paths"},
+    {"id": "universal-path-04", "query": "万能解法", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_multiple_paths"},
+    {"id": "universal-path-05", "query": "从条件推结论的通用解法", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_multiple_paths"},
+    {"id": "universal-path-06", "query": "底层逻辑怎么拆", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_multiple_paths"},
+    {"id": "universal-foundation-01", "query": "不死记硬背培养底层思维", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_transfer_foundation"},
+    {"id": "universal-foundation-02", "query": "孩子靠背题到初二撑不住", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_transfer_foundation"},
+    {"id": "universal-foundation-03", "query": "套公式遇到陌生题没思路", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_transfer_foundation"},
+    {"id": "universal-foundation-04", "query": "建立理科思维", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_transfer_foundation"},
+    {"id": "universal-foundation-05", "query": "不想填鸭想形成学科思维", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_transfer_foundation"},
+    {"id": "universal-foundation-06", "query": "想培养长期后劲", "expectedCode": "universal_method", "expectedProofPointCode": "pp_cultivation_method_transfer_foundation"},
+    {"id": "teacher-diagnosis-01", "query": "真人老师分析问题", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_diagnosis_plan"},
+    {"id": "teacher-diagnosis-02", "query": "老师做学习规划", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_diagnosis_plan"},
+    {"id": "teacher-diagnosis-03", "query": "督学诊断阶段计划", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_diagnosis_plan"},
+    {"id": "teacher-diagnosis-04", "query": "老师给学生做详细规划", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_diagnosis_plan"},
+    {"id": "teacher-diagnosis-05", "query": "孩子哪里要改让真人老师分析", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_diagnosis_plan"},
+    {"id": "teacher-follow-up-01", "query": "真人老师每天提醒", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_follow_up"},
+    {"id": "teacher-follow-up-02", "query": "打卡督促", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_follow_up"},
+    {"id": "teacher-follow-up-03", "query": "定期回访跟进", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_follow_up"},
+    {"id": "teacher-follow-up-04", "query": "孩子自律性差想找真人老师每天督促", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_follow_up"},
+    {"id": "teacher-follow-up-05", "query": "一管孩子就吵希望有人接手学习管理", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_follow_up"},
+    {"id": "teacher-follow-up-06", "query": "计划定了不执行需要老师跟进", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_follow_up"},
+    {"id": "teacher-follow-up-07", "query": "错题复盘跟进", "expectedCode": "human_teacher_supervision", "expectedProofPointCode": "pp_companion_teacher_follow_up"},
+    {"id": "report-core-01", "query": "学习周报看学了什么学了多久", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_core_metrics"},
+    {"id": "report-core-02", "query": "家长报告看正确率和薄弱点", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_core_metrics"},
+    {"id": "report-core-03", "query": "本周学习时长和正确率", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_core_metrics"},
+    {"id": "report-core-04", "query": "学习进度报告", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_core_metrics"},
+    {"id": "report-core-05", "query": "过去一周学了什么", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_core_metrics"},
+    {"id": "report-core-06", "query": "高频错题薄弱知识点周报", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_core_metrics"},
+    {"id": "report-behavior-01", "query": "快进倍速记录", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_behavior_signals"},
+    {"id": "report-behavior-02", "query": "有没有发现孩子开小差的报告", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_behavior_signals"},
+    {"id": "report-behavior-03", "query": "不用一直盯屏幕也能发现有没有快进", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_behavior_signals"},
+    {"id": "report-behavior-04", "query": "学习时长异常报告", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_behavior_signals"},
+    {"id": "report-parent-01", "query": "微信里看学习周报", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_parent_delivery"},
+    {"id": "report-parent-02", "query": "家长端看学情报告", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_parent_delivery"},
+    {"id": "report-parent-03", "query": "每周自动推送学习总结", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_parent_delivery"},
+    {"id": "report-parent-04", "query": "小程序里收到学习报告", "expectedCode": "learning_report", "expectedProofPointCode": "pp_companion_report_parent_delivery"},
+    {"id": "animation-scale-01", "query": "孩子班上，大概率就有同学在用", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_scale_data"},
+    {"id": "animation-scale-02", "query": "全国1.3亿学生400万教师共同选择", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_scale_data"},
+    {"id": "animation-scale-03", "query": "多少学生老师都在用的数据图", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_scale_data"},
+    {"id": "animation-scale-04", "query": "大规模用户数据背书", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_scale_data"},
+    {"id": "animation-scale-05", "query": "学生和老师共同选择的数据图", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_scale_data"},
+    {"id": "animation-lesson-01", "query": "动画精讲", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-lesson-02", "query": "动画讲解知识点", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-lesson-03", "query": "老师讲太快孩子听不懂想用动画讲明白", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-lesson-04", "query": "课堂没听懂回家用动画课补一下", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-lesson-05", "query": "几分钟讲明白一个知识点", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-lesson-06", "query": "短时间讲透一个知识点", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-lesson-07", "query": "想找听懂难点的动画宣传图", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-lesson-08", "query": "把复杂知识点用动画讲透", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_animation_pedagogy_design"},
+    {"id": "animation-visual-01", "query": "把看不见的知识变成动画", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_subject_animation_visualization"},
+    {"id": "animation-visual-02", "query": "抽象原理用动画演示清楚", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_subject_animation_visualization"},
+    {"id": "animation-visual-03", "query": "物理电磁感应用动画演示", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_subject_animation_visualization"},
+    {"id": "animation-visual-04", "query": "有没有抽象知识变成看得见的证明图", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_subject_animation_visualization"},
+    {"id": "animation-visual-05", "query": "想突出变化过程可视化", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_subject_animation_visualization"},
+    {"id": "animation-visual-06", "query": "数学概念用动画讲清楚", "expectedCode": "animation_explanation", "expectedProofPointCode": "pp_subject_animation_visualization"},
+    {"id": "instant-quiz-01", "query": "课后小测", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-02", "query": "学完即练", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-03", "query": "学完即测", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-04", "query": "看完课马上做题", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-05", "query": "每节课学完检测掌握情况", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-06", "query": "孩子说听懂了想马上看看会不会", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-07", "query": "学完以后到底会没会", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-08", "query": "本节课掌握度", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-09", "query": "课堂学完立即测试", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-10", "query": "销售想讲学完马上练", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-11", "query": "有没有看完课自动测的证明图", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-12", "query": "想突出课后小测有底气", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "ai-tutor-01", "query": "AI私教答疑", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-02", "query": "随时问AI", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-03", "query": "AI老师可以随时提问", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-04", "query": "学习卡住可以问AI", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-05", "query": "孩子晚上写作业卡住了家里没人会讲", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-06", "query": "家长不会辅导想有AI帮孩子答疑", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-07", "query": "学习中遇到问题随问随答", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-08", "query": "不懂的问题可以继续追问AI", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-09", "query": "想找晚上没人辅导的卖点", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-10", "query": "销售想讲AI随时回应具体问题", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-11", "query": "有没有学习助手互动问答的图", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "ai-tutor-12", "query": "学习卡住时有人帮", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
+    {"id": "error-book-archive-01", "query": "AI错题本自动整理", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_photo_capture"},
+    {"id": "error-book-archive-02", "query": "错题自动整理", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_photo_capture"},
+    {"id": "error-book-archive-03", "query": "练习册错题拍照上传", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_photo_capture"},
+    {"id": "error-book-archive-04", "query": "试卷错题不用手抄自动归档", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_photo_capture"},
+    {"id": "error-book-archive-05", "query": "纸质错题拍照保存到线上", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_photo_capture"},
+    {"id": "error-book-archive-06", "query": "错题抄下来麻烦想自动录入", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_photo_capture"},
+    {"id": "error-book-review-01", "query": "历史错题按知识点筛选复习", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_classification_review"},
+    {"id": "error-book-review-02", "query": "个人错题错因复盘", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_classification_review"},
+    {"id": "error-book-review-03", "query": "错题本里随时查以前做错的题", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_classification_review"},
+    {"id": "error-book-review-04", "query": "考前打开错题库复习", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_classification_review"},
+    {"id": "error-book-review-05", "query": "反复错的题分类复盘", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_classification_review"},
+    {"id": "error-book-variant-01", "query": "错题后再练同类题", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_variant_recommendation"},
+    {"id": "error-book-variant-02", "query": "从自己的错题推荐相似题", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_variant_recommendation"},
+    {"id": "error-book-variant-03", "query": "做错的题推荐同考点变式题", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_variant_recommendation"},
+    {"id": "error-book-variant-04", "query": "个人错题练会一类题", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_variant_recommendation"},
+    {"id": "error-book-variant-05", "query": "通过个人错题复练减少重复犯错", "expectedCode": "ai_error_book", "expectedProofPointCode": "pp_selfstudy_error_variant_recommendation"},
+    {"id": "rapid-preview-01", "query": "极速预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-02", "query": "快速预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-03", "query": "课前预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-04", "query": "新课预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-05", "query": "提前学", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-06", "query": "上课前先学", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-07", "query": "课前快速过知识点", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-08", "query": "5分钟预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-09", "query": "十分钟预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-10", "query": "轻量预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-11", "query": "快速了解新知识", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-12", "query": "明天课程提前看", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-13", "query": "先学再听课", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-14", "query": "提高课堂效率", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-15", "query": "带着问题进课堂", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-16", "query": "想找课前场景的卖点", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-17", "query": "销售想讲预习效率", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-18", "query": "有没有“几分钟快速预习”的证明图", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-19", "query": "想突出上课之前先建立认知", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-20", "query": "哪个卖点适合讲“提前知道课堂重点”", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-21", "query": "我要一个新课学习前的功能", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-22", "query": "有什么功能适合每天晚上用", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-preview-23", "query": "想讲短时间完成预习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-01", "query": "极速复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-02", "query": "快速复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-03", "query": "课后复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-04", "query": "知识回顾", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-05", "query": "快速回顾", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-06", "query": "学完快速过一遍", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-07", "query": "5分钟复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-08", "query": "十分钟复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-09", "query": "碎片化复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-10", "query": "快速巩固", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-11", "query": "轻量复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-12", "query": "当天知识当天复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-13", "query": "快速查漏补缺", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-14", "query": "知识点快速回忆", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-15", "query": "学过内容重新过一遍", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-16", "query": "想找短时间复习的卖点", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-17", "query": "销售想讲每天快速巩固", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-18", "query": "有没有体现碎片时间学习的图", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-19", "query": "哪个功能可以讲“花很少时间复习”", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-20", "query": "想突出学习效率高", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-21", "query": "想找课后巩固的功能", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-22", "query": "有没有“快速回顾重点”的卖点", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-23", "query": "日常快速复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "rapid-review-24", "query": "当天学当天复习", "expectedCode": "rapid_preview_review", "expectedProofPointCode": "pp_selfstudy_preview_dual_entry"},
+    {"id": "photo-guided-01", "query": "拍题精学", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "photo-guided-02", "query": "AI拍题", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "photo-guided-03", "query": "拍照讲题", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "photo-guided-04", "query": "拍题讲解", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "photo-guided-05", "query": "AI辅导题目", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "photo-guided-06", "query": "拍一道学一道", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "photo-guided-07", "query": "整页拍题", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "photo-guided-08", "query": "拍题不是只给答案", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "photo-guided-09", "query": "AI一步步讲题", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "photo-guided-10", "query": "拍题后还能追问", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "photo-guided-11", "query": "想突出区别于普通搜题软件", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "photo-guided-12", "query": "销售需要讲AI拍题的差异化", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "photo-guided-13", "query": "有没有“从搜答案到学会”的卖点", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "photo-guided-14", "query": "拍题功能有什么核心价值", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "photo-guided-15", "query": "我想找拍题相关的证明点", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_question_recognition"},
+    {"id": "socratic-coach-01", "query": "AI思维教练", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-02", "query": "思维教练", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-03", "query": "苏格拉底式教学", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-04", "query": "苏格拉底式引导", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-05", "query": "AI引导思考", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-06", "query": "不直接给答案", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-07", "query": "引导式讲题", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-08", "query": "启发式学习", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-09", "query": "AI追问", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-10", "query": "一步一步引导", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-11", "query": "培养解题思路", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-12", "query": "培养独立思考", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-13", "query": "让孩子自己想出答案", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-14", "query": "不是直接搜答案", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-15", "query": "从答案到思路", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-16", "query": "AI怎么培养思维能力", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-17", "query": "想找一个体现AI互动教学的卖点", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-18", "query": "有没有体现“启发而不是灌输”的图", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-19", "query": "销售想讲AI不是直接告诉答案", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-20", "query": "我要突出洋葱AI和普通搜题软件的区别", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-21", "query": "哪个卖点能体现真正的AI教学", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-22", "query": "想找“会提问的AI老师”", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "socratic-coach-23", "query": "有没有关于连续追问的证明点", "expectedCode": "photo_guided_learning", "expectedProofPointCode": "pp_selfstudy_photo_socratic_guidance"},
+    {"id": "ai-personalized-plan-01", "query": "AI定制班", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-02", "query": "定制班", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-03", "query": "个性化学习", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-04", "query": "千人千面", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-05", "query": "个性化课程", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-06", "query": "因材施教", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-07", "query": "AI定制学习", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-08", "query": "专属学习方案", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-09", "query": "个性化学习路径", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-10", "query": "根据水平安排课程", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-11", "query": "根据薄弱点推荐内容", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-12", "query": "学习计划自动生成", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-13", "query": "不同学生学不同内容", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-14", "query": "AI规划学习路径", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-15", "query": "个性化教学", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-16", "query": "动态调整学习计划", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-17", "query": "想找“因材施教”的卖点", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-18", "query": "销售想讲每个孩子都有自己的学习方案", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-19", "query": "有没有体现AI个性化推荐的图", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-20", "query": "想突出不同基础匹配不同内容", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-21", "query": "哪个卖点能讲“不是所有孩子学一套”", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-22", "query": "我要找学习路径自动规划", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-23", "query": "有没有专属课程方案", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "ai-personalized-plan-24", "query": "想突出AI根据学习情况持续调整", "expectedCode": "ai_learning_plan", "expectedProofPointCode": "pp_planning_generated_schedule"},
+    {"id": "textbook-sync-01", "query": "教材同步", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-02", "query": "同步教材", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-03", "query": "版本适配", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-04", "query": "教材版本覆盖", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-05", "query": "人教版", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-06", "query": "北师大版", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-07", "query": "跟校内同步", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-08", "query": "跟学校进度学", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-09", "query": "多教材版本", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-10", "query": "全国教材适配", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-11", "query": "销售想讲不同地区都能用", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-12", "query": "想找一个证明教材覆盖广的点", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-13", "query": "有没有教材版本这个卖点", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "textbook-sync-14", "query": "要做“校内同步”的宣传", "expectedCode": "school_sync", "expectedProofPointCode": "pp_textbook_version_coverage"},
+    {"id": "exam-stage-01", "query": "考前突击", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-02", "query": "考前冲刺", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-03", "query": "临考复习", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-04", "query": "考前提分", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-05", "query": "月考复习", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-06", "query": "期末冲刺", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-07", "query": "开学考复习", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-08", "query": "考试前快速练", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-09", "query": "最后阶段抓重点", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-10", "query": "短时间高效复习", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-11", "query": "销售想讲临考几天怎么用洋葱", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-12", "query": "我要一个考前场景的卖点", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-13", "query": "想突出不同考试类型都能覆盖", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-14", "query": "有没有“考什么练什么”的卖点", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-15", "query": "哪个功能适合做考前宣传", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-16", "query": "明天月考快速复习", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "exam-stage-17", "query": "期末前三天冲刺", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_stage_review"},
+    {"id": "targeted-module-01", "query": "专项突破", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-02", "query": "专项练习", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-03", "query": "题型突破", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-04", "query": "单项强化", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-05", "query": "薄弱题型", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-06", "query": "针对性训练", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-07", "query": "一个题型集中练", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-08", "query": "某类题专项刷", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-09", "query": "核心题型强化", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-10", "query": "想突出“哪里不会练哪里”", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-11", "query": "销售要讲薄弱项针对训练", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-12", "query": "想找一个体现精准补弱的卖点", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "targeted-module-13", "query": "有没有单题型大量练习的功能", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-01", "query": "重难点", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-02", "query": "重难点培优", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-03", "query": "难题拔高", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-04", "query": "高分突破", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-05", "query": "优生拔高", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-06", "query": "冲高分", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-07", "query": "压轴题提升", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-08", "query": "学有余力进一步提升", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-09", "query": "从90分往满分冲", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-10", "query": "想找成绩好的孩子还能继续提升的卖点", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-11", "query": "销售想讲培优能力", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-12", "query": "哪个卖点能体现不是只教基础", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-13", "query": "有没有强调高阶能力的内容", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-14", "query": "想做一张“冲刺高分”的宣传图", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"}
   ],
   "evaluationCases": [
     {"id": "expert-school-sync", "level": "expert", "query": "课程目录同步", "expectedCode": "school_sync"},

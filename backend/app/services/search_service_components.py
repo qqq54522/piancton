@@ -20,6 +20,9 @@ from app.services.search_external_branches import SearchExternalBranches
 from app.services.search_orchestrator import AsyncSearchOrchestrator
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_rerank_coordinator import SearchRerankCoordinator
+from app.services.search_result_recommendation_service import (
+    SearchResultRecommendationService,
+)
 from app.services.search_system_filter import SearchSystemFilter
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
 
@@ -56,6 +59,8 @@ def build_search_components(
     understanding_retry_attempts: int,
     understanding_retry_backoff_seconds: float,
     reranker_timeout_seconds: float,
+    result_recommendation_timeout_seconds: float,
+    result_recommendation_limit: int,
     candidate_limit: int,
     cache_ttl_seconds: float,
     cache_max_entries: int,
@@ -114,6 +119,11 @@ def build_search_components(
                 ranking,
                 total_timeout_seconds=total_timeout_seconds,
                 reranker_timeout_seconds=reranker_timeout_seconds,
+            ),
+            result_recommendation=SearchResultRecommendationService(
+                ai_service,
+                timeout_seconds=result_recommendation_timeout_seconds,
+                result_limit=result_recommendation_limit,
             ),
             system_filter=SearchSystemFilter(),
             candidate_limit=candidate_limit,

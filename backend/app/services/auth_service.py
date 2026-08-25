@@ -80,8 +80,12 @@ class AuthService:
         now: datetime,
     ) -> None:
         window_started = self._as_utc(throttle.window_started_at) if throttle else None
-        if not throttle or not window_started or now - window_started > self.login_window:
+        if not throttle:
             throttle = LoginThrottle(key=key, attempts=0, window_started_at=now)
+        elif not window_started or now - window_started > self.login_window:
+            throttle.attempts = 0
+            throttle.window_started_at = now
+            throttle.blocked_until = None
         throttle.attempts += 1
         if throttle.attempts >= self.login_max_attempts:
             throttle.blocked_until = now + self.login_block

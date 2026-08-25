@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.schemas.image import SearchResponse
 from app.services.ai_service import AiService
+from app.services.identity_search_service import IdentitySearchService
 from app.services.search_cache import SearchCaches
 from app.services.search_service_components import build_search_components
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
@@ -41,6 +42,8 @@ class SearchService:
         understanding_retry_attempts: int = 1,
         understanding_retry_backoff_seconds: float = 1.0,
         reranker_timeout_seconds: float = 0.7,
+        result_recommendation_timeout_seconds: float = 6.0,
+        result_recommendation_limit: int = 12,
         candidate_limit: int = 20,
         cache_ttl_seconds: float = 300.0,
         cache_max_entries: int = 512,
@@ -71,6 +74,8 @@ class SearchService:
             understanding_retry_attempts=understanding_retry_attempts,
             understanding_retry_backoff_seconds=understanding_retry_backoff_seconds,
             reranker_timeout_seconds=reranker_timeout_seconds,
+            result_recommendation_timeout_seconds=result_recommendation_timeout_seconds,
+            result_recommendation_limit=result_recommendation_limit,
             candidate_limit=candidate_limit,
             cache_ttl_seconds=cache_ttl_seconds,
             cache_max_entries=cache_max_entries,
@@ -78,6 +83,7 @@ class SearchService:
         )
         self.query_understanding = components.query_understanding
         self.orchestrator = components.orchestrator
+        self.identity_search = IdentitySearchService(db)
 
     async def search_async(
         self,

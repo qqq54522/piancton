@@ -96,7 +96,7 @@ def get_model_provider(
         return PlaceholderModelProvider()
 
     effective_timeout = timeout_seconds or settings.model_timeout_seconds
-    if purpose in {"image_analysis", "asset_phrase"}:
+    if purpose == "image_analysis" or purpose == "asset_phrase":
         return _single_purpose_provider(settings, purpose, effective_timeout)
     if purpose == "search":
         return _search_provider(settings, effective_timeout)

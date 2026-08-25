@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 
 class SemanticSearchClientError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, status: str = "failed"):
+        super().__init__(message)
+        self.status = status
 
 
 @dataclass(frozen=True)
@@ -57,6 +61,10 @@ class EmbeddingClient:
             api_key=self.api_key,
             payload=payload,
             timeout_seconds=self.timeout_seconds,
+            provider=_provider_label(self.base_url),
+            model=self.model_name,
+            task="search_embedding_recall",
+            layer_name="搜索增强：Embedding 召回",
         )
 
 
@@ -116,6 +124,10 @@ class RerankerClient:
             api_key=self.api_key,
             payload=payload,
             timeout_seconds=self.timeout_seconds,
+            provider=_provider_label(self.base_url),
+            model=self.model_name,
+            task="search_reranker",
+            layer_name="搜索增强：Reranker 重排",
         )
 
 
@@ -125,22 +137,78 @@ def _post_json(
     api_key: str,
     payload: dict[str, Any],
     timeout_seconds: float,
+    provider: str,
+    model: str,
+    task: str,
+    layer_name: str,
 ) -> dict[str, Any]:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    started = time.monotonic()
+    status = "failed"
+    error = ""
     try:
         with httpx.Client(timeout=timeout_seconds, trust_env=False) as client:
             response = client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
+            if not isinstance(data, dict):
+                error = "语义搜索 API 返回格式无效"
+                raise SemanticSearchClientError(error)
+            status = "ok"
     except httpx.HTTPStatusError as exc:
-        raise SemanticSearchClientError(
-            f"语义搜索 API 返回异常状态：{exc.response.status_code}"
-        ) from exc
+        error = f"语义搜索 API 返回异常状态：{exc.response.status_code}"
+        raise SemanticSearchClientError(error) from exc
+    except httpx.TimeoutException as exc:
+        status = "timed_out"
+        error = "语义搜索 API 调用超时"
+        raise SemanticSearchClientError(error, status=status) from exc
     except (httpx.HTTPError, json.JSONDecodeError) as exc:
-        raise SemanticSearchClientError("语义搜索 API 调用失败") from exc
-    if not isinstance(data, dict):
-        raise SemanticSearchClientError("语义搜索 API 返回格式无效")
+        error = "语义搜索 API 调用失败"
+        raise SemanticSearchClientError(error) from exc
+    finally:
+        _record_semantic_trace(
+            task=task,
+            layer_name=layer_name,
+            provider=provider,
+            model=model,
+            status=status,
+            duration_ms=round((time.monotonic() - started) * 1000),
+            error=error,
+        )
     return data
+
+
+def _record_semantic_trace(
+    *,
+    task: str,
+    layer_name: str,
+    provider: str,
+    model: str,
+    status: str,
+    duration_ms: int,
+    error: str,
+) -> None:
+    try:
+        from app.db.session import SessionLocal
+        from app.services.api_center_service import ApiCenterService
+
+        with SessionLocal() as db:
+            ApiCenterService(db).record_external_call(
+                task=task,
+                layer_name=layer_name,
+                provider=provider,
+                model=model,
+                status=status,
+                duration_ms=duration_ms,
+                error_summary=error,
+            )
+    except Exception:
+        # Telemetry must never turn a search enhancement failure into a request failure.
+        return
+
+
+def _provider_label(base_url: str) -> str:
+    return urlparse(base_url).hostname or base_url[:120]

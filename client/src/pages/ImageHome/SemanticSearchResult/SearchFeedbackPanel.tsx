@@ -70,7 +70,7 @@ function SearchFeedbackPanel({
           </Button>
         </div>
         {submittedFeedback && (
-          <p className="mt-2 text-xs text-emerald-600">已记录反馈，管理员会在搜索运营里看到。</p>
+          <p className="mt-2 text-xs text-emerald-600">已记录反馈，运营人员会在搜索运营里看到。</p>
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 from typing import Literal, Optional
+from urllib.parse import quote
 
 from fastapi import (
     APIRouter,
@@ -7,6 +8,7 @@ from fastapi import (
     File,
     Form,
     Request,
+    Response,
     UploadFile,
     status,
 )
@@ -27,9 +29,12 @@ from app.schemas.asset import (
     AssetConceptBatchReview,
     AssetConceptConfirmation,
     AssetConceptReview,
+    AssetGroupBundleExportRequest,
     AssetGroupRead,
     AssetSearchPhraseCreate,
     AssetSearchPhraseReview,
+    AssetSourceLinkCreate,
+    AssetSourceLinkUpdate,
 )
 from app.services.ai_service import AiService
 from app.services.analysis_tasks import run_image_analysis_task
@@ -43,19 +48,64 @@ router = APIRouter(prefix="/asset-groups", tags=["asset-groups"])
 
 @router.get("", response_model=list[AssetGroupRead])
 def list_asset_groups(
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: AssetService = Depends(get_asset_service),
 ):
-    return service.list()
+    groups = service.list()
+    if user.role in {"designer", "admin"}:
+        return [service.get(group.id, include_source_links=True) for group in groups]
+    return groups
 
 
 @router.get("/{group_id}", response_model=AssetGroupRead)
 def get_asset_group(
     group_id: str,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: AssetService = Depends(get_asset_service),
 ):
-    return service.get(group_id)
+    return service.get(group_id, include_source_links=user.role in {"designer", "admin"})
+
+
+@router.get("/{group_id}/export")
+def export_asset_group(
+    group_id: str,
+    _: User = Depends(require_write_role),
+    service: AssetService = Depends(get_asset_service),
+):
+    filename, payload = service.export_bundle(group_id)
+    fallback = "asset-bundle.zip"
+    encoded = quote(filename)
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{fallback}"; filename*=UTF-8\'\'{encoded}'
+            )
+        },
+    )
+
+
+@router.post("/export")
+def export_asset_groups(
+    payload: AssetGroupBundleExportRequest,
+    user: User = Depends(get_current_user),
+    service: AssetService = Depends(get_asset_service),
+):
+    filename, payload_bytes = service.export_bundles(
+        payload.group_ids,
+        include_source_links=user.role in {"designer", "admin"},
+    )
+    encoded = quote(filename)
+    return Response(
+        content=payload_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded}'
+            )
+        },
+    )
 
 
 @router.post(
@@ -231,6 +281,75 @@ def remove_asset_search_phrase(
     service: AssetRelationService = Depends(get_asset_relation_service),
 ):
     return service.remove_phrase(group_id, phrase_id)
+
+
+@router.post("/{group_id}/source-links", response_model=AssetGroupRead)
+def add_asset_source_link(
+    group_id: str,
+    payload: AssetSourceLinkCreate,
+    request: Request,
+    user: User = Depends(require_write_role),
+    service: AssetService = Depends(get_asset_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    group = service.add_source_link(group_id, payload, user.username)
+    created = group.source_links[-1] if group.source_links else None
+    audit.record(
+        actor_user_id=user.id,
+        action="asset.source_link.create",
+        target_type="asset_group",
+        target_id=group_id,
+        details={
+            "linkId": created.id if created else None,
+            "linkType": payload.link_type,
+            "label": payload.label,
+        },
+        request_id=request.state.request_id,
+    )
+    return group
+
+
+@router.patch("/{group_id}/source-links/{link_id}", response_model=AssetGroupRead)
+def update_asset_source_link(
+    group_id: str,
+    link_id: str,
+    payload: AssetSourceLinkUpdate,
+    request: Request,
+    user: User = Depends(require_write_role),
+    service: AssetService = Depends(get_asset_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    group = service.update_source_link(group_id, link_id, payload)
+    audit.record(
+        actor_user_id=user.id,
+        action="asset.source_link.update",
+        target_type="asset_source_link",
+        target_id=link_id,
+        details={"assetGroupId": group_id},
+        request_id=request.state.request_id,
+    )
+    return group
+
+
+@router.delete("/{group_id}/source-links/{link_id}", response_model=AssetGroupRead)
+def delete_asset_source_link(
+    group_id: str,
+    link_id: str,
+    request: Request,
+    user: User = Depends(require_write_role),
+    service: AssetService = Depends(get_asset_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    group = service.delete_source_link(group_id, link_id)
+    audit.record(
+        actor_user_id=user.id,
+        action="asset.source_link.delete",
+        target_type="asset_source_link",
+        target_id=link_id,
+        details={"assetGroupId": group_id},
+        request_id=request.state.request_id,
+    )
+    return group
 
 
 def _queue_analysis(

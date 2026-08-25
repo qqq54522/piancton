@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from app.schemas.image import SearchBranchStatusRead, SearchDiagnosticsRead
+from app.schemas.image import ModelAttemptRead, SearchBranchStatusRead, SearchDiagnosticsRead
 from app.services.search_models import SearchBranchDiagnostic
+
+NON_DEGRADING_BRANCHES = frozenset({"result_recommendation_reason"})
 
 
 class SearchDiagnosticsService:
@@ -16,12 +18,19 @@ class SearchDiagnosticsService:
         degraded_sources = [
             item.source
             for item in branches
-            if item.status in {"failed", "timed_out"}
+            if (
+                item.status in {"failed", "timed_out"}
+                and item.source not in NON_DEGRADING_BRANCHES
+            )
         ]
         return SearchDiagnosticsRead(
             total_duration_ms=total_duration_ms,
             timed_out=total_timed_out
-            or any(item.status == "timed_out" for item in branches),
+            or any(
+                item.status == "timed_out"
+                and item.source not in NON_DEGRADING_BRANCHES
+                for item in branches
+            ),
             reranker_used=reranker_used,
             cache_hit=any(item.cache_hit for item in branches),
             degraded_sources=list(dict.fromkeys(degraded_sources)),
@@ -33,6 +42,19 @@ class SearchDiagnosticsService:
                     result_count=item.result_count,
                     cache_hit=item.cache_hit,
                     detail=item.detail,
+                    attempts=[
+                        ModelAttemptRead(
+                            task=attempt.task,
+                            layer=attempt.layer,
+                            provider=attempt.provider,
+                            model=attempt.model,
+                            status=attempt.status,
+                            duration_ms=attempt.duration_ms,
+                            fallback_index=attempt.fallback_index,
+                            error=attempt.error,
+                        )
+                        for attempt in item.attempts
+                    ],
                 )
                 for item in branches
             ],
@@ -41,7 +63,10 @@ class SearchDiagnosticsService:
     def fallback_reason(self, branches: list[SearchBranchDiagnostic]) -> str | None:
         reasons = []
         for item in branches:
-            if item.status not in {"failed", "timed_out"}:
+            if (
+                item.status not in {"failed", "timed_out"}
+                or item.source in NON_DEGRADING_BRANCHES
+            ):
                 continue
             reason = f"{item.source}{'超时' if item.status == 'timed_out' else '不可用'}"
             if item.detail:

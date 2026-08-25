@@ -50,6 +50,14 @@ class SearchLogService:
             matched_concept = understanding.matched_business_concepts[0].concept
 
         try:
+            branch_payload = (
+                [
+                    item.model_dump(mode="json", by_alias=True)
+                    for item in diagnostics.branches
+                ]
+                if diagnostics
+                else []
+            )
             log = self.logs.add(
                 SearchLog(
                     actor_user_id=actor_user_id,
@@ -79,15 +87,7 @@ class SearchLogService:
                         diagnostics.degraded_sources if diagnostics else [],
                         ensure_ascii=False,
                     ),
-                    branch_status_json=json.dumps(
-                        [
-                            item.model_dump(mode="json", by_alias=True)
-                            for item in diagnostics.branches
-                        ]
-                        if diagnostics
-                        else [],
-                        ensure_ascii=False,
-                    ),
+                    branch_status_json=json.dumps(branch_payload, ensure_ascii=False),
                     request_id=request_id,
                 )
             )

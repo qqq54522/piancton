@@ -6,9 +6,11 @@ import { Button } from '@client/src/components/ui/button';
 import { Select } from '@client/src/components/ui/select';
 import { ROLE_SUBJECT, useAuth } from '@client/src/lib/auth';
 import { useImageBrowser } from '@client/src/features/images/useImageBrowser';
+import { useAnimatedGifPreview } from '@client/src/features/images/useAnimatedGifPreview';
 import { takeImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 import type { BusinessConcept, BusinessFacetCatalog, ImageItem } from '@client/src/types/api';
 import GlobalImageSearch from './GlobalImageSearch';
+import AssetAgentWidget from './AssetAgentWidget';
 import ImageGrid from './ImageGrid';
 import SemanticSearchResult from './SemanticSearchResult';
 import UploadDialog from './UploadDialog';
@@ -40,6 +42,7 @@ const ImageHome = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [manualFilterOpen, setManualFilterOpen] = useState(false);
+  const animatedGifPreview = useAnimatedGifPreview();
   const consumedLocationStateKeyRef = useRef<string | null>(null);
   const stickyHeaderRef = useRef<HTMLDivElement>(null);
   const stickyHeaderHeight = useElementHeight(stickyHeaderRef);
@@ -185,11 +188,13 @@ const ImageHome = () => {
             sortBy={sortBy}
             showBusinessAccount={isBusiness}
             manualFilterOpen={manualFilterOpen}
+            animateGifPreview={animatedGifPreview.enabled}
             onInputChange={setGlobalSearchInput}
             onChannelChange={setSelectedChannel}
             onSceneChange={setSelectedScene}
             onSortByChange={setSortBy}
             onManualFilterOpenChange={setManualFilterOpen}
+            onAnimateGifPreviewChange={animatedGifPreview.setEnabled}
             onClear={clearGlobalSearch}
             onSearch={executeGlobalSearch}
           />
@@ -227,6 +232,7 @@ const ImageHome = () => {
                   showSearchContext={globalSearchSource === 'typed'}
                   manualFilterOpen={manualFilterOpen}
                   showBusinessAccount={isBusiness}
+                  animateGifPreview={animatedGifPreview.enabled}
                   onClear={clearGlobalSearch}
                   onRetry={retrySearch}
                 />
@@ -238,6 +244,7 @@ const ImageHome = () => {
                   </div>
                   <ImageGrid
                     images={globalSearchImages}
+                    animateGifPreview={animatedGifPreview.enabled}
                     emptyText="暂时没有匹配素材"
                     emptyDescription="可以换一种业务说法、清除体系筛选，或在素材详情补充新的搜索话术。"
                   />
@@ -253,6 +260,7 @@ const ImageHome = () => {
                   <>
                     <ImageGrid
                       images={browsingImages}
+                      animateGifPreview={animatedGifPreview.enabled}
                       emptyText={showingFilteredEmptyState ? '暂时还没有素材哦' : hasManualSearchResult ? '暂时没有找到合适素材' : '素材库还是空的'}
                       emptyDescription={showingFilteredEmptyState
                         ? undefined
@@ -289,6 +297,7 @@ const ImageHome = () => {
         onOpenChange={setUploadOpen}
         onSuccess={handleUploadSuccess}
       />
+      <AssetAgentWidget />
     </div>
   );
 };

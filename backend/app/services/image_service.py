@@ -17,6 +17,7 @@ from app.schemas.image import (
     ImageRead,
     ImageTitleResolution,
 )
+from app.services.asset_identity_service import AssetIdentityService
 from app.services.asset_relation_service import AssetRelationService
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_title_service import ImageTitleService
@@ -68,6 +69,7 @@ class ImageService:
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
         self.asset_relations = AssetRelationService(db)
+        self.identities = AssetIdentityService(db)
         self.related_images = RelatedImageService(self.images)
         self.image_titles = ImageTitleService(db)
 
@@ -98,7 +100,7 @@ class ImageService:
         )
 
     def get_detail(self, image_id: str) -> ImageDetailRead:
-        image = self._get(image_id)
+        image = self._get_or_identity(image_id)
         return image_to_detail(image, self.related_images.related_images(image, 8))
 
     def upload(
@@ -121,6 +123,7 @@ class ImageService:
         requested_title = title.strip() or Path(original_name).stem
         resolved_title = self.image_titles.resolve(requested_title)
         group = AssetGroup(
+            asset_code=self.identities.allocate_asset_code(),
             title=resolved_title,
             approval_status="approved",
             publish_status="published",
@@ -130,6 +133,7 @@ class ImageService:
             search_phrases=self.asset_relations.manual_phrases(expected_search_words or []),
         )
         image = Image(
+            version_code=self.identities.allocate_version_code(group.asset_code, 1),
             title=resolved_title,
             file_name=original_name,
             storage_key=staged.storage_key,
@@ -149,6 +153,8 @@ class ImageService:
         try:
             self.images.add(image)
             group.primary_image_id = image.id
+            self.identities.register_group(group)
+            self.identities.register_image(image)
             self.embedding_index.upsert_image(self.images, image)
             self.storage.finalize(staged)
             self.uow.commit()
@@ -220,4 +226,11 @@ class ImageService:
         image = self.images.get(image_id)
         if not image:
             raise NotFoundError("image_not_found", "图片不存在")
+        return image
+
+    def _get_or_identity(self, value: str) -> Image:
+        image = self.images.get(value)
+        if image:
+            return image
+        image = self.identities.require_image(value)
         return image

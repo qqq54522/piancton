@@ -9,7 +9,9 @@ ModelTask = Literal[
     "search_intent_understanding",
     "search_proof_point_understanding",
     "search_candidate_review",
+    "search_result_recommendation_reason",
     "copy_selling_point_matching",
+    "asset_agent_chat",
 ]
 
 

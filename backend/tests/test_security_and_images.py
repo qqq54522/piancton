@@ -1,11 +1,14 @@
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 from PIL import Image as PillowImage
 
 from app.api import dependencies
+from app.core.security import hash_secret
 from app.main import app
 from app.models.business_concept import BusinessConcept
 from app.models.tag import Tag
+from app.models.user import LoginThrottle
 from app.schemas.ai import ProviderStatus
 from app.services.ai_service import AiService
 from tests.conftest import login
@@ -22,6 +25,11 @@ def admin_headers(client) -> dict[str, str]:
     return {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
 
 
+def designer_headers(client) -> dict[str, str]:
+    csrf = login(client, "designer", "designer-password")
+    return {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+
+
 def upload(client, headers, title: str = "real") -> dict:
     response = client.post(
         "/api/images/upload",
@@ -35,6 +43,26 @@ def upload(client, headers, title: str = "real") -> dict:
 
 def test_requires_authentication(client):
     response = client.get("/api/images")
+    assert response.status_code == 401
+    assert response.json()["code"] == "unauthorized"
+
+
+def test_expired_login_throttle_does_not_turn_bad_password_into_500(client, db_factory):
+    with db_factory() as db:
+        db.add(
+            LoginThrottle(
+                key=hash_secret("business|testclient"),
+                attempts=1,
+                window_started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            )
+        )
+        db.commit()
+
+    response = client.post(
+        "/api/auth/login",
+        json={"username": "business", "password": "wrong-password"},
+    )
+
     assert response.status_code == 401
     assert response.json()["code"] == "unauthorized"
 
@@ -151,7 +179,7 @@ def test_renaming_a_primary_image_auto_numbers_and_keeps_group_title_in_sync(cli
 
 def test_unified_search_log_has_no_requested_mode(client):
     headers = admin_headers(client)
-    upload(client, headers, "搜索运营测试图")
+    image = upload(client, headers, "搜索运营测试图")
 
     search = client.post(
         "/api/images/search",
@@ -161,6 +189,16 @@ def test_unified_search_log_has_no_requested_mode(client):
     body = search.json()
     assert body["results"]
     assert body["searchLogId"]
+    source_link = client.post(
+        f"/api/asset-groups/{body['results'][0]['assetGroupId']}/source-links",
+        headers=headers,
+        json={
+            "label": "Figma 主文件",
+            "url": "https://www.figma.com/file/search-ops-test",
+            "linkType": "figma",
+        },
+    )
+    assert source_link.status_code == 200
 
     summary = client.get("/api/admin/search-ops/summary")
     assert summary.status_code == 200
@@ -170,6 +208,26 @@ def test_unified_search_log_has_no_requested_mode(client):
     assert "smartSearchCount" not in data
     assert "requestedMode" not in data["recentLogs"][0]
     assert data["recentLogs"][0]["servedMode"] == "fuzzy"
+    assert data["assetOperations"]["assetGroupCount"] == 1
+    assert data["assetOperations"]["imageCount"] == 1
+    assert data["assetOperations"]["missingSourceLinkCount"] == 0
+    assert data["assetOperations"]["missingBusinessRelationCount"] == 1
+    assert data["assetOperations"]["missingSearchPhraseCount"] == 1
+    assert data["sourceLinkHealth"]["totalLinks"] == 1
+    assert data["sourceLinkHealth"]["groupsWithSourceLinks"] == 1
+    assert data["sourceLinkHealth"]["recentLinks"][0]["primaryImageId"] == image["id"]
+    assert data["searchPerformance"]["sampleCount"] == 1
+    assert data["searchPerformance"]["p95DurationMs"] >= 0
+
+
+def test_search_ops_is_available_to_designer_but_not_business(client):
+    designer = designer_headers(client)
+    designer_summary = client.get("/api/admin/search-ops/summary", headers=designer)
+    assert designer_summary.status_code == 200
+
+    login(client, "business", "business-password")
+    business_summary = client.get("/api/admin/search-ops/summary")
+    assert business_summary.status_code == 403
 
 
 def test_ai_not_configured_is_explicit(client):

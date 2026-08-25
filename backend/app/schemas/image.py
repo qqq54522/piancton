@@ -37,6 +37,9 @@ class AnalysisRunRead(ApiModel):
 
 class ImageRead(ApiModel):
     id: str
+    asset_code: Optional[str] = None
+    version_code: Optional[str] = None
+    share_path: Optional[str] = None
     title: str
     file_name: str
     content_url: str
@@ -95,6 +98,7 @@ class ScoredImage(ApiModel):
     match_level: Literal["S", "A", "B", "C"]
     final_score: float
     match_reasons: List[str]
+    result_recommendation_reason: Optional[str] = None
     matched_content_terms: List[str]
     matched_business_concepts: List[str]
     asset_group_id: Optional[str] = None
@@ -110,6 +114,17 @@ class ScoredImage(ApiModel):
     primary_evidence_point_name: Optional[str] = None
 
 
+class ModelAttemptRead(ApiModel):
+    task: str
+    layer: str
+    provider: str
+    model: str
+    status: str
+    duration_ms: int
+    fallback_index: Optional[int] = None
+    error: str = ""
+
+
 class SearchBranchStatusRead(ApiModel):
     source: str
     status: Literal["ok", "skipped", "timed_out", "failed"]
@@ -117,6 +132,7 @@ class SearchBranchStatusRead(ApiModel):
     result_count: int = 0
     cache_hit: bool = False
     detail: Optional[str] = None
+    attempts: List[ModelAttemptRead] = Field(default_factory=list)
 
 
 class SearchDiagnosticsRead(ApiModel):
@@ -138,3 +154,5 @@ class SearchResponse(ApiModel):
     search_understanding: Optional[SearchUnderstanding] = None
     search_diagnostics: Optional[SearchDiagnosticsRead] = None
     match_summary: str
+    identity_code: Optional[str] = None
+    exact_match: bool = False

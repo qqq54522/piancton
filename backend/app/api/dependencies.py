@@ -4,7 +4,7 @@ from collections.abc import Callable
 from math import ceil
 
 from fastapi import Cookie, Depends, Header, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.ai import get_model_provider
 from app.core.config import get_settings
@@ -13,6 +13,10 @@ from app.db.session import SessionLocal, get_db
 from app.models.user import User, UserSession
 from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
+from app.services.api_center_service import ApiCenterService
+from app.services.asset_agent_service import AssetAgentService
+from app.services.asset_identity_admin_service import AssetIdentityAdminService
+from app.services.asset_identity_service import AssetIdentityService
 from app.services.asset_phrase_suggestion_service import AssetPhraseSuggestionService
 from app.services.asset_relation_service import AssetRelationService
 from app.services.asset_service import AssetService
@@ -34,6 +38,11 @@ from app.services.tag_service import TagService
 from app.services.user_service import UserService
 
 settings = get_settings()
+
+
+def _trace_session_factory(db: Session):
+    factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
+    return factory
 
 
 def _provider_attempt_count(provider) -> int:
@@ -73,6 +82,16 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
         settings.max_image_pixels,
         settings.thumbnail_max_size,
     )
+
+
+def get_asset_identity_service(db: Session = Depends(get_db)) -> AssetIdentityService:
+    return AssetIdentityService(db)
+
+
+def get_asset_identity_admin_service(
+    db: Session = Depends(get_db),
+) -> AssetIdentityAdminService:
+    return AssetIdentityAdminService(db)
 
 
 def get_asset_relation_service(db: Session = Depends(get_db)) -> AssetRelationService:
@@ -158,6 +177,10 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
             settings.search_understanding_retry_backoff_seconds
         ),
         reranker_timeout_seconds=settings.search_reranker_timeout_seconds,
+        result_recommendation_timeout_seconds=(
+            settings.search_result_recommendation_timeout_seconds
+        ),
+        result_recommendation_limit=settings.search_result_recommendation_limit,
         candidate_limit=settings.search_candidate_limit,
         cache_ttl_seconds=settings.search_cache_ttl_seconds,
         cache_max_entries=settings.search_cache_max_entries,
@@ -176,17 +199,40 @@ def get_search_ops_service(db: Session = Depends(get_db)) -> SearchOpsService:
     return SearchOpsService(db)
 
 
+def get_api_center_service(db: Session = Depends(get_db)) -> ApiCenterService:
+    return ApiCenterService(db, trace_session_factory=_trace_session_factory(db))
+
+
 def get_ai_service(db: Session = Depends(get_db)) -> AiService:
+    fallback_provider = get_model_provider(purpose="image_analysis")
     return AiService(
-        get_model_provider(purpose="image_analysis"),
+        ApiCenterService(
+            db,
+            trace_session_factory=_trace_session_factory(db),
+        ).build_scheduled_provider(fallback_provider=fallback_provider),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
 
 def get_asset_phrase_ai_service(db: Session = Depends(get_db)) -> AiService:
+    fallback_provider = get_model_provider(purpose="asset_phrase")
     return AiService(
-        get_model_provider(purpose="asset_phrase"),
+        ApiCenterService(
+            db,
+            trace_session_factory=_trace_session_factory(db),
+        ).build_scheduled_provider(fallback_provider=fallback_provider),
         knowledge=AiKnowledgeService(db).knowledge(),
+    )
+
+
+def get_asset_agent_service(db: Session = Depends(get_db)) -> AssetAgentService:
+    fallback_provider = get_model_provider(purpose="asset_phrase")
+    return AssetAgentService(
+        db,
+        ApiCenterService(
+            db,
+            trace_session_factory=_trace_session_factory(db),
+        ).build_scheduled_provider(fallback_provider=fallback_provider),
     )
 
 
@@ -209,11 +255,15 @@ def get_search_ai_service(db: Session = Depends(get_db)) -> AiService:
         settings.search_selling_point_timeout_seconds,
         settings.search_proof_point_timeout_seconds,
     )
+    fallback_provider = get_model_provider(
+        timeout_seconds=max(1, ceil(provider_timeout)),
+        purpose="search",
+    )
     return AiService(
-        get_model_provider(
-            timeout_seconds=max(1, ceil(provider_timeout)),
-            purpose="search",
-        ),
+        ApiCenterService(
+            db,
+            trace_session_factory=_trace_session_factory(db),
+        ).build_scheduled_provider(fallback_provider=fallback_provider),
         knowledge=AiKnowledgeService(db).knowledge(),
         system_routing_timeout_seconds=(settings.search_system_routing_timeout_seconds),
         selling_point_timeout_seconds=(settings.search_selling_point_timeout_seconds),

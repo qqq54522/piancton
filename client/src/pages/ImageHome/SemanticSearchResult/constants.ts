@@ -46,6 +46,9 @@ export const itemVariants = {
 
 export const FEEDBACK_OPTIONS: Array<{ type: SearchFeedbackType; label: string }> = [
   { type: 'not_relevant', label: '结果不相关' },
+  { type: 'right_business_wrong_visual', label: '卖点对画面不对' },
+  { type: 'right_visual_wrong_business', label: '画面对卖点不对' },
+  { type: 'wrong_version', label: '版本/尺寸不对' },
   { type: 'too_few_results', label: '结果太少' },
   { type: 'need_different_style', label: '想要别的渠道' },
   { type: 'asset_request', label: '没有合适素材提交需求' },

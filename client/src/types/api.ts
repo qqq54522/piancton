@@ -13,7 +13,18 @@ export type {
   UserRole,
 } from './api.generated';
 
-import type { ImageItem, Tag } from './api.generated';
+import type {
+  ImageItem,
+  Tag,
+} from './api.generated';
+import type { components } from './openapi';
+
+export type AssetIdentityCodeRead = components['schemas']['AssetIdentityCodeRead'];
+export type AssetIdentityCodeSummary = components['schemas']['AssetIdentityCodeSummary'];
+export type AssetIdentityCodeListResponse = components['schemas']['AssetIdentityCodeListResponse'];
+
+export type AssetIdentityCodeType = 'asset' | 'version';
+export type AssetIdentityCodeStatus = 'active' | 'deleted' | 'retired';
 
 export interface TagWithCount extends Tag {
   children?: TagWithCount[];
@@ -92,11 +103,15 @@ export interface SemanticSearchRequest {
 
 export interface AssetImage {
   id: string;
+  assetCode?: string | null;
+  versionCode?: string | null;
+  sharePath?: string | null;
   title: string;
   fileName: string;
   thumbnailUrl: string;
   contentUrl: string;
   downloadUrl: string;
+  mediaType?: string;
   assetRole: 'primary' | 'derivative' | 'alternative' | 'revision' | string;
   width?: number | null;
   height?: number | null;
@@ -127,8 +142,29 @@ export interface AssetSearchPhrase {
   weight: number;
 }
 
+export type AssetSourceLinkType =
+  | 'figma'
+  | 'design_file'
+  | 'cloud_drive'
+  | 'reference_doc'
+  | 'asset_package'
+  | 'other';
+
+export interface AssetSourceLink {
+  id: string;
+  label: string;
+  url: string;
+  linkType: AssetSourceLinkType;
+  note?: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AssetGroup {
   id: string;
+  assetCode?: string | null;
+  sharePath?: string | null;
   title: string;
   primaryImageId?: string | null;
   approvalStatus: string;
@@ -137,6 +173,7 @@ export interface AssetGroup {
   images: AssetImage[];
   conceptLinks: AssetConceptLink[];
   searchPhrases: AssetSearchPhrase[];
+  sourceLinks: AssetSourceLink[];
   primaryProofPointCode?: string | null;
   primaryEvidencePointCode?: string | null;
   createdAt: string;
@@ -216,6 +253,7 @@ export interface ScoredImageMatch {
   matchLevel: 'S' | 'A' | 'B' | 'C';
   finalScore: number;
   matchReasons: string[];
+  resultRecommendationReason?: string | null;
   matchedContentTerms: string[];
   matchedBusinessConcepts: string[];
   assetGroupId?: string | null;
@@ -245,6 +283,18 @@ export interface SearchBranchStatus {
   resultCount: number;
   cacheHit: boolean;
   detail?: string | null;
+  attempts?: ModelAttempt[];
+}
+
+export interface ModelAttempt {
+  task: string;
+  layer: string;
+  provider: string;
+  model: string;
+  status: string;
+  durationMs: number;
+  fallbackIndex?: number | null;
+  error: string;
 }
 
 export interface SearchDiagnostics {
@@ -266,6 +316,8 @@ export interface SemanticSearchResponse {
   fallback?: boolean;
   fallbackReason?: string;
   searchDiagnostics?: SearchDiagnostics | null;
+  identityCode?: string | null;
+  exactMatch?: boolean;
 }
 
 export interface ProviderStatus {
@@ -305,6 +357,9 @@ export type SearchFeedbackType =
   | 'not_relevant'
   | 'too_few_results'
   | 'need_different_style'
+  | 'right_business_wrong_visual'
+  | 'right_visual_wrong_business'
+  | 'wrong_version'
   | 'asset_request';
 
 export interface SearchFeedbackItem {
@@ -368,6 +423,75 @@ export interface AssetGapItem {
   source: string;
 }
 
+export interface AssetOperationsOverview {
+  assetGroupCount: number;
+  imageCount: number;
+  currentImageCount: number;
+  missingSourceLinkCount: number;
+  missingSourceLinkRate: number;
+  singleVersionGroupCount: number;
+  missingBusinessRelationCount: number;
+  missingSearchPhraseCount: number;
+  missingStyleCount: number;
+  unsetSceneCount: number;
+  missingChannelCount: number;
+  totalDownloadCount: number;
+  unusedAssetGroupCount: number;
+}
+
+export interface AssetOpsIssue {
+  id: string;
+  assetGroupId: string;
+  title: string;
+  primaryImageId?: string | null;
+  issueType: string;
+  severity: 'high' | 'medium' | 'low';
+  message: string;
+  suggestedAction: string;
+  updatedAt: string;
+}
+
+export interface SourceLinkRecentItem {
+  id: string;
+  assetGroupId: string;
+  assetGroupTitle: string;
+  primaryImageId?: string | null;
+  label: string;
+  linkType: string;
+  url: string;
+  reviewStatus: 'ok' | 'stale';
+  updatedAt: string;
+}
+
+export interface SourceLinkHealth {
+  totalLinks: number;
+  groupsWithSourceLinks: number;
+  groupsWithoutSourceLinks: number;
+  staleLinkCount: number;
+  groupsRequiringReview: number;
+  linkTypeCounts: SearchMetricItem[];
+  recentLinks: SourceLinkRecentItem[];
+}
+
+export interface SearchPerformanceSummary {
+  sampleCount: number;
+  averageDurationMs: number;
+  p50DurationMs: number;
+  p95DurationMs: number;
+  p99DurationMs: number;
+  slowSearchCount: number;
+  slowSearchRate: number;
+  timeoutCount: number;
+  fallbackCount: number;
+  cacheHitCount: number;
+  cacheHitRate: number;
+  rerankerUsedCount: number;
+  aiUnderstoodCount: number;
+  modelWorkUnitCount: number;
+  modelWorkUnitRate: number;
+  recentSlowLogs: SearchLogItem[];
+}
+
 export interface SearchFeedbackRequest {
   searchLogId?: string | null;
   keyword: string;
@@ -400,4 +524,229 @@ export interface SearchOpsSummary {
   aiReviewQueue: AiConceptReviewQueueItem[];
   conceptHealth: ConceptHealthItem[];
   assetGaps: AssetGapItem[];
+  assetOperations: AssetOperationsOverview;
+  assetOpsIssues: AssetOpsIssue[];
+  sourceLinkHealth: SourceLinkHealth;
+  searchPerformance: SearchPerformanceSummary;
+}
+
+export type ModelTaskName =
+  | 'image_content_analysis'
+  | 'asset_search_phrase_generation'
+  | 'search_system_routing'
+  | 'search_intent_understanding'
+  | 'search_proof_point_understanding'
+  | 'search_candidate_review'
+  | 'search_result_recommendation_reason'
+  | 'copy_selling_point_matching'
+  | 'asset_agent_chat';
+
+export interface ApiCredential {
+  id: string;
+  label: string;
+  providerType: string;
+  baseUrl: string;
+  modelName: string;
+  apiKeyPreview: string;
+  taskScope: string[];
+  status: string;
+  priority: number;
+  timeoutSeconds: number;
+  temperature: number;
+  maxConcurrency: number;
+  autoAssignEnabled: boolean;
+  currentConcurrency: number;
+  availableConcurrency: number;
+  capacityStatus: string;
+  recentCallCount: number;
+  recentFailureRate: number;
+  recentAverageLatencyMs: number;
+  lastStatus?: string | null;
+  lastLatencyMs?: number | null;
+  lastError?: string | null;
+  lastCheckedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiCredentialCreate {
+  label: string;
+  providerType?: string;
+  baseUrl: string;
+  modelName: string;
+  apiKey: string;
+  taskScope?: ModelTaskName[];
+  status?: 'active' | 'disabled' | 'cooling' | 'invalid';
+  priority?: number;
+  timeoutSeconds?: number;
+  temperature?: number;
+  maxConcurrency?: number;
+  autoAssignEnabled?: boolean;
+}
+
+export interface ApiCredentialUpdate {
+  label?: string;
+  providerType?: string;
+  baseUrl?: string;
+  modelName?: string;
+  apiKey?: string;
+  taskScope?: ModelTaskName[];
+  status?: 'active' | 'disabled' | 'cooling' | 'invalid';
+  priority?: number;
+  timeoutSeconds?: number;
+  temperature?: number;
+  maxConcurrency?: number;
+  autoAssignEnabled?: boolean;
+}
+
+export interface AssetAgentChatRequest {
+  message: string;
+  imageIds?: string[];
+  assetGroupIds?: string[];
+  conversationId?: string | null;
+}
+
+export interface AssetAgentImageContext {
+  imageId: string;
+  assetGroupId?: string | null;
+  title: string;
+}
+
+export interface AssetAgentMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  usedModel?: boolean | null;
+  createdAt: string;
+}
+
+export interface AssetAgentSession {
+  id: string;
+  title: string;
+  messages: AssetAgentMessage[];
+  contextImages: AssetAgentImageContext[];
+  suggestedQuestions: string[];
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssetAgentSessionListResponse {
+  sessions: AssetAgentSession[];
+}
+
+export interface AssetAgentSessionCreateRequest {
+  title?: string | null;
+  contextImages?: AssetAgentImageContext[];
+}
+
+export interface AssetAgentSessionContextUpdateRequest {
+  contextImages: AssetAgentImageContext[];
+}
+
+export interface AssetAgentContextCard {
+  kind: 'image' | 'asset_group' | 'concept';
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  facts: string[];
+}
+
+export interface AssetAgentChatResponse {
+  answer: string;
+  conversationId?: string | null;
+  session?: AssetAgentSession | null;
+  suggestedQuestions: string[];
+  contextCards: AssetAgentContextCard[];
+  usedModel: boolean;
+  providerAttempts: Record<string, unknown>[];
+}
+
+export interface RoutingSlot {
+  id: string;
+  task: string;
+  label: string;
+  primaryCredentialId?: string | null;
+  primaryCredentialLabel?: string | null;
+  backupCredentialIds: string[];
+  backupCredentialLabels: string[];
+  timeoutSeconds: number;
+  hedgingDelayMs: number;
+  maxParallel: number;
+  autoSelectEnabled: boolean;
+  notes?: string | null;
+  updatedAt: string;
+}
+
+export interface RoutingSlotUpdate {
+  label?: string;
+  primaryCredentialId?: string | null;
+  backupCredentialIds?: string[];
+  timeoutSeconds?: number;
+  hedgingDelayMs?: number;
+  maxParallel?: number;
+  autoSelectEnabled?: boolean;
+  notes?: string | null;
+}
+
+export interface ApiHealthCheck {
+  id: string;
+  credentialId: string;
+  credentialLabel?: string | null;
+  task: string;
+  status: string;
+  durationMs: number;
+  errorSummary?: string | null;
+  checkedAt: string;
+}
+
+export interface ApiHealthCheckRunRequest {
+  task?: ModelTaskName | null;
+  includeDisabled?: boolean;
+  timeoutSeconds?: number | null;
+}
+
+export interface ApiHealthCheckRunResult {
+  checkedCount: number;
+  okCount: number;
+  failedCount: number;
+  checks: ApiHealthCheck[];
+}
+
+export interface ApiCallTrace {
+  id: string;
+  searchLogId?: string | null;
+  requestId?: string | null;
+  task: string;
+  layerName: string;
+  credentialId?: string | null;
+  credentialLabel?: string | null;
+  provider: string;
+  model: string;
+  status: string;
+  durationMs: number;
+  fallbackIndex?: number | null;
+  errorSummary?: string | null;
+  responseValid?: boolean | null;
+  outputSummary: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ApiCenterOverview {
+  credentialCount: number;
+  activeCredentialCount: number;
+  healthyCredentialCount: number;
+  degradedCredentialCount: number;
+  configuredSlotCount: number;
+  recentCallCount: number;
+  recentFailureCount: number;
+  p95LatencyMs: number;
+}
+
+export interface ApiCenterSummary {
+  overview: ApiCenterOverview;
+  credentials: ApiCredential[];
+  routingSlots: RoutingSlot[];
+  recentHealthChecks: ApiHealthCheck[];
+  recentCallTraces: ApiCallTrace[];
 }

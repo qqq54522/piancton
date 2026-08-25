@@ -78,17 +78,37 @@ export function useAssetActions(groupId: string) {
     mutationFn: (phraseId: string) => assetApi.removeAssetSearchPhrase(groupId, phraseId),
     onSuccess: update,
   });
+  const addSourceLink = useMutation({
+    mutationFn: (input: Parameters<typeof assetApi.addAssetSourceLink>[1]) => (
+      assetApi.addAssetSourceLink(groupId, input)
+    ),
+    onSuccess: update,
+  });
+  const updateSourceLink = useMutation({
+    mutationFn: (input: {
+      linkId: string;
+      data: Parameters<typeof assetApi.updateAssetSourceLink>[2];
+    }) => assetApi.updateAssetSourceLink(groupId, input.linkId, input.data),
+    onSuccess: update,
+  });
+  const deleteSourceLink = useMutation({
+    mutationFn: (linkId: string) => assetApi.deleteAssetSourceLink(groupId, linkId),
+    onSuccess: update,
+  });
 
   return {
     addPhrase,
+    addSourceLink,
     addVariant,
     confirmConcept,
+    deleteSourceLink,
     deleteVariant,
     replacePrimary,
     removePhrase,
     reviewConcept,
     reviewConcepts,
     reviewPhrase,
+    updateSourceLink,
     updateBusinessClassification,
   };
 }

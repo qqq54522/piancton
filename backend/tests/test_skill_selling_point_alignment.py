@@ -5,6 +5,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.domain.business_intents import load_business_intents
+from app.domain.proof_points import load_proof_point_catalog
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase
 from app.models.tag import Tag
@@ -132,6 +133,13 @@ def test_public_phrase_layer_can_only_reference_the_frozen_selling_points():
         assert entry["entryTerms"]
         assert entry["purposeTerms"]
 
+    proof_codes = set(load_proof_point_catalog().by_code)
+    for entry in governance["compositionSignals"]:
+        assert entry["code"] in mapped_codes
+        assert entry["proofPointCode"] in proof_codes
+        assert len(entry["termGroups"]) >= 2
+        assert all(group["name"] and group["terms"] for group in entry["termGroups"])
+
 
 def test_public_phrase_examples_cover_three_business_familiarity_levels():
     governance = _load_phrase_governance()
@@ -164,6 +172,28 @@ def test_three_level_public_phrase_examples_keep_the_expected_selling_point():
             understanding.query_type,
             matched_names,
         )
+
+
+def test_business_calibration_examples_route_without_becoming_public_phrases():
+    governance = _load_phrase_governance()
+    node_by_code = load_taxonomy_catalog().node_by_code
+    service = QueryUnderstandingService()
+    public_phrases = {item["phrase"] for item in governance["approvedAdditions"]}
+
+    for case in governance["businessCalibrationCases"]:
+        assert case["query"] not in public_phrases
+        understanding = service.understand_locally(case["query"])
+
+        assert understanding is not None, case["id"]
+        assert understanding.query_type == "business_intent_search"
+        expected_name = node_by_code[case["expectedCode"]].name
+        assert {
+            match.concept.rsplit(">", 1)[-1].strip()
+            for match in understanding.matched_business_concepts
+        } == {expected_name}
+        assert [
+            match.code for match in understanding.matched_proof_points
+        ] == [case["expectedProofPointCode"]]
 
 
 def test_seed_rejects_old_phrases_that_conflict_with_skill_boundaries(db_factory):

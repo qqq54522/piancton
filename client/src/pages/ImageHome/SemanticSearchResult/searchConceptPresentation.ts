@@ -65,8 +65,8 @@ export function searchIntentTitle(queryType?: string | null): string {
 }
 
 export function resultMatchExplanation(item: ScoredImageMatch): string {
-  const recommendation = item.matchedQueryConcepts?.[0]?.recommendationText?.trim();
-  if (recommendation) return recommendation;
+  const dynamicRecommendation = item.resultRecommendationReason?.trim();
+  if (dynamicRecommendation) return dynamicRecommendation;
   if (item.primaryProofPointClaim) return item.primaryProofPointClaim;
   const proofPointTitle = item.primaryProofPointName
     ?? cleanReasonText(reasonValue(item.matchReasons, '证明点匹配：') ?? '');

@@ -76,6 +76,8 @@ class Settings(BaseSettings):
     search_proof_point_timeout_seconds: float = 20.0
     search_candidate_review_timeout_seconds: float = 20.0
     search_candidate_review_limit: int = 5
+    search_result_recommendation_timeout_seconds: float = 6.0
+    search_result_recommendation_limit: int = 12
     search_understanding_grace_seconds: float = 5.0
     search_understanding_retry_attempts: int = 1
     search_understanding_retry_backoff_seconds: float = 1.0

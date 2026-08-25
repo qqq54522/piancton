@@ -297,6 +297,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/asset-groups/{group_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Asset Group */
+        get: operations["export_asset_group_api_asset_groups__group_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export Asset Groups */
+        post: operations["export_asset_groups_api_asset_groups_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/asset-groups/{group_id}/images": {
         parameters: {
             query?: never;
@@ -449,6 +483,41 @@ export interface paths {
         head?: never;
         /** Review Asset Search Phrase */
         patch: operations["review_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__patch"];
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/source-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Asset Source Link */
+        post: operations["add_asset_source_link_api_asset_groups__group_id__source_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-groups/{group_id}/source-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Asset Source Link */
+        delete: operations["delete_asset_source_link_api_asset_groups__group_id__source_links__link_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Asset Source Link */
+        patch: operations["update_asset_source_link_api_asset_groups__group_id__source_links__link_id__patch"];
         trace?: never;
     };
     "/api/business-concepts": {
@@ -651,6 +720,211 @@ export interface paths {
         put?: never;
         /** Analyze Image */
         post: operations["analyze_image_api_ai_images__image_id__analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api Center Summary */
+        get: operations["api_center_summary_api_admin_api_center_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Api Credential */
+        post: operations["create_api_credential_api_admin_api_center_credentials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/credentials/{credential_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Api Credential */
+        patch: operations["update_api_credential_api_admin_api_center_credentials__credential_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/api-center/credentials/{credential_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Api Credential */
+        post: operations["test_api_credential_api_admin_api_center_credentials__credential_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/health-checks/run-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Api Health Checks */
+        post: operations["run_api_health_checks_api_admin_api_center_health_checks_run_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/routing-slots/{task}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Routing Slot */
+        patch: operations["update_routing_slot_api_admin_api_center_routing_slots__task__patch"];
+        trace?: never;
+    };
+    "/api/asset-agent/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Asset Agent Sessions */
+        get: operations["list_asset_agent_sessions_api_asset_agent_sessions_get"];
+        put?: never;
+        /** Create Asset Agent Session */
+        post: operations["create_asset_agent_session_api_asset_agent_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-agent/sessions/{session_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Asset Agent Session Context */
+        patch: operations["update_asset_agent_session_context_api_asset_agent_sessions__session_id__context_patch"];
+        trace?: never;
+    };
+    "/api/asset-agent/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Asset Agent Message */
+        post: operations["send_asset_agent_message_api_asset_agent_sessions__session_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-agent/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Asset Agent Session */
+        delete: operations["delete_asset_agent_session_api_asset_agent_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-agent/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat With Asset Agent */
+        post: operations["chat_with_asset_agent_api_asset_agent_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/identity-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Identity Codes */
+        get: operations["list_identity_codes_api_admin_identity_codes_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -868,6 +1142,410 @@ export interface components {
              */
             createdAt: string;
         };
+        /** ApiCallTraceRead */
+        ApiCallTraceRead: {
+            /** Id */
+            id: string;
+            /** Searchlogid */
+            searchLogId?: string | null;
+            /** Requestid */
+            requestId?: string | null;
+            /** Task */
+            task: string;
+            /** Layername */
+            layerName: string;
+            /** Credentialid */
+            credentialId?: string | null;
+            /** Credentiallabel */
+            credentialLabel?: string | null;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Status */
+            status: string;
+            /** Durationms */
+            durationMs: number;
+            /** Fallbackindex */
+            fallbackIndex?: number | null;
+            /** Errorsummary */
+            errorSummary?: string | null;
+            /** Responsevalid */
+            responseValid?: boolean | null;
+            /** Outputsummary */
+            outputSummary: {
+                [key: string]: unknown;
+            };
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** ApiCenterOverview */
+        ApiCenterOverview: {
+            /** Credentialcount */
+            credentialCount: number;
+            /** Activecredentialcount */
+            activeCredentialCount: number;
+            /** Healthycredentialcount */
+            healthyCredentialCount: number;
+            /** Degradedcredentialcount */
+            degradedCredentialCount: number;
+            /** Configuredslotcount */
+            configuredSlotCount: number;
+            /** Recentcallcount */
+            recentCallCount: number;
+            /** Recentfailurecount */
+            recentFailureCount: number;
+            /** P95Latencyms */
+            p95LatencyMs: number;
+        };
+        /** ApiCenterSummary */
+        ApiCenterSummary: {
+            overview: components["schemas"]["ApiCenterOverview"];
+            /** Credentials */
+            credentials: components["schemas"]["ApiCredentialRead"][];
+            /** Routingslots */
+            routingSlots: components["schemas"]["RoutingSlotRead"][];
+            /** Recenthealthchecks */
+            recentHealthChecks: components["schemas"]["ApiHealthCheckRead"][];
+            /** Recentcalltraces */
+            recentCallTraces: components["schemas"]["ApiCallTraceRead"][];
+        };
+        /** ApiCredentialCreate */
+        ApiCredentialCreate: {
+            /** Label */
+            label: string;
+            /**
+             * Providertype
+             * @default openai_compatible
+             */
+            providerType: string;
+            /** Baseurl */
+            baseUrl: string;
+            /** Modelname */
+            modelName: string;
+            /** Apikey */
+            apiKey: string;
+            /**
+             * Taskscope
+             * @default []
+             */
+            taskScope: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat")[];
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "disabled" | "cooling" | "invalid";
+            /**
+             * Priority
+             * @default 100
+             */
+            priority: number;
+            /**
+             * Timeoutseconds
+             * @default 20
+             */
+            timeoutSeconds: number;
+            /**
+             * Temperature
+             * @default 0.2
+             */
+            temperature: number;
+            /**
+             * Maxconcurrency
+             * @default 1
+             */
+            maxConcurrency: number;
+            /**
+             * Autoassignenabled
+             * @default true
+             */
+            autoAssignEnabled: boolean;
+        };
+        /** ApiCredentialRead */
+        ApiCredentialRead: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Providertype */
+            providerType: string;
+            /** Baseurl */
+            baseUrl: string;
+            /** Modelname */
+            modelName: string;
+            /** Apikeypreview */
+            apiKeyPreview: string;
+            /** Taskscope */
+            taskScope: string[];
+            /** Status */
+            status: string;
+            /** Priority */
+            priority: number;
+            /** Timeoutseconds */
+            timeoutSeconds: number;
+            /** Temperature */
+            temperature: number;
+            /** Maxconcurrency */
+            maxConcurrency: number;
+            /** Autoassignenabled */
+            autoAssignEnabled: boolean;
+            /**
+             * Currentconcurrency
+             * @default 0
+             */
+            currentConcurrency: number;
+            /**
+             * Availableconcurrency
+             * @default 0
+             */
+            availableConcurrency: number;
+            /**
+             * Capacitystatus
+             * @default idle
+             */
+            capacityStatus: string;
+            /**
+             * Recentcallcount
+             * @default 0
+             */
+            recentCallCount: number;
+            /**
+             * Recentfailurerate
+             * @default 0
+             */
+            recentFailureRate: number;
+            /**
+             * Recentaveragelatencyms
+             * @default 0
+             */
+            recentAverageLatencyMs: number;
+            /** Laststatus */
+            lastStatus?: string | null;
+            /** Lastlatencyms */
+            lastLatencyMs?: number | null;
+            /** Lasterror */
+            lastError?: string | null;
+            /** Lastcheckedat */
+            lastCheckedAt?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** ApiCredentialUpdate */
+        ApiCredentialUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Providertype */
+            providerType?: string | null;
+            /** Baseurl */
+            baseUrl?: string | null;
+            /** Modelname */
+            modelName?: string | null;
+            /** Apikey */
+            apiKey?: string | null;
+            /** Taskscope */
+            taskScope?: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat")[] | null;
+            /** Status */
+            status?: ("active" | "disabled" | "cooling" | "invalid") | null;
+            /** Priority */
+            priority?: number | null;
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+            /** Temperature */
+            temperature?: number | null;
+            /** Maxconcurrency */
+            maxConcurrency?: number | null;
+            /** Autoassignenabled */
+            autoAssignEnabled?: boolean | null;
+        };
+        /** ApiHealthCheckCreate */
+        ApiHealthCheckCreate: {
+            /**
+             * Task
+             * @default search_system_routing
+             * @enum {string}
+             */
+            task: "image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat";
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+        };
+        /** ApiHealthCheckRead */
+        ApiHealthCheckRead: {
+            /** Id */
+            id: string;
+            /** Credentialid */
+            credentialId: string;
+            /** Credentiallabel */
+            credentialLabel?: string | null;
+            /** Task */
+            task: string;
+            /** Status */
+            status: string;
+            /** Durationms */
+            durationMs: number;
+            /** Errorsummary */
+            errorSummary?: string | null;
+            /**
+             * Checkedat
+             * Format: date-time
+             */
+            checkedAt: string;
+        };
+        /** ApiHealthCheckRunRequest */
+        ApiHealthCheckRunRequest: {
+            /** Task */
+            task?: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat") | null;
+            /**
+             * Includedisabled
+             * @default false
+             */
+            includeDisabled: boolean;
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+        };
+        /** ApiHealthCheckRunResult */
+        ApiHealthCheckRunResult: {
+            /** Checkedcount */
+            checkedCount: number;
+            /** Okcount */
+            okCount: number;
+            /** Failedcount */
+            failedCount: number;
+            /** Checks */
+            checks: components["schemas"]["ApiHealthCheckRead"][];
+        };
+        /** AssetAgentChatRequest */
+        AssetAgentChatRequest: {
+            /** Message */
+            message: string;
+            /** Imageids */
+            imageIds?: string[];
+            /** Assetgroupids */
+            assetGroupIds?: string[];
+            /** Conversationid */
+            conversationId?: string | null;
+        };
+        /** AssetAgentChatResponse */
+        AssetAgentChatResponse: {
+            /** Answer */
+            answer: string;
+            /** Conversationid */
+            conversationId?: string | null;
+            session?: components["schemas"]["AssetAgentSessionRead"] | null;
+            /** Suggestedquestions */
+            suggestedQuestions?: string[];
+            /** Contextcards */
+            contextCards?: components["schemas"]["AssetAgentContextCard"][];
+            /**
+             * Usedmodel
+             * @default false
+             */
+            usedModel: boolean;
+            /** Providerattempts */
+            providerAttempts?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** AssetAgentContextCard */
+        AssetAgentContextCard: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "image" | "asset_group" | "concept";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Subtitle */
+            subtitle?: string | null;
+            /** Facts */
+            facts?: string[];
+        };
+        /** AssetAgentImageContext */
+        AssetAgentImageContext: {
+            /** Imageid */
+            imageId: string;
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** AssetAgentMessageRead */
+        AssetAgentMessageRead: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant" | "system";
+            /** Content */
+            content: string;
+            /** Usedmodel */
+            usedModel?: boolean | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** AssetAgentSessionContextUpdateRequest */
+        AssetAgentSessionContextUpdateRequest: {
+            /** Contextimages */
+            contextImages?: components["schemas"]["AssetAgentImageContext"][];
+        };
+        /** AssetAgentSessionCreateRequest */
+        AssetAgentSessionCreateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Contextimages */
+            contextImages?: components["schemas"]["AssetAgentImageContext"][];
+        };
+        /** AssetAgentSessionListResponse */
+        AssetAgentSessionListResponse: {
+            /** Sessions */
+            sessions?: components["schemas"]["AssetAgentSessionRead"][];
+        };
+        /** AssetAgentSessionRead */
+        AssetAgentSessionRead: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Messages */
+            messages?: components["schemas"]["AssetAgentMessageRead"][];
+            /** Contextimages */
+            contextImages?: components["schemas"]["AssetAgentImageContext"][];
+            /** Suggestedquestions */
+            suggestedQuestions?: string[];
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
         /** AssetBusinessClassificationUpdate */
         AssetBusinessClassificationUpdate: {
             /** Conceptid */
@@ -945,10 +1623,19 @@ export interface components {
             /** Source */
             source: string;
         };
+        /** AssetGroupBundleExportRequest */
+        AssetGroupBundleExportRequest: {
+            /** Groupids */
+            groupIds: string[];
+        };
         /** AssetGroupRead */
         AssetGroupRead: {
             /** Id */
             id: string;
+            /** Assetcode */
+            assetCode?: string | null;
+            /** Sharepath */
+            sharePath?: string | null;
             /** Title */
             title: string;
             /** Primaryimageid */
@@ -973,6 +1660,8 @@ export interface components {
             conceptLinks?: components["schemas"]["AssetConceptLinkRead"][];
             /** Searchphrases */
             searchPhrases?: components["schemas"]["AssetSearchPhraseRead"][];
+            /** Sourcelinks */
+            sourceLinks?: components["schemas"]["AssetSourceLinkRead"][];
             /**
              * Createdat
              * Format: date-time
@@ -984,10 +1673,85 @@ export interface components {
              */
             updatedAt: string;
         };
+        /** AssetIdentityCodeListResponse */
+        AssetIdentityCodeListResponse: {
+            /** Items */
+            items: components["schemas"]["AssetIdentityCodeRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            summary: components["schemas"]["AssetIdentityCodeSummary"];
+        };
+        /** AssetIdentityCodeRead */
+        AssetIdentityCodeRead: {
+            /** Code */
+            code: string;
+            /**
+             * Codetype
+             * @enum {string}
+             */
+            codeType: "asset" | "version";
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /** Primaryimageid */
+            primaryImageId?: string | null;
+            /** Imageid */
+            imageId?: string | null;
+            /** Assettitle */
+            assetTitle?: string | null;
+            /** Imagetitle */
+            imageTitle?: string | null;
+            /** Filename */
+            fileName?: string | null;
+            /** Assetrole */
+            assetRole?: string | null;
+            /** Versionno */
+            versionNo?: number | null;
+            /** Iscurrent */
+            isCurrent?: boolean | null;
+            /** Deletedat */
+            deletedAt?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Retiredat */
+            retiredAt?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "deleted" | "retired";
+            /** Detailpath */
+            detailPath?: string | null;
+        };
+        /** AssetIdentityCodeSummary */
+        AssetIdentityCodeSummary: {
+            /** Assettotal */
+            assetTotal: number;
+            /** Versiontotal */
+            versionTotal: number;
+            /** Activetotal */
+            activeTotal: number;
+            /** Deletedtotal */
+            deletedTotal: number;
+            /** Retiredtotal */
+            retiredTotal: number;
+        };
         /** AssetImageRead */
         AssetImageRead: {
             /** Id */
             id: string;
+            /** Assetcode */
+            assetCode?: string | null;
+            /** Versioncode */
+            versionCode?: string | null;
+            /** Sharepath */
+            sharePath?: string | null;
             /** Title */
             title: string;
             /** Filename */
@@ -998,6 +1762,8 @@ export interface components {
             contentUrl: string;
             /** Downloadurl */
             downloadUrl: string;
+            /** Mediatype */
+            mediaType: string;
             /** Assetrole */
             assetRole: string;
             /** Width */
@@ -1012,6 +1778,62 @@ export interface components {
             versionNo: number;
             /** Iscurrent */
             isCurrent: boolean;
+        };
+        /** AssetOperationsOverview */
+        AssetOperationsOverview: {
+            /** Assetgroupcount */
+            assetGroupCount: number;
+            /** Imagecount */
+            imageCount: number;
+            /** Currentimagecount */
+            currentImageCount: number;
+            /** Missingsourcelinkcount */
+            missingSourceLinkCount: number;
+            /** Missingsourcelinkrate */
+            missingSourceLinkRate: number;
+            /** Singleversiongroupcount */
+            singleVersionGroupCount: number;
+            /** Missingbusinessrelationcount */
+            missingBusinessRelationCount: number;
+            /** Missingsearchphrasecount */
+            missingSearchPhraseCount: number;
+            /** Missingstylecount */
+            missingStyleCount: number;
+            /** Unsetscenecount */
+            unsetSceneCount: number;
+            /** Missingchannelcount */
+            missingChannelCount: number;
+            /** Totaldownloadcount */
+            totalDownloadCount: number;
+            /** Unusedassetgroupcount */
+            unusedAssetGroupCount: number;
+        };
+        /** AssetOpsIssueRead */
+        AssetOpsIssueRead: {
+            /** Id */
+            id: string;
+            /** Assetgroupid */
+            assetGroupId: string;
+            /** Title */
+            title: string;
+            /** Primaryimageid */
+            primaryImageId?: string | null;
+            /** Issuetype */
+            issueType: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "high" | "medium" | "low";
+            /** Message */
+            message: string;
+            /** Suggestedaction */
+            suggestedAction: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
         };
         /** AssetSearchPhraseCreate */
         AssetSearchPhraseCreate: {
@@ -1048,6 +1870,57 @@ export interface components {
         AssetSearchPhraseSuggestion: {
             /** Phrases */
             phrases: string[];
+        };
+        /** AssetSourceLinkCreate */
+        AssetSourceLinkCreate: {
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+            /**
+             * Linktype
+             * @default figma
+             * @enum {string}
+             */
+            linkType: "figma" | "design_file" | "cloud_drive" | "reference_doc" | "asset_package" | "other";
+            /** Note */
+            note?: string | null;
+        };
+        /** AssetSourceLinkRead */
+        AssetSourceLinkRead: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+            /** Linktype */
+            linkType: string;
+            /** Note */
+            note?: string | null;
+            /** Createdby */
+            createdBy: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** AssetSourceLinkUpdate */
+        AssetSourceLinkUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Linktype */
+            linkType?: ("figma" | "design_file" | "cloud_drive" | "reference_doc" | "asset_package" | "other") | null;
+            /** Note */
+            note?: string | null;
         };
         /** AuditLogRead */
         AuditLogRead: {
@@ -1174,6 +2047,8 @@ export interface components {
             conceptType: string;
             /** Definition */
             definition?: string | null;
+            /** Recommendationtext */
+            recommendationText?: string | null;
             /** Systemlinks */
             systemLinks?: components["schemas"]["ConceptSystemLinkInput"][];
         };
@@ -1189,6 +2064,8 @@ export interface components {
             conceptType: string;
             /** Definition */
             definition?: string | null;
+            /** Recommendationtext */
+            recommendationText?: string | null;
             /** Status */
             status: string;
             /** Version */
@@ -1218,6 +2095,8 @@ export interface components {
             conceptType?: string | null;
             /** Definition */
             definition?: string | null;
+            /** Recommendationtext */
+            recommendationText?: string | null;
             /** Status */
             status?: ("draft" | "active" | "deprecated" | "merged") | null;
             /** Replacedbyconceptid */
@@ -1494,6 +2373,12 @@ export interface components {
         ImageDetailRead: {
             /** Id */
             id: string;
+            /** Assetcode */
+            assetCode?: string | null;
+            /** Versioncode */
+            versionCode?: string | null;
+            /** Sharepath */
+            sharePath?: string | null;
             /** Title */
             title: string;
             /** Filename */
@@ -1574,6 +2459,12 @@ export interface components {
         ImageRead: {
             /** Id */
             id: string;
+            /** Assetcode */
+            assetCode?: string | null;
+            /** Versioncode */
+            versionCode?: string | null;
+            /** Sharepath */
+            sharePath?: string | null;
             /** Title */
             title: string;
             /** Filename */
@@ -1676,6 +2567,28 @@ export interface components {
             /** Csrftoken */
             csrfToken: string;
         };
+        /** ModelAttemptRead */
+        ModelAttemptRead: {
+            /** Task */
+            task: string;
+            /** Layer */
+            layer: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Status */
+            status: string;
+            /** Durationms */
+            durationMs: number;
+            /** Fallbackindex */
+            fallbackIndex?: number | null;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+        };
         /** PasswordReset */
         PasswordReset: {
             /** Password */
@@ -1704,6 +2617,57 @@ export interface components {
              */
             modelName: string;
         };
+        /** RoutingSlotRead */
+        RoutingSlotRead: {
+            /** Id */
+            id: string;
+            /** Task */
+            task: string;
+            /** Label */
+            label: string;
+            /** Primarycredentialid */
+            primaryCredentialId?: string | null;
+            /** Primarycredentiallabel */
+            primaryCredentialLabel?: string | null;
+            /** Backupcredentialids */
+            backupCredentialIds: string[];
+            /** Backupcredentiallabels */
+            backupCredentialLabels: string[];
+            /** Timeoutseconds */
+            timeoutSeconds: number;
+            /** Hedgingdelayms */
+            hedgingDelayMs: number;
+            /** Maxparallel */
+            maxParallel: number;
+            /** Autoselectenabled */
+            autoSelectEnabled: boolean;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** RoutingSlotUpdate */
+        RoutingSlotUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Primarycredentialid */
+            primaryCredentialId?: string | null;
+            /** Backupcredentialids */
+            backupCredentialIds?: string[] | null;
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+            /** Hedgingdelayms */
+            hedgingDelayMs?: number | null;
+            /** Maxparallel */
+            maxParallel?: number | null;
+            /** Autoselectenabled */
+            autoSelectEnabled?: boolean | null;
+            /** Notes */
+            notes?: string | null;
+        };
         /** ScoredImage */
         ScoredImage: {
             image: components["schemas"]["ImageRead"];
@@ -1716,6 +2680,8 @@ export interface components {
             finalScore: number;
             /** Matchreasons */
             matchReasons: string[];
+            /** Resultrecommendationreason */
+            resultRecommendationReason?: string | null;
             /** Matchedcontentterms */
             matchedContentTerms: string[];
             /** Matchedbusinessconcepts */
@@ -1769,6 +2735,8 @@ export interface components {
             cacheHit: boolean;
             /** Detail */
             detail?: string | null;
+            /** Attempts */
+            attempts?: components["schemas"]["ModelAttemptRead"][];
         };
         /** SearchConceptMatch */
         SearchConceptMatch: {
@@ -1836,7 +2804,7 @@ export interface components {
              * Feedbacktype
              * @enum {string}
              */
-            feedbackType: "relevant" | "not_relevant" | "too_few_results" | "need_different_style" | "asset_request";
+            feedbackType: "relevant" | "not_relevant" | "too_few_results" | "need_different_style" | "right_business_wrong_visual" | "right_visual_wrong_business" | "wrong_version" | "asset_request";
             /** Note */
             note?: string | null;
             /** Resultimageid */
@@ -2002,6 +2970,46 @@ export interface components {
             conceptHealth: components["schemas"]["ConceptHealthItem"][];
             /** Assetgaps */
             assetGaps: components["schemas"]["AssetGapItem"][];
+            assetOperations: components["schemas"]["AssetOperationsOverview"];
+            /** Assetopsissues */
+            assetOpsIssues: components["schemas"]["AssetOpsIssueRead"][];
+            sourceLinkHealth: components["schemas"]["SourceLinkHealth"];
+            searchPerformance: components["schemas"]["SearchPerformanceSummary"];
+        };
+        /** SearchPerformanceSummary */
+        SearchPerformanceSummary: {
+            /** Samplecount */
+            sampleCount: number;
+            /** Averagedurationms */
+            averageDurationMs: number;
+            /** P50Durationms */
+            p50DurationMs: number;
+            /** P95Durationms */
+            p95DurationMs: number;
+            /** P99Durationms */
+            p99DurationMs: number;
+            /** Slowsearchcount */
+            slowSearchCount: number;
+            /** Slowsearchrate */
+            slowSearchRate: number;
+            /** Timeoutcount */
+            timeoutCount: number;
+            /** Fallbackcount */
+            fallbackCount: number;
+            /** Cachehitcount */
+            cacheHitCount: number;
+            /** Cachehitrate */
+            cacheHitRate: number;
+            /** Rerankerusedcount */
+            rerankerUsedCount: number;
+            /** Aiunderstoodcount */
+            aiUnderstoodCount: number;
+            /** Modelworkunitcount */
+            modelWorkUnitCount: number;
+            /** Modelworkunitrate */
+            modelWorkUnitRate: number;
+            /** Recentslowlogs */
+            recentSlowLogs: components["schemas"]["SearchLogRead"][];
         };
         /** SearchProofPointMatch */
         SearchProofPointMatch: {
@@ -2064,6 +3072,13 @@ export interface components {
             searchDiagnostics?: components["schemas"]["SearchDiagnosticsRead"] | null;
             /** Matchsummary */
             matchSummary: string;
+            /** Identitycode */
+            identityCode?: string | null;
+            /**
+             * Exactmatch
+             * @default false
+             */
+            exactMatch: boolean;
         };
         /** SearchResultConceptMatch */
         SearchResultConceptMatch: {
@@ -2076,6 +3091,8 @@ export interface components {
              * @enum {string}
              */
             relationRole: "expresses" | "supports" | "visual_related";
+            /** Recommendationtext */
+            recommendationText?: string | null;
         };
         /** SearchUnderstanding */
         SearchUnderstanding: {
@@ -2155,6 +3172,50 @@ export interface components {
             scenes?: string[];
             /** Assetsearchphrases */
             assetSearchPhrases?: string[];
+        };
+        /** SourceLinkHealth */
+        SourceLinkHealth: {
+            /** Totallinks */
+            totalLinks: number;
+            /** Groupswithsourcelinks */
+            groupsWithSourceLinks: number;
+            /** Groupswithoutsourcelinks */
+            groupsWithoutSourceLinks: number;
+            /** Stalelinkcount */
+            staleLinkCount: number;
+            /** Groupsrequiringreview */
+            groupsRequiringReview: number;
+            /** Linktypecounts */
+            linkTypeCounts: components["schemas"]["SearchMetricItem"][];
+            /** Recentlinks */
+            recentLinks: components["schemas"]["SourceLinkRecentItem"][];
+        };
+        /** SourceLinkRecentItem */
+        SourceLinkRecentItem: {
+            /** Id */
+            id: string;
+            /** Assetgroupid */
+            assetGroupId: string;
+            /** Assetgrouptitle */
+            assetGroupTitle: string;
+            /** Primaryimageid */
+            primaryImageId?: string | null;
+            /** Label */
+            label: string;
+            /** Linktype */
+            linkType: string;
+            /** Url */
+            url: string;
+            /**
+             * Reviewstatus
+             * @enum {string}
+             */
+            reviewStatus: "ok" | "stale";
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
         };
         /** TagRead */
         TagRead: {
@@ -2868,6 +3929,77 @@ export interface operations {
             };
         };
     };
+    export_asset_group_api_asset_groups__group_id__export_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_asset_groups_api_asset_groups_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetGroupBundleExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_asset_variant_api_asset_groups__group_id__images_post: {
         parameters: {
             query?: never;
@@ -3241,6 +4373,124 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AssetSearchPhraseReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_asset_source_link_api_asset_groups__group_id__source_links_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetSourceLinkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_asset_source_link_api_asset_groups__group_id__source_links__link_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+                link_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_asset_source_link_api_asset_groups__group_id__source_links__link_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+                link_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetSourceLinkUpdate"];
             };
         };
         responses: {
@@ -3759,6 +5009,476 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageAnalysisResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_center_summary_api_admin_api_center_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCenterSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_credential_api_admin_api_center_credentials_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiCredentialCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_credential_api_admin_api_center_credentials__credential_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                credential_id: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiCredentialUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_api_credential_api_admin_api_center_credentials__credential_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                credential_id: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiHealthCheckCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiHealthCheckRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_api_health_checks_api_admin_api_center_health_checks_run_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiHealthCheckRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiHealthCheckRunResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_routing_slot_api_admin_api_center_routing_slots__task__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoutingSlotUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutingSlotRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_asset_agent_sessions_api_asset_agent_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAgentSessionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_asset_agent_session_api_asset_agent_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetAgentSessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAgentSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_asset_agent_session_context_api_asset_agent_sessions__session_id__context_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetAgentSessionContextUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAgentSessionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_asset_agent_message_api_asset_agent_sessions__session_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetAgentChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAgentChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_asset_agent_session_api_asset_agent_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_with_asset_agent_api_asset_agent_chat_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetAgentChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAgentChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_identity_codes_api_admin_identity_codes_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                codeType?: string;
+                status?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetIdentityCodeListResponse"];
                 };
             };
             /** @description Validation Error */

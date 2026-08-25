@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, cast
 
-from sqlalchemy import and_, desc, literal, or_, select, text
+from sqlalchemy import and_, case, desc, exists, func, literal, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.search_query_expansion import expand_search_terms
@@ -141,16 +141,35 @@ class ImageRepository:
 
     def search(self, keyword: str, limit: int) -> list[Image]:
         pattern = f"%{keyword}%"
+        normalized_keyword = keyword.strip().lower()
+        accepted_phrase_match = exists(
+            select(AssetSearchPhrase.id).where(
+                AssetSearchPhrase.asset_group_id == Image.asset_group_id,
+                AssetSearchPhrase.review_status == "accepted",
+                AssetSearchPhrase.phrase.ilike(pattern),
+            )
+        )
+        exact_phrase_match = exists(
+            select(AssetSearchPhrase.id).where(
+                AssetSearchPhrase.asset_group_id == Image.asset_group_id,
+                AssetSearchPhrase.review_status == "accepted",
+                func.lower(AssetSearchPhrase.phrase) == normalized_keyword,
+            )
+        )
+        match_rank = case(
+            (func.lower(Image.title) == normalized_keyword, 6),
+            (func.lower(AssetGroup.title) == normalized_keyword, 6),
+            (exact_phrase_match, 5),
+            (literal(keyword).ilike(literal("%") + Image.title + literal("%")), 4),
+            (literal(keyword).ilike(literal("%") + AssetGroup.title + literal("%")), 4),
+            (Image.title.ilike(pattern), 3),
+            (AssetGroup.title.ilike(pattern), 3),
+            (accepted_phrase_match, 2),
+            else_=0,
+        )
         stmt = (
             select(Image)
             .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
-            .outerjoin(
-                AssetSearchPhrase,
-                and_(
-                    AssetSearchPhrase.asset_group_id == Image.asset_group_id,
-                    AssetSearchPhrase.review_status == "accepted",
-                ),
-            )
             .where(
                 Image.deleted_at.is_(None),
                 or_(
@@ -163,13 +182,15 @@ class ImageRepository:
                 or_(
                     Image.title.ilike(pattern),
                     literal(keyword).ilike(literal("%") + Image.title + literal("%")),
+                    AssetGroup.title.ilike(pattern),
+                    literal(keyword).ilike(literal("%") + AssetGroup.title + literal("%")),
                     Image.image_summary.ilike(pattern),
                     literal(keyword).ilike(literal("%") + Image.image_summary + literal("%")),
-                    AssetSearchPhrase.phrase.ilike(pattern),
+                    accepted_phrase_match,
                 )
             )
             .options(*IMAGE_LOAD_OPTIONS)
-            .distinct()
+            .order_by(desc(match_rank), desc(Image.created_at), desc(Image.id))
             .limit(limit)
         )
         return list(self.db.scalars(stmt).all())

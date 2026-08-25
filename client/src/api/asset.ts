@@ -3,6 +3,7 @@ import { api } from './client';
 import type {
   AssetConceptLink,
   AssetGroup,
+  AssetSourceLinkType,
   BusinessFacetCatalog,
   BusinessConcept,
 } from '@client/src/types/api';
@@ -19,6 +20,16 @@ export async function fetchBusinessConcepts(): Promise<BusinessConcept[]> {
 
 export async function fetchBusinessFacets(): Promise<BusinessFacetCatalog> {
   return (await api.get('/api/business-facets')).data;
+}
+
+export async function exportAssetGroups(groupIds: string[]): Promise<Blob> {
+  return (
+    await api.post(
+      '/api/asset-groups/export',
+      { groupIds },
+      { responseType: 'blob' },
+    )
+  ).data;
 }
 
 export async function updateAssetBusinessClassification(
@@ -128,4 +139,36 @@ export async function removeAssetSearchPhrase(
   phraseId: string,
 ): Promise<AssetGroup> {
   return (await api.delete(`/api/asset-groups/${groupId}/search-phrases/${phraseId}`)).data;
+}
+
+export async function addAssetSourceLink(
+  groupId: string,
+  input: {
+    label: string;
+    url: string;
+    linkType: AssetSourceLinkType;
+    note?: string;
+  },
+): Promise<AssetGroup> {
+  return (await api.post(`/api/asset-groups/${groupId}/source-links`, input)).data;
+}
+
+export async function updateAssetSourceLink(
+  groupId: string,
+  linkId: string,
+  input: {
+    label?: string;
+    url?: string;
+    linkType?: AssetSourceLinkType;
+    note?: string | null;
+  },
+): Promise<AssetGroup> {
+  return (await api.patch(`/api/asset-groups/${groupId}/source-links/${linkId}`, input)).data;
+}
+
+export async function deleteAssetSourceLink(
+  groupId: string,
+  linkId: string,
+): Promise<AssetGroup> {
+  return (await api.delete(`/api/asset-groups/${groupId}/source-links/${linkId}`)).data;
 }

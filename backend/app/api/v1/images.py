@@ -73,6 +73,19 @@ async def semantic_search(
     service: SearchService = Depends(get_search_service),
     analytics: SearchLogService = Depends(get_search_log_service),
 ):
+    identity_handled, identity_response = service.identity_search.search(
+        payload.keyword,
+        payload.limit,
+    )
+    if identity_handled:
+        assert identity_response is not None
+        identity_response.search_log_id = analytics.record_search(
+            actor_user_id=user.id,
+            keyword=payload.keyword,
+            response=identity_response,
+            request_id=request.state.request_id,
+        )
+        return identity_response
     response = await service.search_async(
         payload.keyword,
         payload.limit,

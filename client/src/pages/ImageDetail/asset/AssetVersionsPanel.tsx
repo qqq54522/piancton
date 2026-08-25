@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { getApiError } from '@client/src/api/client';
 import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
+import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import type { AssetGroup } from '@client/src/types/api';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
 import AssetVariantDeleteDialog from './AssetVariantDeleteDialog';
@@ -83,7 +84,7 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {group.images.map((image) => (
           <div key={image.id} className={`overflow-hidden rounded-xl border ${image.isCurrent ? 'border-border' : 'border-dashed opacity-60'}`}>
-            <img src={image.thumbnailUrl} alt={image.title} className="aspect-[4/3] w-full object-cover" />
+            <img src={previewUrlFor(image)} alt={image.title} className="aspect-[4/3] w-full object-cover" />
             <div className="space-y-1 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-xs font-medium">{image.title}</p>

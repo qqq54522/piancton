@@ -24,6 +24,7 @@ interface ImageGridProps {
   emptyVariant?: 'card' | 'plain';
   layout?: 'grid' | 'masonry';
   withPresence?: boolean;
+  animateGifPreview?: boolean;
 }
 
 const ImageGrid = ({
@@ -34,6 +35,7 @@ const ImageGrid = ({
   emptyVariant = 'card',
   layout = 'grid',
   withPresence = false,
+  animateGifPreview = true,
 }: ImageGridProps) => {
   const [layoutRevision, setLayoutRevision] = useState(0);
   const imageSignature = useMemo(
@@ -97,7 +99,12 @@ const ImageGrid = ({
       layout={withPresence}
       className={layout === 'masonry' ? 'mb-5 break-inside-avoid' : 'h-full'}
     >
-      <ImageCard image={image} variant={layout} onImageLoad={layout === 'masonry' ? refreshLayout : undefined} />
+      <ImageCard
+        image={image}
+        variant={layout}
+        animateGifPreview={animateGifPreview}
+        onImageLoad={layout === 'masonry' ? refreshLayout : undefined}
+      />
     </motion.div>
   ));
 

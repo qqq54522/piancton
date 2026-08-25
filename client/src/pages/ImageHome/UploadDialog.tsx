@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ImagePlus, Info, Loader2, Plus, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ImagePlus, Info, Loader2, Plus, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as assetApi from '@client/src/api/asset';
@@ -60,6 +60,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
   );
+  const fileRiskHints = useMemo(() => fileRiskWarnings(files), [files]);
   const requestedTitle = useMemo(() => {
     if (files.length !== 1) return '';
     return (title.trim() || files[0].name.replace(/\.[^.]+$/, '')).slice(0, 255);
@@ -135,6 +136,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     setUploading(true);
     try {
       const automaticRenames: string[] = [];
+      const assetCodes: string[] = [];
       for (const [index, file] of files.entries()) {
         const fileTitle = files.length === 1 && title.trim()
           ? title.trim()
@@ -151,6 +153,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
         if (image.title !== fileTitle.trim().slice(0, 255)) {
           automaticRenames.push(image.title);
         }
+        if (image.assetCode) assetCodes.push(image.assetCode);
         if ((conceptId || proofPointCode || evidencePointCode) && image.assetGroupId) {
           await assetApi.updateAssetBusinessClassification(image.assetGroupId, {
             conceptId: conceptId || null,
@@ -165,7 +168,10 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
       const renameMessage = automaticRenames.length
         ? `；重名素材已自动保存为 ${automaticRenames.slice(0, 3).join('、')}${automaticRenames.length > 3 ? ` 等 ${automaticRenames.length} 个名称` : ''}`
         : '';
-      toast.success(`${baseMessage}${renameMessage}`);
+      const codeMessage = assetCodes.length === 1
+        ? `；素材码 ${assetCodes[0]}`
+        : '；每张图片已自动分配素材码';
+      toast.success(`${baseMessage}${renameMessage}${codeMessage}`);
       onSuccess();
       close();
     } catch (error) {
@@ -214,6 +220,19 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
               <div className="mt-3 flex gap-2 rounded-xl border border-border/80 bg-[#f7f7f5] px-3 py-2.5 text-xs leading-5 text-foreground/70">
                 <Info className="mt-0.5 size-3.5 shrink-0" />
                 右侧渠道、场景图、卖点和话术会应用到本次选中的全部图片；图片名称默认使用各自文件名。
+              </div>
+            )}
+            {fileRiskHints.length > 0 && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-800">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  上传前检查
+                </div>
+                <ul className="mt-1.5 space-y-1">
+                  {fileRiskHints.map((hint) => (
+                    <li key={hint}>{hint}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </section>
@@ -455,3 +474,27 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
 };
 
 export default UploadDialog;
+
+function fileRiskWarnings(files: File[]): string[] {
+  const warnings: string[] = [];
+  const gifFiles = files.filter((file) => isGifFile(file));
+  const largeGifs = gifFiles.filter((file) => file.size >= 8 * 1024 * 1024);
+  const largeImages = files.filter((file) => file.size >= 20 * 1024 * 1024);
+  if (gifFiles.length > 0) {
+    warnings.push('GIF 会在列表里保留动画预览，数量多时会比静态图更吃加载。');
+  }
+  if (largeGifs.length > 0) {
+    warnings.push(`有 ${largeGifs.length} 个 GIF 超过 8MB，建议压缩或补静态替代图。`);
+  }
+  if (largeImages.length > 0) {
+    warnings.push(`有 ${largeImages.length} 张图片超过 20MB，上传后会进入素材资产巡检。`);
+  }
+  if (files.length > 1) {
+    warnings.push('批量上传会共用右侧业务信息；如果卖点不同，建议分批上传。');
+  }
+  return warnings;
+}
+
+function isGifFile(file: File): boolean {
+  return file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+}

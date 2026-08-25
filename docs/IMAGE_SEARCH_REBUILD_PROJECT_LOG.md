@@ -1,10 +1,897 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-07-28
-当前范围：Phase 0～Phase 6；九个正式 Skill 与四类运行时模型任务完成收口
-当前状态：Phase 0～6 工程改造完成；六大体系、16 个核心卖点、三层搜索和人工关系边界保持稳定
+更新时间：2026-08-25
+当前范围：Phase 0～Phase 6；九个正式 Skill 与四类运行时模型任务完成收口；组合语义校准与素材证明点筛选继续按真实业务话术推进
+当前状态：Phase 0～6 工程改造完成；六大体系、16 个核心卖点、三层搜索和人工关系边界保持稳定；16 个核心卖点均已按业务组合语义稳定下钻到直属证明点；真实校验中发现的口语误命中按小补丁补边界和素材话术；2026-08-25 开始实施正式素材身份码与精确查找
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+---
+
+## 2026-08-25：正式素材身份码与精确查找（D210）
+
+### 产品确认
+
+- 上传成功后由系统自动分配素材身份码，不调用大模型，不依赖图片内容识别。
+- 素材组使用长期稳定的 `asset_code`，具体图片版本使用唯一的 `version_code`。
+- 普通业务端继续只保留一个搜索框；识别码和分享链接是同一个入口的确定性查找分支。
+- 分享链接仍需登录并经过当前角色权限校验，不变成公开下载地址。
+
+### 实施边界
+
+- 标题修改、主图替换、延展尺寸增加和业务关系调整不改变素材码。
+- 删除或永久清理后身份码不回收、不重新分配。
+- 历史素材通过迁移补齐身份码。
+- 精确身份查找优先于语义搜索；身份查找失败时不把码交给大模型。
+
+### 当前进度
+
+- 已完成正式决策、迁移命名、现有上传/版本/搜索入口审计、数据库字段与不可复用登记、后端精确解析、前端展示复制、分享路由和历史数据补码。
+- 迁移 `20260825_0025_asset_identity_codes.py` 已执行，本地数据库已从 `20260825_0024` 升级到 `20260825_0025`。
+- 身份码专项、架构护栏和 Phase 5 回归共 `35 passed`；新增及受影响后端文件 Ruff 通过。
+- 前端 OpenAPI 类型已重新生成，typecheck、lint、production build 通过。
+- 全量后端仍有 9 项既有搜索意图校准测试失败，集中在当前工作区原有语义规则，本轮未改动这些规则。
+- 内置浏览器标签页未能加载本地开发地址，因此未将浏览器走查结果冒充为通过；身份码主链路已由接口和自动化测试覆盖。
+
+---
+
+## 2026-08-25：搜索结果卡悬浮径向操作环（D211）
+
+### 本轮目标
+
+- 让图片结果卡默认保持干净，减少四个常驻操作按钮对图片内容的干扰。
+- 在用户靠近卡片时提供轻量、有上下文关系的快捷操作。
+
+### 完成内容
+
+- 新增可复用 `RadialActionMenu`，将发送到素材库 Agent、项目夹、复制身份码和下载收进右上角开放式操作环。
+- 操作环使用轻描边轨道和 180～240ms 的收拢/展开动效；卡片 hover、键盘 focus 和触摸设备均可触达。
+- 版本/尺寸选择继续使用标准下拉并保留现有下载链接，未改变下载尺寸、身份码复制、项目夹或 Agent 事件。
+- 普通浏览卡片暂不接入该操作环，保持其现有操作边界，避免把低频版本/项目夹能力扩散到无对应数据上下文的页面。
+- 增加 `prefers-reduced-motion` 降级，关闭操作环过渡。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/RadialActionMenu.tsx`
+- `client/src/pages/ImageHome/SemanticSearchResult/ScoredImageCard.tsx`
+- `client/src/tailwind-theme.css`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+- `npm run build --prefix client`：通过。
+- Vitest 与内置浏览器走查待本轮结束前完成。
+
+### 遗留问题
+
+- 当前操作环接入搜索结果卡；普通浏览卡仍使用原有轻量按钮布局。
+- 当前 Tooltip 复用原生 `title` 和 `aria-label`，未新增独立 Tooltip 组件。
+
+### 下一步
+
+1. 运行前端 Vitest。
+2. 在首页搜索结果中走查默认态、hover/focus 展开态和触摸降级。
+
+---
+
+## 2026-08-25：图片卡操作说明与完整推荐文案（D212）
+
+### 本轮目标
+
+- 让操作环中的 Icon 同时显示短文字，降低第一次使用时的理解成本。
+- 让首页普通瀑布流卡片和搜索结果卡片使用一致的身份码、Agent、下载操作环。
+- 让每张搜索结果卡完整展示自身推荐点和动态推荐说明。
+
+### 完成内容
+
+- 径向操作环展开后显示“发送到 Agent、加入项目夹、复制身份码、下载”等短标签；默认状态仍不显示工具栏。
+- 普通网格卡片和瀑布流卡片接入同一 `RadialActionMenu`，保留现有图片跳转、动图预览、设计师下载统计和权限边界。
+- 普通瀑布流新增当前图片下载动作和身份码复制动作，使用现有图片字段与下载接口，不新增后端接口。
+- 搜索结果推荐点、主推荐说明和补充说明移除前端两行截断，改为自动换行完整展示。
+- 修正菜单外溢与图片容器 `overflow-hidden` 的关系，保证右上角操作环不会被图片裁掉。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/RadialActionMenu.tsx`
+- `client/src/pages/ImageHome/ImageCard.tsx`
+- `client/src/pages/ImageHome/SemanticSearchResult/ScoredImageCard.tsx`
+- `client/src/tailwind-theme.css`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+- `npm test -- --run --prefix client`：45 项通过。
+- `npm run build --prefix client`：通过。
+- 内置浏览器走查搜索结果卡：文字操作环、完整推荐说明和下载入口正常。
+
+### 遗留问题
+
+- 推荐说明现在按内容自然撑开卡片高度，瀑布流列高差会比截断版本更明显，这是完整可读性换来的布局结果。
+
+### 下一步
+
+1. 继续观察真实业务搜索中的长推荐文案，必要时只优化文字层级和卡片宽度，不恢复省略截断。
+
+---
+
+## 2026-08-25：径向操作环节点重排（D213）
+
+### 本轮目标
+
+- 修复带文字操作环沿原短半径堆叠、标签互相覆盖的问题。
+- 让搜索结果卡和普通首页卡片在 3 动作、4 动作两种情况下都保持稳定节奏。
+
+### 完成内容
+
+- 操作环扩大开放轨道，并改为四个动作节点的固定绝对落点。
+- 4 动作卡片分别安排复制身份码、加入项目夹、发送到 Agent、下载；不再通过短距离负位移叠加。
+- 3 动作卡片通过 `data-action-count` 使用独立坐标，移除项目夹时不留下明显空位。
+- 操作环 hover/focus、触摸设备和 reduced-motion 行为保持不变。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/RadialActionMenu.tsx`
+- `client/src/tailwind-theme.css`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+- `npm test -- --run --prefix client`：45 项通过。
+- `npm run build --prefix client`：通过。
+- 内置浏览器走查：4 个文字动作节点不再重叠，3/4 动作布局规则已生效。
+
+### 遗留问题
+
+- 操作环仍会在卡片右上外沿占用一定空间，这是文字可读性与点击区域的必要空间。
+
+---
+
+## 2026-08-25：Agent 闭合入口上移（D214）
+
+### 本轮目标
+
+- 解决首页右下角 Agent 机器人位置过低，压近搜索反馈和输入框的问题。
+
+### 完成内容
+
+- 闭合态 Agent 容器由 `bottom-6` 调整为 `bottom-14`，整体上移约 32px。
+- 问候气泡与机器人入口同步上移。
+- 打开后的聊天面板固定位置不变。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/AssetAgentWidget.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+- `npm test -- --run --prefix client`：45 项通过。
+- 内置浏览器走查：入口距离底部约 61px，不再贴近输入区。
+
+### 遗留问题
+
+- 无。
+
+---
+
+## 2026-08-25：Agent 闭合入口再次上移（D215）
+
+### 本轮目标
+
+- 在 D214 基础上再将首页闭合态 Agent 入口上移 40px。
+
+### 完成内容
+
+- `AssetAgentWidget` 的闭合态容器由 `bottom-14` 调整为 `bottom-24`。
+- 机器人和问候气泡同步上移。
+- 打开后的聊天面板位置不变。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/AssetAgentWidget.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- 待本轮前端快速检查完成。
+
+---
+
+## 2026-08-25：素材库 Agent 彩色流光反馈（D209）
+
+### 设计确认
+
+- 用户希望白色变形球体周围偶尔出现彩色流光，让 Agent 更灵动、更有趣。
+- 彩色只作为短时状态反馈：沿球体外圈扫过后消失，不持续发光，不改变整体黑白暖灰主题。
+- 不复制录屏或外部页面中的角色、SVG 和未知许可资源，继续使用项目原创 CSS。
+
+### 完成内容
+
+- Agent 光球新增独立的彩色边缘流光层，使用柔和的青、蓝、紫、粉、黄渐变。
+- 默认约 14 秒低频触发一次，流光只在短时间内出现。
+- 思考状态将节奏缩短到约 8 秒一次，让等待回复时更有反馈，但仍保持克制。
+- 流光只作用于球体边缘，不遮挡眼睛、嘴巴或聊天面板，不产生布局尺寸变化。
+- `prefers-reduced-motion: reduce` 下关闭彩色流光动画。
+
+### 修改文件
+
+- `client/src/components/PianctonAgentMark.tsx`
+- `client/src/tailwind-theme.css`
+- `docs/UX_UI_DESIGN_SYSTEM.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 边界
+
+- 本轮只改变 Agent 前端表现，不修改后端、会话、权限、模型调用、搜索排序或素材业务事实。
+- 彩色流光不是新的品牌主色，也不承载业务状态含义；后续如需更多状态表达，仍应优先使用现有表情和黑白暖灰动效。
+
+---
+
+## 2026-08-25：素材库 Agent 球体形变反馈（D208）
+
+### 录屏复核结论
+
+- 参考机器人真正的灵动感来自球体本身的形态变化，不只是眼睛或嘴巴动画。
+- 录屏中包含白色球体、黑色球体、细长形态和球体回弹，眼睛始终像贴在球面上跟随注视。
+- 本项目不直接复制录屏中的角色、SVG 或外部素材，只吸收“形体响应状态”的交互方式。
+
+### 完成内容
+
+- Agent 光球根据鼠标位置增加轻微横向偏移、上下偏移和倾斜。
+- 光球使用非圆形 `border-radius` 周期形变，避免长期保持静态圆形。
+- 唤醒状态使用弹性放大和回位。
+- 思考状态使用压缩、聚焦和轻微上下呼吸。
+- 完成状态使用短促回弹，配合微笑表情。
+- 眼睛和瞳孔继续跟随指针，脸部整体随球体产生同步偏移。
+
+### 验证结果
+
+- `cd client && npm run typecheck`：通过。
+- `cd client && npm run lint`：通过。
+- `cd client && npm test -- --run`：14 个测试文件、45 项通过。
+- `cd client && npm run build`：生产构建通过。
+- `git diff --check`：通过。
+- 内置浏览器重新打开首页并展开 Agent 面板：布局和聊天内容正常。
+
+### 边界
+
+- 本轮只改变 Agent 前端动效，不修改后端、会话、权限、模型调用和素材业务事实。
+- 形变幅度保持克制，避免遮挡面板内容、造成布局抖动或影响移动端点击。
+
+---
+
+## 2026-08-25：素材库 Agent 灵动表情交互（D207）
+
+### 完成内容
+
+- 保留现有原创暖白光球，不引入参考页面中的外部角色视觉或素材。
+- 光球眼睛根据全局指针位置平滑跟随，鼠标移开或窗口失焦后回到中性注视。
+- 眨眼由单一固定节奏改为自然双眨，减少“静态图标感”。
+- 增加状态表情：
+  - 唤醒：打开 Agent、创建新对话时放大眼睛并抬起脸部。
+  - 思考：等待模型回复时切换专注嘴型并显示旋转光环。
+  - 完成：回复成功后短暂显示更明显的微笑。
+  - 异常：请求失败后短暂回到唤醒表情，提示 Agent 仍在等待下一次输入。
+- 增加 `prefers-reduced-motion` 支持，用户关闭动态效果时停止循环动画和过渡。
+
+### 修改文件
+
+- `client/src/components/PianctonAgentMark.tsx`
+- `client/src/pages/ImageHome/AssetAgentWidget.tsx`
+- `client/src/tailwind-theme.css`
+- `docs/UX_UI_DESIGN_SYSTEM.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `cd client && npm run typecheck`：通过。
+- `cd client && npm run lint`：通过。
+- `cd client && npm test -- --run`：14 个测试文件、45 项通过。
+- `cd client && npm run build`：生产构建通过。
+- `git diff --check`：通过。
+- 内置浏览器走查首页悬浮入口和展开后的 Agent 面板：正常；会话菜单、消息区和输入区未受影响。
+
+### 边界
+
+- 本轮只改变 Agent 的前端状态表达，不改变后端回答质量、权限、个人会话隔离、24 小时过期、素材事实或搜索排序。
+- 内置浏览器脚本环境不支持直接构造 `PointerEvent`/`MouseEvent`，因此鼠标跟随以实际页面渲染走查和代码路径确认；不影响真实浏览器中的全局 `pointermove` 监听。
+
+---
+
+## 2026-08-25：API 中心智能调度边界与一键巡检（D196）
+
+### 完成内容
+
+- 明确“智能调度”的真实含义：当前不是生成式 Agent 在实时判断，而是可解释、可复现的算法调度。
+- 页面新增说明卡，直接解释：
+  - 实时调度不是 Agent 玄学，而是按任务范围、状态、健康度、优先级和最近耗时选择 Key。
+  - 体系路由和卖点识别等在线链路必须稳定，不交给 Agent 临场发挥。
+  - Agent 更适合后续做巡检总结、异常解释、容量建议等离线运维辅助。
+- 健康度监测新增“一键巡检所有 Key”：
+  - 后端新增 `POST /api/admin/api-center/health-checks/run-all`。
+  - 默认巡检所有非停用 Key。
+  - 每个 Key 使用任务范围里的代表任务发起最小 JSON 探针。
+  - 返回 checked/ok/failed 汇总和逐条检查结果。
+  - 不记录完整 Key、完整 Prompt、图片或完整外部响应。
+- 健康度来源在页面上拆成三类：
+  - 自动监测：真实模型调用自动回写健康状态、耗时和错误摘要。
+  - 一键巡检：管理员按钮主动巡检所有非停用 Key。
+  - 定时巡检：后端批量巡检接口已可被服务器 cron 或任务队列定时调用。
+
+### 修改文件
+
+- `backend/app/schemas/api_center.py`
+- `backend/app/services/api_center_service.py`
+- `backend/app/api/v1/api_center.py`
+- `backend/tests/test_api_center.py`
+- `client/src/api/admin.ts`
+- `client/src/types/api.ts`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 验证结果
+
+- `cd backend && .venv/bin/python -m ruff check app/services/api_center_service.py app/api/v1/api_center.py app/schemas/api_center.py tests/test_api_center.py`：通过。
+- `cd backend && .venv/bin/python -m pytest tests/test_api_center.py -q`：8 passed。
+- `cd backend && .venv/bin/python -m pyright`：0 errors，保留既有 `search_branch_runner.py` TypeVar warning。
+- `cd backend && .venv/bin/python -m pytest tests/test_api_center.py tests/test_ai_provider.py::test_fallback_chain_exposes_attempt_count_for_search_budget tests/test_phase4_search_orchestration.py::test_phase4_staged_model_uses_independent_layer_budgets tests/test_phase4_search_orchestration.py::test_phase4_candidate_review_filters_top_candidates -q`：11 passed。
+- `npm run lint --prefix client`：通过。
+- `npm run typecheck --prefix client`：通过。
+- `docker compose up -d --build backend web`：通过，前端生产 build 成功。
+- `curl -sf http://127.0.0.1/health`：返回 ready；backend、web、postgres、meilisearch 均 healthy。
+
+### 边界
+
+- 本轮没有把生成式 Agent 接入实时 Key 选择；这是刻意保留的稳定性边界。
+- 定时巡检的后端批量接口已具备，生产部署时还需要接服务器 cron、worker 或任务队列来定时触发。
+- 真实并发 hedged request 尚未接入；当前仍是健康优先 + 顺序 fallback + 总预算不放大。
+
+---
+
+## 2026-08-24：API 中心调度接入运行链路（D195）
+
+### 完成内容
+
+- 把 API 中心从“管理页/日志页”推进为运行时 Provider 调度入口：
+  - 搜索四层 Skill：体系路由、卖点识别、证明点识别、候选图片复核
+  - 上传主图：图片语义分析
+  - 上传前：素材搜索话术生成
+- 新增环境 Key 自动导入：系统会读取原环境配置中的 4 个模型 Key 槽位，自动同步为 API 中心里的脱敏 Key 记录：
+  - 环境导入 · 搜索主 Key
+  - 环境导入 · 搜索备用 Key
+  - 环境导入 · 主图分析 Key
+  - 环境导入 · 话术生成 Key
+- 新增 API 中心调度 Provider：`AiService` 不再直接知道具体 Key；每次模型请求按 `request.task` 到 API 中心选择候选 Key，再调用 OpenAI-compatible Provider。
+- 自动调度规则：
+  - 只选择 `active`、开启 `auto_assign_enabled`、任务范围匹配的 Key。
+  - 优先级顺序：健康状态 `ok` > 未知冷启动 > 失败状态；同一状态下按 priority、最近耗时和创建时间排序。
+  - 每个任务最多选择 4 个候选 Key。
+  - 成功调用会更新最近健康状态；失败会记录安全错误摘要并把 active Key 置为 `cooling`，避免继续优先使用。
+  - 若 API 中心没有可用 Key，则回退旧环境变量 Provider，保障迁移阶段不成为单点故障。
+- 搜索外层预算不再按 Key 数量放大：调度器内部负责 fallback，避免多 Key 时把整体搜索耗时线性拉长。
+- 前端 API 中心调整为“自动调度为主、人工指定为高级 override”：
+  - 页面说明改为 Key 池自动分配。
+  - “调度配置”改为“智能调度配置”。
+  - 增加“自动调度/人工指定”开关。
+  - 解释 `20` 为“超时秒数”，`0.2` 为“输出稳定度/temperature”，减少纯工程参数感。
+
+### 修改文件
+
+- 后端：
+  - `backend/app/services/api_center_service.py`
+  - `backend/app/repositories/api_center_repository.py`
+  - `backend/app/api/dependencies.py`
+  - `backend/tests/test_api_center.py`
+- 前端：
+  - `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- 文档：
+  - `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+  - `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 验证结果
+
+- `cd backend && .venv/bin/python -m ruff check app/services/api_center_service.py app/api/dependencies.py tests/test_api_center.py`：通过。
+- `cd backend && .venv/bin/python -m pytest tests/test_api_center.py -q`：7 passed。
+- `cd backend && .venv/bin/python -m pytest tests/test_api_center.py tests/test_ai_provider.py::test_fallback_chain_exposes_attempt_count_for_search_budget tests/test_phase4_search_orchestration.py::test_phase4_staged_model_uses_independent_layer_budgets tests/test_phase4_search_orchestration.py::test_phase4_candidate_review_filters_top_candidates -q`：10 passed。
+- `cd backend && .venv/bin/python -m pyright`：0 errors，保留既有 TypeVar warning。
+- `npm run lint --prefix client`：通过。
+- `npm run typecheck --prefix client`：通过。
+- `docker compose up -d --build backend web`：通过，前端生产 build 成功。
+- `curl -sf http://127.0.0.1/health`：返回 ready；backend、web、postgres、meilisearch 均 healthy。
+
+### 边界
+
+- 本轮尚未实现真正并发的 hedged request；当前是健康优先 + 顺序 fallback + 总预算不放大。后续如果真实日志显示单 Key 偶发长尾明显，再把 `hedging_delay_ms` 接成“延迟抢跑备用 Key”。
+- 当前 `cooling` 是运行失败后的保守降级状态；后续可补定时巡检，把 cooling Key 自动恢复或转 invalid。
+- API Key 已在 UI/API/日志中脱敏，但数据库字段仍是明文密钥存储；正式生产前可继续接 KMS/加密字段和更细的操作审计。
+
+---
+
+## 2026-08-24：API 中心与调用链路产品化第一版（D194）
+
+### 完成内容
+
+- 新增后台一级入口“API 中心”，包含 API 实验、API 管理、调度配置、健康度监测和调用链路日志 5 个区域，作为后续公司服务器上维护模型 Key、模型健康和搜索调用链路的明确入口。
+- 新增 OpenAI-compatible Key 池数据模型与管理员接口：支持 label、base_url、model、适用任务、优先级、超时、启停和自动分配开关；完整密钥只写入后端存储，不在接口、页面或日志中回显，只展示 preview。
+- 新增搜索四层 Skill 运行槽位配置：
+  - 第一层：体系路由 `search_system_routing`
+  - 第二层：卖点识别 `search_intent_understanding`
+  - 第三层：证明点识别 `search_proof_point_understanding`
+  - 第四层：候选图片复核 `search_candidate_review`
+- 新增手动健康测试：管理员可在 API 实验页选择某个 Key 和任务，执行一次轻量 JSON 生成测试，记录 healthy/degraded/down、耗时和安全错误摘要。
+- 新增调用链路遥测：搜索链路会把每层模型 provider attempt 的 task、layer、provider、model、credential label、fallback index、耗时、状态、错误摘要和结构化输出摘要写入 `model_call_traces`，用于后续判断是哪一层慢、哪一个 Provider 不稳定。
+- 运行时保持现有 env Provider 优先兼容：第一版先把 Key 池、健康度和链路日志产品化，不直接把 DB Key 池接入线上调度，避免后台误配置变成搜索单点故障；后续等真实健康数据积累后，再接入自动健康调度、冷却和延迟抢跑。
+
+### 修改文件
+
+- 后端模型/迁移/API/服务：
+  - `backend/app/models/api_provider.py`
+  - `backend/alembic/versions/20260824_0022_api_center.py`
+  - `backend/app/schemas/api_center.py`
+  - `backend/app/repositories/api_center_repository.py`
+  - `backend/app/services/api_center_service.py`
+  - `backend/app/api/v1/api_center.py`
+  - `backend/app/api/router.py`
+  - `backend/app/api/dependencies.py`
+- 搜索链路遥测接入：
+  - `backend/app/services/search_models.py`
+  - `backend/app/schemas/image.py`
+  - `backend/app/services/search_diagnostics_service.py`
+  - `backend/app/services/query_understanding_service.py`
+  - `backend/app/services/search_external_branches.py`
+  - `backend/app/services/search_log_service.py`
+- 前端后台页面与导航：
+  - `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+  - `client/src/types/api.ts`
+  - `client/src/api/admin.ts`
+  - `client/src/app.tsx`
+  - `client/src/components/Layout.tsx`
+- 测试：
+  - `backend/tests/test_api_center.py`
+
+### 验证结果
+
+- `cd backend && .venv/bin/alembic upgrade head`：通过；本地 SQLite 升至 `20260824_0022`。
+- `cd backend && .venv/bin/alembic downgrade 20260805_0021 && .venv/bin/alembic upgrade head`：通过，迁移可回滚再升级。
+- `docker compose exec -T backend alembic current`：Docker Postgres 当前为 `20260824_0022 (head)`。
+- `cd backend && .venv/bin/python -m ruff check app scripts alembic/versions/20260824_0022_api_center.py`：通过。
+- `cd backend && .venv/bin/python -m pyright`：0 errors，保留既有 TypeVar warning。
+- `cd backend && .venv/bin/python -m pytest tests/test_api_center.py -q`：5 passed。
+- `cd backend && .venv/bin/python -m pytest tests/test_api_center.py tests/test_phase4_search_orchestration.py::test_phase4_staged_model_uses_independent_layer_budgets tests/test_phase4_search_orchestration.py::test_phase4_candidate_review_filters_top_candidates tests/test_phase4_search_orchestration.py::test_phase4_classmate_usage_query_prefers_official_scale_data_asset -q`：8 passed。
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+- `docker compose up -d --build backend web`：通过；backend、web、postgres、meilisearch 均 healthy；`curl -sf http://127.0.0.1/health` 返回 ready。
+
+### 已知边界与下一步
+
+- 本轮不承诺“每次第三方 API 都一定成功”。第三方 Provider 天然可能超时、限流或返回异常；第一版把可观测性、Key 池、健康度和槽位配置补齐，先让问题可定位、可维护，再进入自动调度。
+- 下一步可以在真实日志基础上接入 DB Key 池调度：按任务选择 healthy Key，支持冷却、失败熔断、延迟抢跑/hedged request、并发上限、成本与 P95 延迟约束。
+- 密钥当前已在 UI/API/日志层面隐藏完整值；生产安全加固可继续接入 KMS/加密字段、操作审计和权限细分。
+- 更大范围搜索回归中额外暴露了 3 个既有业务语义边界用例失败，分别涉及考前阶段修复、显式证明点素材筛选、多意图 query_type 判定；这些不属于 API 中心链路本身，后续可按搜索边界专项继续修。
+
+---
+
+## 2026-08-24：数据规模图口语入口校准（D193）
+
+### 完成内容
+
+- 根据业务负责人现场校验，“孩子班上，大概率就有同学在用”应召回“官方数据规模”数据图，含义是全国 1.3 亿学生、400 万教师共同选择等用户规模/数据背书，而不是 AI 定制班。
+- `public-phrase-governance.json` 升至 `2026-08-24.10`，新增 `animation-platform-scale-data` 组合信号和 5 条业务校准样例；当前组合信号 33 个，业务校准样例 310 条。
+- 同步校内与跨体系校准补充边界：多少人在用、同学在用、学生教师共同选择、用户规模、数据背书和数据图，归 `animation_explanation` 的 `pp_animation_scale_data`；“班上/同学”只有和在用、共同选择或数据背书组合才触发，不因“班”字误归 AI 定制班。
+- 本地 SQLite 与 Docker Postgres 中素材组“官方数据规模”已补：
+  - 主证明点：`pp_animation_scale_data`
+  - 主证据表达点：`ep_school_animation_scale_numbers`
+  - manual accepted 素材话术：`孩子班上，大概率就有同学在用`、`孩子班上大概率就有同学在用`、`孩子班上大概率就有同学在用的数据图`、`全国1.3亿学生400万教师共同选择`、`学生和老师共同选择的数据图`
+- 新增 Phase4 搜索回归 `test_phase4_classmate_usage_query_prefers_official_scale_data_asset`，确保该句只返回官方数据规模，不被同卖点其他动画素材或 AI 定制班抢位。
+
+### 验证结果
+
+- `backend/.venv/bin/python -m json.tool skills/understand-image-search-intent/references/public-phrase-governance.json >/tmp/piancton-governance.json`：通过。
+- `cd backend && .venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py::test_public_phrase_layer_can_only_reference_the_frozen_selling_points tests/test_skill_selling_point_alignment.py::test_business_calibration_examples_route_without_becoming_public_phrases tests/test_query_states_and_negation.py::test_remaining_business_compositions_keep_neighbor_boundaries tests/test_phase4_search_orchestration.py::test_phase4_classmate_usage_query_prefers_official_scale_data_asset -q`：4 passed。
+- `cd backend && .venv/bin/ruff check tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py`：通过。
+- `git diff --check`：通过。
+- SQLite 真实搜索验证：`孩子班上，大概率就有同学在用` → 只返回“官方数据规模”，命中 `pp_animation_scale_data` / `ep_school_animation_scale_numbers`。
+
+### 边界
+
+- 不新增核心卖点、证明点、公共话术或数据库 schema。
+- 该修正属于校验阶段“小补丁”：真实误命中才补边界和素材 accepted 话术，不开启大规模整句词库。
+
+---
+
+## 2026-08-24：剩余卖点业务搜索语义第二批补齐（D192）
+
+### 完成内容
+
+- 第二批补齐 7 个尚未专项校准的卖点：
+  - `new_curriculum_prediction`：新增“课标改革/新考试对象 + 趋势拆解目的”与“新题型/新情境/跨学科对象 + 课程训练动作”两类组合，分别下钻 `pp_exam_reform_trend_alignment` 与 `pp_exam_new_format_course_practice`。
+  - `transfer_practice`：新增“出题原理/底层逻辑 + 举一反三迁移目的”与“当前题讲完 + 同类/相似/变式题动作”两类组合，分别下钻 `pp_exam_transfer_principle_first` 与 `pp_exam_transfer_variant_practice`。
+  - `expert_planning`：新增专家身份依据与通用长期课程路径两类组合，分别下钻 `pp_cultivation_expert_team_credentials` 与 `pp_cultivation_expert_path_design`。
+  - `stage_transition`：新增升学节点衔接课程与小初高连续覆盖两类组合，分别下钻 `pp_cultivation_stage_bridge_courses` 与 `pp_cultivation_stage_full_cycle_coverage`。
+  - `universal_method`：新增同题多路径拆解与底层思维长期基础两类组合，分别下钻 `pp_cultivation_method_multiple_paths` 与 `pp_cultivation_method_transfer_foundation`。
+  - `human_teacher_supervision`：新增真人诊断阶段计划与持续提醒回访两类组合，分别下钻 `pp_companion_teacher_diagnosis_plan` 与 `pp_companion_teacher_follow_up`。
+  - `learning_report`：新增报告核心指标、行为异常线索与家长端交付三类组合，分别下钻 `pp_companion_report_core_metrics`、`pp_companion_report_behavior_signals`、`pp_companion_report_parent_delivery`。
+- `public-phrase-governance.json` 升至 `2026-08-24.9`，新增 15 个组合信号和 84 条业务校准样例；当前业务校准样例总数为 305 条。
+- 同步考点、同步培养、同步伴学与跨体系校准补充边界：新课标趋势不抢教材同步，专家规划不抢 AI 定制，当前题同类/变式不抢万能解法，个人错题复练不抢举一反三，真人过程管理不抢学情报告，学习周报不抢高频错题。
+- 新增查询状态回归 `test_second_remaining_business_compositions_keep_neighbor_boundaries`，覆盖第二批正例与相邻误伤边界。
+
+### 验证结果
+
+- 业务校准脚本：305 条 `businessCalibrationCases` 全通过。
+- `cd backend && .venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py -q`：38 passed。
+- `cd backend && .venv/bin/python -m pytest tests/test_phase4_search_orchestration.py::test_phase4_short_animation_micro_lesson_query_only_returns_matching_detail tests/test_phase4_search_orchestration.py::test_phase4_proof_point_filters_sibling_assets_but_generic_selling_point_does_not tests/test_phase4_search_orchestration.py::test_phase4_trusted_small_concept_route_skips_optional_reranker -q`：3 passed。
+- JSON 校验、Ruff 与 `git diff --check`：通过。
+
+### 边界
+
+- 本轮只增强“意图 → 卖点 → 证明点”的理解，不新增核心卖点、证明点、公共话术、数据库 schema 或素材关系。
+- 完整业务长句只进入校准评测，不逐条复制到公共话术或素材话术。
+- 若某证明点缺正式已确认素材，搜索应暴露缺口，不用相邻卖点或同卖点兄弟证明图补位。
+
+---
+
+## 2026-08-24：剩余卖点业务搜索语义第一批补齐（D191）
+
+### 完成内容
+
+- 第一批补齐 4 个尚未专项校准的卖点：
+  - `animation_explanation`：新增“动画/知识点/课堂听懂 + 讲透拆解/短时补位”与“抽象原理/看不见知识 + 动画可视化呈现”两类组合，分别下钻 `pp_animation_pedagogy_design` 与 `pp_subject_animation_visualization`。
+  - `instant_quiz`：新增“学完当前课或知识点 + 立即练测/确认掌握”组合，下钻 `pp_learn_practice_loop`。
+  - `ai_tutor_qa`：新增“AI 私教或学习卡住对象 + 即时互动提问/继续追问动作”组合，下钻 `pp_selfstudy_tutor_interactive_qa`。
+  - `ai_error_book`：新增个人错题拍照归档、历史错题分类复盘、个人错题后同类题推荐三类组合，分别下钻 `pp_selfstudy_error_photo_capture`、`pp_selfstudy_error_classification_review`、`pp_selfstudy_error_variant_recommendation`。
+- `public-phrase-governance.json` 升至 `2026-08-24.8`，新增 7 个组合信号和 54 条业务校准样例；不新增核心卖点、证明点、公共话术或数据库 schema。
+- 同步校内、同步自学与跨体系校准补充业务边界：短时间高效复习仍归考前突击，启发式/会提问 AI 老师仍归 AI 拍题精学，周报正确率仍归学情报告，群体高频错题仍归专项培优，当前题后同类题仍归举一反三。
+- 新增查询状态回归 `test_remaining_business_compositions_keep_neighbor_boundaries`，覆盖第一批正例与相邻误伤边界。
+
+### 验证结果
+
+- `cd backend && .venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py -q`：37 passed。
+- `cd backend && .venv/bin/python -m pytest tests/test_phase4_search_orchestration.py::test_phase4_short_animation_micro_lesson_query_only_returns_matching_detail tests/test_phase4_search_orchestration.py::test_phase4_proof_point_filters_sibling_assets_but_generic_selling_point_does_not tests/test_phase4_search_orchestration.py::test_phase4_trusted_small_concept_route_skips_optional_reranker -q`：3 passed。
+- JSON 校验、Ruff 与 `git diff --check`：通过。
+
+### 边界
+
+- 完整业务长句只进入校准评测，不逐条复制到公共话术或素材话术。
+- 本轮只增强“意图 → 卖点 → 证明点”的理解，不写数据库素材关系；若某证明点缺正式已确认素材，搜索应暴露缺口，不用相邻卖点或同卖点兄弟证明图补位。
+
+---
+
+## 2026-08-24：极速复习与考前突击边界校准（D190）
+
+### 完成内容
+
+- 将业务负责人补充的 4 条边界样例加入校准评测：
+  - `日常快速复习`、`当天学当天复习` → `rapid_preview_review` / `pp_selfstudy_preview_dual_entry` / `ep_selfstudy_fast_review`
+  - `明天月考快速复习`、`期末前三天冲刺` → `focused_excellence` / `pp_exam_focus_stage_review`
+- 查询状态回归补充上述边界，固定“日常/当天/学完后短时回顾”与“具体考试节点/临考倒计时冲刺”的分流。
+- 同步自学知识与跨体系校准补充说明：判断核心不是“快速复习”这几个字，而是对象和时间节点。日常快速复习、当天学当天复习属于极速复习；明天月考、期末前三天、临考、考前等考试节点与复习/冲刺组合属于考前突击。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py::test_business_calibration_examples_route_without_becoming_public_phrases tests/test_query_states_and_negation.py::test_rapid_review_after_class_composition_keeps_neighbor_boundaries tests/test_query_states_and_negation.py::test_exam_stage_composition_does_not_capture_daily_or_reform_review tests/test_phase4_search_orchestration.py::test_phase4_rapid_review_after_class_composition_prefers_review_asset tests/test_phase4_search_orchestration.py::test_phase4_rapid_preview_before_class_composition_prefers_preview_asset tests/test_phase4_search_orchestration.py::test_phase4_exam_stage_composition_prefers_exam_rush_asset_facet -q`：6 passed。
+- JSON 校验与 `git diff --check`：通过。
+- 本地理解验证：
+  - `日常快速复习`、`当天学当天复习` → `rapid_preview_review` / `pp_selfstudy_preview_dual_entry` / `ep_selfstudy_fast_review`
+  - `明天月考快速复习`、`期末前三天冲刺` → `focused_excellence` / `pp_exam_focus_stage_review`
+
+### 边界
+
+- 不新增卖点、证明点、公共话术或数据库 schema。
+- 不改变 D189 对正式“极速复习”素材缺口的处理：没有正式 `ep_selfstudy_fast_review` 素材时，不用“极速预习”素材补位。
+
+---
+
+## 2026-08-24：极速复习组合语义校准（D189）
+
+### 完成内容
+
+- 新增 `rapid-review-after-class` 组合语义信号，将“极速复习/快速复习/课后复习/知识回顾/快速回顾/学完/学过/当天知识/知识点/复习/回顾/巩固/碎片时间”等已学内容对象，与“快速过一遍/5分钟复习/十分钟复习/碎片化复习/快速巩固/轻量复习/当天复习/快速查漏补缺/快速回忆/重新过一遍/短时间复习/花很少时间复习/快速回顾重点”等短时回顾目的组合识别为 `rapid_preview_review` 下的 `pp_selfstudy_preview_dual_entry`。
+- 22 条业务代表搜索进入校准评测，不进入公共话术库，不新增“极速复习”核心卖点或证明点。
+- 组合语义信号新增可选 `evidencePointCode`，本轮将极速预习侧标到 `ep_selfstudy_fast_preview`，极速复习侧标到 `ep_selfstudy_fast_review`，用于同证明点内部做素材 facet 分流。
+- 同步自学知识与跨体系校准补充边界：课后/学完后短时间回顾重点、巩固当天知识、碎片时间查漏补缺属于极速预习复习的课后复习侧；考试节点前冲刺复习仍归专项培优，教材版本/学校进度仍归同步校内，学习计划/路径仍归 AI 定制学习方案，拍题讲解和个人历史错题长期复盘仍分别归 AI 拍题精学与 AI 错题本。
+- 当前真实本地库没有正式“极速复习”素材组，只有测试占位承接 `rapid_preview_review`；本轮未将 22 条复习话术写入“极速预习”素材，避免业务侧复习查询被预习图误承接。待业务上传或人工确认正式“极速复习”素材后，再补充人工 accepted 素材独有话术。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_rapid_preview_before_class_composition_prefers_preview_asset tests/test_phase4_search_orchestration.py::test_phase4_rapid_review_after_class_composition_prefers_review_asset tests/test_phase4_search_orchestration.py::test_phase4_ai_personalized_plan_composition_prefers_ai_custom_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_question_composition_prefers_photo_learning_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_socratic_value_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_socratic_thinking_coach_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_textbook_version_composition_prefers_textbook_sync_asset tests/test_phase4_search_orchestration.py::test_phase4_difficulty_upgrade_composition_prefers_difficulty_module_asset tests/test_phase4_search_orchestration.py::test_phase4_targeted_module_composition_excludes_difficulty_module_asset -q`：45 passed。
+- `cd backend && ./.venv/bin/ruff check app/domain/runtime_intents.py app/services/query_understanding_service.py app/repositories/image_repository.py app/services/search_orchestrator.py app/services/proof_point_understanding_service.py app/services/query_expansion_service.py tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py`：通过。
+- JSON 校验与 `git diff --check`：通过。
+- 22 条业务校准用例均命中 `rapid_preview_review` / `pp_selfstudy_preview_dual_entry` / `ep_selfstudy_fast_review`。
+- 旧校准“短时间高效复习”仍命中 `focused_excellence` / `pp_exam_focus_stage_review`，未被极速复习规则截走。
+- 后端容器已重建，`docker compose ps backend` 显示 healthy。
+- 容器运行环境验证 22/22 均识别到极速复习侧；由于当前真实库没有正式 `ep_selfstudy_fast_review` 素材组，搜索结果保持空，不退回“极速预习”素材补位。Postgres 检查显示仅有 21 个“极速预习复习”测试占位素材组，且均为 `ep_selfstudy_fast_preview`。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、公共话术库准入原则或 Provider 配置。
+- “极速复习”作为 `极速预习复习` 的课后复习侧治理；没有正式素材前只稳定语义和测试，不强行挪用预习素材。
+
+---
+
+## 2026-08-24：极速预习组合语义校准（D188）
+
+### 完成内容
+
+- 新增 `rapid-preview-before-class` 组合语义信号，将“极速预习/快速预习/课前预习/新课预习/提前学/上课前先学/明天课程提前看/先学再听课/课堂/每天晚上”等课前或新课前对象，与“快速过知识点/5分钟/十分钟/几分钟快速预习/轻量预习/快速了解新知识/提高课堂效率/带着问题进课堂/上课之前先建立认知/提前知道课堂重点/新课学习前/短时间完成预习”等短时准备目的组合识别为 `rapid_preview_review` 下的 `pp_selfstudy_preview_dual_entry`。
+- 23 条业务代表搜索进入校准评测，不进入公共话术库，不新增“极速预习”核心卖点或证明点。
+- 同步自学知识与跨体系校准补充边界：课前/新课前短时间建立认知、带着问题进课堂属于极速预习复习的课前预习侧；教材版本/学校进度适配仍归同步校内，考试节点冲刺复习仍归专项培优，自动学习计划/学习路径仍归 AI 定制学习方案，拍题讲解和个人错题长期归档仍分别归 AI 拍题精学与 AI 错题本。
+- 本地真实库中为素材组 `56e44e39-0572-41a5-9691-92a3d50dd3dd`（极速预习）补充主证明点 `pp_selfstudy_preview_dual_entry`、主证据表达点 `ep_selfstudy_fast_preview`，并补充 23 条人工已采纳素材独有话术。
+- 数据库关键字召回补充精确标题/素材组标题/accepted 素材话术优先排序；候选复核返回结果后再次执行人工卖点主通道路由，避免测试占位素材或第四层复核覆盖已确认的素材优先级。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_rapid_preview_before_class_composition_prefers_preview_asset tests/test_phase4_search_orchestration.py::test_phase4_ai_personalized_plan_composition_prefers_ai_custom_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_question_composition_prefers_photo_learning_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_socratic_value_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_socratic_thinking_coach_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_textbook_version_composition_prefers_textbook_sync_asset tests/test_phase4_search_orchestration.py::test_phase4_difficulty_upgrade_composition_prefers_difficulty_module_asset tests/test_phase4_search_orchestration.py::test_phase4_targeted_module_composition_excludes_difficulty_module_asset -q`：43 passed。
+- `cd backend && ./.venv/bin/ruff check app/repositories/image_repository.py app/services/search_orchestrator.py app/services/proof_point_understanding_service.py app/domain/runtime_intents.py app/services/query_understanding_service.py app/services/query_expansion_service.py tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py`：通过。
+- JSON 校验与 `git diff --check`：通过。
+- 23 条业务校准用例均命中 `rapid_preview_review` / `pp_selfstudy_preview_dual_entry`。
+- 真实本地库验证截图中的 23 条代表搜索首位均为“极速预习”。
+- 后端容器已重建，`docker compose ps backend` 显示 healthy。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、公共话术库准入原则或 Provider 配置。
+- “极速预习”作为 `极速预习复习` 的课前预习侧治理；同证明点下的占位素材可跟随出现在后位，但不得压过正式素材。
+
+---
+
+## 2026-08-24：AI定制班/个性化学习组合语义校准（D187）
+
+### 完成内容
+
+- 新增 `ai-personalized-learning-plan` 组合语义信号，将“AI定制班/定制班/个性化学习/千人千面/个性化课程/因材施教/AI定制学习/专属学习方案/个性化学习路径/不同学生/不同基础/每个孩子/根据水平/根据薄弱点/AI个性化推荐”等对象，与“定制/课程/学习方案/学习路径/安排课程/推荐内容/学习计划自动生成/AI规划学习路径/个性化教学/动态调整/持续调整/不是所有孩子学一套/专属课程方案”等动作或结果组合识别为 `ai_learning_plan` 下的 `pp_planning_generated_schedule`。
+- 24 条业务代表搜索进入校准评测，不进入公共话术库，不新增“AI定制班/个性化学习”核心卖点或证明点。
+- 同步规划知识与跨体系校准补充边界：个性化、千人千面、因材施教、不同基础匹配内容属于 AI 量身定制学习方案；仅教材版本/章节一致仍归同步校内，仅薄弱题型专项训练仍归专项培优，真人持续督促仍归真人老师督学，学习结果周报仍归学情报告反馈。
+- 本地真实库中为素材组 `f70de8b0-a833-48f3-bede-8cebfb48d5c6`（ai定制）补充主证明点 `pp_planning_generated_schedule`，并补充 24 条人工已采纳素材独有话术。
+- 本地真实库中为素材组 `1ce654e9-7090-46d9-adf2-c6a6ed58feb9`（ai定制规划）补充主证明点 `pp_planning_transition_adaptation`，继续承接小升初/初升高等新学段定制规划表达。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_ai_personalized_plan_composition_prefers_ai_custom_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_question_composition_prefers_photo_learning_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_socratic_value_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_socratic_thinking_coach_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_textbook_version_composition_prefers_textbook_sync_asset tests/test_phase4_search_orchestration.py::test_phase4_difficulty_upgrade_composition_prefers_difficulty_module_asset tests/test_phase4_search_orchestration.py::test_phase4_targeted_module_composition_excludes_difficulty_module_asset -q`：41 passed。
+- `cd backend && ./.venv/bin/ruff check app/services/proof_point_understanding_service.py app/domain/runtime_intents.py app/services/query_understanding_service.py app/services/query_expansion_service.py tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py`：通过。
+- JSON 校验与 `git diff --check`：通过。
+- 24 条业务校准用例均命中 `ai_learning_plan` / `pp_planning_generated_schedule`。
+- 真实本地库验证截图中的 24 条代表搜索首位均为“ai定制”。
+- 后端容器已重建，`docker compose ps backend` 显示 healthy。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、公共话术库准入原则或 Provider 配置。
+- “AI定制班/个性化学习”作为 `AI定制学习方案` 的业务入口治理；“ai定制规划”素材保留给学段衔接定制规划，不和普通个性化学习入口混排。
+
+---
+
+## 2026-08-24：AI思维教练/苏格拉底式引导组合语义校准（D186）
+
+### 完成内容
+
+- 新增 `ai-socratic-thinking-coach` 组合语义信号，将“AI思维教练/思维教练/苏格拉底式教学/苏格拉底式引导/AI引导思考/AI互动教学/真正的AI教学/会提问的AI老师”等对象，与“不直接给答案/引导式讲题/启发式学习/AI追问/一步一步引导/培养解题思路/培养独立思考/自己想出答案/不是直接搜答案/从答案到思路/启发而不是灌输/连续追问”等方法价值组合识别为 `photo_guided_learning` 下的 `pp_selfstudy_photo_socratic_guidance`。
+- 23 条业务代表搜索进入校准评测，不进入公共话术库，不新增“AI思维教练”核心卖点或证明点。
+- 同步自学知识与跨体系校准补充边界：这类表达是 AI 拍题精学的教学方法证明；只表达“随时问 AI 老师/即时答疑/当前疑问有人回答”且没有启发、追问、引导思考证据时，仍归 AI 私教随时答疑。
+- 搜索策略中 `photo_guided_socratic_method` 素材门槛补充“不直接给答案、AI思维教练、启发式学习、连续追问”等触发词，避免“苏格拉底讲解提问”被特异性门槛挡掉。
+- 本地真实库中为素材组 `5f438a69-b842-445e-954f-440fe7dc8fe8`（苏格拉底讲解提问）补充 25 条人工已采纳素材独有话术，覆盖截图代表搜索和相近长尾入口。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_photo_question_composition_prefers_photo_learning_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_socratic_value_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_socratic_thinking_coach_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_textbook_version_composition_prefers_textbook_sync_asset tests/test_phase4_search_orchestration.py::test_phase4_difficulty_upgrade_composition_prefers_difficulty_module_asset tests/test_phase4_search_orchestration.py::test_phase4_targeted_module_composition_excludes_difficulty_module_asset -q`：39 passed。
+- `cd backend && ./.venv/bin/ruff check app/services/proof_point_understanding_service.py app/domain/runtime_intents.py app/services/query_understanding_service.py app/services/query_expansion_service.py tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py`：通过。
+- JSON 校验与 `git diff --check`：通过。
+- 23 条业务校准用例均命中 `photo_guided_learning` / `pp_selfstudy_photo_socratic_guidance`。
+- 真实本地库验证截图中的 23 条代表搜索首位均为“苏格拉底讲解提问”。
+- 后端容器已重建，`docker compose ps backend` 显示 healthy。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、公共话术库准入原则或 Provider 配置。
+- “AI思维教练/苏格拉底式引导”是 `AI拍题精学` 下的教学方法证明点入口，不是新的卖点；“AI老师答疑”若只是随问随答，仍保留在 AI 私教答疑。
+
+---
+
+## 2026-08-24：AI拍题精学组合语义校准（D185）
+
+### 完成内容
+
+- 新增 `photo-question-learning-entry` 组合语义信号，将“拍题精学/AI拍题/拍照讲题/拍题讲解/AI辅导题目/拍一道学一道/整页拍题/拍题相关证明点”等入口、讲题和证明点目的表达识别为 `photo_guided_learning` 下的 `pp_selfstudy_photo_question_recognition`。
+- 新增 `photo-socratic-value-differentiation` 组合语义信号，将“拍题不是只给答案/AI一步步讲题/拍题后还能追问/区别于普通搜题软件/AI拍题差异化/从搜答案到学会/拍题功能核心价值”等方法和价值表达识别为 `photo_guided_learning` 下的 `pp_selfstudy_photo_socratic_guidance`。
+- 15 条业务代表搜索进入校准评测，不进入公共话术库，不新增核心卖点或证明点。
+- 同步自学知识与跨体系校准补充拍题边界：拍课本/笔记用于课前课后快速梳理仍归极速预习复习，拍纸质错题长期归档复练仍归 AI 错题本，拍题后做同类题/变式迁移仍归举一反三，普通 AI 问答仍归 AI 私教随时答疑。
+- 证明点理解服务保留“组合语义命中”的优先级，避免后续通用短词匹配把“AI拍题差异化”等长句从苏格拉底式提问覆盖回拍题入口。
+- 本地真实库中为素材组 `9259f447-a83f-4221-8ef8-fe5db8dca23b`（拍题精学）补充主证明点 `pp_selfstudy_photo_question_recognition`，并补充 8 条人工已采纳素材独有话术。
+- 本地真实库中为素材组 `5f438a69-b842-445e-954f-440fe7dc8fe8`（苏格拉底讲解提问）补充主证明点 `pp_selfstudy_photo_socratic_guidance`，并补充 7 条人工已采纳素材独有话术。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_photo_question_composition_prefers_photo_learning_asset tests/test_phase4_search_orchestration.py::test_phase4_photo_socratic_value_composition_prefers_guidance_asset tests/test_phase4_search_orchestration.py::test_phase4_textbook_version_composition_prefers_textbook_sync_asset tests/test_phase4_search_orchestration.py::test_phase4_difficulty_upgrade_composition_prefers_difficulty_module_asset tests/test_phase4_search_orchestration.py::test_phase4_targeted_module_composition_excludes_difficulty_module_asset -q`：37 passed。
+- `cd backend && ./.venv/bin/ruff check app/services/proof_point_understanding_service.py app/domain/runtime_intents.py app/services/query_understanding_service.py app/services/query_expansion_service.py tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py`：通过。
+- 15 条业务校准用例均命中预期证明点：入口/讲题类下钻 `pp_selfstudy_photo_question_recognition`，方法/价值差异化类下钻 `pp_selfstudy_photo_socratic_guidance`。
+- 真实本地库验证截图中的 15 条代表搜索首位按两类表达分别为“拍题精学”或“苏格拉底讲解提问”。
+- `git diff --check`：通过。
+- 后端容器已重建，`docker compose ps backend` 显示 healthy。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、公共话术库准入原则或 Provider 配置。
+- “AI拍题精学”内部用两个证明点分流：找拍题入口/讲题/证明点时看“拍题精学”，找不只给答案、可追问、从搜答案到学会时看“苏格拉底讲解提问”。
+
+---
+
+## 2026-08-24：教材同步组合语义校准（D184）
+
+### 完成内容
+
+- 新增 `textbook-version-alignment` 组合语义信号，将“教材同步/同步教材/教材版本/版本适配/人教版/北师大版/校内同步/学校进度/多教材版本/全国教材/不同地区”等对象，与“同步/适配/覆盖/跟学校进度学/不同地区都能用/覆盖广/教材版本卖点/校内同步宣传”等动作或目的组合识别为 `school_sync` 下的 `pp_textbook_version_coverage`。
+- 14 条业务代表搜索进入校准评测，不进入公共话术库，不新增核心卖点或证明点。
+- 同步校内知识与跨体系校准补充“教材版本、版本名、地区教材适配”的边界：新课标/新题型/新考法仍归同步考点，拍课本/笔记做课前课后短时梳理仍归极速预习复习，按个人成绩目标排每日任务仍归 AI 定制学习方案。
+- 本地真实库中为素材组 `97bb8e7f-d774-4c87-8f53-ebd76f83795f`（教材同步）补充主证明点 `pp_textbook_version_coverage`，为素材组 `b144065b-4c94-42ab-9a85-38a9a378a999`（课程同步）补充主证明点 `pp_textbook_version_selection`。
+- 本地真实库中为“教材同步”补充 14 条人工已采纳素材独有话术，对应本轮代表搜索。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_textbook_version_composition_prefers_textbook_sync_asset -q`：32 passed。
+- 后端容器已重建。真实本地库验证截图中的 14 条代表搜索均命中 `pp_textbook_version_coverage`，首位素材均为“教材同步”。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、公共话术库准入原则或 Provider 配置。
+- “教材同步”与“课程同步”同属 `school_sync`，但前者承接教材版本覆盖/适配表达，后者承接课程目录与版本选择/章节对应表达；公共入口仍由组合语义治理。
+
+---
+
+## 2026-08-24：重难点培优组合语义校准（D183）
+
+### 完成内容
+
+- 新增 `difficulty-excellence-upgrade` 组合语义信号，将“重难点/难题/压轴题/高分/优生/学有余力/90分/满分/高阶能力/不是只教基础”等对象，与“培优/拔高/突破/提升/冲高分/继续提升/往满分冲/冲刺高分”等动作组合识别为 `focused_excellence` 下的 `pp_exam_focus_targeted_modules`。
+- 14 条业务代表搜索进入校准评测，不进入公共话术库，不新增核心卖点或证明点。
+- 同步考点知识与跨体系校准补充“高阶难题、优生拔高、冲高分”的边界：考试节点冲刺仍归考试阶段重点梳理，升学断层归学段衔接，同一道题多解归万能解法，当前题后的同类/变式迁移归举一反三。
+- 搜索策略扩展重难点培优素材触发词，并新增“考前专项突破”标题级素材门槛，避免“冲高分/优生拔高”误召回考前专项突破；同时避免用素材级泛化话术误杀“重难点培优”。
+- 本地真实库中为素材组 `b1d51c72-1d11-4ba3-9427-8d98aad977b8`（重难点培优）补充 9 条人工已采纳素材独有话术：“重难点”“压轴题提升”“冲高分”“从90分往满分冲”“优生拔高”“高阶能力”“不是只教基础”“学有余力进一步提升”“成绩好的孩子还能继续提升”。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_targeted_module_composition_excludes_difficulty_module_asset tests/test_phase4_search_orchestration.py::test_phase4_difficulty_upgrade_composition_prefers_difficulty_module_asset -q`：32 passed。
+- 后端容器已重建。真实本地库验证截图中的 14 条代表搜索均命中 `pp_exam_focus_targeted_modules`，首位素材均为“重难点培优”。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、公共话术库准入原则或 Provider 配置。
+- “重难点培优”与“考前专项突破”共用 `pp_exam_focus_targeted_modules`，只在素材级查询表达上分流；公共入口仍由组合语义治理。
+
+---
+
+## 2026-08-24：专项突破组合语义校准（D182）
+
+### 完成内容
+
+- 新增 `targeted-module-breakthrough` 组合语义信号，将“专项/题型/单项/薄弱项/精准补弱”等对象与“突破/练习/强化/针对性训练/集中练/大量练习”等动作组合识别为 `focused_excellence` 下的 `pp_exam_focus_targeted_modules`。
+- 13 条业务代表搜索进入校准评测，不进入公共话术库，不新增核心卖点。
+- 同步考点知识与跨体系校准补充“专项题型或薄弱项训练”的边界：群体高频错题、个人错题、同类/变式迁移、课前课后复习分别保留原归属。
+- 搜索策略新增重难点培优素材特异性门槛，避免“专项突破”查询混入“重难点培优”素材。
+- 组合语义解释改为读取真实证明点名称，不再把所有组合命中都描述成“考试阶段重点梳理”。
+- 查询明确命中证明点后，将该证明点受治理的 `evidence_terms` 加入数据库召回入口，保证“精准补弱”等未直接点名素材标题的表达也能召回专项突破素材。
+- 本地真实库中为素材组 `17101f75-93ec-4c0c-a34c-34b46f675ec4`（考前专项突破）补充两条人工已采纳素材独有话术：“精准补弱”“体现精准补弱的卖点”。
+
+### 验证结果
+
+- `cd backend && ./.venv/bin/python -m pytest tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py::test_phase4_exam_stage_composition_prefers_exam_rush_asset_facet tests/test_phase4_search_orchestration.py::test_phase4_targeted_module_composition_excludes_difficulty_module_asset -q`：31 passed。
+- `cd backend && ./.venv/bin/ruff check app/domain/runtime_intents.py app/services/query_understanding_service.py app/services/query_expansion_service.py tests/test_skill_selling_point_alignment.py tests/test_query_states_and_negation.py tests/test_phase4_search_orchestration.py`：通过。
+- 后端容器已重建；`/health` 返回 ready。真实本地库验证“专项突破、薄弱题型、针对性训练、精准补弱、单题型大量练习”均命中 `pp_exam_focus_targeted_modules`，首位素材均为“考前专项突破”。
+
+### 边界
+
+- 不新增数据库 schema，不改变 16 个稳定卖点、人工 accepted 素材关系或 Provider 配置。
+- “专项突破”仍属于 `focused_excellence`，只是在证明点和素材筛选层下钻到按题型和薄弱点定向突破。
+
+---
+
+## 2026-08-05：设计源文件链接与业务端隐藏（D178）
+
+### 完成内容
+
+- 新增素材组源文件链接能力，支持保存 Figma、设计文件、网盘、需求文档、素材包和其他可追溯链接。
+- 后端新增 `asset_source_links` 模型、迁移、读写接口和审计记录；链接绑定素材组，不绑定单张图片版本。
+- 素材组序列化新增 `include_source_links` 权限开关：设计师/管理员可读取，普通业务用户只收到空 `sourceLinks`。
+- 前端素材工作台新增“设计源文件”维护区，支持添加、编辑、删除和新窗口打开链接；该区域只在可编辑详情页展示。
+
+### 数据迁移
+
+- 新增 `backend/alembic/versions/20260805_0021_asset_source_links.py`。
+
+### 验证结果
+
+- `./.venv/bin/python -m ruff check app tests/test_phase5_endpoints.py` 通过。
+- `env PYTHONPYCACHEPREFIX=/tmp/piancton-pycache ./.venv/bin/python -m pytest tests/test_phase5_endpoints.py::test_phase5_source_links_are_editor_only` 通过。
+- `npm run typecheck` 通过。
+
+### 边界
+
+- 源文件链接是设计协作资料，不进入普通业务端展示、搜索结果解释、四层搜索理解、推荐排序、下载逻辑或业务卖点关系。
+- 普通业务用户没有新增、编辑、删除源文件链接权限。
+
+---
+
+## 2026-07-30：业务端双测试集真实 API 评测（D177）
+
+### 完成内容
+
+- 经用户明确授权，将 D176 的 50 条业务端测试话术发送给当前配置的老张和 OhMyGPT API 跑真实评测。
+- 使用 `backend/scripts/run_business_side_search_eval.py --production-deps` 完成真实链路测试，报告输出为 `docs/BUSINESS_SIDE_SEARCH_EVAL_50_2026-07-30_API.json` 和 `docs/BUSINESS_SIDE_SEARCH_EVAL_50_2026-07-30_API.md`。
+
+### 验证结果
+
+- 精确话术 25 条：意图命中 `25/25`，Top5 预设素材关系命中 `25/25`，空结果 `0`，越界 `0`，错误 `0`，P95 `80209.84ms`。
+- 模糊话术 25 条：意图命中 `23/25`，Top5 预设素材关系命中 `23/25`，空结果 `0`，越界 `2`，错误 `0`，P95 `72372.11ms`。
+- 剩余问题：`BSF002` 未命中“动画精讲”，转向拍题精学/AI私教；`BSF006` 未命中“举一反三”，转向 AI 拍题精学。
+- Provider 诊断显示 OhMyGPT 有真实接手成功记录：体系层 4 次、卖点层 9 次、证明点层 3 次、第四层 2 次；第四层有 1 次两家均失败。
+- 真实 API 模式下中位耗时约 `55.4s`，最大耗时约 `115.7s`，主要风险是外部 Provider 慢失败和返回结构漂移。
+
+### 边界
+
+- 本次只新增真实 API 评测报告，不修改搜索逻辑、数据库 schema、Provider 配置、人工 accepted 关系、渠道过滤、四层搜索链路或占位素材数据。
+
+---
+
+## 2026-07-30：业务端双测试集专项评测（D176）
+
+### 完成内容
+
+- 新增业务端精确话术测试文档 `docs/BUSINESS_SIDE_PRECISE_SEARCH_EVAL_25_2026-07-30.md`，覆盖直接卖点、内部卖点名称、渠道加卖点等 25 条业务找图表达。
+- 新增业务端模糊话术测试文档 `docs/BUSINESS_SIDE_FUZZY_SEARCH_EVAL_25_2026-07-30.md`，覆盖更偏业务语境和隐喻表达的 25 条找图话术。
+- 新增机器可读数据集 `taxonomy/business_side_search_eval_2026-07-30.json`，包含精确集和模糊集两个 suite。
+- 新增只读评测脚本 `backend/scripts/run_business_side_search_eval.py`，默认使用本地无外发链路跑测，也支持后续在明确授权后使用 `--production-deps` 跑线上同款依赖。
+
+### 验证结果
+
+- 使用 Docker PostgreSQL 真实本地库完成 50 条专项评测，输出 `docs/BUSINESS_SIDE_SEARCH_EVAL_50_2026-07-30_LOCAL.json` 和 `docs/BUSINESS_SIDE_SEARCH_EVAL_50_2026-07-30_LOCAL.md`。
+- 精确话术 25 条：意图命中 `25/25`，Top5 预设素材关系命中 `25/25`，空结果 `0`，越界 `0`，P95 `586.71ms`。
+- 模糊话术 25 条：意图命中 `18/25`，Top5 预设素材关系命中 `17/25`，空结果 `5`，越界 `3`，P95 `328.7ms`。
+- 失败集中在动画精讲、新课标预测、专项培优、AI 错题本、学段衔接，以及课后小测/极速预习复习/真人督学相邻边界。
+- `backend/.venv/bin/ruff check backend/scripts/run_business_side_search_eval.py` 通过；`git diff --check` 通过；Docker 服务健康检查通过。
+
+### 边界
+
+- 本次评测默认 `local_no_external`，没有调用老张、OhMyGPT 或任何外部 Provider。
+- 不修改搜索逻辑、数据库 schema、Provider 配置、人工 accepted 关系、渠道过滤、四层搜索链路或占位素材数据。
+- 若后续需要真实验证 GPT-5.5/OhMyGPT 在这 50 条业务话术上的表现，需要单独确认可将这些话术发送给当前配置的外部 Provider。
 
 ---
 
@@ -4174,6 +5061,514 @@ Model：数据结构和关系
 1. 重建 web 或启动本地前端后，走查上传弹窗、素材详情业务层级保存和搜索结果卡推荐语。
 2. 用 10～20 条真实业务话术复测四层搜索耗时、fallback attempt 和 Top 结果。
 3. 正式测试前保留当前占位素材，测试结束可用 `seed_placeholder_assets delete --dry-run/delete` 清理。
+
+---
+
+## 2026-08-07：搜索运营看板补强
+
+### 本轮目标
+
+- 在现有搜索运营页补齐“养项目”需要看的运营指标，不新增分散入口。
+- 让管理员能直接看到素材资产、源文件健康和模型速度问题。
+
+### 完成内容
+
+- `/api/admin/search-ops/summary` 新增素材资产巡检：素材组数、图片数、当前图片数、缺源文件、单版本、缺业务关系、缺搜索话术、缺风格、未定场景、缺渠道、总下载和未使用素材。
+- 新增素材运营问题队列：按缺源文件、缺业务关系、缺搜索话术、单版本、缺风格输出可点击素材项和处理建议。
+- 新增源文件健康汇总：源文件链接总数、已记录/未记录素材、链接类型分布和最近源文件列表。
+- 新增模型速度汇总：真实搜索样本数、P50/P95/P99、慢查询数和占比、缓存命中率、降级、超时、AI 理解数及最近慢查询。
+- 前端 `/admin/search-ops` 增加“素材资产 / 源文件健康 / 模型速度”三个页签，保留原有总览、问题队列、AI 审核池、概念健康度、素材缺口和反馈记录。
+
+### 修改文件
+
+- `backend/app/schemas/search_ops.py`
+- `backend/app/repositories/search_ops_repository.py`
+- `backend/app/services/search_ops_service.py`
+- `backend/tests/test_security_and_images.py`
+- `client/src/pages/AdminSearchOps/AdminSearchOps.tsx`
+- `client/src/pages/AdminSearchOps/components/SearchOpsSections.tsx`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 本轮只读取既有素材组、图片、源文件链接、素材关系、素材话术和搜索日志。
+
+### 测试结果
+
+- `backend/.venv/bin/python -m pytest backend/tests/test_security_and_images.py -q`：`15 passed`。
+- `backend/.venv/bin/ruff check backend/app/services/search_ops_service.py backend/app/repositories/search_ops_repository.py backend/app/schemas/search_ops.py backend/tests/test_security_and_images.py`：通过。
+- `npm --prefix client run lint`：通过。
+- `npm --prefix client run typecheck`：通过。
+- `npm --prefix client run generate:api`：通过。
+- 浏览器验证 `/admin/search-ops`：三个新页签均可显示；素材资产页显示 40 个素材组及缺源文件问题，源文件健康页显示未记录素材，模型速度页显示 P50/P95/P99 与慢查询；控制台无错误。
+
+### 遗留问题
+
+- 当前源文件健康页只统计“是否记录”和链接类型，未做外链存活探测；后续如要检查 Figma/网盘链接是否失效，需要单独设计外链检测任务。
+- “未使用素材”目前按下载数为 0 判断，不代表图片业务价值低，只用于提醒运营观察。
+
+### 下一步
+
+1. 为缺源文件的真实素材批量补充 Figma/网盘链接。
+2. 结合模型速度页，把 3 秒以上慢查询按冷启动、模型超时、缓存未命中和 Provider 慢失败继续拆因。
+3. 后续可增加“源文件失效检测”和“素材缺尺寸/缺渠道清单”的导出能力。
+
+---
+
+## 2026-08-17：搜索运营 9 项优化第一版
+
+### 本轮目标
+
+- 解决用户提出的前 9 个可优化点：源文件健康、素材生命周期、重复素材、GIF 体验、反馈沉淀、批量导出、项目夹、搜索解释和模型成本控制。
+- 保持普通搜索主链路、业务金标准、人工审核边界和 Provider 配置不变。
+
+### 完成内容
+
+- 源文件健康新增 90 天超期复查统计和“源文件待复查”素材问题。
+- 素材运营问题新增长期未使用、大 GIF、文件指纹重复和画面近似重复识别。
+- 搜索运营页新增“反馈归档”，把反馈归入修业务关系、补搜索话术、补版本尺寸、补素材和补画面表达。
+- 模型速度页新增模型工作量和工作量/搜索占比。
+- 搜索结果新增本地项目夹，可临时收集素材组并批量导出 ZIP。
+- 批量导出接口按角色控制 manifest：设计师/管理员可带源文件，业务端不带源文件链接。
+- GIF 列表预览新增开关，默认动画，关闭后使用缩略图。
+
+### 修改文件
+
+- `backend/app/api/v1/assets.py`
+- `backend/app/schemas/asset.py`
+- `backend/app/schemas/search_ops.py`
+- `backend/app/services/asset_service.py`
+- `backend/app/services/search_ops_service.py`
+- `backend/tests/test_phase5_endpoints.py`
+- `client/src/api/asset.ts`
+- `client/src/features/assets/useProjectBasket.ts`
+- `client/src/features/images/imagePreview.ts`
+- `client/src/features/images/useAnimatedGifPreview.ts`
+- `client/src/pages/AdminSearchOps/AdminSearchOps.tsx`
+- `client/src/pages/AdminSearchOps/components/SearchOpsSections.tsx`
+- `client/src/pages/ImageHome/GlobalImageSearch.tsx`
+- `client/src/pages/ImageHome/ImageCard.tsx`
+- `client/src/pages/ImageHome/ImageGrid.tsx`
+- `client/src/pages/ImageHome/ImageHome.tsx`
+- `client/src/pages/ImageHome/SemanticSearchResult/*`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 项目夹使用浏览器本地存储；后续需要跨设备同步时再升级为数据库能力。
+
+### 测试结果
+
+- `backend/.venv/bin/python -m pytest backend/tests/test_phase5_endpoints.py::test_phase5_source_links_are_editor_only backend/tests/test_phase5_endpoints.py::test_phase5_system_filter_asset_metadata_and_result_feedback`：`2 passed`。
+- `backend/.venv/bin/ruff check backend/app/services/search_ops_service.py backend/app/services/asset_service.py backend/app/api/v1/assets.py backend/app/schemas/asset.py backend/app/schemas/search_ops.py backend/tests/test_phase5_endpoints.py`：通过。
+- `npm run generate:api`：通过。
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
+- `npm run test -- imagePreview.test.ts`：`3 passed`。
+- `curl -sf http://127.0.0.1:8000/health/ready`：ready。
+
+### 遗留问题
+
+- 源文件“失效”仍未做联网检测；Figma/网盘常需登录，第一版先按超期复查推进。
+- 画面近似重复使用轻量平均哈希，只作为提示，仍需人工确认。
+- 项目夹当前只在本机浏览器保存，不跨账号同步。
+
+### 下一步
+
+1. 收集真实项目夹使用反馈，再判断是否做服务端收藏夹。
+2. 当源文件维护量上来后，设计登录态可用的链接探测任务。
+3. 用真实搜索日志校准模型工作量阈值，再考虑 Provider 预算和缓存策略。
+
+---
+
+## 2026-08-25：黑白暖灰视觉规范与原创 Agent 动效
+
+### 本轮目标
+
+- 统一登录页、侧边栏和素材库 Agent 的视觉基调，减少蓝色残留。
+- 参考更精细网页产品的交互动效，但不引入许可风险。
+- 让素材库 Agent 从普通 Bot 图标升级为更有生命感的原创动效入口。
+
+### 完成内容
+
+- 全局主题变量调整为黑白暖灰主基调，蓝色降级为少量信息状态色。
+- 登录页背景、品牌头图标和按钮去蓝化，统一使用暖灰背景和黑色主操作。
+- 侧边栏导航图标加入轻微 hover 位移、缩放、转动、点击压感和光扫反馈。
+- 左上角品牌位从无业务含义的 M 图标改为同 Agent 体系的平面机器人标识。
+- 素材库 Agent 改为项目原创 CSS 暖白光球/表情动效，支持悬浮入口、面板头像和思考状态。
+- API 中心“智能调度配置”重排一级/二级层级，把自动/人工开关、主 API、备用池、超时和保存收进同一个紧凑配置面板，移除蓝色原生对勾和过大的独立白框。
+- `UX_UI_DESIGN_SYSTEM.md` 更新视觉语言，明确外部开源角色视觉在许可证未允许商用前不得直接使用。
+
+### 修改文件
+
+- `client/src/tailwind-theme.css`
+- `client/src/components/PianctonAgentMark.tsx`
+- `client/src/components/Layout.tsx`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/pages/Login/Login.tsx`
+- `client/src/pages/ImageHome/AssetAgentWidget.tsx`
+- `docs/UX_UI_DESIGN_SYSTEM.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+- `npm run build --prefix client`：通过。
+- `docker compose up --build -d web`：通过。
+- 浏览器走查首页和素材库 Agent 面板：正常。
+
+### 遗留问题
+
+- 这次先完成基础视觉体系统一和重点入口质感升级；后台深层表格、弹窗、搜索运营/API 中心的细节间距和信息密度后续可以继续做第二轮 UI 精修。
+- 动效目前为 CSS 原创实现；若以后要使用外部开源动画资源，必须先确认商业授权。
+
+### 下一步
+
+1. 按同一视觉变量继续扫后台页面，把表格、筛选条和数据卡片的间距统一。
+2. 如果确认要让“搜索结果动态推荐理由”接模型测试，可在 API 中心给 `搜索结果：动态推荐理由` 单独选择一个现有 API Key，再做缓存/异步增强。
+3. 做一次完整设计走查：登录页、素材库、搜索结果、素材详情、API 中心、搜索运营。
+
+---
+
+## 2026-08-25：搜索结果动态推荐理由重构
+
+### 本轮目标
+
+- 让旧“结果推荐语”模块退场，不再要求管理员为每个卖点维护一条固定展示话术。
+- 搜索结果卡片改为解释“当前这张图为什么适合本次搜索”，服务市场/运营选图，而不是素材库 Agent 的销售问答场景。
+- 预留 API 中心任务位，后续可接低成本多模态模型做异步/批量增强。
+
+### 完成内容
+
+- 后台导航和路由移除“推荐语”入口，旧页面文件和数据库字段保留为兼容历史，不做破坏性删除。
+- `ScoredImage` 新增 `result_recommendation_reason`，后端按图片标题、渠道、素材组画面属性、命中卖点关系、证明点/证据点、素材独有话术和召回理由生成动态推荐说明。
+- 前端搜索结果卡片优先展示动态推荐说明；没有动态说明时继续退回证明点 claim、素材话术等旧兜底。
+- API 中心新增 `search_result_recommendation_reason` 任务槽，当前不在实时搜索中同步调用模型，避免增加搜索延迟和成本。
+
+### 修改文件
+
+- `backend/app/ai/contracts.py`
+- `backend/app/ai/openai_compatible.py`
+- `backend/app/schemas/api_center.py`
+- `backend/app/schemas/image.py`
+- `backend/app/services/api_center_service.py`
+- `backend/app/services/search_scorer.py`
+- `backend/scripts/stress_api_center_scheduler.py`
+- `backend/tests/test_search_result_recommendation_reason.py`
+- `client/src/app.tsx`
+- `client/src/components/Layout.tsx`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/pages/ImageHome/SemanticSearchResult/searchConceptPresentation.ts`
+- `client/src/pages/ImageHome/SemanticSearchResult/searchConceptPresentation.test.ts`
+- `client/src/types/api.ts`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无新增数据库迁移。
+- `business_concepts.recommendation_text` 暂时保留为历史兼容字段，不再作为结果卡推荐说明的主来源。
+
+### 测试结果
+
+- `backend/.venv/bin/python -m ruff check ...`：通过。
+- `cd backend && .venv/bin/python -m pyright ...`：`0 errors`。
+- `cd backend && .venv/bin/python -m pytest tests/test_search_result_recommendation_reason.py tests/test_api_center.py tests/test_search_service.py -q`：`22 passed`。
+- `npm test --prefix client -- searchConceptPresentation.test.ts`：`11 passed`。
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+
+### 遗留问题
+
+- 当前动态推荐理由是确定性规则生成，适合实时搜索；更细的图像级营销文案需要后续接入低成本多模态模型池，建议走异步或缓存，不直接拖慢搜索。
+- 旧推荐语管理页面文件仍保留但已不在导航和路由暴露；若后续确认彻底废弃，可另起安全清理任务。
+
+### 下一步
+
+1. 走查真实搜索结果卡片，确认推荐理由语气是否符合市场/运营场景。
+2. 若需要更强“按图解释”，用 API 中心 `search_result_recommendation_reason` 槽位接便宜多模态模型，并做缓存/批处理。
+3. 再进入架构体检和补丁清理，重点确认旧推荐语接口是否还有运行引用。
+
+## 2026-08-25：动态结果推荐理由进入第五层真实调度（D217）
+
+### 本轮目标
+
+- 让搜索结果卡的“为什么这张图适合当前搜索句”真正调用 API 中心任务，而不是只有本地规则文案。
+- 在管理员调用链路日志中独立显示第五层动态推荐理由，并保持模型失败时搜索可用。
+
+### 完成内容
+
+- 新增 `search_result_recommendation_reason` 批量模型契约和严格归一化，只接受输入候选中的 `image_id` 与理由。
+- 在候选召回、排序、Reranker、第四层候选复核全部完成后新增独立第五层，默认解释前 12 张结果，超时 6 秒，可通过配置调整。
+- 模型只读取当前查询、已确认搜索理解、图片事实、人工 accepted 卖点关系、证明点/证据点、素材独有话术和召回理由，不参与召回、排序、候选准入或业务事实写入。
+- 未配置、失败、超时或返回不合规时，结果卡继续使用现有本地确定性推荐理由；诊断和 API 中心日志保留第五层 skipped/failed/timed_out 状态，不把解释增强失败当作搜索失败。
+- 身份码和分享链接精确查找继续走确定性查询，不调用第五层模型。
+
+### 修改文件
+
+- `backend/app/ai/normalizer.py`
+- `backend/app/ai/skill_loader.py`
+- `backend/app/services/ai_service.py`
+- `backend/app/services/search_result_recommendation_service.py`
+- `backend/app/services/search_orchestrator.py`
+- `backend/app/services/search_diagnostics_service.py`
+- `backend/app/services/search_service.py`
+- `backend/app/services/search_service_components.py`
+- `backend/app/api/dependencies.py`
+- `backend/app/core/config.py`
+- `backend/app/schemas/ai.py`
+- `docker-compose.yml`
+- `.env.docker.example`
+- `skills/INDEX.md`
+- `backend/tests/test_search_result_recommendation_reason.py`
+- `backend/tests/test_project_skills.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+
+### 数据迁移
+
+- 无新增数据库迁移；复用已有 `model_call_traces` 记录 Provider attempt。
+
+### 验证
+
+- `tests/test_search_result_recommendation_reason.py tests/test_project_skills.py tests/test_api_center.py`：`17 passed`。
+- `tests/test_search_service.py tests/test_ai_provider.py tests/test_taxonomy_catalog.py tests/test_documentation_consistency.py`：`39 passed`。
+- 定向 Ruff：通过；定向 Pyright：`0 errors`；`git diff --check`：通过。
+- 完整 Phase 4 搜索编排回归仍有 3 个既有意图/候选边界失败，与第五层结果解释分支无关；本轮未改动这些上游业务规则。
+- 内置浏览器当前没有活动标签页，未完成可视化刷新核验；API 中心现有前端已包含第五层任务标签和调用链路展示。
+
+### 遗留问题
+
+- 当前第五层批量模型调用默认只覆盖最终前 12 张，超过部分保留本地理由；若真实部署结果量更大，应结合延迟和成本再决定是否接缓存或异步刷新。
+
+---
+
+## 2026-08-25：素材库 Agent 气泡、会话菜单与思考态打磨
+
+### 本轮目标
+
+- 让右下角 Agent 小球更像可亲近的助手，而不是不显眼的孤立按钮。
+- 修正聊天记录下拉箭头和胶囊控件对不齐的问题。
+- 让 Agent 等待回复时展示更明确的“正在思考”过程。
+
+### 完成内容
+
+- Agent 闭合态改为“小球 + 左上角气泡”，气泡文案采用多条短句上下滚动。
+- 会话切换从透明原生 `select` 改为自定义弹出菜单，图标、标题、时间和箭头在同一个 flex 胶囊内对齐。
+- 回复等待状态改为大白框思考态，展示读取图片上下文、对照卖点话术、组织业务表达三个步骤，并自动滚动到最新消息。
+- 会话选择焦点态改成黑灰细环，避免浏览器默认蓝色焦点框破坏整体视觉。
+- 设计规范和总纲新增 D204，固化 Agent 入口、会话菜单和思考态的 UI 边界。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/AssetAgentWidget.tsx`
+- `client/src/tailwind-theme.css`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+- `docs/UX_UI_DESIGN_SYSTEM.md`
+
+### 数据迁移
+
+- 无。
+
+### 测试结果
+
+- `npm run typecheck --prefix client`：通过。
+- `npm run lint --prefix client`：通过。
+- `npm run build --prefix client`：通过。
+- 本地 web 容器静态包已同步，`docker compose ps -a` 显示 backend/web/postgres/meilisearch 均 healthy。
+- 浏览器走查首页 Agent 闭合态、会话菜单展开态：正常。
+
+### 遗留问题
+
+- 当前为前端交互打磨，不改变 Agent 后端回答质量、API 调度或聊天记录 24 小时过期策略。
+
+### 下一步
+
+1. 运行前端检查与构建。
+2. 重新打开首页，走查闭合气泡、会话菜单展开和发送消息后的思考态。
+
+---
+
+## 2026-08-25：素材库 Agent 正式部署前收口（D206）
+
+### 本轮目标
+
+- 补齐 D205 从测试版本地会话迁移到正式用户私有会话后的残余边界。
+- 清理旧版 Agent 可能留在浏览器中的本地聊天记录，避免账号切换时继续显示旧数据。
+- 让接口契约、失败降级提示和管理员越权回归完整可验收。
+
+### 完成内容
+
+- 新增 `clearLegacyAssetAgentStorage`，Agent 初始化时定向删除旧版会话键，不触碰搜索、渠道、项目夹等其他浏览器设置。
+- 后端会话加载失败时保留当前页面临时记录，但界面明确显示“当前页面临时记录，未写入账号”，避免把未落库内容误称为个人历史。
+- 增加管理员更新他人会话图片上下文的越权回归，和读取、发送、删除一样返回 `404`。
+- 从当前 FastAPI `/openapi.json` 重新生成前端 `openapi.d.ts`，补齐 Agent 会话接口和其他近期后端接口契约。
+
+### 修改文件
+
+- `client/src/features/assets/assetAgentStorage.ts`
+- `client/src/features/assets/assetAgentStorage.test.ts`
+- `client/src/pages/ImageHome/AssetAgentWidget.tsx`
+- `backend/tests/test_asset_agent_service.py`
+- `client/src/types/openapi.d.ts`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无新增迁移。
+- 本地 Alembic 当前为 `20260825_0024 (head)`。
+
+### 测试结果
+
+- 后端 Agent 隐私专项：`2 passed`。
+- 后端定向 Ruff：通过。
+- 后端定向 Pyright：`0 errors`。
+- 前端 typecheck、lint、Vitest：`45 passed`。
+- 前端 production build：通过。
+- `git diff --check`：通过。
+- 内置浏览器走查：业务用户页面能加载个人 Agent 会话，显示“个人记录”；会话菜单、删除入口和 Agent 面板正常。
+
+### 遗留问题
+
+- 本地开发服务需要保持运行，浏览器才能继续走查；正式部署时仍需在目标环境执行 `20260825_0024` 迁移并重新生成/发布前端静态包。
+- 当前保留 24 小时过期和最近 20 条限制，这是产品边界，不是管理员可见的审计留存。
+
+### 下一步
+
+1. 部署到正式 PostgreSQL 前先备份数据库并执行 Alembic upgrade。
+2. 使用两个真实账号各自产生一条 Agent 记录，验证跨浏览器/跨设备只显示各自会话。
+3. 发布前确认 SESSION_COOKIE_SECURE、CORS_ORIGINS 和 CSRF 配置与正式域名一致。
+
+---
+
+## 2026-08-25：管理员身份码台账（D216）
+
+### 本轮目标
+
+- 给管理员提供一个正式后台入口，持续查看所有素材组身份码和图片版本码。
+- 保持身份码由系统自动分配，不提供手工修改、复用或重新分配能力。
+- 新增图片后无需额外同步任务即可出现在后台台账。
+
+### 完成内容
+
+- 新增只读管理员接口 `GET /api/admin/identity-codes`，支持按身份码、素材标题、图片标题和文件名搜索，按素材码/版本码、当前有效/已删除/已退休筛选，并提供分页和统计摘要。
+- 新增 `AssetIdentityRepository`、`AssetIdentityAdminService` 和身份码 schema，直接查询永久身份登记表及素材组/图片关联。
+- 新增管理员页面 `/admin/identity-codes`，展示素材组数、图片版本数、有效码和历史码统计，支持复制身份码、查看素材详情和刷新台账。
+- 新增后台一级导航“身份码管理”；业务用户和设计师不具备接口或页面访问权限。
+- 台账不展示数据库 UUID、存储路径、密钥等内部信息，不提供身份码编辑入口。
+
+### 修改文件
+
+- `backend/app/api/v1/asset_identity.py`
+- `backend/app/api/dependencies.py`
+- `backend/app/api/router.py`
+- `backend/app/repositories/asset_identity_repository.py`
+- `backend/app/schemas/asset_identity.py`
+- `backend/app/services/asset_identity_admin_service.py`
+- `backend/tests/test_asset_identity_codes.py`
+- `client/src/api/admin.ts`
+- `client/src/app.tsx`
+- `client/src/components/Layout.tsx`
+- `client/src/pages/AdminIdentityCodes/AdminIdentityCodes.tsx`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无新增迁移；复用 D210 已建立的 `asset_identity_codes` 永久登记表。
+
+### 测试结果
+
+- 后端身份码专项：`3 passed`。
+- 后端 Ruff：通过。
+- 后端 Pyright：`0 errors`，保留 1 条既有泛型警告。
+- 前端 typecheck：通过。
+- 前端 ESLint：通过。
+- 前端 Vitest：`45 passed`。
+- 前端 production build：通过。
+- `git diff --check`：通过。
+- 内置浏览器验证：管理员台账显示当前本地库 40 个素材组、40 个图片版本、80 个有效身份码；搜索素材名称可同时定位素材码和版本码，详情跳转正常。
+
+### 遗留问题
+
+- 生产部署前仍需在目标环境执行已有 `20260825_0025_asset_identity_codes` 迁移，并确认历史素材已完成补码。
+- 当前页面是只读台账；如未来需要批量导出、审计变更或按组织隔离，需要另行定义权限和数据边界，不在本轮扩大。
+
+### 下一步
+
+1. 正式部署前备份数据库，执行 Alembic upgrade head。
+2. 用一张新上传图片验证身份码登记表和管理员台账实时出现。
+3. 发布前复核管理员、设计师和业务用户的页面与接口权限。
+
+---
+
+## 2026-08-25：全项目 API 调度统一遥测（D218）
+
+### 本轮目标
+
+- 让 API 中心统一看到项目中所有模型/API 调用的结果，而不是只看到搜索链路。
+- 对每次调用明确记录 `OK`、失败、超时和未配置/跳过。
+- 保持 API Key、Prompt、图片内容和用户私有 Agent 对话不进入管理员调用日志。
+
+### 完成内容
+
+- `ApiCenterScheduledModelProvider` 在普通模型调用结束时直接写入 `model_call_traces`，覆盖上传主图分析、上传前素材话术、搜索五层、素材库 Agent 和兼容文案卖点匹配。
+- 管理员健康检查复用同一调用台账，同时保留原有健康检查表用于 API 健康状态和巡检历史。
+- Embedding、Reranker、Meilisearch 搜索增强及索引调用通过统一外部 API 遥测入口写入调用台账。
+- 搜索日志不再重复写入调用台账；API 中心页面文案改为“全项目 API 调用链路”，状态展示为 OK、失败、超时、未配置/跳过。
+- 遥测只保存任务、层级、Provider、模型、状态、耗时和安全错误摘要，不保存完整密钥、Authorization、Prompt、图片字节、外部响应或私有 Agent 聊天正文。
+
+### 修改文件
+
+- `backend/app/services/api_center_service.py`
+- `backend/app/services/search_log_service.py`
+- `backend/app/services/semantic_search_clients.py`
+- `backend/app/services/meilisearch_recall_service.py`
+- `backend/app/services/meilisearch_client.py`
+- `backend/app/ai/contracts.py`
+- `backend/app/schemas/api_center.py`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无新增迁移，继续复用 `model_call_traces`。
+
+### 测试结果
+
+- API 中心、素材库 Agent、动态推荐理由、Provider 定向回归：`29 passed`。
+- Ruff：通过。
+- Pyright：`0 errors`。
+- 前端 TypeScript typecheck：通过。
+- 前端 ESLint：通过。
+- `git diff --check`：通过。
+
+### 遗留问题
+
+- 当前外部搜索 API 遥测使用独立数据库会话写入，以保证索引/语义增强失败不会影响主搜索；正式多实例部署时可进一步抽成异步遥测队列。
+
+### 下一步
+
+1. 在内置浏览器刷新 API 中心，确认全项目调用链路文案和状态标签。
+2. 正式部署前执行现有 Alembic 迁移并用真实上传、搜索、Agent、健康检查各跑一遍，确认台账都有记录。
 
 ---
 

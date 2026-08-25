@@ -58,6 +58,17 @@ class QueryExpansionService:
                     (f"AI 业务概念理解：{item.concept}",),
                 )
             )
+        for item in understanding.matched_proof_points:
+            for term in item.evidence_terms:
+                if not term.strip():
+                    continue
+                queries.append(
+                    ExpandedQuery(
+                        term,
+                        max(0.62, min(item.weight, 0.88)),
+                        (f"证明点证据线索：{term}",),
+                    )
+                )
         return queries
 
     def external_keyword(

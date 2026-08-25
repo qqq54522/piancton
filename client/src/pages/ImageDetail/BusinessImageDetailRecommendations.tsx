@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { fetchImages } from '@client/src/api/image';
+import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
 import type { ImageDetail, ImageItem } from '@client/src/types/api';
 import type { ChannelFamily, ChannelIntentEntry, ImageChannelIntent } from '../ImageHome/channelIntent';
@@ -213,7 +214,7 @@ const RecommendationImageLink = ({
   image: ImageItem;
   variant: 'compact' | 'wide';
 }) => {
-  const imageUrl = useImageUrl(image.thumbnailUrl || image.contentUrl);
+  const imageUrl = useImageUrl(previewUrlFor(image));
   return (
     <Link
       to={`/image/${image.id}`}

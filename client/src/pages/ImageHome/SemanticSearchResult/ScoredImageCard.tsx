@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
 import { Select } from '@client/src/components/ui/select';
 import { variantLabel } from '@client/src/features/assets/assetPresentation';
+import { sendImageToAssetAgent } from '@client/src/features/assets/assetAgentEvents';
+import type { ProjectBasketItem } from '@client/src/features/assets/useProjectBasket';
+import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 import type { AssetImage, ScoredImageMatch } from '@client/src/types/api';
 import { itemVariants } from './constants';
+import RadialActionMenu from '../RadialActionMenu';
 import { resultRecommendationCopy, resultRecommendedPoint } from './searchConceptPresentation';
 
 interface ScoredImageCardProps {
@@ -15,6 +19,9 @@ interface ScoredImageCardProps {
   keyword: string;
   searchLogId?: string | null;
   showSearchContext: boolean;
+  inProjectBasket?: boolean;
+  animateGifPreview?: boolean;
+  onToggleProjectBasket?: (item: ProjectBasketItem) => void;
 }
 
 function ScoredImageCard({
@@ -22,6 +29,9 @@ function ScoredImageCard({
   keyword: _keyword,
   searchLogId: _searchLogId,
   showSearchContext,
+  inProjectBasket = false,
+  animateGifPreview = true,
+  onToggleProjectBasket,
 }: ScoredImageCardProps) {
   const variants = scored.availableVariants.length > 0
     ? scored.availableVariants
@@ -29,11 +39,18 @@ function ScoredImageCard({
   const [selectedId, setSelectedId] = useState(variants[0].id);
   const selected = variants.find((item) => item.id === selectedId) ?? variants[0];
   const recommendation = resultRecommendationCopy(scored);
+  const canSaveToProjectBasket = Boolean(scored.assetGroupId && onToggleProjectBasket);
+  const identityCode = selected.versionCode || selected.assetCode || scored.image.versionCode || scored.image.assetCode;
+  const copyIdentity = async () => {
+    if (!identityCode) return;
+    await navigator.clipboard.writeText(identityCode);
+    toast.success('身份码已复制');
+  };
 
   return (
     <motion.article
       variants={itemVariants}
-      className="group relative mb-4 break-inside-avoid overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-shadow hover:shadow-lg"
+      className="group relative mb-4 break-inside-avoid rounded-xl border border-border bg-white shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-lg"
     >
       <Link
         to={`/image/${selected.id}`}
@@ -44,15 +61,37 @@ function ScoredImageCard({
         style={{ aspectRatio: imageAspectRatio(selected) }}
       >
         <img
-          src={selected.thumbnailUrl}
+          src={previewUrlFor(selected, { animateGif: animateGifPreview })}
           alt={selected.title}
           className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />
       </Link>
 
-      <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
-        {variants.length > 1 && (
+      <RadialActionMenu
+        identityCode={identityCode}
+        inProjectBasket={inProjectBasket}
+        onCopyIdentity={identityCode ? copyIdentity : undefined}
+        onSendToAgent={() => {
+          sendImageToAssetAgent({
+            imageId: selected.id,
+            assetGroupId: scored.assetGroupId,
+            title: scored.assetTitle || selected.title,
+          });
+        }}
+        onToggleProjectBasket={canSaveToProjectBasket
+          ? () => {
+            if (!scored.assetGroupId || !onToggleProjectBasket) return;
+            onToggleProjectBasket({
+              assetGroupId: scored.assetGroupId,
+              title: scored.assetTitle || scored.image.title,
+              imageId: scored.image.id,
+            });
+          }
+          : undefined}
+        downloadHref={selected.downloadUrl}
+        downloadLabel={variantLabel(selected)}
+        variantSelector={variants.length > 1 ? (
           <Select
             aria-label="选择下载尺寸"
             value={selected.id}
@@ -63,28 +102,20 @@ function ScoredImageCard({
               <option key={variant.id} value={variant.id}>{variantLabel(variant)}</option>
             ))}
           </Select>
-        )}
-        <a
-          href={selected.downloadUrl}
-          aria-label="下载所选尺寸"
-          title={variantLabel(selected)}
-          className="inline-flex size-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-sm backdrop-blur-md transition-colors hover:bg-foreground hover:text-background"
-        >
-          <Download className="size-4" />
-        </a>
-      </div>
+        ) : undefined}
+      />
 
       {showSearchContext && (
         <div className="border-t border-border/70 bg-white px-3.5 py-3">
-          <p className="text-[11px] font-semibold text-muted-foreground">
+          <p className="break-words text-[11px] font-semibold leading-5 text-muted-foreground">
             推荐点：{resultRecommendedPoint(scored)}
           </p>
-          <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-foreground/86">
+          <p className="mt-1 break-words text-xs font-medium leading-5 text-foreground/86">
             {recommendation.primary}
           </p>
           {recommendation.secondary.length > 0 && (
             <div className="mt-2 border-l-2 border-border pl-2">
-              <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+              <p className="break-words whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
                 {recommendation.secondary.join(' ')}
               </p>
             </div>
@@ -107,11 +138,15 @@ function ScoredImageCard({
 function fallbackVariant(scored: ScoredImageMatch): AssetImage {
   return {
     id: scored.image.id,
+    assetCode: scored.image.assetCode,
+    versionCode: scored.image.versionCode,
+    sharePath: scored.image.sharePath,
     title: scored.image.title,
     fileName: scored.image.fileName,
     thumbnailUrl: scored.image.thumbnailUrl,
     contentUrl: scored.image.contentUrl,
     downloadUrl: scored.image.downloadUrl,
+    mediaType: scored.image.mediaType,
     assetRole: scored.image.assetRole,
     width: scored.image.width,
     height: scored.image.height,

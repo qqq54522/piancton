@@ -33,6 +33,9 @@ from app.services.search_orchestrator_helpers import (
 )
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_rerank_coordinator import SearchRerankCoordinator
+from app.services.search_result_recommendation_service import (
+    SearchResultRecommendationService,
+)
 from app.services.search_system_filter import SearchSystemFilter
 
 
@@ -50,6 +53,7 @@ class AsyncSearchOrchestrator:
         ranking: SearchRankingService,
         external_branches: SearchExternalBranches,
         rerank_coordinator: SearchRerankCoordinator,
+        result_recommendation: SearchResultRecommendationService,
         system_filter: SearchSystemFilter,
         candidate_limit: int,
     ):
@@ -61,6 +65,7 @@ class AsyncSearchOrchestrator:
         self.ranking = ranking
         self.external_branches = external_branches
         self.rerank_coordinator = rerank_coordinator
+        self.result_recommendation = result_recommendation
         self.system_filter = system_filter
         self.candidate_limit = max(1, candidate_limit)
         self.diagnostics = SearchDiagnosticsService()
@@ -273,7 +278,28 @@ class AsyncSearchOrchestrator:
         )
         if candidate_review_result.value is not None:
             hits = candidate_review_result.value
+            hits, active_concept_matches = confirmed_route(
+                self.ranking, hits, concept_matches, keyword, understanding
+            )
         branch_diagnostics.append(candidate_review_result.diagnostic)
+
+        response = self.ranking.build_response(
+            keyword=keyword,
+            hits=hits[:limit],
+            search_mode="meilisearch" if meili_hits else "fuzzy",
+            fallback=False,
+            search_understanding=understanding,
+            query_concept_matches=active_concept_matches,
+        )
+        recommendation_result = await self.result_recommendation.enrich(
+            keyword=keyword,
+            understanding=understanding,
+            hits=self.ranking.collapse_asset_groups(hits[:limit]),
+            results=response.results,
+        )
+        branch_diagnostics.append(recommendation_result.diagnostic)
+        if recommendation_result.value is not None:
+            response.results = recommendation_result.value
 
         total_duration_ms = elapsed_ms(started)
         search_diagnostics = self.diagnostics.build(
@@ -286,13 +312,7 @@ class AsyncSearchOrchestrator:
             branch_diagnostics,
             trusted_business_route=bool(active_concept_matches),
         )
-        return self.ranking.build_response(
-            keyword=keyword,
-            hits=hits[:limit],
-            search_mode="meilisearch" if meili_hits else "fuzzy",
-            fallback=fallback_reason is not None,
-            fallback_reason=fallback_reason,
-            search_understanding=understanding,
-            search_diagnostics=search_diagnostics,
-            query_concept_matches=active_concept_matches,
-        )
+        response.fallback = fallback_reason is not None
+        response.fallback_reason = fallback_reason
+        response.search_diagnostics = search_diagnostics
+        return response

@@ -1,0 +1,70 @@
+{
+  "version": "2026-07-30.1",
+  "description": "业务端视角专项卖点评测集：25条精确话术 + 25条模糊话术。用于验证自然语言是否对应正确核心卖点，不替代原103条正式基线。",
+  "suites": [
+    {
+      "id": "business_precise_25",
+      "title": "业务端精确话术 25 条",
+      "sourceDoc": "docs/BUSINESS_SIDE_PRECISE_SEARCH_EVAL_25_2026-07-30.md",
+      "cases": [
+        {"id": "BSP001", "query": "我想找一张拍题精学的素材", "expectedCode": "photo_guided_learning", "expectedName": "AI拍题精学", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP002", "query": "找 AI 拍题分步讲解、不要直接给答案的图", "expectedCode": "photo_guided_learning", "expectedName": "AI拍题精学", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP003", "query": "需要洋葱举一反三的图，体现一道题带一类题", "expectedCode": "transfer_practice", "expectedName": "举一反三", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP004", "query": "找同步校内素材，课程和学校教材版本一致", "expectedCode": "school_sync", "expectedName": "同步校内", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP005", "query": "我想要课后小测的图，学完马上检测掌握情况", "expectedCode": "instant_quiz", "expectedName": "课后小测", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP006", "query": "找动画精讲素材，能把抽象知识动态讲透", "expectedCode": "animation_explanation", "expectedName": "动画精讲", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP007", "query": "找新课标新考法预测相关图片，体现跨学科情境题", "expectedCode": "new_curriculum_prediction", "expectedName": "新课标新考法预测", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP008", "query": "需要专项培优素材，突出重难点和薄弱点突破", "expectedCode": "focused_excellence", "expectedName": "专项培优", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP009", "query": "找专家规划素材，体现命题专家和教材编者设计课程", "expectedCode": "expert_planning", "expectedName": "专家规划", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP010", "query": "找学段衔接素材，小升初初升高一体化过渡", "expectedCode": "stage_transition", "expectedName": "学段衔接", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP011", "query": "找万能解法素材，展示一题多解和底层方法", "expectedCode": "universal_method", "expectedName": "万能解法", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP012", "query": "找 AI 定制学习方案素材，体现根据学情安排学习路径", "expectedCode": "ai_learning_plan", "expectedName": "AI定制学习方案", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP013", "query": "需要 AI 私教答疑素材，能随时提问互动辅导", "expectedCode": "ai_tutor_qa", "expectedName": "AI私教答疑", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP014", "query": "找极速预习复习素材，课前课后快速过知识点", "expectedCode": "rapid_preview_review", "expectedName": "极速预习复习", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP015", "query": "找 AI 错题本素材，个人错题归档和错因分析", "expectedCode": "ai_error_book", "expectedName": "AI错题本", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP016", "query": "找真人老师督学素材，老师提醒打卡跟进", "expectedCode": "human_teacher_supervision", "expectedName": "真人老师督学", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP017", "query": "找学情报告反馈素材，展示学习时长正确率薄弱点", "expectedCode": "learning_report", "expectedName": "学情报告反馈", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP018", "query": "找 PPT 用的拍题精学素材", "expectedCode": "photo_guided_learning", "expectedName": "AI拍题精学", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP019", "query": "找发朋友圈的学情报告素材", "expectedCode": "learning_report", "expectedName": "学情报告反馈", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP020", "query": "找官网大图用的 AI 定制学习方案素材", "expectedCode": "ai_learning_plan", "expectedName": "AI定制学习方案", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP021", "query": "找品牌手册里的专家规划教研背书素材", "expectedCode": "expert_planning", "expectedName": "专家规划", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP022", "query": "找手机端小图用的课后小测结果素材", "expectedCode": "instant_quiz", "expectedName": "课后小测", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP023", "query": "找能表达新中考新题型预测的素材", "expectedCode": "new_curriculum_prediction", "expectedName": "新课标新考法预测", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP024", "query": "找一张同步考点里专项突破的图片", "expectedCode": "focused_excellence", "expectedName": "专项培优", "expectedQueryType": "business_intent_search"},
+        {"id": "BSP025", "query": "找一张同步伴学里真人老师持续跟进的图", "expectedCode": "human_teacher_supervision", "expectedName": "真人老师督学", "expectedQueryType": "business_intent_search"}
+      ]
+    },
+    {
+      "id": "business_fuzzy_25",
+      "title": "业务端模糊话术 25 条",
+      "sourceDoc": "docs/BUSINESS_SIDE_FUZZY_SEARCH_EVAL_25_2026-07-30.md",
+      "cases": [
+        {"id": "BSF001", "query": "想找能说明孩子在课外学的和学校最近教材章节对得上的图", "expectedCode": "school_sync", "expectedName": "同步校内", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF002", "query": "要一张把看不见的知识变成能动过程的画面", "expectedCode": "animation_explanation", "expectedName": "动画精讲", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF003", "query": "刚讲完一个知识点，想配个马上练几题确认的素材", "expectedCode": "instant_quiz", "expectedName": "课后小测", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF004", "query": "现在考试越来越像真实场景题，想找能体现这种变化的图", "expectedCode": "new_curriculum_prediction", "expectedName": "新课标新考法预测", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF005", "query": "想把孩子容易丢分的模块单独拎出来练的画面", "expectedCode": "focused_excellence", "expectedName": "专项培优", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF006", "query": "一题讲完后还能顺着练同一类题的素材", "expectedCode": "transfer_practice", "expectedName": "举一反三", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF007", "query": "想找有教研和命题背景的人参与设计课程的图", "expectedCode": "expert_planning", "expectedName": "专家规划", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF008", "query": "孩子升到新学段怕断层，想找能表达平稳过渡的素材", "expectedCode": "stage_transition", "expectedName": "学段衔接", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF009", "query": "不是只记公式，想体现底层方法和多种解法的图", "expectedCode": "universal_method", "expectedName": "万能解法", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF010", "query": "想表达系统会根据孩子情况安排下一步学什么", "expectedCode": "ai_learning_plan", "expectedName": "AI定制学习方案", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF011", "query": "孩子做题中途卡住，想找可以继续追问的 AI 辅导图", "expectedCode": "ai_tutor_qa", "expectedName": "AI私教答疑", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF012", "query": "拍了不会的题后，希望它先带着孩子想步骤的素材", "expectedCode": "photo_guided_learning", "expectedName": "AI拍题精学", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF013", "query": "课前时间很短，想快速把待学内容过一遍的图", "expectedCode": "rapid_preview_review", "expectedName": "极速预习复习", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF014", "query": "线下做错的题能沉淀下来以后再复练的图", "expectedCode": "ai_error_book", "expectedName": "AI错题本", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF015", "query": "不想只靠家长催，想表达有人持续盯学习过程的图", "expectedCode": "human_teacher_supervision", "expectedName": "真人老师督学", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF016", "query": "业务想展示家长能看到阶段学习数据和薄弱点的报告图", "expectedCode": "learning_report", "expectedName": "学情报告反馈", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF017", "query": "想表达课程不是另起一套，而是跟着课本章节走", "expectedCode": "school_sync", "expectedName": "同步校内", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF018", "query": "想要那种把难概念讲成小故事、孩子愿意看的画面", "expectedCode": "animation_explanation", "expectedName": "动画精讲", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF019", "query": "希望素材能表现学完后马上知道到底会不会", "expectedCode": "instant_quiz", "expectedName": "课后小测", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF020", "query": "想表达针对压轴题和高频错题集中突破", "expectedCode": "focused_excellence", "expectedName": "专项培优", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF021", "query": "想表达从一道题的方法迁移到变式题", "expectedCode": "transfer_practice", "expectedName": "举一反三", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF022", "query": "想表达小初高是一套连续培养，不是临时补丁", "expectedCode": "stage_transition", "expectedName": "学段衔接", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF023", "query": "想表达 AI 会按目标和时间把每天任务排好", "expectedCode": "ai_learning_plan", "expectedName": "AI定制学习方案", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF024", "query": "想表达错题不是拍完就完，而是后面能归类复盘", "expectedCode": "ai_error_book", "expectedName": "AI错题本", "expectedQueryType": "business_intent_search"},
+        {"id": "BSF025", "query": "想表达老师会定期反馈孩子的问题和执行情况", "expectedCode": "human_teacher_supervision", "expectedName": "真人老师督学", "expectedQueryType": "business_intent_search"}
+      ]
+    }
+  ]
+}

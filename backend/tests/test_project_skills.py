@@ -56,6 +56,7 @@ def test_runtime_model_tasks_load_the_current_skill_rules():
         "search_intent_understanding": ("understand-image-search-intent",),
         "search_proof_point_understanding": ("understand-image-search-intent",),
         "search_candidate_review": ("understand-image-search-intent",),
+        "search_result_recommendation_reason": ("understand-image-search-intent",),
         "copy_selling_point_matching": ("match-copy-selling-points",),
     }
     for skill_names in MODEL_SKILLS.values():

@@ -185,7 +185,11 @@ class SearchExternalBranches:
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
         )
-        route_attempts = self.understanding.model_attempts_detail()
+        route_attempts = self.understanding.model_attempts(
+            task="search_system_routing",
+            layer="第一层：体系路由",
+        )
+        route_attempts_detail = self.understanding.model_attempts_detail()
         if route_result.diagnostic.status != "ok" or route_result.value is None:
             return SearchBranchResult(
                 value=QueryUnderstandingOutcome(
@@ -201,8 +205,9 @@ class SearchExternalBranches:
                     detail=(
                         "体系路由失败："
                         f"{route_result.diagnostic.detail or route_result.diagnostic.status}"
-                        f"{_attempt_suffix('体系Provider', route_attempts)}"
+                        f"{_attempt_suffix('体系Provider', route_attempts_detail)}"
                     ),
+                    attempts=route_attempts,
                 ),
             )
 
@@ -228,8 +233,9 @@ class SearchExternalBranches:
                     detail=(
                         f"体系路由 {route_result.diagnostic.duration_ms}ms；"
                         "无需进入卖点层"
-                        f"{_attempt_suffix('体系Provider', route_attempts)}"
+                        f"{_attempt_suffix('体系Provider', route_attempts_detail)}"
                     ),
+                    attempts=route_attempts,
                 ),
             )
 
@@ -246,7 +252,11 @@ class SearchExternalBranches:
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
         )
-        selling_attempts = self.understanding.model_attempts_detail()
+        selling_attempts = self.understanding.model_attempts(
+            task="search_intent_understanding",
+            layer="第二层：卖点识别",
+        )
+        selling_attempts_detail = self.understanding.model_attempts_detail()
         selling_completed = bool(
             selling_result.diagnostic.status == "ok"
             and isinstance(selling_result.value, SearchUnderstanding)
@@ -268,9 +278,10 @@ class SearchExternalBranches:
                         f"体系路由 {route_result.diagnostic.duration_ms}ms；"
                         f"卖点识别 {selling_result.diagnostic.duration_ms}ms；"
                         "卖点层未完成，启用精度保护"
-                        f"{_attempt_suffix('体系Provider', route_attempts)}"
-                        f"{_attempt_suffix('卖点Provider', selling_attempts)}"
+                        f"{_attempt_suffix('体系Provider', route_attempts_detail)}"
+                        f"{_attempt_suffix('卖点Provider', selling_attempts_detail)}"
                     ),
+                    attempts=(*route_attempts, *selling_attempts),
                 ),
             )
 
@@ -294,9 +305,10 @@ class SearchExternalBranches:
                         f"体系路由 {route_result.diagnostic.duration_ms}ms；"
                         f"卖点识别 {selling_result.diagnostic.duration_ms}ms；"
                         "未命中卖点，无需进入证明点层"
-                        f"{_attempt_suffix('体系Provider', route_attempts)}"
-                        f"{_attempt_suffix('卖点Provider', selling_attempts)}"
+                        f"{_attempt_suffix('体系Provider', route_attempts_detail)}"
+                        f"{_attempt_suffix('卖点Provider', selling_attempts_detail)}"
                     ),
+                    attempts=(*route_attempts, *selling_attempts),
                 ),
             )
 
@@ -313,7 +325,11 @@ class SearchExternalBranches:
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
         )
-        proof_attempts = self.understanding.model_attempts_detail()
+        proof_attempts = self.understanding.model_attempts(
+            task="search_proof_point_understanding",
+            layer="第三层：证明点识别",
+        )
+        proof_attempts_detail = self.understanding.model_attempts_detail()
         proof_completed = bool(
             proof_result.diagnostic.status == "ok"
             and isinstance(proof_result.value, SearchUnderstanding)
@@ -340,10 +356,11 @@ class SearchExternalBranches:
                     f"卖点识别 {selling_result.diagnostic.duration_ms}ms"
                     f"；证明点识别 {proof_result.diagnostic.duration_ms}ms"
                     + ("" if proof_completed else "；证明点层未完成")
-                    + _attempt_suffix("体系Provider", route_attempts)
-                    + _attempt_suffix("卖点Provider", selling_attempts)
-                    + _attempt_suffix("证明点Provider", proof_attempts)
+                    + _attempt_suffix("体系Provider", route_attempts_detail)
+                    + _attempt_suffix("卖点Provider", selling_attempts_detail)
+                    + _attempt_suffix("证明点Provider", proof_attempts_detail)
                 ),
+                attempts=(*route_attempts, *selling_attempts, *proof_attempts),
             ),
         )
 
@@ -447,7 +464,16 @@ class SearchExternalBranches:
         review_limit = min(max(limit, 1), self.candidate_review_limit)
         contexts = self._candidate_review_contexts(hits[:review_limit])
         if not contexts:
-            return self.runner.skipped("candidate_review", "没有可复核候选")
+            return SearchBranchResult(
+                value=hits,
+                diagnostic=SearchBranchDiagnostic(
+                    source="candidate_review",
+                    status="skipped",
+                    duration_ms=0,
+                    result_count=len(hits),
+                    detail="没有可复核候选",
+                ),
+            )
         cache_key = _candidate_review_cache_key(keyword, understanding, contexts)
         cached = self.caches.candidate_reviews.get(cache_key)
         if cached is not None:
@@ -474,7 +500,11 @@ class SearchExternalBranches:
             ),
             timeout_seconds=self.candidate_review_timeout_seconds,
         )
-        attempts = self.understanding.model_attempts_detail()
+        attempts = self.understanding.model_attempts(
+            task="search_candidate_review",
+            layer="第四层：候选图片复核",
+        )
+        attempts_detail = self.understanding.model_attempts_detail()
         if result.diagnostic.status != "ok" or result.value is None:
             return SearchBranchResult(
                 value=hits,
@@ -487,7 +517,8 @@ class SearchExternalBranches:
                         result.diagnostic.detail
                         or "第四层候选图片复核未完成，保留原排序"
                     )
-                    + _attempt_suffix("复核Provider", attempts),
+                    + _attempt_suffix("复核Provider", attempts_detail),
+                    attempts=attempts,
                 ),
             )
         reviewed_hits, applied = _apply_candidate_review(hits, result.value.decisions)
@@ -501,8 +532,9 @@ class SearchExternalBranches:
                 result_count=applied,
                 detail=(
                     f"第四层复核 {len(contexts)} 张候选，应用 {applied} 条决策"
-                    + _attempt_suffix("复核Provider", attempts)
+                    + _attempt_suffix("复核Provider", attempts_detail)
                 ),
+                attempts=attempts,
             ),
         )
 

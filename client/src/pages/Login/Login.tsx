@@ -41,13 +41,14 @@ const Login = () => {
 
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-4 py-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(224_76%_54%/0.14),transparent_34rem),radial-gradient(circle_at_bottom_right,hsl(199_85%_60%/0.10),transparent_30rem)]" />
-      <section className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/80 bg-card/95 shadow-2xl shadow-slate-900/10 backdrop-blur">
-        <div className="border-b border-border/70 bg-gradient-to-br from-primary/10 via-card to-card px-7 pb-6 pt-7">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-400 shadow-md shadow-primary/20">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(42_32%_92%/0.82),transparent_34rem),radial-gradient(circle_at_bottom_right,hsl(222_18%_92%/0.52),transparent_30rem)]" />
+      <div className="absolute left-1/2 top-1/2 h-[32rem] w-[32rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/50 bg-white/30 blur-3xl" />
+      <section className="relative w-full max-w-md overflow-hidden rounded-[30px] border border-white/85 bg-card/95 shadow-2xl shadow-slate-900/10 backdrop-blur-xl">
+        <div className="border-b border-border/70 bg-gradient-to-br from-secondary/80 via-card to-card px-7 pb-6 pt-7">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-foreground shadow-md shadow-foreground/15">
             <Images className="size-5 text-primary-foreground" />
           </div>
-          <p className="mt-5 flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-primary"><Sparkles className="size-3.5" />{PRODUCT_NAME}</p>
+          <p className="mt-5 flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] text-muted-foreground"><Sparkles className="size-3.5" />{PRODUCT_NAME}</p>
           <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">欢迎登录</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             一个入口完成素材搜索、上传和业务关系维护。

@@ -92,25 +92,27 @@ export default function AdminChannels() {
                   这些话术会帮助搜索框理解用户说的是哪个渠道；只说“手机端/官网”时仍会保留大图和小图两个候选。
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  resetChannelIntentEntries();
-                  toast.success('已恢复默认渠道话术');
-                }}
-              >
-                <RotateCcw className="size-4" />恢复默认
-              </Button>
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => {
-                  removeChannelIntentEntry(selected.value);
-                  toast.success('渠道标签已删除');
-                }}
-              >
-                <Trash2 className="size-4" />删除渠道
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    resetChannelIntentEntries();
+                    toast.success('已恢复默认渠道话术');
+                  }}
+                >
+                  <RotateCcw className="size-4" />恢复默认
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => {
+                    removeChannelIntentEntry(selected.value);
+                    toast.success('渠道标签已删除');
+                  }}
+                >
+                  <Trash2 className="size-4" />删除渠道
+                </Button>
+              </div>
             </div>
 
             <ChannelMetaEditor entry={selected} />

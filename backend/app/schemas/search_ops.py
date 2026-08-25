@@ -38,6 +38,9 @@ class SearchFeedbackCreate(ApiModel):
         "not_relevant",
         "too_few_results",
         "need_different_style",
+        "right_business_wrong_visual",
+        "right_visual_wrong_business",
+        "wrong_version",
         "asset_request",
     ]
     note: Optional[str] = None
@@ -106,6 +109,75 @@ class AssetGapItem(ApiModel):
     source: str
 
 
+class AssetOperationsOverview(ApiModel):
+    asset_group_count: int
+    image_count: int
+    current_image_count: int
+    missing_source_link_count: int
+    missing_source_link_rate: float
+    single_version_group_count: int
+    missing_business_relation_count: int
+    missing_search_phrase_count: int
+    missing_style_count: int
+    unset_scene_count: int
+    missing_channel_count: int
+    total_download_count: int
+    unused_asset_group_count: int
+
+
+class AssetOpsIssueRead(ApiModel):
+    id: str
+    asset_group_id: str
+    title: str
+    primary_image_id: Optional[str] = None
+    issue_type: str
+    severity: Literal["high", "medium", "low"]
+    message: str
+    suggested_action: str
+    updated_at: datetime
+
+
+class SourceLinkRecentItem(ApiModel):
+    id: str
+    asset_group_id: str
+    asset_group_title: str
+    primary_image_id: Optional[str] = None
+    label: str
+    link_type: str
+    url: str
+    review_status: Literal["ok", "stale"]
+    updated_at: datetime
+
+
+class SourceLinkHealth(ApiModel):
+    total_links: int
+    groups_with_source_links: int
+    groups_without_source_links: int
+    stale_link_count: int
+    groups_requiring_review: int
+    link_type_counts: list[SearchMetricItem]
+    recent_links: list[SourceLinkRecentItem]
+
+
+class SearchPerformanceSummary(ApiModel):
+    sample_count: int
+    average_duration_ms: float
+    p50_duration_ms: int
+    p95_duration_ms: int
+    p99_duration_ms: int
+    slow_search_count: int
+    slow_search_rate: float
+    timeout_count: int
+    fallback_count: int
+    cache_hit_count: int
+    cache_hit_rate: float
+    reranker_used_count: int
+    ai_understood_count: int
+    model_work_unit_count: int
+    model_work_unit_rate: float
+    recent_slow_logs: list[SearchLogRead]
+
+
 class SearchOpsSummary(ApiModel):
     total_searches: int
     zero_result_count: int
@@ -129,3 +201,7 @@ class SearchOpsSummary(ApiModel):
     ai_review_queue: list[AiConceptReviewQueueItem]
     concept_health: list[ConceptHealthItem]
     asset_gaps: list[AssetGapItem]
+    asset_operations: AssetOperationsOverview
+    asset_ops_issues: list[AssetOpsIssueRead]
+    source_link_health: SourceLinkHealth
+    search_performance: SearchPerformanceSummary

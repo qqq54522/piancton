@@ -7,6 +7,7 @@ import { getApiError } from '@client/src/api/client';
 import { Button } from '@client/src/components/ui/button';
 import EmptyState from '@client/src/components/EmptyState';
 import PageHeader from '@client/src/components/PageHeader';
+import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
 import type { ImageItem } from '@client/src/types/api';
 
@@ -20,7 +21,7 @@ function TrashItem({
   onRestore: () => void;
   onPurge: () => void;
 }) {
-  const preview = useImageUrl(image.thumbnailUrl);
+  const preview = useImageUrl(previewUrlFor(image));
   return (
     <article className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
       <img src={preview} alt={image.title} className="aspect-[4/3] w-full object-cover opacity-75" />

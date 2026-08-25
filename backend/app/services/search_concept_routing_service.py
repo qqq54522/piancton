@@ -31,6 +31,7 @@ class SearchConceptRoutingService:
         active_matches = active_concept_matches(concept_matches, understanding)
         if not active_matches:
             return ConceptRouteOutcome(hits=hits)
+        assert understanding is not None
         matched_ids = {item.concept_id for item in active_matches}
         reviewed: list[tuple[SearchHit, list]] = []
         expressed_concept_ids: set[str] = set()

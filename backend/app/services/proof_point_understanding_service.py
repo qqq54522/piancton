@@ -64,7 +64,9 @@ class ProofPointUnderstandingService:
             if score < PROOF_POINT_TRUST_THRESHOLD:
                 continue
             current = accepted.get(concept_code)
-            if current is not None and current.weight > score:
+            if current is not None and current.reason.startswith("组合语义命中"):
+                continue
+            if current is not None and current.weight >= score:
                 continue
             accepted[concept_code] = SearchProofPointMatch(
                 code=point.code,
@@ -72,11 +74,12 @@ class ProofPointUnderstandingService:
                 name=point.name,
                 reason=f"证明点搜索语言命中：{evidence or point.name}",
                 weight=score,
-                evidence_terms=list(
-                    dict.fromkeys(
+                evidence_terms=[
+                    str(item)
+                    for item in dict.fromkeys(
                         [*([evidence] if evidence else []), *point.asset_terms]
                     )
-                )[:3],
+                ][:3],
             )
         return sorted(accepted.values(), key=lambda item: item.weight, reverse=True)[:4]
 

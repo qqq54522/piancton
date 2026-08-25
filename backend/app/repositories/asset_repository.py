@@ -3,13 +3,14 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
+from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase, AssetSourceLink
 from app.models.image import Image
 
 ASSET_LOAD_OPTIONS = (
     selectinload(AssetGroup.images),
     selectinload(AssetGroup.concept_links).selectinload(AssetConceptLink.concept),
     selectinload(AssetGroup.search_phrases),
+    selectinload(AssetGroup.source_links),
 )
 
 
@@ -53,6 +54,14 @@ class AssetRepository:
             )
         )
 
+    def get_source_link(self, group_id: str, link_id: str) -> AssetSourceLink | None:
+        return self.db.scalar(
+            select(AssetSourceLink).where(
+                AssetSourceLink.id == link_id,
+                AssetSourceLink.asset_group_id == group_id,
+            )
+        )
+
     def add(self, value):
         self.db.add(value)
         self.db.flush()
@@ -60,6 +69,10 @@ class AssetRepository:
 
     def save(self, value) -> None:
         self.db.add(value)
+        self.db.flush()
+
+    def delete(self, value) -> None:
+        self.db.delete(value)
         self.db.flush()
 
     def replace_pending_ai_links(

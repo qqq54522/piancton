@@ -6,6 +6,7 @@ from app.core.errors import NotFoundError
 from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
 from app.schemas.image import ImageRead
+from app.services.asset_identity_service import AssetIdentityService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_read
 from app.services.storage_service import StorageProvider
@@ -23,6 +24,7 @@ class ImageLifecycleService:
         self.storage = storage
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
+        self.identities = AssetIdentityService(db)
 
     def delete(self, image_id: str) -> None:
         image = self._get(image_id)
@@ -44,6 +46,7 @@ class ImageLifecycleService:
 
     def purge(self, image_id: str) -> None:
         image = self._get_deleted(image_id)
+        self.identities.retire_image(image.id)
         self.images.delete(image)
         self.uow.commit()
         self.search_index.delete_image(image_id)

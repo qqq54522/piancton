@@ -13,6 +13,7 @@ MODEL_SKILLS = {
     "search_intent_understanding": ("understand-image-search-intent",),
     "search_proof_point_understanding": ("understand-image-search-intent",),
     "search_candidate_review": ("understand-image-search-intent",),
+    "search_result_recommendation_reason": ("understand-image-search-intent",),
     "copy_selling_point_matching": ("match-copy-selling-points",),
 }
 
@@ -139,6 +140,41 @@ def build_candidate_review_prompt() -> str:
 - 必须只返回输入候选图片中的 image_id。
 - 不确定时返回 `keep` 或 `demote`，不要编造排除理由。
 - 不得输出 Markdown、解释文本或代码块之外的内容。
+""".strip()
+
+
+def build_result_recommendation_reason_prompt() -> str:
+    return """
+# 第五层：动态结果推荐理由
+
+用途：为已经完成召回、排序和候选复核的最终图片结果生成“为什么这张图适合本次搜索”的业务说明。
+
+严格边界：
+
+1. 只能解释输入中已有的图片，必须原样使用输入里的 `image_id`，不得新增候选。
+2. 只能基于用户原始搜索、已确认搜索理解、人工 accepted 卖点关系、
+   证明点/证据点、素材独有话术、图片语义事实和召回理由作答。
+3. 不得重新判断体系、卖点或证明点，不得改变排序，不得把模型推断写回素材事实。
+4. 不得编造图片中没有出现的对象、数据、功能、渠道、效果或品牌信息。
+5. 每张图片返回一条完整、自然、面向业务选图人员的中文理由，
+   回答“为什么适合当前搜索句”，不要只复述标题。
+6. 如果证据不足，只引用输入已有依据，不能为了让文案更完整而补造事实。
+
+输出协议：
+
+```json
+{
+  "reasons": [
+    {
+      "image_id": "必须来自输入候选",
+      "reason": "完整的中文推荐理由，建议 1～2 句"
+    }
+  ],
+  "generation_strategy": "本次使用的证据范围"
+}
+```
+
+必须为输入中的每张候选图片返回一条理由；不得返回 Markdown、代码块或协议之外的字段。
 """.strip()
 
 

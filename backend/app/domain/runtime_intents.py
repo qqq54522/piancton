@@ -75,10 +75,33 @@ class ExplorationSignal:
 
 
 @dataclass(frozen=True)
+class CompositionSignalGroup:
+    """One semantic axis in a governed natural-language composition rule."""
+
+    name: str
+    terms: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CompositionSignal:
+    """Route a composed intent without copying every full sentence into phrases."""
+
+    id: str
+    concept_code: str
+    proof_point_code: str
+    evidence_point_code: str
+    groups: tuple[CompositionSignalGroup, ...]
+    excluded_terms: tuple[str, ...]
+    evidence_terms: tuple[str, ...]
+    confidence: float
+
+
+@dataclass(frozen=True)
 class RuntimeIntentCatalog:
     version: str
     intents: tuple[RuntimeIntent, ...]
     exploration_signals: tuple[ExplorationSignal, ...] = ()
+    composition_signals: tuple[CompositionSignal, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -124,6 +147,7 @@ def runtime_catalog_from_static(
         version=f"{selected.version}+skill-{_public_phrase_governance_version()}",
         intents=tuple(intents),
         exploration_signals=_load_exploration_signals(),
+        composition_signals=_load_composition_signals(),
     )
 
 
@@ -151,6 +175,7 @@ def merge_runtime_catalog(
         version=_runtime_catalog_version(static_catalog, concepts),
         intents=tuple(intents),
         exploration_signals=static_catalog.exploration_signals,
+        composition_signals=static_catalog.composition_signals,
     )
 
 
@@ -296,6 +321,53 @@ def _load_exploration_signals() -> tuple[ExplorationSignal, ...]:
         )
         if len(codes) >= 2 and entries and purposes:
             signals.append(ExplorationSignal(codes, entries, purposes))
+    return tuple(signals)
+
+
+@lru_cache
+def _load_composition_signals() -> tuple[CompositionSignal, ...]:
+    """Load reusable semantic-axis rules that stay out of the public phrase table."""
+    payload = json.loads(
+        PUBLIC_PHRASE_GOVERNANCE_PATH.read_text(encoding="utf-8")
+    )
+    signals: list[CompositionSignal] = []
+    for item in payload.get("compositionSignals", []):
+        groups = []
+        for raw_group in item.get("termGroups", []):
+            terms = tuple(
+                term
+                for raw in raw_group.get("terms", [])
+                if (term := str(raw).strip())
+            )
+            name = str(raw_group.get("name") or "").strip()
+            if name and terms:
+                groups.append(CompositionSignalGroup(name=name, terms=terms))
+        signal_id = str(item.get("id") or "").strip()
+        concept_code = str(item.get("code") or "").strip()
+        proof_point_code = str(item.get("proofPointCode") or "").strip()
+        evidence_point_code = str(item.get("evidencePointCode") or "").strip()
+        if not signal_id or not concept_code or len(groups) < 2:
+            continue
+        signals.append(
+            CompositionSignal(
+                id=signal_id,
+                concept_code=concept_code,
+                proof_point_code=proof_point_code,
+                evidence_point_code=evidence_point_code,
+                groups=tuple(groups),
+                excluded_terms=tuple(
+                    term
+                    for raw in item.get("excludedTerms", [])
+                    if (term := str(raw).strip())
+                ),
+                evidence_terms=tuple(
+                    term
+                    for raw in item.get("evidenceTerms", [])
+                    if (term := str(raw).strip())
+                ),
+                confidence=max(0.0, min(1.0, float(item.get("confidence") or 0.9))),
+            )
+        )
     return tuple(signals)
 
 

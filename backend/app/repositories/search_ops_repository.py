@@ -3,8 +3,9 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.asset import AssetConceptLink, AssetGroup
+from app.models.asset import AssetConceptLink, AssetGroup, AssetSourceLink
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
+from app.models.image import Image
 
 
 class SearchOpsRepository:
@@ -72,3 +73,36 @@ class SearchOpsRepository:
             .where(AssetGroup.publish_status == "published")
         )
         return list(self.db.scalars(stmt).all())
+
+    def published_asset_groups(self) -> list[AssetGroup]:
+        stmt = (
+            select(AssetGroup)
+            .where(AssetGroup.publish_status == "published")
+            .options(
+                selectinload(AssetGroup.images),
+                selectinload(AssetGroup.concept_links),
+                selectinload(AssetGroup.search_phrases),
+                selectinload(AssetGroup.source_links),
+            )
+            .order_by(AssetGroup.updated_at.desc())
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def recent_source_links(self, *, limit: int = 20) -> list[AssetSourceLink]:
+        stmt = (
+            select(AssetSourceLink)
+            .join(AssetGroup, AssetGroup.id == AssetSourceLink.asset_group_id)
+            .where(AssetGroup.publish_status == "published")
+            .options(selectinload(AssetSourceLink.asset_group))
+            .order_by(AssetSourceLink.updated_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def total_download_count(self) -> int:
+        value = self.db.scalar(
+            select(func.coalesce(func.sum(Image.download_count), 0)).where(
+                Image.deleted_at.is_(None)
+            )
+        )
+        return int(value or 0)

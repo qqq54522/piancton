@@ -85,6 +85,8 @@ def normalize_model_payload(
         return _normalize_system_routing_payload(payload, request.input_text or "")
     if request.task == "search_candidate_review":
         return _normalize_candidate_review_payload(payload)
+    if request.task == "search_result_recommendation_reason":
+        return _normalize_result_recommendation_reason_payload(payload)
     if request.task in {
         "search_intent_understanding",
         "search_proof_point_understanding",
@@ -122,6 +124,45 @@ def normalize_model_payload(
         ]
 
     return normalized
+
+
+def _normalize_result_recommendation_reason_payload(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    raw_reasons = (
+        payload.get("reasons")
+        or payload.get("recommendations")
+        or payload.get("results")
+        or []
+    )
+    reasons: list[dict[str, str]] = []
+    if isinstance(raw_reasons, list):
+        for item in raw_reasons:
+            if not isinstance(item, dict):
+                continue
+            image_id = str(
+                item.get("image_id")
+                or item.get("imageId")
+                or item.get("id")
+                or ""
+            ).strip()
+            reason = str(
+                item.get("reason")
+                or item.get("recommendation_reason")
+                or item.get("rationale")
+                or ""
+            ).strip()
+            if image_id and reason:
+                reasons.append({"image_id": image_id, "reason": reason})
+    return {
+        "reasons": reasons,
+        "generation_strategy": str(
+            payload.get("generation_strategy")
+            or payload.get("strategy")
+            or payload.get("search_strategy")
+            or ""
+        ),
+    }
 
 
 def _normalize_candidate_review_payload(payload: dict[str, Any]) -> dict[str, Any]:

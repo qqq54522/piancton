@@ -1,4 +1,4 @@
-import { ArrowUpDown, BriefcaseBusiness, Check, LogOut, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUpDown, BriefcaseBusiness, Check, Film, LogOut, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@client/src/components/ui/dropdown-menu';
 import { Input } from '@client/src/components/ui/input';
+import { shouldIgnoreEnterForIme } from '@client/src/lib/ime';
 import { useAuth } from '@client/src/lib/auth';
 import {
   type SceneImageFilter,
@@ -29,11 +30,13 @@ interface GlobalImageSearchProps {
   sortBy: 'createdAt' | 'downloadCount';
   showBusinessAccount: boolean;
   manualFilterOpen: boolean;
+  animateGifPreview: boolean;
   onInputChange: (value: string) => void;
   onChannelChange: (value: string) => void;
   onSceneChange: (value: SceneImageFilter) => void;
   onSortByChange: (value: 'createdAt' | 'downloadCount') => void;
   onManualFilterOpenChange: (open: boolean) => void;
+  onAnimateGifPreviewChange: (value: boolean) => void;
   onClear: () => void;
   onSearch: (value?: string) => void;
 }
@@ -45,11 +48,13 @@ const GlobalImageSearch = ({
   sortBy,
   showBusinessAccount,
   manualFilterOpen,
+  animateGifPreview,
   onInputChange,
   onChannelChange,
   onSceneChange,
   onSortByChange,
   onManualFilterOpenChange,
+  onAnimateGifPreviewChange,
   onClear,
   onSearch,
 }: GlobalImageSearchProps) => {
@@ -83,10 +88,11 @@ const GlobalImageSearch = ({
           <Search className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-foreground/55" />
           <Input
             aria-label="搜索业务素材"
-            placeholder="搜索可用素材，例如：家长看学习结果、PPT首屏、手机端小图"
+            placeholder="搜索素材，或粘贴素材码/版本码/分享链接"
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={(event) => {
+              if (shouldIgnoreEnterForIme(event)) return;
               if (event.key === 'Enter') onSearch();
             }}
             className="h-14 rounded-[22px] border-transparent bg-[#f1f1ef] pl-12 pr-32 text-base shadow-none transition-colors hover:bg-[#ececea] focus-visible:border-transparent focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-foreground/10 md:text-base"
@@ -221,6 +227,17 @@ const GlobalImageSearch = ({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center justify-end gap-2">
+          <button
+            type="button"
+            role="switch"
+            aria-label="动图预览"
+            aria-checked={animateGifPreview}
+            onClick={() => onAnimateGifPreviewChange(!animateGifPreview)}
+            className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors ${animateGifPreview ? 'border-foreground bg-foreground text-background shadow-sm' : 'border-border bg-white text-foreground shadow-xs hover:bg-[#f1f1ef]'}`}
+          >
+            <Film className="size-3.5" />
+            动图预览
+          </button>
           <button
             type="button"
             role="switch"

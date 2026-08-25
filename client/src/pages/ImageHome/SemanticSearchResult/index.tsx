@@ -4,9 +4,11 @@ import { useMutation } from '@tanstack/react-query';
 
 import { submitSearchFeedback } from '@client/src/api/image';
 import { Button } from '@client/src/components/ui/button';
+import { useProjectBasket } from '@client/src/features/assets/useProjectBasket';
 import type { SearchFeedbackType, SemanticSearchResponse } from '@client/src/types/api';
 import { channelIntentLabel } from '../channelIntent';
 import { channelRecommendationFor } from '../channelRecommendations';
+import ProjectBasketPanel from './ProjectBasketPanel';
 import SearchFeedbackPanel from './SearchFeedbackPanel';
 import SearchResultGrid from './SearchResultGrid';
 import { searchIntentTitle } from './searchConceptPresentation';
@@ -23,6 +25,7 @@ interface SemanticSearchResultProps {
   showSearchContext: boolean;
   manualFilterOpen: boolean;
   showBusinessAccount: boolean;
+  animateGifPreview: boolean;
   onClear: () => void;
   onRetry: () => void;
 }
@@ -35,11 +38,13 @@ const SemanticSearchResult = ({
   showSearchContext,
   manualFilterOpen,
   showBusinessAccount,
+  animateGifPreview,
   onClear,
   onRetry,
 }: SemanticSearchResultProps) => {
   const [feedbackNote, setFeedbackNote] = useState('');
   const [submittedFeedback, setSubmittedFeedback] = useState<SearchFeedbackType | null>(null);
+  const projectBasket = useProjectBasket();
   const visibleResults = useMemo(
     () => filterResultsByRefinements(result.results, refinements),
     [refinements, result.results],
@@ -118,12 +123,22 @@ const SemanticSearchResult = ({
       )}
 
       {!result.fallback && visibleResults.length > 0 ? (
-        <SearchResultGrid
-          items={visibleResults}
-          keyword={keyword}
-          searchLogId={result.searchLogId}
-          showSearchContext={showSearchContext}
-        />
+        <>
+          <ProjectBasketPanel
+            items={projectBasket.items}
+            onRemove={projectBasket.remove}
+            onClear={projectBasket.clear}
+          />
+          <SearchResultGrid
+            items={visibleResults}
+            keyword={keyword}
+            searchLogId={result.searchLogId}
+            showSearchContext={showSearchContext}
+            animateGifPreview={animateGifPreview}
+            isInProjectBasket={projectBasket.has}
+            onToggleProjectBasket={projectBasket.toggle}
+          />
+        </>
       ) : !result.fallback ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20">
           <p className="text-sm text-muted-foreground">

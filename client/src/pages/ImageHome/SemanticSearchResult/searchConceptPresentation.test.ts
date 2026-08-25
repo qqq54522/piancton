@@ -93,8 +93,9 @@ describe('search concept presentation', () => {
     expect(resultMatchExplanation(scored)).not.toContain('语义扩展');
   });
 
-  it('uses manual recommendation text from the current query selling point', () => {
+  it('uses the dynamic result recommendation reason before old manual recommendation text', () => {
     const scored = {
+      resultRecommendationReason: '推荐这张图，因为它结合本次搜索和素材画面说明了课后小测价值',
       matchedQueryConcepts: [
         {
           conceptCode: 'instant_quiz',
@@ -118,26 +119,19 @@ describe('search concept presentation', () => {
 
     expect(resultRecommendedPoint(scored)).toBe('课后小测');
     expect(resultMatchExplanation(scored)).toBe(
-      '有没有能体现课后小测后当天会不会一眼看出来的图',
+      '推荐这张图，因为它结合本次搜索和素材画面说明了课后小测价值',
     );
   });
 
-  it('splits recommendation text into primary and secondary display levels', () => {
+  it('splits dynamic recommendation text into primary and secondary display levels', () => {
     const scored = ({
-      matchedQueryConcepts: [
-        {
-          conceptCode: 'school',
-          conceptName: '同步校内',
-          relationRole: 'expresses',
-          recommendationText: '洋葱的课程版本与孩子学校教材完全一致\n洋葱的所有课程都是针对现在主流的教材版本对应设计的',
-        },
-      ],
+      resultRecommendationReason: '推荐这张「教材同步」\n因为它能说明学校课程同步',
       matchReasons: [],
     } as unknown) as ScoredImageMatch;
 
     expect(resultRecommendationCopy(scored)).toEqual({
-      primary: '洋葱的课程版本与孩子学校教材完全一致',
-      secondary: ['洋葱的所有课程都是针对现在主流的教材版本对应设计的'],
+      primary: '推荐这张「教材同步」',
+      secondary: ['因为它能说明学校课程同步'],
     });
   });
 

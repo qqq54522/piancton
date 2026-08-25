@@ -2,11 +2,12 @@ import { useState } from 'react';
 import {
   BriefcaseBusiness,
   FileClock,
+  Fingerprint,
+  KeyRound,
   LayoutGrid,
   LibraryBig,
   LogOut,
   Menu,
-  MessageSquareText,
   Palette,
   ScrollText,
   Search,
@@ -21,6 +22,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
 import { Button } from '@client/src/components/ui/button';
+import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,13 +33,12 @@ import {
 } from '@client/src/components/ui/dropdown-menu';
 import { useAuth } from '@client/src/lib/auth';
 import { PRODUCT_DESCRIPTOR, PRODUCT_NAME } from '@client/src/lib/branding';
-import pianctonMarkWhite from '@client/src/assets/piancton-mark-white.png';
 
 const sidebarNavClass = ({ isActive }: { isActive: boolean }) => (
-  `group relative flex size-12 items-center justify-center rounded-full transition-colors ${
+  `sidebar-nav-pill group relative flex size-12 items-center justify-center rounded-full ${
     isActive
-      ? 'bg-foreground text-background shadow-sm'
-      : 'text-muted-foreground hover:bg-[#f5f5f3] hover:text-foreground'
+      ? 'bg-foreground text-background shadow-md shadow-foreground/10'
+      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
   }`
 );
 
@@ -74,7 +75,7 @@ const SidebarActionItem = ({
 }) => (
   <button
     type="button"
-    className="group relative flex size-12 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[#f5f5f3] hover:text-foreground"
+    className="sidebar-nav-pill group relative flex size-12 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
     aria-label={label}
     onClick={onClick}
   >
@@ -91,15 +92,18 @@ const Layout = () => {
   const navigate = useNavigate();
   const isDesigner = user?.role === 'designer';
   const canManageAssets = user?.role === 'designer' || user?.role === 'admin';
+  const canViewSearchOps = canManageAssets;
+  const searchOpsPath = user?.role === 'admin' ? '/admin/search-ops' : '/search-ops';
   const isBusiness = user?.role === 'business';
   const roleLabel = user?.role === 'admin' ? '管理员' : isDesigner ? '设计师' : '业务用户';
   const RoleIcon = user?.role === 'admin' ? Shield : isDesigner ? Palette : BriefcaseBusiness;
   const navItems = [
     { to: '/', label: '素材库', icon: LayoutGrid, end: true, show: true },
     { to: '/admin/concepts', label: '卖点管理', icon: LibraryBig, show: user?.role === 'admin' },
-    { to: '/admin/recommendations', label: '推荐语', icon: MessageSquareText, show: user?.role === 'admin' },
     { to: '/admin/channels', label: '渠道管理', icon: Tags, show: user?.role === 'admin' },
-    { to: '/admin/search-ops', label: '搜索运营', icon: Search, show: user?.role === 'admin' },
+    { to: searchOpsPath, label: '搜索运营', icon: Search, show: canViewSearchOps },
+    { to: '/admin/api-center', label: 'API 中心', icon: KeyRound, show: user?.role === 'admin' },
+    { to: '/admin/identity-codes', label: '身份码管理', icon: Fingerprint, show: user?.role === 'admin' },
     { to: '/admin/users', label: '用户管理', icon: Users, show: user?.role === 'admin' },
     { to: '/trash', label: '回收站', icon: FileClock, show: canManageAssets },
     { to: '/admin/audit', label: '审计日志', icon: ScrollText, show: user?.role === 'admin' },
@@ -119,9 +123,9 @@ const Layout = () => {
     <div className="flex min-h-screen w-full bg-transparent">
       {!isBusiness && (
         <>
-          <aside className="fixed inset-y-0 left-0 z-50 hidden w-20 flex-col items-center border-r border-border/70 bg-white/95 py-5 shadow-[1px_0_0_rgba(15,23,42,0.02)] backdrop-blur sm:flex">
-            <NavLink to="/" className="group relative mb-7 flex size-12 items-center justify-center rounded-full bg-foreground shadow-sm transition-colors hover:bg-foreground/90" aria-label={PRODUCT_NAME}>
-              <img src={pianctonMarkWhite} alt="" className="size-7 object-contain" />
+          <aside className="fixed inset-y-0 left-0 z-50 hidden w-20 flex-col items-center border-r border-border/70 bg-card/90 py-5 shadow-[1px_0_0_rgba(15,23,42,0.02)] backdrop-blur-xl sm:flex">
+            <NavLink to="/" className="sidebar-nav-pill group relative mb-7 flex size-12 items-center justify-center rounded-[1.15rem] border border-border bg-white shadow-md shadow-foreground/10 hover:bg-secondary/70" aria-label={PRODUCT_NAME}>
+              <PianctonAgentMark variant="flat" size="sm" />
               <span className="pointer-events-none absolute left-[58px] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-xl bg-foreground px-3 py-2 text-sm font-semibold text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                 {PRODUCT_NAME}
               </span>
@@ -146,10 +150,10 @@ const Layout = () => {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="group relative mt-5 flex size-12 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[#f5f5f3] hover:text-foreground"
+                  className="sidebar-nav-pill group relative mt-5 flex size-12 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
                   aria-label="打开账号菜单"
                 >
-                  <Avatar className="size-9 border border-border bg-white">
+                  <Avatar className="size-9 border border-border bg-white" data-sidebar-icon>
                     <AvatarFallback className="bg-white text-foreground">
                       <RoleIcon className="size-4" />
                     </AvatarFallback>
@@ -175,8 +179,8 @@ const Layout = () => {
           <header className="sticky top-0 z-50 border-b border-border/80 bg-card/90 backdrop-blur-xl sm:hidden">
             <div className="flex h-16 items-center px-4">
               <NavLink to="/" className="group flex shrink-0 items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-foreground shadow-sm transition-transform group-hover:scale-[1.03]">
-                  <img src={pianctonMarkWhite} alt="" className="size-5 object-contain" />
+                <div className="flex size-9 items-center justify-center rounded-xl border border-border bg-white shadow-sm transition-transform group-hover:scale-[1.03]">
+                  <PianctonAgentMark variant="flat" size="sm" className="scale-75" />
                 </div>
                 <div className="leading-tight">
                   <span className="block text-sm font-semibold tracking-tight text-foreground">{PRODUCT_NAME}</span>
@@ -212,9 +216,19 @@ const Layout = () => {
                   <Tags className="size-4" />渠道管理
                 </NavLink>
               )}
-              {user?.role === 'admin' && (
-                <NavLink to="/admin/search-ops" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
+              {canViewSearchOps && (
+                <NavLink to={searchOpsPath} onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
                   <Search className="size-4" />搜索运营
+                </NavLink>
+              )}
+              {user?.role === 'admin' && (
+                <NavLink to="/admin/api-center" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
+                  <KeyRound className="size-4" />API 中心
+                </NavLink>
+              )}
+              {user?.role === 'admin' && (
+                <NavLink to="/admin/identity-codes" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
+                  <Fingerprint className="size-4" />身份码管理
                 </NavLink>
               )}
               {user?.role === 'admin' && (

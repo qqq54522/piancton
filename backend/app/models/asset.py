@@ -16,6 +16,12 @@ class AssetGroup(Base):
     __tablename__ = "asset_groups"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    asset_code: Mapped[str] = mapped_column(
+        String(32),
+        unique=True,
+        index=True,
+        default=lambda: f"PC-{uuid.uuid4().hex[:6].upper()}",
+    )
     title: Mapped[str] = mapped_column(String(255), index=True)
     # Kept as an application-validated reference to avoid a circular FK with images.asset_group_id.
     primary_image_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
@@ -42,6 +48,30 @@ class AssetGroup(Base):
     search_phrases: Mapped[list["AssetSearchPhrase"]] = relationship(
         back_populates="asset_group", cascade="all, delete-orphan"
     )
+    source_links: Mapped[list["AssetSourceLink"]] = relationship(
+        back_populates="asset_group", cascade="all, delete-orphan"
+    )
+
+
+class AssetIdentityCode(Base):
+    """Permanent registry for public asset/version identifiers.
+
+    Rows remain after an image or asset group is purged so identifiers cannot
+    silently be assigned to a different piece of content later.
+    """
+
+    __tablename__ = "asset_identity_codes"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    code_type: Mapped[str] = mapped_column(String(20), index=True)
+    asset_group_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("asset_groups.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    image_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("images.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    retired_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AssetConceptLink(Base):
@@ -89,3 +119,23 @@ class AssetSearchPhrase(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     asset_group: Mapped[AssetGroup] = relationship(back_populates="search_phrases")
+
+
+class AssetSourceLink(Base):
+    __tablename__ = "asset_source_links"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    asset_group_id: Mapped[str] = mapped_column(
+        ForeignKey("asset_groups.id", ondelete="CASCADE"), index=True
+    )
+    label: Mapped[str] = mapped_column(String(120))
+    url: Mapped[str] = mapped_column(String(2048))
+    link_type: Mapped[str] = mapped_column(String(40), default="figma", index=True)
+    note: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    asset_group: Mapped[AssetGroup] = relationship(back_populates="source_links")

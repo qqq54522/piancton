@@ -55,6 +55,432 @@ def test_shared_photo_entry_is_narrowed_by_context_specific_evidence():
     ] == ["AI拍题精学"]
 
 
+def test_textbook_version_alignment_composition_keeps_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    textbook = service.understand_locally("销售想讲不同地区都能用")
+    edition = service.understand_locally("北师大版")
+    reform = service.understand_locally("新课标教材版本变化")
+    rapid = service.understand_locally("拍课本课前快速预习")
+    plan = service.understand_locally("按教材版本和成绩目标排每日任务")
+
+    assert textbook is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in textbook.matched_business_concepts
+    ] == ["同步校内"]
+    assert [
+        item.code for item in textbook.matched_proof_points
+    ] == ["pp_textbook_version_coverage"]
+    assert edition is not None
+    assert [
+        item.code for item in edition.matched_proof_points
+    ] == ["pp_textbook_version_coverage"]
+    assert reform is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in reform.matched_business_concepts
+    ] == ["新课标新考法预测"]
+    assert rapid is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in rapid.matched_business_concepts
+    ] == ["极速预习复习"]
+    assert plan is not None
+    assert {
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in plan.matched_business_concepts
+    } == {"同步校内", "AI定制学习方案"}
+
+
+def test_ai_personalized_learning_plan_composition_keeps_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    plan = service.understand_locally("根据薄弱点推荐内容")
+    tailored = service.understand_locally("哪个卖点能讲不是所有孩子学一套")
+    course = service.understand_locally("有没有专属课程方案")
+    focused = service.understand_locally("精准补弱")
+    textbook = service.understand_locally("教材版本同步")
+    human = service.understand_locally("真人老师根据学习情况持续督促")
+    report = service.understand_locally("学习周报反馈薄弱点")
+
+    for understanding in (plan, tailored, course):
+        assert understanding is not None
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == ["AI定制学习方案"]
+        assert [
+            item.code for item in understanding.matched_proof_points
+        ] == ["pp_planning_generated_schedule"]
+
+    assert focused is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in focused.matched_business_concepts
+    ] == ["专项培优"]
+    assert textbook is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in textbook.matched_business_concepts
+    ] == ["同步校内"]
+    assert human is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in human.matched_business_concepts
+    ] == ["真人老师督学"]
+    assert report is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in report.matched_business_concepts
+    ] == ["学情报告反馈"]
+
+
+def test_photo_question_learning_composition_keeps_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    entry = service.understand_locally("拍照讲题")
+    value = service.understand_locally("有没有从搜答案到学会的卖点")
+    proof = service.understand_locally("我想找拍题相关的证明点")
+    rapid = service.understand_locally("拍课本课前快速预习")
+    error_book = service.understand_locally("把练习册错题拍下来以后复习")
+    transfer = service.understand_locally("拍题后再做同类题")
+
+    assert entry is not None
+    assert [
+        item.code for item in entry.matched_proof_points
+    ] == ["pp_selfstudy_photo_question_recognition"]
+    assert value is not None
+    assert [
+        item.code for item in value.matched_proof_points
+    ] == ["pp_selfstudy_photo_socratic_guidance"]
+    assert proof is not None
+    assert [
+        item.code for item in proof.matched_proof_points
+    ] == ["pp_selfstudy_photo_question_recognition"]
+    assert rapid is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in rapid.matched_business_concepts
+    ] == ["极速预习复习"]
+    assert error_book is not None
+    assert "AI错题本" in {
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in error_book.matched_business_concepts
+    }
+    assert transfer is not None
+    assert "举一反三" in {
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in transfer.matched_business_concepts
+    }
+
+
+def test_socratic_thinking_coach_composition_targets_guidance_proof_point():
+    service = QueryUnderstandingService()
+
+    samples = (
+        "AI思维教练",
+        "苏格拉底式教学",
+        "AI追问",
+        "让孩子自己想出答案",
+        "有没有体现“启发而不是灌输”的图",
+        "想找“会提问的AI老师”",
+        "有没有关于连续追问的证明点",
+    )
+
+    for query in samples:
+        understanding = service.understand_locally(query)
+
+        assert understanding is not None, query
+        assert understanding.query_type == "business_intent_search"
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == ["AI拍题精学"]
+        assert [
+            item.code for item in understanding.matched_proof_points
+        ] == ["pp_selfstudy_photo_socratic_guidance"]
+
+    tutor = service.understand_locally("随时问AI老师一道知识点")
+
+    assert tutor is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in tutor.matched_business_concepts
+    ] == ["AI私教答疑"]
+
+
+def test_remaining_business_compositions_keep_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    animation = service.understand_locally("老师讲太快孩子听不懂想用动画讲明白")
+    visual = service.understand_locally("把看不见的知识变成动画")
+    quiz = service.understand_locally("孩子说听懂了想马上看看会不会")
+    tutor = service.understand_locally("孩子晚上写作业卡住了家里没人会讲")
+    error_archive = service.understand_locally("练习册错题拍照上传")
+    error_variant = service.understand_locally("错题后再练同类题")
+
+    assert animation is not None
+    assert [
+        item.code for item in animation.matched_proof_points
+    ] == ["pp_animation_pedagogy_design"]
+    assert visual is not None
+    assert [
+        item.code for item in visual.matched_proof_points
+    ] == ["pp_subject_animation_visualization"]
+    scale = service.understand_locally("孩子班上，大概率就有同学在用")
+
+    assert scale is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in scale.matched_business_concepts
+    ] == ["动画精讲"]
+    assert [
+        item.code for item in scale.matched_proof_points
+    ] == ["pp_animation_scale_data"]
+    assert [
+        item.code for item in scale.matched_evidence_points
+    ] == ["ep_school_animation_scale_numbers"]
+
+    assert quiz is not None
+    assert [
+        item.code for item in quiz.matched_proof_points
+    ] == ["pp_learn_practice_loop"]
+    assert tutor is not None
+    assert [
+        item.code for item in tutor.matched_proof_points
+    ] == ["pp_selfstudy_tutor_interactive_qa"]
+    assert error_archive is not None
+    assert [
+        item.code for item in error_archive.matched_proof_points
+    ] == ["pp_selfstudy_error_photo_capture"]
+    assert error_variant is not None
+    assert [
+        item.code for item in error_variant.matched_proof_points
+    ] == ["pp_selfstudy_error_variant_recommendation"]
+
+    exam_review = service.understand_locally("短时间高效复习")
+    socratic = service.understand_locally("想找会提问的AI老师")
+    report = service.understand_locally("每周学习报告汇总时长和正确率给家长")
+    frequent_errors = service.understand_locally("大家容易错的高频错题集中练")
+    transfer = service.understand_locally("讲完当前题再做同类题训练")
+
+    assert exam_review is not None
+    assert [
+        item.code for item in exam_review.matched_proof_points
+    ] == ["pp_exam_focus_stage_review"]
+    assert socratic is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in socratic.matched_business_concepts
+    ] == ["AI拍题精学"]
+    assert report is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in report.matched_business_concepts
+    ] == ["学情报告反馈"]
+    assert frequent_errors is not None
+    assert [
+        item.code for item in frequent_errors.matched_proof_points
+    ] == ["pp_exam_focus_high_frequency_errors"]
+    assert transfer is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in transfer.matched_business_concepts
+    ] == ["举一反三"]
+
+
+def test_second_remaining_business_compositions_keep_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    expected_proofs = {
+        "新中考会怎么考": ("新课标新考法预测", "pp_exam_reform_trend_alignment"),
+        "跨学科题怎么练": ("新课标新考法预测", "pp_exam_new_format_course_practice"),
+        "理解原理换题也会": ("举一反三", "pp_exam_transfer_principle_first"),
+        "讲完题再做同类题": ("举一反三", "pp_exam_transfer_variant_practice"),
+        "命题专家设计课程": ("专家规划", "pp_cultivation_expert_team_credentials"),
+        "长期学习路径设计": ("专家规划", "pp_cultivation_expert_path_design"),
+        "小升初衔接课": ("学段衔接", "pp_cultivation_stage_bridge_courses"),
+        "小初高一体化": ("学段衔接", "pp_cultivation_stage_full_cycle_coverage"),
+        "一题多解": ("万能解法", "pp_cultivation_method_multiple_paths"),
+        "建立理科思维": ("万能解法", "pp_cultivation_method_transfer_foundation"),
+        "真人老师分析问题": ("真人老师督学", "pp_companion_teacher_diagnosis_plan"),
+        "真人老师每天提醒": ("真人老师督学", "pp_companion_teacher_follow_up"),
+        "学习周报看学了什么学了多久": ("学情报告反馈", "pp_companion_report_core_metrics"),
+        "快进倍速记录": ("学情报告反馈", "pp_companion_report_behavior_signals"),
+        "微信里看学习周报": ("学情报告反馈", "pp_companion_report_parent_delivery"),
+    }
+
+    for query, (concept, proof_point) in expected_proofs.items():
+        understanding = service.understand_locally(query)
+
+        assert understanding is not None, query
+        assert understanding.query_type == "business_intent_search"
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == [concept]
+        assert [
+            item.code for item in understanding.matched_proof_points
+        ] == [proof_point]
+
+    boundaries = {
+        "教材版本同步": "同步校内",
+        "学习路径自动规划": "AI定制学习方案",
+        "讲完当前题再做同类题训练": "举一反三",
+        "同一道题不同方法": "万能解法",
+        "高频错题薄弱知识点周报": "学情报告反馈",
+        "个人错题练会一类题": "AI错题本",
+    }
+    for query, concept in boundaries.items():
+        understanding = service.understand_locally(query)
+
+        assert understanding is not None, query
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == [concept]
+
+    ai_only = service.understand_locally("不要真人老师，只要 AI 随时回答问题")
+
+    assert ai_only is not None
+    assert "同步伴学体系 > 真人老师督学" in ai_only.excluded_concepts
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in ai_only.matched_business_concepts
+    ] == ["AI私教答疑"]
+
+
+def test_rapid_preview_before_class_composition_keeps_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    samples = (
+        "课前快速过知识点",
+        "带着问题进课堂",
+        "有什么功能适合每天晚上用",
+        "想突出上课之前先建立认知",
+        "哪个卖点适合讲“提前知道课堂重点”",
+        "想讲短时间完成预习",
+    )
+
+    for query in samples:
+        understanding = service.understand_locally(query)
+
+        assert understanding is not None, query
+        assert understanding.query_type == "business_intent_search"
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == ["极速预习复习"]
+        assert [
+            item.code for item in understanding.matched_proof_points
+        ] == ["pp_selfstudy_preview_dual_entry"]
+
+    exam_stage = service.understand_locally("月考复习")
+    textbook = service.understand_locally("教材版本同步")
+    plan = service.understand_locally("学习计划自动生成")
+    photo = service.understand_locally("拍题讲解")
+    error_book = service.understand_locally("练习册错题以后复习")
+
+    assert exam_stage is not None
+    assert [
+        item.code for item in exam_stage.matched_proof_points
+    ] == ["pp_exam_focus_stage_review"]
+    assert textbook is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in textbook.matched_business_concepts
+    ] == ["同步校内"]
+    assert plan is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in plan.matched_business_concepts
+    ] == ["AI定制学习方案"]
+    assert photo is not None
+    assert [
+        item.code for item in photo.matched_proof_points
+    ] == ["pp_selfstudy_photo_question_recognition"]
+    assert error_book is not None
+    assert "AI错题本" in {
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in error_book.matched_business_concepts
+    }
+
+
+def test_rapid_review_after_class_composition_keeps_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    samples = (
+        "课后复习",
+        "当天知识当天复习",
+        "快速查漏补缺",
+        "知识点快速回忆",
+        "学过内容重新过一遍",
+        "日常快速复习",
+        "当天学当天复习",
+        "有没有体现碎片时间学习的图",
+        "哪个功能可以讲“花很少时间复习”",
+        "有没有“快速回顾重点”的卖点",
+    )
+
+    for query in samples:
+        understanding = service.understand_locally(query)
+
+        assert understanding is not None, query
+        assert understanding.query_type == "business_intent_search"
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == ["极速预习复习"]
+        assert [
+            item.code for item in understanding.matched_proof_points
+        ] == ["pp_selfstudy_preview_dual_entry"]
+        assert [
+            item.code for item in understanding.matched_evidence_points
+        ] == ["ep_selfstudy_fast_review"]
+
+    exam_stage = service.understand_locally("月考复习")
+    tomorrow_exam = service.understand_locally("明天月考快速复习")
+    final_sprint = service.understand_locally("期末前三天冲刺")
+    textbook = service.understand_locally("教材版本同步")
+    plan = service.understand_locally("学习计划自动生成")
+    photo = service.understand_locally("拍题讲解")
+    error_book = service.understand_locally("练习册错题以后复习")
+
+    assert exam_stage is not None
+    assert [
+        item.code for item in exam_stage.matched_proof_points
+    ] == ["pp_exam_focus_stage_review"]
+    for understanding in (tomorrow_exam, final_sprint):
+        assert understanding is not None
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == ["专项培优"]
+        assert [
+            item.code for item in understanding.matched_proof_points
+        ] == ["pp_exam_focus_stage_review"]
+    assert textbook is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in textbook.matched_business_concepts
+    ] == ["同步校内"]
+    assert plan is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in plan.matched_business_concepts
+    ] == ["AI定制学习方案"]
+    assert photo is not None
+    assert [
+        item.code for item in photo.matched_proof_points
+    ] == ["pp_selfstudy_photo_question_recognition"]
+    assert error_book is not None
+    assert "AI错题本" in {
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in error_book.matched_business_concepts
+    }
+
+
 def test_objectless_photo_explain_combination_stays_exploratory():
     # D079：拍照入口没有拍摄对象、只有讲解目的时，保持拍题精学/极速预习复习
     # 探索型组合，不硬选唯一卖点，也不落入全库兜底。
@@ -183,6 +609,84 @@ def test_weak_ambiguous_entry_keeps_equal_neighboring_candidates():
     assert all(
         item.relation == "related"
         for item in understanding.matched_business_concepts
+    )
+
+
+def test_exam_stage_composition_does_not_capture_daily_or_reform_review():
+    service = QueryUnderstandingService()
+
+    daily = service.understand_locally("课后短时间高效复习今天的笔记")
+    reform = service.understand_locally("新中考考试前快速练新题型")
+
+    assert daily is not None
+    assert all(
+        not item.concept.endswith("> 专项培优")
+        for item in daily.matched_business_concepts
+    )
+    assert reform is not None
+    assert all(
+        not item.concept.endswith("> 专项培优")
+        for item in reform.matched_business_concepts
+    )
+
+
+def test_targeted_module_composition_keeps_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    targeted = service.understand_locally("薄弱题型")
+    frequent_errors = service.understand_locally("大家容易错的高频错题集中练")
+    transfer = service.understand_locally("讲完当前题再做同类题训练")
+    personal_errors = service.understand_locally("个人错题针对性训练")
+
+    assert targeted is not None
+    assert [
+        item.code for item in targeted.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert frequent_errors is not None
+    assert [
+        item.code for item in frequent_errors.matched_proof_points
+    ] == ["pp_exam_focus_high_frequency_errors"]
+    assert transfer is not None
+    assert all(
+        not item.concept.endswith("> 专项培优")
+        for item in transfer.matched_business_concepts
+    )
+    assert personal_errors is not None
+    assert all(
+        not item.concept.endswith("> 专项培优")
+        for item in personal_errors.matched_business_concepts
+    )
+
+
+def test_difficulty_upgrade_composition_keeps_neighbor_boundaries():
+    service = QueryUnderstandingService()
+
+    difficulty = service.understand_locally("从90分往满分冲")
+    high_order = service.understand_locally("哪个卖点能体现不是只教基础")
+    exam_stage = service.understand_locally("期末冲刺高分")
+    targeted = service.understand_locally("精准补弱")
+    transfer = service.understand_locally("讲完当前题再做同类题训练")
+
+    assert difficulty is not None
+    assert [
+        item.code for item in difficulty.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert high_order is not None
+    assert [
+        item.code for item in high_order.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert exam_stage is not None
+    assert [
+        item.code for item in exam_stage.matched_proof_points
+    ] == ["pp_exam_focus_stage_review"]
+    assert targeted is not None
+    assert [
+        item.code for item in targeted.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert transfer is not None
+    assert all(
+        not item.concept.endswith("> 专项培优")
+        for item in transfer.matched_business_concepts
     )
 
 

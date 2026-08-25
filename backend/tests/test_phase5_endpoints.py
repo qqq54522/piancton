@@ -1,4 +1,6 @@
+import json
 from io import BytesIO
+from zipfile import ZipFile
 
 from PIL import Image as PillowImage
 
@@ -70,6 +72,7 @@ def test_phase5_designer_can_upload_primary_add_variant_and_replace_it(client, m
         item for item in variant.json()["images"] if item["id"] == variant_id
     )
     assert variant_image["channel"] == image["channel"]
+    assert variant_image["mediaType"] == "image/png"
     assert ("upsert", variant_id) in index_events
     index_events.clear()
 
@@ -137,6 +140,105 @@ def test_phase5_asset_version_writes_inherit_primary_channel(client):
         if item["id"] == replaced.json()["primaryImageId"]
     )
     assert primary_image["channel"] == primary["channel"]
+
+
+def test_phase5_source_links_are_editor_only(client):
+    admin_csrf = login(client, "admin", "admin-password")
+    admin_headers = {"X-CSRF-Token": admin_csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=admin_headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={"title": "源文件测试主图", "channel": "PPT", "autoAnalyze": "false"},
+    ).json()
+    group_id = primary["assetGroupId"]
+
+    added = client.post(
+        f"/api/asset-groups/{group_id}/source-links",
+        headers=admin_headers,
+        json={
+            "label": "Figma 设计稿",
+            "url": "https://www.figma.com/file/source-design",
+            "linkType": "figma",
+            "note": "设计师修改时优先找这里",
+        },
+    )
+    assert added.status_code == 200
+    link = added.json()["sourceLinks"][0]
+    assert link["label"] == "Figma 设计稿"
+    assert link["linkType"] == "figma"
+
+    updated = client.patch(
+        f"/api/asset-groups/{group_id}/source-links/{link['id']}",
+        headers=admin_headers,
+        json={"label": "最新版 Figma", "note": ""},
+    )
+    assert updated.status_code == 200
+    updated_link = updated.json()["sourceLinks"][0]
+    assert updated_link["label"] == "最新版 Figma"
+    assert updated_link["note"] is None
+
+    exported = client.get(
+        f"/api/asset-groups/{group_id}/export",
+        headers=admin_headers,
+    )
+    assert exported.status_code == 200
+    assert exported.headers["content-type"] == "application/zip"
+    with ZipFile(BytesIO(exported.content)) as archive:
+        names = archive.namelist()
+        assert "manifest.json" in names
+        assert any(name.startswith("images/") for name in names)
+        manifest = archive.read("manifest.json").decode("utf-8")
+        assert "最新版 Figma" in manifest
+
+    business_csrf = login(client, "business", "business-password")
+    business_headers = {
+        "X-CSRF-Token": business_csrf,
+        "Origin": "http://localhost:5173",
+    }
+    business_detail = client.get(
+        f"/api/asset-groups/{group_id}",
+        headers=business_headers,
+    )
+    assert business_detail.status_code == 200
+    assert business_detail.json()["sourceLinks"] == []
+    business_groups = client.get("/api/asset-groups", headers=business_headers)
+    assert business_groups.status_code == 200
+    assert business_groups.json()[0]["sourceLinks"] == []
+
+    business_export = client.post(
+        "/api/asset-groups/export",
+        headers=business_headers,
+        json={"groupIds": [group_id]},
+    )
+    assert business_export.status_code == 200
+    assert business_export.headers["content-type"] == "application/zip"
+    with ZipFile(BytesIO(business_export.content)) as archive:
+        names = archive.namelist()
+        assert "manifest.json" in names
+        group_manifest_name = next(name for name in names if name.endswith("/manifest.json"))
+        group_manifest = json.loads(archive.read(group_manifest_name))
+        assert group_manifest["sourceLinks"] == []
+
+    blocked = client.post(
+        f"/api/asset-groups/{group_id}/source-links",
+        headers=business_headers,
+        json={
+            "label": "业务不可写",
+            "url": "https://www.figma.com/file/blocked",
+            "linkType": "figma",
+        },
+    )
+    assert blocked.status_code == 403
+
+    admin_csrf = login(client, "admin", "admin-password")
+    admin_headers = {"X-CSRF-Token": admin_csrf, "Origin": "http://localhost:5173"}
+    removed = client.delete(
+        f"/api/asset-groups/{group_id}/source-links/{link['id']}",
+        headers=admin_headers,
+    )
+    assert removed.status_code == 200
+    assert removed.json()["sourceLinks"] == []
 
 
 def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
@@ -485,6 +587,21 @@ def test_phase5_system_filter_asset_metadata_and_result_feedback(client, db_fact
     assert feedback.status_code == 201
     assert feedback.json()["resultImageId"] == first["id"]
     assert feedback.json()["assetGroupId"] == first["assetGroupId"]
+
+    version_feedback = client.post(
+        "/api/search-feedback",
+        headers=headers,
+        json={
+            "searchLogId": body["searchLogId"],
+            "keyword": "体系筛选素材",
+            "feedbackType": "wrong_version",
+            "note": "想要手机端小图版本",
+            "resultImageId": first["id"],
+            "assetGroupId": first["assetGroupId"],
+        },
+    )
+    assert version_feedback.status_code == 201
+    assert version_feedback.json()["feedbackType"] == "wrong_version"
 
     positive_feedback = client.post(
         "/api/search-feedback",

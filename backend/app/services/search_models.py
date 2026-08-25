@@ -61,6 +61,18 @@ BranchStatus = Literal["ok", "skipped", "timed_out", "failed"]
 
 
 @dataclass(frozen=True)
+class ModelAttemptDiagnostic:
+    task: str
+    layer: str
+    provider: str
+    model: str
+    status: str
+    duration_ms: int
+    fallback_index: int | None = None
+    error: str = ""
+
+
+@dataclass(frozen=True)
 class SearchBranchDiagnostic:
     source: str
     status: BranchStatus
@@ -68,6 +80,7 @@ class SearchBranchDiagnostic:
     result_count: int = 0
     cache_hit: bool = False
     detail: str | None = None
+    attempts: tuple[ModelAttemptDiagnostic, ...] = ()
 
 
 T = TypeVar("T", covariant=True)

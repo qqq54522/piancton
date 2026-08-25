@@ -8,11 +8,15 @@ from app.schemas.base import ApiModel
 
 class AssetImageRead(ApiModel):
     id: str
+    asset_code: Optional[str] = None
+    version_code: Optional[str] = None
+    share_path: Optional[str] = None
     title: str
     file_name: str
     thumbnail_url: str
     content_url: str
     download_url: str
+    media_type: str
     asset_role: str
     width: Optional[int] = None
     height: Optional[int] = None
@@ -43,8 +47,21 @@ class AssetSearchPhraseRead(ApiModel):
     weight: float
 
 
+class AssetSourceLinkRead(ApiModel):
+    id: str
+    label: str
+    url: str
+    link_type: str
+    note: Optional[str] = None
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class AssetGroupRead(ApiModel):
     id: str
+    asset_code: Optional[str] = None
+    share_path: Optional[str] = None
     title: str
     primary_image_id: Optional[str] = None
     approval_status: str
@@ -57,8 +74,13 @@ class AssetGroupRead(ApiModel):
     images: List[AssetImageRead] = Field(default_factory=list)
     concept_links: List[AssetConceptLinkRead] = Field(default_factory=list)
     search_phrases: List[AssetSearchPhraseRead] = Field(default_factory=list)
+    source_links: List[AssetSourceLinkRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+class AssetGroupBundleExportRequest(ApiModel):
+    group_ids: List[str] = Field(min_length=1, max_length=50)
 
 
 class AssetConceptConfirmation(ApiModel):
@@ -90,3 +112,33 @@ class AssetSearchPhraseCreate(ApiModel):
 
 class AssetSearchPhraseReview(ApiModel):
     review_status: Literal["accepted", "rejected"]
+
+
+class AssetSourceLinkCreate(ApiModel):
+    label: str = Field(min_length=1, max_length=120)
+    url: str = Field(min_length=1, max_length=2048)
+    link_type: Literal[
+        "figma",
+        "design_file",
+        "cloud_drive",
+        "reference_doc",
+        "asset_package",
+        "other",
+    ] = "figma"
+    note: Optional[str] = Field(default=None, max_length=500)
+
+
+class AssetSourceLinkUpdate(ApiModel):
+    label: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    url: Optional[str] = Field(default=None, min_length=1, max_length=2048)
+    link_type: Optional[
+        Literal[
+            "figma",
+            "design_file",
+            "cloud_drive",
+            "reference_doc",
+            "asset_package",
+            "other",
+        ]
+    ] = None
+    note: Optional[str] = Field(default=None, max_length=500)

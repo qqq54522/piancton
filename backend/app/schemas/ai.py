@@ -174,6 +174,16 @@ class SearchCandidateReviewResult(ApiModel):
     review_strategy: str = ""
 
 
+class SearchResultRecommendationReason(ApiModel):
+    image_id: str = Field(min_length=1, max_length=36)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class SearchResultRecommendationReasonResult(ApiModel):
+    reasons: List[SearchResultRecommendationReason] = Field(default_factory=list)
+    generation_strategy: str = ""
+
+
 class SellingPointRequest(ApiModel):
     copy_text: str = Field(min_length=1, max_length=10000, alias="copy")
 

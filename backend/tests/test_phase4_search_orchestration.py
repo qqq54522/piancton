@@ -742,6 +742,879 @@ def test_phase4_repairs_exam_stage_focus_when_second_layer_is_invalid(db_factory
     assert "卖点识别" in (branch.detail or "")
 
 
+def test_phase4_exam_stage_composition_prefers_exam_rush_asset_facet(db_factory):
+    query = "月考复习"
+    with db_factory() as db:
+        concept = BusinessConcept(code="focused_excellence", name="专项培优")
+        exam_rush = _image("考前突击", "exam-rush-facet.png")
+        generic = _image("专项培优", "generic-focused-facet.png")
+        exam_group = AssetGroup(
+            title=exam_rush.title,
+            primary_proof_point_code="pp_exam_focus_stage_review",
+            created_by="designer",
+            images=[exam_rush],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        generic_group = AssetGroup(
+            title=generic.title,
+            primary_proof_point_code="pp_exam_focus_targeted_modules",
+            created_by="designer",
+            images=[generic],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([concept, exam_group, generic_group])
+        db.flush()
+        exam_group.primary_image_id = exam_rush.id
+        generic_group.primary_image_id = generic.id
+        db.commit()
+
+        response = SearchService(db).search(query, 5)
+
+    assert response.search_understanding is not None
+    assert [
+        item.code for item in response.search_understanding.matched_proof_points
+    ] == ["pp_exam_focus_stage_review"]
+    assert [item.image.title for item in response.results] == ["考前突击"]
+
+
+def test_phase4_targeted_module_composition_excludes_difficulty_module_asset(
+    db_factory,
+):
+    query = "精准补弱"
+    with db_factory() as db:
+        concept = BusinessConcept(code="focused_excellence", name="专项培优")
+        targeted = _image("考前专项突破", "targeted-breakthrough.png")
+        difficulty = _image("重难点培优", "difficulty-module.png")
+        exam_rush = _image("考前突击", "exam-rush-targeted-boundary.png")
+        frequent_error = _image("高频错题", "frequent-error-targeted-boundary.png")
+        targeted_group = AssetGroup(
+            title=targeted.title,
+            primary_proof_point_code="pp_exam_focus_targeted_modules",
+            created_by="designer",
+            images=[targeted],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        difficulty_group = AssetGroup(
+            title=difficulty.title,
+            primary_proof_point_code="pp_exam_focus_targeted_modules",
+            created_by="designer",
+            images=[difficulty],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        exam_rush_group = AssetGroup(
+            title=exam_rush.title,
+            primary_proof_point_code="pp_exam_focus_stage_review",
+            created_by="designer",
+            images=[exam_rush],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        frequent_error_group = AssetGroup(
+            title=frequent_error.title,
+            primary_proof_point_code="pp_exam_focus_high_frequency_errors",
+            created_by="designer",
+            images=[frequent_error],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all(
+            [
+                concept,
+                targeted_group,
+                difficulty_group,
+                exam_rush_group,
+                frequent_error_group,
+            ]
+        )
+        db.flush()
+        targeted_group.primary_image_id = targeted.id
+        difficulty_group.primary_image_id = difficulty.id
+        exam_rush_group.primary_image_id = exam_rush.id
+        frequent_error_group.primary_image_id = frequent_error.id
+        db.commit()
+
+        response = SearchService(db).search(query, 5)
+
+    assert response.search_understanding is not None
+    assert [
+        item.code for item in response.search_understanding.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert [item.image.title for item in response.results] == ["考前专项突破"]
+
+
+def test_phase4_difficulty_upgrade_composition_prefers_difficulty_module_asset(
+    db_factory,
+):
+    query = "从90分往满分冲"
+    with db_factory() as db:
+        concept = BusinessConcept(code="focused_excellence", name="专项培优")
+        difficulty = _image("重难点培优", "difficulty-upgrade.png")
+        targeted = _image("考前专项突破", "targeted-breakthrough-upgrade.png")
+        exam_rush = _image("考前突击", "exam-rush-upgrade-boundary.png")
+        frequent_error = _image("高频错题", "frequent-error-upgrade-boundary.png")
+        difficulty_group = AssetGroup(
+            title=difficulty.title,
+            primary_proof_point_code="pp_exam_focus_targeted_modules",
+            created_by="designer",
+            images=[difficulty],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        targeted_group = AssetGroup(
+            title=targeted.title,
+            primary_proof_point_code="pp_exam_focus_targeted_modules",
+            created_by="designer",
+            images=[targeted],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        exam_rush_group = AssetGroup(
+            title=exam_rush.title,
+            primary_proof_point_code="pp_exam_focus_stage_review",
+            created_by="designer",
+            images=[exam_rush],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        frequent_error_group = AssetGroup(
+            title=frequent_error.title,
+            primary_proof_point_code="pp_exam_focus_high_frequency_errors",
+            created_by="designer",
+            images=[frequent_error],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all(
+            [
+                concept,
+                difficulty_group,
+                targeted_group,
+                exam_rush_group,
+                frequent_error_group,
+            ]
+        )
+        db.flush()
+        difficulty_group.primary_image_id = difficulty.id
+        targeted_group.primary_image_id = targeted.id
+        exam_rush_group.primary_image_id = exam_rush.id
+        frequent_error_group.primary_image_id = frequent_error.id
+        db.commit()
+
+        response = SearchService(db).search(query, 5)
+
+    assert response.search_understanding is not None
+    assert [
+        item.code for item in response.search_understanding.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert [item.image.title for item in response.results] == ["重难点培优"]
+
+
+def test_phase4_textbook_version_composition_prefers_textbook_sync_asset(
+    db_factory,
+):
+    query = "销售想讲不同地区都能用"
+    with db_factory() as db:
+        school_sync = BusinessConcept(code="school_sync", name="同步校内")
+        report = BusinessConcept(code="learning_report", name="学情报告反馈")
+        textbook = _image("教材同步", "textbook-sync.png")
+        course = _image("课程同步", "course-sync.png")
+        report_image = _image("学习周报", "learning-report-sync-boundary.png")
+        textbook_group = AssetGroup(
+            title=textbook.title,
+            primary_proof_point_code="pp_textbook_version_coverage",
+            created_by="designer",
+            images=[textbook],
+            concept_links=[
+                AssetConceptLink(
+                    concept=school_sync,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        course_group = AssetGroup(
+            title=course.title,
+            primary_proof_point_code="pp_textbook_version_selection",
+            created_by="designer",
+            images=[course],
+            concept_links=[
+                AssetConceptLink(
+                    concept=school_sync,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        report_group = AssetGroup(
+            title=report_image.title,
+            primary_proof_point_code="pp_companion_report_core_metrics",
+            created_by="designer",
+            images=[report_image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=report,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([school_sync, report, textbook_group, course_group, report_group])
+        db.flush()
+        textbook_group.primary_image_id = textbook.id
+        course_group.primary_image_id = course.id
+        report_group.primary_image_id = report_image.id
+        db.commit()
+
+        response = SearchService(db).search(query, 5)
+
+    assert response.search_understanding is not None
+    assert [
+        item.code for item in response.search_understanding.matched_proof_points
+    ] == ["pp_textbook_version_coverage"]
+    assert [item.image.title for item in response.results] == ["教材同步"]
+
+
+def test_phase4_ai_personalized_plan_composition_prefers_ai_custom_asset(
+    db_factory,
+):
+    with db_factory() as db:
+        plan = BusinessConcept(code="ai_learning_plan", name="AI定制学习方案")
+        focused = BusinessConcept(code="focused_excellence", name="专项培优")
+        animation = BusinessConcept(code="animation_explanation", name="动画精讲")
+        ai_custom = _image("ai定制", "ai-custom-plan.png")
+        input_form = _image("AI定制输入条件", "ai-custom-input.png")
+        targeted = _image("考前专项突破", "targeted-plan-boundary.png")
+        animation_image = _image("动画课程", "animation-plan-boundary.png")
+        ai_custom_group = AssetGroup(
+            title=ai_custom.title,
+            primary_proof_point_code="pp_planning_generated_schedule",
+            created_by="designer",
+            images=[ai_custom],
+            concept_links=[
+                AssetConceptLink(
+                    concept=plan,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        input_group = AssetGroup(
+            title=input_form.title,
+            primary_proof_point_code="pp_planning_personal_inputs",
+            created_by="designer",
+            images=[input_form],
+            concept_links=[
+                AssetConceptLink(
+                    concept=plan,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        targeted_group = AssetGroup(
+            title=targeted.title,
+            primary_proof_point_code="pp_exam_focus_targeted_modules",
+            created_by="designer",
+            images=[targeted],
+            concept_links=[
+                AssetConceptLink(
+                    concept=focused,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        animation_group = AssetGroup(
+            title=animation_image.title,
+            primary_proof_point_code="pp_animation_core_concept",
+            created_by="designer",
+            images=[animation_image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=animation,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all(
+            [
+                plan,
+                focused,
+                animation,
+                ai_custom_group,
+                input_group,
+                targeted_group,
+                animation_group,
+            ]
+        )
+        db.flush()
+        ai_custom_group.primary_image_id = ai_custom.id
+        input_group.primary_image_id = input_form.id
+        targeted_group.primary_image_id = targeted.id
+        animation_group.primary_image_id = animation_image.id
+        db.commit()
+
+        responses = {
+            query: SearchService(db).search(query, 5)
+            for query in ("根据薄弱点推荐内容", "哪个卖点能讲不是所有孩子学一套")
+        }
+
+    for query, response in responses.items():
+        assert response.search_understanding is not None, query
+        assert [
+            item.code for item in response.search_understanding.matched_proof_points
+        ] == ["pp_planning_generated_schedule"]
+        assert [item.image.title for item in response.results] == ["ai定制"]
+
+
+def test_phase4_photo_question_composition_prefers_photo_learning_asset(
+    db_factory,
+):
+    query = "拍照讲题"
+    with db_factory() as db:
+        concept = BusinessConcept(code="photo_guided_learning", name="AI拍题精学")
+        photo_entry = _image("拍题精学", "photo-question-entry.png")
+        socratic = _image("苏格拉底讲解提问", "photo-socratic-boundary.png")
+        rapid = _image("极速预习", "rapid-photo-boundary.png")
+        photo_entry_group = AssetGroup(
+            title=photo_entry.title,
+            primary_proof_point_code="pp_selfstudy_photo_question_recognition",
+            created_by="designer",
+            images=[photo_entry],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        socratic_group = AssetGroup(
+            title=socratic.title,
+            primary_proof_point_code="pp_selfstudy_photo_socratic_guidance",
+            created_by="designer",
+            images=[socratic],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        rapid_group = AssetGroup(
+            title=rapid.title,
+            primary_proof_point_code="pp_selfstudy_preview_dual_entry",
+            created_by="designer",
+            images=[rapid],
+        )
+        db.add_all([concept, photo_entry_group, socratic_group, rapid_group])
+        db.flush()
+        photo_entry_group.primary_image_id = photo_entry.id
+        socratic_group.primary_image_id = socratic.id
+        rapid_group.primary_image_id = rapid.id
+        db.commit()
+
+        response = SearchService(db).search(query, 5)
+
+    assert response.search_understanding is not None
+    assert [
+        item.code for item in response.search_understanding.matched_proof_points
+    ] == ["pp_selfstudy_photo_question_recognition"]
+    assert [item.image.title for item in response.results] == ["拍题精学"]
+
+
+def test_phase4_photo_socratic_value_composition_prefers_guidance_asset(
+    db_factory,
+):
+    query = "销售需要讲AI拍题的差异化"
+    with db_factory() as db:
+        concept = BusinessConcept(code="photo_guided_learning", name="AI拍题精学")
+        photo_entry = _image("拍题精学", "photo-question-value-boundary.png")
+        socratic = _image("苏格拉底讲解提问", "photo-socratic-value.png")
+        tutor = _image("AI私教", "ai-tutor-value-boundary.png")
+        photo_entry_group = AssetGroup(
+            title=photo_entry.title,
+            primary_proof_point_code="pp_selfstudy_photo_question_recognition",
+            created_by="designer",
+            images=[photo_entry],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        socratic_group = AssetGroup(
+            title=socratic.title,
+            primary_proof_point_code="pp_selfstudy_photo_socratic_guidance",
+            created_by="designer",
+            images=[socratic],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        tutor_group = AssetGroup(
+            title=tutor.title,
+            primary_proof_point_code="pp_selfstudy_tutor_interactive_qa",
+            created_by="designer",
+            images=[tutor],
+        )
+        db.add_all([concept, photo_entry_group, socratic_group, tutor_group])
+        db.flush()
+        photo_entry_group.primary_image_id = photo_entry.id
+        socratic_group.primary_image_id = socratic.id
+        tutor_group.primary_image_id = tutor.id
+        db.commit()
+
+        response = SearchService(db).search(query, 5)
+
+    assert response.search_understanding is not None
+    assert [
+        item.code for item in response.search_understanding.matched_proof_points
+    ] == ["pp_selfstudy_photo_socratic_guidance"]
+    assert [item.image.title for item in response.results] == ["苏格拉底讲解提问"]
+
+
+def test_phase4_socratic_thinking_coach_composition_prefers_guidance_asset(
+    db_factory,
+):
+    with db_factory() as db:
+        concept = BusinessConcept(code="photo_guided_learning", name="AI拍题精学")
+        photo_entry = _image("拍题精学", "photo-question-coach-boundary.png")
+        socratic = _image("苏格拉底讲解提问", "photo-socratic-coach.png")
+        tutor = _image("AI私教", "ai-tutor-coach-boundary.png")
+        photo_entry_group = AssetGroup(
+            title=photo_entry.title,
+            primary_proof_point_code="pp_selfstudy_photo_question_recognition",
+            created_by="designer",
+            images=[photo_entry],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        socratic_group = AssetGroup(
+            title=socratic.title,
+            primary_proof_point_code="pp_selfstudy_photo_socratic_guidance",
+            created_by="designer",
+            images=[socratic],
+            concept_links=[
+                AssetConceptLink(
+                    concept=concept,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        tutor_group = AssetGroup(
+            title=tutor.title,
+            primary_proof_point_code="pp_selfstudy_tutor_interactive_qa",
+            created_by="designer",
+            images=[tutor],
+        )
+        db.add_all([concept, photo_entry_group, socratic_group, tutor_group])
+        db.flush()
+        photo_entry_group.primary_image_id = photo_entry.id
+        socratic_group.primary_image_id = socratic.id
+        tutor_group.primary_image_id = tutor.id
+        db.commit()
+
+        responses = {
+            query: SearchService(db).search(query, 5)
+            for query in ("AI思维教练", "不直接给答案")
+        }
+
+    for query, response in responses.items():
+        assert response.search_understanding is not None, query
+        assert [
+            item.code for item in response.search_understanding.matched_proof_points
+        ] == ["pp_selfstudy_photo_socratic_guidance"]
+        assert [item.image.title for item in response.results] == ["苏格拉底讲解提问"]
+
+
+def test_phase4_rapid_preview_before_class_composition_prefers_preview_asset(
+    db_factory,
+):
+    with db_factory() as db:
+        rapid = BusinessConcept(code="rapid_preview_review", name="极速预习复习")
+        focused = BusinessConcept(code="focused_excellence", name="专项培优")
+        school = BusinessConcept(code="school_sync", name="同步校内")
+        plan = BusinessConcept(code="ai_learning_plan", name="AI定制学习方案")
+        preview = _image("极速预习", "rapid-preview-before-class.png")
+        placeholder = _image("测试占位｜极速预习复习", "rapid-preview-placeholder.png")
+        exam_rush = _image("考前突击", "exam-rush-preview-boundary.png")
+        textbook = _image("教材同步", "textbook-preview-boundary.png")
+        ai_custom = _image("ai定制", "ai-custom-preview-boundary.png")
+        placeholder_group = AssetGroup(
+            title=placeholder.title,
+            primary_proof_point_code="pp_selfstudy_preview_dual_entry",
+            primary_evidence_point_code="ep_selfstudy_fast_preview",
+            created_by="designer",
+            images=[placeholder],
+            concept_links=[
+                AssetConceptLink(
+                    concept=rapid,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+            search_phrases=[
+                AssetSearchPhrase(
+                    phrase="极速预习复习占位素材",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        preview_group = AssetGroup(
+            title=preview.title,
+            primary_proof_point_code="pp_selfstudy_preview_dual_entry",
+            primary_evidence_point_code="ep_selfstudy_fast_preview",
+            created_by="designer",
+            images=[preview],
+            concept_links=[
+                AssetConceptLink(
+                    concept=rapid,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+            search_phrases=[
+                AssetSearchPhrase(
+                    phrase="带着问题进课堂",
+                    origin="manual",
+                    review_status="accepted",
+                ),
+                AssetSearchPhrase(
+                    phrase="提前知道课堂重点",
+                    origin="manual",
+                    review_status="accepted",
+                ),
+            ],
+        )
+        exam_group = AssetGroup(
+            title=exam_rush.title,
+            primary_proof_point_code="pp_exam_focus_stage_review",
+            created_by="designer",
+            images=[exam_rush],
+            concept_links=[
+                AssetConceptLink(
+                    concept=focused,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        textbook_group = AssetGroup(
+            title=textbook.title,
+            primary_proof_point_code="pp_textbook_version_coverage",
+            created_by="designer",
+            images=[textbook],
+            concept_links=[
+                AssetConceptLink(
+                    concept=school,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        plan_group = AssetGroup(
+            title=ai_custom.title,
+            primary_proof_point_code="pp_planning_generated_schedule",
+            created_by="designer",
+            images=[ai_custom],
+            concept_links=[
+                AssetConceptLink(
+                    concept=plan,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all(
+            [
+                rapid,
+                focused,
+                school,
+                plan,
+                placeholder_group,
+                preview_group,
+                exam_group,
+                textbook_group,
+                plan_group,
+            ]
+        )
+        db.flush()
+        placeholder_group.primary_image_id = placeholder.id
+        preview_group.primary_image_id = preview.id
+        exam_group.primary_image_id = exam_rush.id
+        textbook_group.primary_image_id = textbook.id
+        plan_group.primary_image_id = ai_custom.id
+        db.commit()
+
+        responses = {
+            query: SearchService(db).search(query, 5)
+            for query in (
+                "极速预习",
+                "带着问题进课堂",
+                "哪个卖点适合讲“提前知道课堂重点”",
+            )
+        }
+
+    for query, response in responses.items():
+        assert response.search_understanding is not None, query
+        assert [
+            item.code for item in response.search_understanding.matched_proof_points
+        ] == ["pp_selfstudy_preview_dual_entry"]
+        titles = [item.image.title for item in response.results]
+        assert titles[0] == "极速预习"
+        assert "考前突击" not in titles
+        assert "教材同步" not in titles
+        assert "ai定制" not in titles
+
+
+def test_phase4_rapid_review_after_class_composition_prefers_review_asset(
+    db_factory,
+):
+    with db_factory() as db:
+        rapid = BusinessConcept(code="rapid_preview_review", name="极速预习复习")
+        focused = BusinessConcept(code="focused_excellence", name="专项培优")
+        school = BusinessConcept(code="school_sync", name="同步校内")
+        plan = BusinessConcept(code="ai_learning_plan", name="AI定制学习方案")
+        review = _image("极速复习", "rapid-review-after-class.png")
+        preview = _image("极速预习", "rapid-review-preview-boundary.png")
+        exam_rush = _image("考前突击", "exam-rush-review-boundary.png")
+        textbook = _image("教材同步", "textbook-review-boundary.png")
+        ai_custom = _image("ai定制", "ai-custom-review-boundary.png")
+        review_group = AssetGroup(
+            title=review.title,
+            primary_proof_point_code="pp_selfstudy_preview_dual_entry",
+            primary_evidence_point_code="ep_selfstudy_fast_review",
+            created_by="designer",
+            images=[review],
+            concept_links=[
+                AssetConceptLink(
+                    concept=rapid,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+            search_phrases=[
+                AssetSearchPhrase(
+                    phrase="当天知识当天复习",
+                    origin="manual",
+                    review_status="accepted",
+                ),
+                AssetSearchPhrase(
+                    phrase="快速回顾重点",
+                    origin="manual",
+                    review_status="accepted",
+                ),
+            ],
+        )
+        preview_group = AssetGroup(
+            title=preview.title,
+            primary_proof_point_code="pp_selfstudy_preview_dual_entry",
+            primary_evidence_point_code="ep_selfstudy_fast_preview",
+            created_by="designer",
+            images=[preview],
+            concept_links=[
+                AssetConceptLink(
+                    concept=rapid,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+            search_phrases=[
+                AssetSearchPhrase(
+                    phrase="带着问题进课堂",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        exam_group = AssetGroup(
+            title=exam_rush.title,
+            primary_proof_point_code="pp_exam_focus_stage_review",
+            created_by="designer",
+            images=[exam_rush],
+            concept_links=[
+                AssetConceptLink(
+                    concept=focused,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        textbook_group = AssetGroup(
+            title=textbook.title,
+            primary_proof_point_code="pp_textbook_version_coverage",
+            created_by="designer",
+            images=[textbook],
+            concept_links=[
+                AssetConceptLink(
+                    concept=school,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        plan_group = AssetGroup(
+            title=ai_custom.title,
+            primary_proof_point_code="pp_planning_generated_schedule",
+            created_by="designer",
+            images=[ai_custom],
+            concept_links=[
+                AssetConceptLink(
+                    concept=plan,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all(
+            [
+                rapid,
+                focused,
+                school,
+                plan,
+                review_group,
+                preview_group,
+                exam_group,
+                textbook_group,
+                plan_group,
+            ]
+        )
+        db.flush()
+        review_group.primary_image_id = review.id
+        preview_group.primary_image_id = preview.id
+        exam_group.primary_image_id = exam_rush.id
+        textbook_group.primary_image_id = textbook.id
+        plan_group.primary_image_id = ai_custom.id
+        db.commit()
+
+        responses = {
+            query: SearchService(db).search(query, 5)
+            for query in (
+                "当天知识当天复习",
+                "有没有“快速回顾重点”的卖点",
+                "哪个功能可以讲“花很少时间复习”",
+            )
+        }
+
+    for query, response in responses.items():
+        assert response.search_understanding is not None, query
+        assert [
+            item.code for item in response.search_understanding.matched_proof_points
+        ] == ["pp_selfstudy_preview_dual_entry"]
+        assert [
+            item.code for item in response.search_understanding.matched_evidence_points
+        ] == ["ep_selfstudy_fast_review"]
+        titles = [item.image.title for item in response.results]
+        assert titles[0] == "极速复习"
+        assert "极速预习" not in titles
+        assert "考前突击" not in titles
+        assert "教材同步" not in titles
+        assert "ai定制" not in titles
+
+
 def test_phase4_all_external_failures_keep_database_results(db_factory, monkeypatch):
     class FailingEmbedding:
         configured = True
@@ -2264,6 +3137,112 @@ def test_phase4_short_animation_micro_lesson_query_only_returns_matching_detail(
         "证明点匹配：官方产品定位与教研方法论" in reason
         for reason in response.results[0].match_reasons
     )
+
+
+def test_phase4_classmate_usage_query_prefers_official_scale_data_asset(
+    db_factory,
+):
+    query = "孩子班上，大概率就有同学在用"
+    with db_factory() as db:
+        animation = BusinessConcept(
+            code="animation_explanation",
+            name="动画精讲",
+        )
+        ai_plan = BusinessConcept(
+            code="ai_learning_plan",
+            name="AI定制学习方案",
+        )
+        scale_data = _image("官方数据规模", "official-scale.png")
+        scale_group = AssetGroup(
+            title=scale_data.title,
+            created_by="designer",
+            primary_proof_point_code="pp_animation_scale_data",
+            primary_evidence_point_code="ep_school_animation_scale_numbers",
+            images=[scale_data],
+            search_phrases=[
+                AssetSearchPhrase(
+                    phrase="孩子班上，大概率就有同学在用",
+                    origin="manual",
+                    review_status="accepted",
+                    weight=1.0,
+                ),
+                AssetSearchPhrase(
+                    phrase="孩子班上大概率就有同学在用的数据图",
+                    origin="manual",
+                    review_status="accepted",
+                    weight=1.0,
+                ),
+                AssetSearchPhrase(
+                    phrase="全国1.3亿学生400万教师共同选择",
+                    origin="manual",
+                    review_status="accepted",
+                    weight=1.0,
+                ),
+            ],
+            concept_links=[
+                AssetConceptLink(
+                    concept=animation,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        abstract_visual = _image("抽象题目变为有趣动画", "abstract-animation.png")
+        abstract_visual_group = AssetGroup(
+            title=abstract_visual.title,
+            created_by="designer",
+            images=[abstract_visual],
+            concept_links=[
+                AssetConceptLink(
+                    concept=animation,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        ai_custom = _image("AI定制班", "ai-custom-class.png")
+        ai_custom_group = AssetGroup(
+            title=ai_custom.title,
+            created_by="designer",
+            primary_proof_point_code="pp_planning_generated_schedule",
+            images=[ai_custom],
+            search_phrases=[
+                AssetSearchPhrase(
+                    phrase="不同学生学不同内容",
+                    origin="manual",
+                    review_status="accepted",
+                    weight=1.0,
+                ),
+            ],
+            concept_links=[
+                AssetConceptLink(
+                    concept=ai_plan,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all(
+            [animation, ai_plan, scale_group, abstract_visual_group, ai_custom_group]
+        )
+        db.flush()
+        scale_group.primary_image_id = scale_data.id
+        abstract_visual_group.primary_image_id = abstract_visual.id
+        ai_custom_group.primary_image_id = ai_custom.id
+        db.commit()
+
+        response = SearchService(db).search(query, 12)
+
+    assert response.search_understanding is not None
+    assert [
+        item.code for item in response.search_understanding.matched_proof_points
+    ] == ["pp_animation_scale_data"]
+    assert [item.image.id for item in response.results] == [scale_data.id]
+    assert abstract_visual.id not in {item.image.id for item in response.results}
+    assert ai_custom.id not in {item.image.id for item in response.results}
 
 
 def test_phase4_unseen_proof_paraphrase_uses_three_layers_and_filters_siblings(

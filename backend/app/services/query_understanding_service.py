@@ -27,7 +27,7 @@ from app.services.evidence_point_understanding_service import (
 from app.services.proof_point_understanding_service import (
     ProofPointUnderstandingService,
 )
-from app.services.search_models import ConceptMatch
+from app.services.search_models import ConceptMatch, ModelAttemptDiagnostic
 
 
 @dataclass(frozen=True)
@@ -162,8 +162,11 @@ class QueryUnderstandingService:
         query = keyword.strip()
         if not query:
             return None
-        matches = self._local_matches(query)
         negated = self._negated_intent_names(query)
+        composed = self._composition_understanding(query, negated)
+        if composed is not None:
+            return composed
+        matches = self._local_matches(query)
         exploration = self._exploration_understanding(query, matches, negated)
         if exploration is not None:
             return exploration
@@ -282,8 +285,11 @@ class QueryUnderstandingService:
         query = keyword.strip()
         if not query:
             return None
-        matches = self._local_matches(query)
         negated = self._negated_intent_names(query)
+        composed = self._composition_understanding(query, negated)
+        if composed is not None:
+            return composed
+        matches = self._local_matches(query)
         exploration = self._exploration_understanding(query, matches, negated)
         if exploration is not None:
             return exploration
@@ -431,7 +437,10 @@ class QueryUnderstandingService:
         resolver = getattr(self.ai_service, "routed_system_codes", None)
         if not callable(resolver):
             return ()
-        return tuple(resolver(routing))
+        resolved = resolver(routing)
+        if not isinstance(resolved, (list, tuple, set)):
+            return ()
+        return tuple(str(item) for item in resolved)
 
     def understand_with_model_route(
         self,
@@ -464,7 +473,7 @@ class QueryUnderstandingService:
             if repaired is not None:
                 return repaired
             raise
-        if not result.matched_business_concepts:
+        if result is None or not result.matched_business_concepts:
             repaired = self._repair_routed_selling_point_understanding(query, routing)
             if repaired is not None:
                 return repaired
@@ -487,6 +496,34 @@ class QueryUnderstandingService:
             suffix = f"，{error}" if error else ""
             parts.append(f"{provider_name}/{model} {status} {duration_ms}ms{suffix}")
         return "；".join(parts)
+
+    def model_attempts(
+        self,
+        *,
+        task: str,
+        layer: str,
+    ) -> tuple[ModelAttemptDiagnostic, ...]:
+        provider = getattr(self.ai_service, "provider", None)
+        attempts = getattr(provider, "last_attempts", None)
+        if not isinstance(attempts, list) or not attempts:
+            return ()
+        rows: list[ModelAttemptDiagnostic] = []
+        for attempt in attempts:
+            if not isinstance(attempt, dict):
+                continue
+            rows.append(
+                ModelAttemptDiagnostic(
+                    task=task,
+                    layer=layer,
+                    provider=str(attempt.get("provider") or "unknown")[:120],
+                    model=str(attempt.get("model") or "unknown")[:120],
+                    status=str(attempt.get("status") or "unknown")[:24],
+                    duration_ms=int(attempt.get("duration_ms") or 0),
+                    fallback_index=_optional_int(attempt.get("fallback_index")),
+                    error=str(attempt.get("error") or "")[:300],
+                )
+            )
+        return tuple(rows)
 
     def review_candidates_with_model(
         self,
@@ -952,6 +989,112 @@ class QueryUnderstandingService:
             search_strategy="没有可信卖点主通道，使用图片话术和画面语义全局召回并排除否定卖点",
         )
 
+    def _composition_understanding(
+        self,
+        query: str,
+        negated_names: tuple[str, ...],
+    ) -> SearchUnderstanding | None:
+        """Apply governed object/time/action compositions before loose term matching."""
+        needle = _normalize(query)
+        if not needle:
+            return None
+        intents_by_code = {item.code: item for item in self.catalog.intents}
+        candidates = []
+        for signal in self.catalog.composition_signals:
+            intent = intents_by_code.get(signal.concept_code)
+            if (
+                intent is None
+                or intent.display_name in negated_names
+                or intent.name in negated_names
+            ):
+                continue
+            if any(
+                _normalize(term) in needle and not is_term_negated(query, term)
+                for term in signal.excluded_terms
+            ):
+                continue
+            matched_groups: list[tuple[str, str]] = []
+            for group in signal.groups:
+                matched = [
+                    term
+                    for term in group.terms
+                    if _normalize(term) in needle and not is_term_negated(query, term)
+                ]
+                if not matched:
+                    break
+                matched_groups.append(
+                    (group.name, max(matched, key=lambda item: len(_normalize(item))))
+                )
+            if len(matched_groups) != len(signal.groups):
+                continue
+            candidates.append((signal.confidence, signal, intent, matched_groups))
+        if not candidates:
+            return None
+        confidence, signal, intent, matched_groups = max(
+            candidates,
+            key=lambda item: (item[0], sum(len(value) for _, value in item[3])),
+        )
+        evidence = "；".join(f"{name}={term}" for name, term in matched_groups)
+        proof_matches: list[SearchProofPointMatch] = []
+        evidence_matches: list[SearchEvidencePointMatch] = []
+        proof_name = "直属证明点"
+        if signal.proof_point_code:
+            proof = self.proof_points.catalog.by_code.get(signal.proof_point_code)
+            if proof is not None and proof.concept_code == intent.code:
+                proof_name = proof.name
+                allowed_evidence = [
+                    term
+                    for term in signal.evidence_terms
+                    if term in (*proof.search_terms, *proof.asset_terms)
+                ]
+                proof_matches.append(
+                    SearchProofPointMatch(
+                        code=proof.code,
+                        concept_code=proof.concept_code,
+                        name=proof.name,
+                        reason=f"组合语义命中：{evidence}",
+                        weight=confidence,
+                        evidence_terms=allowed_evidence[:3],
+                    )
+                )
+                evidence_point = self.evidence_points.catalog.by_code.get(
+                    signal.evidence_point_code
+                )
+                if (
+                    evidence_point is not None
+                    and evidence_point.concept_code == intent.code
+                    and evidence_point.proof_point_code == proof.code
+                ):
+                    evidence_matches.append(
+                        SearchEvidencePointMatch(
+                            code=evidence_point.code,
+                            proof_point_code=evidence_point.proof_point_code,
+                            concept_code=evidence_point.concept_code,
+                            name=evidence_point.name,
+                            reason=f"组合语义命中：{evidence}",
+                            weight=confidence,
+                        )
+                    )
+        return SearchUnderstanding(
+            original_query=query,
+            normalized_query=intent.name,
+            search_intent=f"用户在找“{intent.name}”中{proof_name}相关素材",
+            query_type="business_intent_search",
+            expanded_terms=[],
+            matched_business_concepts=[
+                SearchConceptMatch(
+                    concept=intent.display_name,
+                    relation="direct",
+                    reason=f"组合语义命中：{evidence}",
+                    weight=confidence,
+                )
+            ],
+            matched_proof_points=proof_matches,
+            matched_evidence_points=evidence_matches,
+            excluded_concepts=list(negated_names),
+            search_strategy="按受治理的组合语义进入卖点主通道，并下钻到直属证明点",
+        )
+
     def _repair_routed_selling_point_understanding(
         self,
         query: str,
@@ -1288,6 +1431,21 @@ def _has_explicit_multi_marker(value: str) -> bool:
 
 def _unique(values: list[str]) -> list[str]:
     return list(dict.fromkeys(value for value in values if value))
+
+
+def _optional_int(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _merge_evidence_matches(

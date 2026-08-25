@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import time
+from urllib.parse import urlparse
 
 import httpx
 
@@ -54,17 +56,35 @@ class MeilisearchRecallService:
             "showRankingScore": True,
             "filter": "status = active",
         }
+        started = time.monotonic()
+        status = "failed"
+        error = ""
         try:
             with httpx.Client(timeout=self.timeout_seconds, trust_env=False) as client:
                 response = client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
+                raw_hits = data.get("hits", [])
+                if not isinstance(raw_hits, list):
+                    status = "failed"
+                    error = "Meilisearch 返回格式无效"
+                    raise SearchUnavailable(error)
+                status = "ok"
+        except httpx.TimeoutException as exc:
+            status = "timed_out"
+            error = "Meilisearch 调用超时"
+            raise SearchUnavailable(error) from exc
         except (httpx.HTTPError, json.JSONDecodeError) as exc:
-            raise SearchUnavailable(f"Meilisearch 不可用：{exc}") from exc
-
-        raw_hits = data.get("hits", [])
-        if not isinstance(raw_hits, list):
-            raise SearchUnavailable("Meilisearch 返回格式无效")
+            error = f"Meilisearch 不可用：{exc}"
+            raise SearchUnavailable(error) from exc
+        finally:
+            _record_meilisearch_trace(
+                provider=urlparse(self.url).hostname or self.url,
+                model=self.index,
+                status=status,
+                duration_ms=round((time.monotonic() - started) * 1000),
+                error=error,
+            )
 
         ids: list[str] = []
         score_by_id: dict[str, float] = {}
@@ -102,3 +122,29 @@ class MeilisearchRecallService:
             )
             for image in images
         ]
+
+
+def _record_meilisearch_trace(
+    *,
+    provider: str,
+    model: str,
+    status: str,
+    duration_ms: int,
+    error: str,
+) -> None:
+    try:
+        from app.db.session import SessionLocal
+        from app.services.api_center_service import ApiCenterService
+
+        with SessionLocal() as db:
+            ApiCenterService(db).record_external_call(
+                task="search_index",
+                layer_name="搜索索引：Meilisearch",
+                provider=provider,
+                model=model,
+                status=status,
+                duration_ms=duration_ms,
+                error_summary=error,
+            )
+    except Exception:
+        return

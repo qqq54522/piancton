@@ -19,6 +19,12 @@ class Image(Base):
     __tablename__ = "images"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    version_code: Mapped[str] = mapped_column(
+        String(32),
+        unique=True,
+        index=True,
+        default=lambda: f"PC-{uuid.uuid4().hex[:6].upper()}-V01",
+    )
     title: Mapped[str] = mapped_column(String(255), index=True)
     file_name: Mapped[str] = mapped_column(String(255))
     storage_key: Mapped[str] = mapped_column(String(500), unique=True)

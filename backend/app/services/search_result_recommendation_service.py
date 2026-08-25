@@ -1,0 +1,270 @@
+from __future__ import annotations
+
+import time
+
+from app.schemas.ai import SearchUnderstanding
+from app.schemas.image import ScoredImage
+from app.services.search_branch_runner import SearchBranchRunner
+from app.services.search_models import (
+    ModelAttemptDiagnostic,
+    SearchBranchDiagnostic,
+    SearchBranchResult,
+    SearchHit,
+)
+from app.services.search_scorer import SearchScorer
+
+
+class SearchResultRecommendationService:
+    """Explain final results after recall, ranking, and candidate review."""
+
+    def __init__(
+        self,
+        ai_service,
+        *,
+        timeout_seconds: float = 6.0,
+        result_limit: int = 12,
+    ):
+        self.ai_service = ai_service
+        self.timeout_seconds = max(0.5, timeout_seconds)
+        self.result_limit = max(1, result_limit)
+        self.runner = SearchBranchRunner()
+        self.scorer = SearchScorer()
+
+    async def enrich(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        hits: list[SearchHit],
+        results: list[ScoredImage],
+    ) -> SearchBranchResult[list[ScoredImage]]:
+        if not hits or not results:
+            return self._skipped(
+                results,
+                "没有最终结果需要生成动态推荐理由",
+            )
+
+        candidates = [
+            self._candidate_context(keyword, understanding, hit, result)
+            for hit, result in zip(
+                hits[: self.result_limit],
+                results[: self.result_limit],
+            )
+        ]
+        provider = getattr(self.ai_service, "provider", None)
+        if (
+            provider is None
+            or not provider.configured
+            or not callable(
+                getattr(self.ai_service, "recommend_search_result_reasons", None)
+            )
+        ):
+            return self._skipped(
+                results,
+                "动态推荐理由 API 未配置，保留本地确定性推荐理由",
+            )
+
+        started = time.monotonic()
+        result = await self.runner.run_thread(
+            "result_recommendation_reason",
+            lambda: self.ai_service.recommend_search_result_reasons(
+                keyword=keyword,
+                understanding=understanding,
+                candidates=candidates,
+            ),
+            timeout_seconds=self.timeout_seconds,
+        )
+        attempts = self._model_attempts()
+        if result.diagnostic.status != "ok" or result.value is None:
+            return SearchBranchResult(
+                value=results,
+                diagnostic=SearchBranchDiagnostic(
+                    source="result_recommendation_reason",
+                    status=result.diagnostic.status,
+                    duration_ms=result.diagnostic.duration_ms,
+                    result_count=0,
+                    detail=(
+                        result.diagnostic.detail
+                        or "动态推荐理由 API 未完成，保留本地确定性推荐理由"
+                    ),
+                    attempts=attempts
+                    or (
+                        self._synthetic_attempt(
+                            result.diagnostic.status,
+                            result.diagnostic.detail
+                            or "动态推荐理由 API 未完成",
+                        ),
+                    ),
+                ),
+            )
+
+        candidate_ids = {item["image_id"] for item in candidates}
+        returned_ids = [item.image_id for item in result.value.reasons]
+        if (
+            len(returned_ids) != len(set(returned_ids))
+            or set(returned_ids) != candidate_ids
+        ):
+            detail = "动态推荐理由返回结果不完整或包含未知图片，回退本地确定性推荐理由"
+            return SearchBranchResult(
+                value=results,
+                diagnostic=SearchBranchDiagnostic(
+                    source="result_recommendation_reason",
+                    status="failed",
+                    duration_ms=result.diagnostic.duration_ms,
+                    result_count=0,
+                    detail=detail,
+                    attempts=attempts
+                    or (self._synthetic_attempt("failed", detail),),
+                ),
+            )
+        generated = {
+            item.image_id: item.reason.strip()
+            for item in result.value.reasons
+            if item.image_id in candidate_ids and item.reason.strip()
+        }
+        enriched = [
+            item.model_copy(
+                update={
+                    "result_recommendation_reason": generated.get(
+                        item.image.id,
+                        item.result_recommendation_reason,
+                    )
+                }
+            )
+            for item in results
+        ]
+        missing = len(candidate_ids) - len(generated)
+        detail = f"动态生成 {len(generated)} 张结果推荐理由"
+        if missing:
+            detail += f"，{missing} 张回退本地理由"
+        return SearchBranchResult(
+            value=enriched,
+            diagnostic=SearchBranchDiagnostic(
+                source="result_recommendation_reason",
+                status="ok",
+                duration_ms=max(result.diagnostic.duration_ms, _elapsed_ms(started)),
+                result_count=len(generated),
+                detail=detail,
+                attempts=attempts
+                or (
+                    self._synthetic_attempt(
+                        "ok",
+                        "模型调用成功但未返回 Provider 遥测",
+                    ),
+                ),
+            ),
+        )
+
+    def _candidate_context(
+        self,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        hit: SearchHit,
+        result: ScoredImage,
+    ) -> dict:
+        image = hit.image
+        group = image.asset_group
+        profile = self.scorer.semantic_profile.profile_from_image(image)
+        accepted_phrases = [
+            phrase.phrase
+            for phrase in (group.search_phrases if group else [])
+            if phrase.review_status == "accepted"
+        ][:8]
+        accepted_links = [
+            link
+            for link in (group.concept_links if group else [])
+            if link.review_status == "accepted"
+            and link.relation_role in {"expresses", "supports"}
+        ]
+        return {
+            "image_id": image.id,
+            "query": keyword,
+            "title": image.title,
+            "asset_title": result.asset_title or image.title,
+            "channel": image.channel,
+            "style_label": group.style_label if group else None,
+            "is_scene_image": group.is_scene_image if group else None,
+            "image_summary": image.image_summary or "",
+            "visual_facts": (profile.visual_facts if profile else [])[:6],
+            "scenes": (profile.scenes if profile else [])[:4],
+            "asset_search_phrases": accepted_phrases,
+            "business_relations": [
+                {
+                    "concept_code": link.concept.code,
+                    "concept_name": link.concept.name,
+                    "relation_role": link.relation_role,
+                }
+                for link in accepted_links
+            ],
+            "matched_query_concepts": [
+                item.model_dump(mode="json")
+                for item in result.matched_query_concepts
+            ],
+            "proof_point": result.primary_proof_point_name,
+            "evidence_point": result.primary_evidence_point_name,
+            "match_reasons": list(hit.reasons),
+            "current_reason": result.result_recommendation_reason,
+            "understanding": (
+                understanding.model_dump(mode="json") if understanding else None
+            ),
+        }
+
+    def _model_attempts(self) -> tuple[ModelAttemptDiagnostic, ...]:
+        provider = getattr(self.ai_service, "provider", None)
+        attempts = getattr(provider, "last_attempts", None)
+        if not isinstance(attempts, list):
+            return ()
+        rows = []
+        for item in attempts:
+            if not isinstance(item, dict):
+                continue
+            rows.append(
+                ModelAttemptDiagnostic(
+                    task="search_result_recommendation_reason",
+                    layer="第五层：动态推荐理由",
+                    provider=str(item.get("provider") or "unknown")[:120],
+                    model=str(item.get("model") or "unknown")[:120],
+                    status=str(item.get("status") or "unknown")[:24],
+                    duration_ms=int(item.get("duration_ms") or 0),
+                    fallback_index=(
+                        int(item["fallback_index"])
+                        if item.get("fallback_index") is not None
+                        else None
+                    ),
+                    error=str(item.get("error") or "")[:300],
+                )
+            )
+        return tuple(rows)
+
+    def _skipped(
+        self,
+        results: list[ScoredImage],
+        detail: str,
+    ) -> SearchBranchResult[list[ScoredImage]]:
+        return SearchBranchResult(
+            value=results,
+            diagnostic=SearchBranchDiagnostic(
+                source="result_recommendation_reason",
+                status="skipped",
+                duration_ms=0,
+                result_count=0,
+                detail=detail,
+                attempts=(self._synthetic_attempt("skipped", detail),),
+            ),
+        )
+
+    @staticmethod
+    def _synthetic_attempt(status: str, error: str) -> ModelAttemptDiagnostic:
+        return ModelAttemptDiagnostic(
+            task="search_result_recommendation_reason",
+            layer="第五层：动态推荐理由",
+            provider="api_center",
+            model="未调用",
+            status=status,
+            duration_ms=0,
+            error=error[:300],
+        )
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((time.monotonic() - started) * 1000))

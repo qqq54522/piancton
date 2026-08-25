@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
@@ -17,6 +17,7 @@ from app.ai.normalizer import normalize_model_payload
 from app.ai.skill_loader import (
     build_candidate_review_prompt,
     build_proof_point_prompt,
+    build_result_recommendation_reason_prompt,
     build_selling_point_prompt,
     build_system_routing_prompt,
     build_task_prompt,
@@ -38,6 +39,7 @@ from app.schemas.ai import (
     SearchEvidencePointMatch,
     SearchProofPointMatch,
     SearchProofPointUnderstanding,
+    SearchResultRecommendationReasonResult,
     SearchSystemRouting,
     SearchUnderstanding,
     SellingPointMatchResult,
@@ -295,6 +297,31 @@ class AiService:
             SearchCandidateReviewResult,
         )
 
+    def recommend_search_result_reasons(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        candidates: list[dict],
+    ) -> SearchResultRecommendationReasonResult:
+        if not candidates:
+            return SearchResultRecommendationReasonResult(reasons=[])
+        payload = {
+            "query": keyword,
+            "understanding": (
+                understanding.model_dump(mode="json") if understanding else None
+            ),
+            "candidates": candidates,
+        }
+        return self._run(
+            ModelRequest(
+                task="search_result_recommendation_reason",
+                prompt=build_result_recommendation_reason_prompt(),
+                input_text=json.dumps(payload, ensure_ascii=False),
+            ),
+            SearchResultRecommendationReasonResult,
+        )
+
     def routed_system_codes(
         self,
         routing: SearchSystemRouting,
@@ -388,13 +415,13 @@ class AiService:
                 for system_code in system_codes
                 for concept in catalog.children_of(system_code)
             }
-            display_names = {
-                code: (
-                    f"{catalog.node_by_code[catalog.node_by_code[code].parent_code].name}"
-                    f" > {catalog.node_by_code[code].name}"
+            display_names = {}
+            for code in allowed_codes:
+                node = catalog.node_by_code[code]
+                parent = catalog.node_by_code.get(node.parent_code or "")
+                display_names[code] = (
+                    f"{parent.name} > {node.name}" if parent else node.name
                 )
-                for code in allowed_codes
-            }
         allowed_names = {
             display_names.get(
                 code,
@@ -649,7 +676,7 @@ class AiService:
         validated_runner = getattr(self.provider, "generate_validated_json", None)
         if callable(validated_runner):
             try:
-                return validated_runner(request, validate)
+                return cast(ResultModel, validated_runner(request, validate))
             except ModelProviderNotConfigured as exc:
                 raise AppError(
                     "provider_not_configured",

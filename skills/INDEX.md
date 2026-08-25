@@ -27,7 +27,9 @@
 | `search_intent_understanding` | `SELLING_POINT_ROUTER_RULES.md` + 候选体系卖点摘要 | 第二层：卖点 |
 | `search_proof_point_understanding` | `PROOF_POINT_ROUTER_RULES.md` + 已命中卖点直属证明点 | 第三层：证明点 |
 | `search_candidate_review` | `build_candidate_review_prompt()` + 已召回候选上下文 | 第四层：只复核候选图片，不新增候选、不重判前三层 |
+| `search_result_recommendation_reason` | `build_result_recommendation_reason_prompt()` + 最终排序/复核后的结果上下文 | 第五层：只解释最终结果为什么适合本次搜索，不参与召回、排序或候选准入 |
 | `copy_selling_point_matching` | `match-copy-selling-points/RULES.md` | 兼容文案卖点匹配接口 |
+| `asset_agent_chat` | `AssetAgentService` 组装图片、素材组、人工 accepted 卖点关系和当前启用卖点简表 | 素材库右下角 Agent，解释图片卖点和家长沟通话术；不写入业务事实 |
 
 渠道意图识别当前作为卖点意图的并行 Skill：先沉淀 schema、渠道分类和推荐解释规则，再由前端确定性解析器做搜索结果后二次收窄与解释；暂不进入 `MODEL_SKILLS`，避免在真实渠道标注不足时影响卖点主通道和在线模型耗时。
 

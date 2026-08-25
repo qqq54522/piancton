@@ -65,6 +65,13 @@ def client(db_factory, tmp_path: Path, monkeypatch):
                 role="business",
             )
         )
+        db.add(
+            User(
+                username="designer",
+                password_hash=hash_password("designer-password"),
+                role="designer",
+            )
+        )
         db.commit()
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[dependencies.get_db_session_factory] = lambda: db_factory

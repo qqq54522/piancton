@@ -79,11 +79,21 @@ class SearchScorer:
         evidence_code = group.primary_evidence_point_code if group else None
         proof = load_proof_point_catalog().by_code.get(proof_code or "")
         evidence = load_evidence_point_catalog().by_code.get(evidence_code or "")
+        result_recommendation_reason = self._result_recommendation_reason(
+            image=image,
+            asset_title=asset.title,
+            matched_query_concepts=matched_query_concepts,
+            proof_name=proof.name if proof else None,
+            evidence_name=evidence.name if evidence else None,
+            reasons=unique(reasons),
+            matched_content=matched_content,
+        )
         return ScoredImage(
             image=image_to_read(image),
             match_level=self.match_level(score),
             final_score=score,
             match_reasons=unique(reasons),
+            result_recommendation_reason=result_recommendation_reason,
             matched_content_terms=matched_content,
             matched_business_concepts=matched_concepts,
             asset_group_id=asset.group_id,
@@ -196,3 +206,87 @@ class SearchScorer:
             )
             for link in ordered
         ]
+
+    def _result_recommendation_reason(
+        self,
+        *,
+        image: Image,
+        asset_title: str,
+        matched_query_concepts: list[SearchResultConceptMatch],
+        proof_name: str | None,
+        evidence_name: str | None,
+        reasons: list[str],
+        matched_content: list[str],
+    ) -> str:
+        concept = matched_query_concepts[0] if matched_query_concepts else None
+        concept_name = concept.concept_name if concept else ""
+        relation = _relation_label(concept.relation_role) if concept else "匹配"
+        title = asset_title or image.title
+        asset_phrase = _first_reason_value(reasons, "卖点内素材独有话术命中：")
+        concept_phrase = _first_reason_value(reasons, "概念搜索表达命中：")
+        proof_reason = _first_reason_value(reasons, "证明点匹配：")
+        detail = (
+            _clean_reason(asset_phrase)
+            or _clean_reason(proof_reason)
+            or _clean_reason(concept_phrase)
+            or (matched_content[0] if matched_content else "")
+            or proof_name
+            or evidence_name
+        )
+        visual = _image_specific_signal(image, title)
+        business_anchor = evidence_name or proof_name or detail
+
+        if concept_name and business_anchor and visual:
+            return (
+                f"推荐这张「{title}」，因为它{relation}“{concept_name}”，"
+                f"并用“{business_anchor}”把卖点落到具体画面/功能上；"
+                f"{visual}，适合市场同学快速说明这张图为什么贴合本次需求。"
+            )
+        if concept_name and business_anchor:
+            return (
+                f"推荐这张「{title}」，因为它{relation}“{concept_name}”，"
+                f"核心证据集中在“{business_anchor}”，比泛泛卖点文案更适合解释本次选图理由。"
+            )
+        if detail:
+            return (
+                f"推荐这张「{title}」，因为它命中了“{detail}”，"
+                "能把本次搜索需求落到具体素材表达上。"
+            )
+        return f"推荐这张「{title}」，因为它与本次搜索需求在标题、素材语义或业务关系上相关。"
+
+
+def _first_reason_value(reasons: list[str], prefix: str) -> str | None:
+    for reason in reasons:
+        if reason.startswith(prefix):
+            return reason[len(prefix) :].strip()
+    return None
+
+
+def _clean_reason(value: str | None) -> str:
+    if not value:
+        return ""
+    return value.replace("（100%）", "").strip()
+
+
+def _relation_label(role: str) -> str:
+    return {
+        "expresses": "主要表达",
+        "supports": "可以支撑",
+        "visual_related": "画面相关于",
+    }.get(role, "匹配")
+
+
+def _image_specific_signal(image: Image, asset_title: str) -> str:
+    facts: list[str] = []
+    if image.title and image.title != asset_title:
+        facts.append(f"当前图名是“{image.title}”")
+    if image.channel:
+        facts.append(f"可用于{image.channel}渠道")
+    group = image.asset_group
+    if group and group.style_label:
+        facts.append(f"画面风格是{group.style_label}")
+    if group and group.is_scene_image is True:
+        facts.append("属于场景化素材")
+    elif group and group.is_scene_image is False:
+        facts.append("属于功能/信息表达素材")
+    return "，".join(facts)
