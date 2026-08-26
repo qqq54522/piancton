@@ -24,6 +24,7 @@ from app.api.dependencies import (
     get_image_service,
     get_search_log_service,
     get_search_service,
+    get_usage_analytics_service,
     require_roles,
     require_write_role,
 )
@@ -45,6 +46,7 @@ from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
 from app.services.search_log_service import SearchLogService
 from app.services.search_service import SearchService
+from app.services.usage_analytics_service import UsageAnalyticsService
 
 router = APIRouter(prefix="/images", tags=["images"])
 
@@ -248,12 +250,20 @@ def get_image_content(
 @router.get("/{image_id}/download")
 def download_image(
     image_id: str,
+    request: Request,
     background_tasks: BackgroundTasks,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
+    usage: UsageAnalyticsService = Depends(get_usage_analytics_service),
 ):
     path, image = service.download(image_id)
     background_tasks.add_task(service.increment_download, image_id)
+    background_tasks.add_task(
+        usage.record_download,
+        user_id=user.id,
+        image_id=image_id,
+        request_id=request.state.request_id,
+    )
     return FileResponse(
         path,
         filename=image.file_name,

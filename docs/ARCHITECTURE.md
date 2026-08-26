@@ -20,7 +20,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 ```
 
 前端的图片、素材组和 AI 状态逻辑位于 `features/`，认证位于 `lib/auth.tsx`，
-管理员界面按用户、卖点公共话术、搜索运营和审计拆分在 `pages/Admin*/`。远程状态由 TanStack Query 管理，接口类型
+管理员界面按用户、卖点公共话术、搜索运营、API 中心、使用统计和审计拆分在 `pages/Admin*/`。远程状态由 TanStack Query 管理，接口类型
 由 FastAPI OpenAPI 生成。
 
 ## 强制边界
@@ -47,6 +47,8 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 公共搜索话术属于业务概念，素材详情只保存当前图片独有话术；公共话术编辑/停用必须经过管理员接口和概念版本更新。
 - Meilisearch 字段优先级必须保持已确认业务语言高于已确认素材独有话术，再高于语义总结、画面事实和场景；AI 待审核素材话术只能作为低优先级语义辅助，拒绝后退出所有搜索投影。
 - `derivative` 尺寸/渠道延展只执行安全上传、缩略图和尺寸识别，不进入 AI 分析队列；只有正式主图的分析结果可以刷新素材组级 AI 关系和候选话术。
+- API 中心是运行时 API Key、模型地址、模型名、启停和调度的唯一管理入口；`.env` 只作为首次空库导入来源，导入或手动配置后不得再次自动覆盖数据库。
+- 用户使用量进入 `user_usage_events`，记录登录、页面访问和成功下载；原图片 `download_count` 继续作为素材维度下载计数。
 
 这些约束由 `backend/tests/test_architecture.py` 和 CI 检查。
 
@@ -89,8 +91,9 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 写请求必须同时通过受信 Origin、CSRF Cookie/Header 和角色校验。
 - 停用账号或重置密码时删除该用户全部会话。
 - 登录失败按账号与客户端 IP 持久化限流，过期 Session 在登录时清理。
-- 登录、图片、标签和用户管理写入审计日志。
+- 登录、图片、标签和用户管理写入审计日志；登录、页面访问和下载写入使用统计事件。
 - 每个响应包含 request ID 与基础安全响应头。
+- 素材库 Agent 会话按用户隔离；用户内可有多个会话记录，管理员不跨用户读取或操作他人私聊。
 
 ## 数据与部署
 
@@ -103,14 +106,14 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 ## 当前状态记录
 
-截至 2026-07-16：
+截至 2026-08-26：
 
-- Phase 0～6 工程改造和旧职责清理完成，数据库 revision 为 `20260715_0014`。
+- Phase 0～6 工程改造和旧职责清理完成，数据库 revision 为 `20260826_0026`。
 - `tags` 只保留 6 个稳定体系节点；可变化业务语义位于 `business_concepts`、概念关系、概念搜索表达和素材概念关系。
 - 首次上传自动建立素材组；主图可先发布，延展、备选和修订版本可后续追加。
 - 图片语义使用 Semantic Profile V3，只保存画面事实、场景和素材独有搜索表达；AI 业务判断写入待审核素材概念关系建议。旧 V2 与 `content_tags` 运行时不再读取或参与搜索。
 - 在线搜索只有一条自动编排，不再向普通用户或 API 暴露搜索模式选择。
-- 本地正式素材库已有 1 张已审核代表主图并完成“主要表达”关系确认；Phase 0/4 真实质量验收仍需再补充 2～5 张代表素材，并累计 10～20 条真实查询后重新建立。
+- 本地正式素材库已有 40 个素材组、40 张图片、16 个业务概念和 55 条人工 accepted 关系；Phase 0/4 后续质量验收继续围绕真实业务话术、画面级金标准和证明点细标推进。
 - Phase 0～6 回滚提交已在 GitHub Actions 的 PostgreSQL 17 环境完成从零迁移、后端检查和前端检查。
 - Docker Compose、Nginx、PostgreSQL 和可选 Meilisearch profile 已具备，但目标服务器生产验收、持久化和备份恢复仍未完成。
 
@@ -120,8 +123,8 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 优先做能让项目进入真实使用闭环的事情：
 
-1. 在现有 1 张代表素材基础上再补充 2～5 张，并完成负责人关系确认。
-2. 绑定 10～20 条真实查询，重建 Phase 0/4 质量和延迟基线。
+1. 继续补齐真实业务话术、画面级金标准、证明点细标和负责人关系复核。
+2. 用当前 40 组素材重建 Phase 0/4 质量和延迟基线。
 3. 启用需要的外部搜索增强并执行故障注入、P95 和派生索引重建验证。
 4. 服务器上线验收，确认部署、持久化、权限和备份恢复。
 5. 如果上传和模型分析明显变慢，再把 AI 分析从 `BackgroundTasks` 升级为独立 worker。

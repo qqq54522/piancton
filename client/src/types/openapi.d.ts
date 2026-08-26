@@ -770,7 +770,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Api Credential */
+        delete: operations["delete_api_credential_api_admin_api_center_credentials__credential_id__delete"];
         options?: never;
         head?: never;
         /** Update Api Credential */
@@ -1028,6 +1029,40 @@ export interface paths {
         put?: never;
         /** Create Search Feedback */
         post: operations["create_search_feedback_api_search_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usage/page-view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Page View */
+        post: operations["record_page_view_api_usage_page_view_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/usage/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Usage Summary */
+        get: operations["usage_summary_api_admin_usage_summary_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2314,6 +2349,22 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** DailyUsageMetric */
+        DailyUsageMetric: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Logincount */
+            loginCount: number;
+            /** Pageviewcount */
+            pageViewCount: number;
+            /** Downloadcount */
+            downloadCount: number;
+            /** Activeusercount */
+            activeUserCount: number;
+        };
         /** EvidencePointFacetRead */
         EvidencePointFacetRead: {
             /** Code */
@@ -2586,6 +2637,13 @@ export interface components {
              * @default
              */
             error: string;
+        };
+        /** PageViewCreate */
+        PageViewCreate: {
+            /** Path */
+            path: string;
+            /** Title */
+            title?: string | null;
         };
         /** PasswordReset */
         PasswordReset: {
@@ -3262,6 +3320,63 @@ export interface components {
              */
             imageCount: number;
         };
+        /** UsageAnalyticsSummary */
+        UsageAnalyticsSummary: {
+            /**
+             * Datefrom
+             * Format: date
+             */
+            dateFrom: string;
+            /**
+             * Dateto
+             * Format: date
+             */
+            dateTo: string;
+            totals: components["schemas"]["UsageTotals"];
+            /** Daily */
+            daily: components["schemas"]["DailyUsageMetric"][];
+            /** Users */
+            users: components["schemas"]["UserUsageMetric"][];
+            /** Recentevents */
+            recentEvents: components["schemas"]["UsageEventRead"][];
+        };
+        /** UsageEventRead */
+        UsageEventRead: {
+            /** Id */
+            id: string;
+            /** Userid */
+            userId?: string | null;
+            /** Username */
+            username?: string | null;
+            /** Eventtype */
+            eventType: string;
+            /** Targettype */
+            targetType?: string | null;
+            /** Targetid */
+            targetId?: string | null;
+            /** Path */
+            path?: string | null;
+            /** Details */
+            details: {
+                [key: string]: unknown;
+            };
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** UsageTotals */
+        UsageTotals: {
+            /** Logincount */
+            loginCount: number;
+            /** Pageviewcount */
+            pageViewCount: number;
+            /** Downloadcount */
+            downloadCount: number;
+            /** Activeusercount */
+            activeUserCount: number;
+        };
         /** UserCreate */
         UserCreate: {
             /** Username */
@@ -3299,6 +3414,27 @@ export interface components {
             role?: ("business" | "designer" | "admin") | null;
             /** Isactive */
             isActive?: boolean | null;
+        };
+        /** UserUsageMetric */
+        UserUsageMetric: {
+            /** Userid */
+            userId: string;
+            /** Username */
+            username: string;
+            /** Role */
+            role: string;
+            /** Isactive */
+            isActive: boolean;
+            /** Logincount */
+            loginCount: number;
+            /** Pageviewcount */
+            pageViewCount: number;
+            /** Downloadcount */
+            downloadCount: number;
+            /** Activitycount */
+            activityCount: number;
+            /** Lastactivityat */
+            lastActivityAt?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -5086,6 +5222,37 @@ export interface operations {
             };
         };
     };
+    delete_api_credential_api_admin_api_center_credentials__credential_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                credential_id: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_api_credential_api_admin_api_center_credentials__credential_id__patch: {
         parameters: {
             query?: never;
@@ -5728,6 +5895,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SearchFeedbackRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_page_view_api_usage_page_view_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_summary_api_admin_usage_summary_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageAnalyticsSummary"];
                 };
             };
             /** @description Validation Error */

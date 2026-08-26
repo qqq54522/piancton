@@ -33,7 +33,11 @@ class ModelProvider(Protocol):
 - `asset_search_phrase_generation`
 - `search_system_routing`
 - `search_intent_understanding`
+- `search_proof_point_understanding`
+- `search_candidate_review`
+- `search_result_recommendation_reason`
 - `copy_selling_point_matching`
+- `asset_agent_chat`
 
 ## 边界
 

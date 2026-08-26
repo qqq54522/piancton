@@ -3,6 +3,7 @@ import {
   BriefcaseBusiness,
   FileClock,
   Fingerprint,
+  BarChart3,
   KeyRound,
   LayoutGrid,
   LibraryBig,
@@ -33,6 +34,7 @@ import {
 } from '@client/src/components/ui/dropdown-menu';
 import { useAuth } from '@client/src/lib/auth';
 import { PRODUCT_DESCRIPTOR, PRODUCT_NAME } from '@client/src/lib/branding';
+import { usePageViewTracking } from '@client/src/lib/usePageViewTracking';
 
 const sidebarNavClass = ({ isActive }: { isActive: boolean }) => (
   `sidebar-nav-pill group relative flex size-12 items-center justify-center rounded-full ${
@@ -90,6 +92,7 @@ const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  usePageViewTracking();
   const isDesigner = user?.role === 'designer';
   const canManageAssets = user?.role === 'designer' || user?.role === 'admin';
   const canViewSearchOps = canManageAssets;
@@ -103,6 +106,7 @@ const Layout = () => {
     { to: '/admin/channels', label: '渠道管理', icon: Tags, show: user?.role === 'admin' },
     { to: searchOpsPath, label: '搜索运营', icon: Search, show: canViewSearchOps },
     { to: '/admin/api-center', label: 'API 中心', icon: KeyRound, show: user?.role === 'admin' },
+    { to: '/admin/usage', label: '使用统计', icon: BarChart3, show: user?.role === 'admin' },
     { to: '/admin/identity-codes', label: '身份码管理', icon: Fingerprint, show: user?.role === 'admin' },
     { to: '/admin/users', label: '用户管理', icon: Users, show: user?.role === 'admin' },
     { to: '/trash', label: '回收站', icon: FileClock, show: canManageAssets },
@@ -224,6 +228,11 @@ const Layout = () => {
               {user?.role === 'admin' && (
                 <NavLink to="/admin/api-center" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
                   <KeyRound className="size-4" />API 中心
+                </NavLink>
+              )}
+              {user?.role === 'admin' && (
+                <NavLink to="/admin/usage" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
+                  <BarChart3 className="size-4" />使用统计
                 </NavLink>
               )}
               {user?.role === 'admin' && (

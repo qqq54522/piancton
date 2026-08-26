@@ -14,6 +14,7 @@ from app.api.v1 import (
     search_feedback,
     search_ops,
     tags,
+    usage,
 )
 
 api_router = APIRouter()
@@ -30,3 +31,4 @@ api_router.include_router(asset_identity.router)
 api_router.include_router(admin.router)
 api_router.include_router(search_ops.router)
 api_router.include_router(search_feedback.router)
+api_router.include_router(usage.router)

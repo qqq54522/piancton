@@ -8,6 +8,7 @@ import { AdminRoute, DesignerRoute, ProtectedRoute } from './lib/auth';
 const AdminUsers = lazy(() => import('./pages/AdminUsers/AdminUsers'));
 const AdminAudit = lazy(() => import('./pages/AdminAudit/AdminAudit'));
 const AdminApiCenter = lazy(() => import('./pages/AdminApiCenter/AdminApiCenter'));
+const AdminUsage = lazy(() => import('./pages/AdminUsage/AdminUsage'));
 const AdminIdentityCodes = lazy(() => import('./pages/AdminIdentityCodes/AdminIdentityCodes'));
 const AdminChannels = lazy(() => import('./pages/AdminChannels/AdminChannels'));
 const AdminConcepts = lazy(() => import('./pages/AdminConcepts/AdminConcepts'));
@@ -48,6 +49,7 @@ const RoutesComponent = () => (
             <Route path="admin/audit" element={<AdminAudit />} />
             <Route path="admin/channels" element={<AdminChannels />} />
             <Route path="admin/api-center" element={<AdminApiCenter />} />
+            <Route path="admin/usage" element={<AdminUsage />} />
             <Route path="admin/identity-codes" element={<AdminIdentityCodes />} />
             <Route path="admin/concepts" element={<AdminConcepts />} />
           </Route>

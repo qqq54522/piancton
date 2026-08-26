@@ -6,6 +6,7 @@ from app.api.dependencies import (
     get_audit_service,
     get_auth_service,
     get_current_user,
+    get_usage_analytics_service,
     require_csrf,
 )
 from app.core.config import get_settings
@@ -13,6 +14,7 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, UserRead
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
+from app.services.usage_analytics_service import UsageAnalyticsService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -25,6 +27,7 @@ def login(
     response: Response,
     service: AuthService = Depends(get_auth_service),
     audit: AuditService = Depends(get_audit_service),
+    usage: UsageAnalyticsService = Depends(get_usage_analytics_service),
 ):
     client_ip = request.client.host if request.client else "unknown"
     result = service.login(payload.username, payload.password, client_ip)
@@ -33,6 +36,11 @@ def login(
         action="auth.login",
         target_type="session",
         details={"clientIp": client_ip},
+        request_id=request.state.request_id,
+    )
+    usage.record_login(
+        result.user,
+        client_ip=client_ip,
         request_id=request.state.request_id,
     )
     max_age = settings.session_ttl_hours * 3600

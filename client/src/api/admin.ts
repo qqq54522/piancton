@@ -13,6 +13,7 @@ import type {
   RoutingSlotUpdate,
   AuditLog,
   SearchOpsSummary,
+  UsageAnalyticsSummary,
   User,
   UserRole,
 } from '@client/src/types/api';
@@ -49,6 +50,12 @@ export async function fetchSearchOpsSummary(days = 7): Promise<SearchOpsSummary>
   return (await api.get('/api/admin/search-ops/summary', { params: { days } })).data;
 }
 
+export async function fetchUsageAnalyticsSummary(
+  days = 7,
+): Promise<UsageAnalyticsSummary> {
+  return (await api.get('/api/admin/usage/summary', { params: { days } })).data;
+}
+
 export async function fetchApiCenterSummary(): Promise<ApiCenterSummary> {
   return (await api.get('/api/admin/api-center/summary')).data;
 }
@@ -62,6 +69,10 @@ export async function updateApiCredential(
   payload: ApiCredentialUpdate,
 ): Promise<ApiCredential> {
   return (await api.patch(`/api/admin/api-center/credentials/${id}`, payload)).data;
+}
+
+export async function deleteApiCredential(id: string): Promise<void> {
+  await api.delete(`/api/admin/api-center/credentials/${id}`);
 }
 
 export async function testApiCredential(

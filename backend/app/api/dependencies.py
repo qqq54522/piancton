@@ -33,6 +33,7 @@ from app.services.search_service import SearchService
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
 from app.services.storage_service import LocalStorageProvider
 from app.services.tag_service import TagService
+from app.services.usage_analytics_service import UsageAnalyticsService
 from app.services.user_service import UserService
 
 settings = get_settings()
@@ -258,6 +259,12 @@ def get_search_ai_service(db: Session = Depends(get_db)) -> AiService:
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(db)
+
+
+def get_usage_analytics_service(
+    db: Session = Depends(get_db),
+) -> UsageAnalyticsService:
+    return UsageAnalyticsService(db)
 
 
 def get_audit_service(db: Session = Depends(get_db)) -> AuditService:

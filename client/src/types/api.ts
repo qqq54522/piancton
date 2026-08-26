@@ -530,6 +530,59 @@ export interface SearchOpsSummary {
   searchPerformance: SearchPerformanceSummary;
 }
 
+export interface PageViewCreate {
+  path: string;
+  title?: string | null;
+}
+
+export interface UsageTotals {
+  loginCount: number;
+  pageViewCount: number;
+  downloadCount: number;
+  activeUserCount: number;
+}
+
+export interface DailyUsageMetric {
+  date: string;
+  loginCount: number;
+  pageViewCount: number;
+  downloadCount: number;
+  activeUserCount: number;
+}
+
+export interface UserUsageMetric {
+  userId: string;
+  username: string;
+  role: string;
+  isActive: boolean;
+  loginCount: number;
+  pageViewCount: number;
+  downloadCount: number;
+  activityCount: number;
+  lastActivityAt?: string | null;
+}
+
+export interface UsageEventRead {
+  id: string;
+  userId?: string | null;
+  username?: string | null;
+  eventType: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  path?: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface UsageAnalyticsSummary {
+  dateFrom: string;
+  dateTo: string;
+  totals: UsageTotals;
+  daily: DailyUsageMetric[];
+  users: UserUsageMetric[];
+  recentEvents: UsageEventRead[];
+}
+
 export type ModelTaskName =
   | 'image_content_analysis'
   | 'asset_search_phrase_generation'

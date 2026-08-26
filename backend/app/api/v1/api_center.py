@@ -47,6 +47,15 @@ def update_api_credential(
     return service.update_credential(credential_id, payload)
 
 
+@router.delete("/credentials/{credential_id}", status_code=204)
+def delete_api_credential(
+    credential_id: str,
+    _: User = Depends(require_roles("admin")),
+    service: ApiCenterService = Depends(get_api_center_service),
+):
+    service.delete_credential(credential_id)
+
+
 @router.post("/credentials/{credential_id}/test", response_model=ApiHealthCheckRead)
 def test_api_credential(
     credential_id: str,

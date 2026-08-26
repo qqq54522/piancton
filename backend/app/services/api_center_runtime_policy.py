@@ -69,6 +69,11 @@ class CredentialCapacityTracker:
             self._in_flight.clear()
             self._recent.clear()
 
+    def discard(self, credential_id: str) -> None:
+        with self._lock:
+            self._in_flight.pop(credential_id, None)
+            self._recent.pop(credential_id, None)
+
     def _trim_locked(
         self,
         calls: deque[tuple[float, str, int]],

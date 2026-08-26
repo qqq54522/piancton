@@ -272,7 +272,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "_reject_shadowed_ai_suggestions" in asset_relation_service
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master
-    assert "当前本地素材库已有 1 张" in readme
+    assert "当前本地素材库已有 40 个素材组" in readme
+    assert "API 中心是运行时唯一入口" in readme
+    assert "使用统计" in layout
     assert "当前本地素材库为空" not in readme
     assert "当前正式素材库为空" not in _read("docs/SEARCH_MODES_AND_AI.md")
     assert "本地正式素材库当前为空" not in _read("docs/ARCHITECTURE.md")

@@ -7,10 +7,12 @@ import {
   ListTree,
   RadioTower,
   Route,
+  Trash2,
 } from 'lucide-react';
 
 import {
   createApiCredential,
+  deleteApiCredential,
   fetchApiCenterSummary,
   runApiHealthChecks,
   testApiCredential,
@@ -221,6 +223,10 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
       updateApiCredential(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
   });
+  const deleteMutation = useMutation({
+    mutationFn: deleteApiCredential,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
+  });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -353,6 +359,20 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
                   })}
                 >
                   {item.status === 'active' ? '停用' : '启用'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={`删除 ${displayCredentialLabel(item)}`}
+                  title="删除 API"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(`确认删除 ${displayCredentialLabel(item)}？`)) {
+                      deleteMutation.mutate(item.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="size-4" />
                 </Button>
               </div>
             </div>

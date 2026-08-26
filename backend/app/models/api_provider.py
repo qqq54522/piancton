@@ -144,3 +144,15 @@ class ModelCallTrace(Base):
         default=utcnow,
         index=True,
     )
+
+
+class ApiCenterSetting(Base):
+    __tablename__ = "api_center_settings"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        onupdate=utcnow,
+    )

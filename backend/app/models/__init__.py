@@ -1,4 +1,5 @@
 from app.models.api_provider import (
+    ApiCenterSetting,
     ModelApiCredential,
     ModelApiHealthCheck,
     ModelCallTrace,
@@ -21,9 +22,11 @@ from app.models.image import (
 from app.models.search_feedback import SearchFeedbackEvent
 from app.models.search_log import SearchLog
 from app.models.tag import Tag
+from app.models.usage import UserUsageEvent
 from app.models.user import AuditLog, LoginThrottle, User, UserSession
 
 __all__ = [
+    "ApiCenterSetting",
     "AssetGroup",
     "AssetIdentityCode",
     "AssetConceptLink",
@@ -45,6 +48,7 @@ __all__ = [
     "AnalysisRun",
     "SearchLog",
     "SearchFeedbackEvent",
+    "UserUsageEvent",
     "User",
     "UserSession",
     "LoginThrottle",

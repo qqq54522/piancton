@@ -117,6 +117,47 @@ def test_create_credential_masks_key_and_can_be_disabled(client):
     assert disable.json()["status"] == "disabled"
 
 
+def test_delete_credential_removes_routing_references(client):
+    headers = admin_headers(client)
+    created = client.post(
+        "/api/admin/api-center/credentials",
+        headers=headers,
+        json={
+            "label": "删除测试 Key",
+            "baseUrl": "https://api.delete.test/v1",
+            "modelName": "gpt-delete",
+            "apiKey": "sk-delete-value-1234",
+            "taskScope": ["search_system_routing"],
+        },
+    ).json()
+    slot = client.patch(
+        "/api/admin/api-center/routing-slots/search_system_routing",
+        headers=headers,
+        json={
+            "primaryCredentialId": created["id"],
+            "backupCredentialIds": [created["id"]],
+            "autoSelectEnabled": False,
+        },
+    )
+    assert slot.status_code == 200
+
+    response = client.delete(
+        f"/api/admin/api-center/credentials/{created['id']}",
+        headers=headers,
+    )
+
+    assert response.status_code == 204
+    summary = client.get("/api/admin/api-center/summary", headers=headers).json()
+    assert summary["credentials"] == []
+    routing = next(
+        item
+        for item in summary["routingSlots"]
+        if item["task"] == "search_system_routing"
+    )
+    assert routing["primaryCredentialId"] is None
+    assert routing["backupCredentialIds"] == []
+
+
 def test_health_check_updates_credential_status(client, monkeypatch):
     headers = admin_headers(client)
     created = client.post(
@@ -460,6 +501,43 @@ def test_environment_import_does_not_overwrite_existing_api_center_credentials(
     assert persisted.base_url == "https://center.example.test/v1"
     assert persisted.model_name == "center-model"
     assert persisted.api_key_secret == "center-key"
+
+
+def test_deleted_api_center_credentials_are_not_restored_from_environment(
+    db_factory,
+    monkeypatch,
+):
+    settings = SimpleNamespace(
+        model_base_url="https://legacy.example.test/v1",
+        model_name="legacy-model",
+        model_api_key="legacy-key",
+        model_temperature=0.2,
+        search_fallback_base_url="",
+        search_fallback_model_name="",
+        search_fallback_api_key="",
+        search_fallback_temperature=0.2,
+        image_analysis_base_url="",
+        image_analysis_model_name="",
+        image_analysis_api_key="",
+        image_analysis_temperature=0.2,
+        asset_phrase_base_url="",
+        asset_phrase_model_name="",
+        asset_phrase_api_key="",
+        asset_phrase_temperature=0.2,
+    )
+    monkeypatch.setattr(api_center_service, "get_settings", lambda: settings)
+
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        service.initialize_runtime()
+        imported = service.repo.list_credentials()
+        assert len(imported) == 1
+
+        service.delete_credential(imported[0].id)
+        service.initialize_runtime()
+        summary = service.summary()
+
+    assert summary.credentials == []
 
 
 def test_disabling_last_api_does_not_fallback_to_environment_provider(

@@ -73,6 +73,7 @@ SEARCH_TASKS = (
 TASK_LAYER_LABELS = {
     task: label for task, label, _, _ in DEFAULT_ROUTING_SLOTS
 }
+ENV_IMPORT_SETTING_KEY = "environment_credentials_imported"
 
 ENV_CREDENTIAL_SPECS: tuple[dict[str, Any], ...] = (
     {
@@ -215,13 +216,25 @@ class ApiCenterService:
         deployments that have not configured the API Center yet.
         """
 
+        setting = self.repo.get_setting(ENV_IMPORT_SETTING_KEY)
+        if setting and setting.value == "true":
+            return
         if self.repo.list_credentials():
+            self.repo.set_setting(ENV_IMPORT_SETTING_KEY, "true")
+            self.uow.commit()
             return
 
         with _ENVIRONMENT_IMPORT_LOCK:
+            setting = self.repo.get_setting(ENV_IMPORT_SETTING_KEY)
+            if setting and setting.value == "true":
+                return
             if self.repo.list_credentials():
+                self.repo.set_setting(ENV_IMPORT_SETTING_KEY, "true")
+                self.uow.commit()
                 return
             self._import_environment_credentials()
+            self.repo.set_setting(ENV_IMPORT_SETTING_KEY, "true")
+            self.uow.commit()
 
     def _import_environment_credentials(self) -> None:
         settings = get_settings()
@@ -392,6 +405,7 @@ class ApiCenterService:
                 created_by=actor_user_id,
             )
         )
+        self.repo.set_setting(ENV_IMPORT_SETTING_KEY, "true")
         self.uow.commit()
         return self._credential_read(credential)
 
@@ -486,6 +500,30 @@ class ApiCenterService:
         credential.updated_at = datetime.now(timezone.utc)
         self.uow.commit()
         return self._credential_read(credential)
+
+    def delete_credential(self, credential_id: str) -> None:
+        credential = self.repo.get_credential(credential_id)
+        if not credential:
+            raise NotFoundError("api_credential_not_found", "API key 不存在")
+        for slot in self.repo.list_slots():
+            changed = False
+            if slot.primary_credential_id == credential_id:
+                slot.primary_credential_id = None
+                changed = True
+            backup_ids = [
+                item
+                for item in _loads_list(slot.backup_credential_ids_json)
+                if item != credential_id
+            ]
+            if backup_ids != _loads_list(slot.backup_credential_ids_json):
+                slot.backup_credential_ids_json = json.dumps(backup_ids, ensure_ascii=False)
+                changed = True
+            if changed:
+                slot.updated_at = datetime.now(timezone.utc)
+        _CAPACITY_TRACKER.discard(credential_id)
+        self.repo.delete_credential(credential)
+        self.repo.set_setting(ENV_IMPORT_SETTING_KEY, "true")
+        self.uow.commit()
 
     def update_slot(
         self,

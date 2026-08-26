@@ -6,6 +6,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.models.api_provider import (
+    ApiCenterSetting,
     ModelApiCredential,
     ModelApiHealthCheck,
     ModelCallTrace,
@@ -40,6 +41,23 @@ class ApiCenterRepository:
                 )
             ).all()
         )
+
+    def delete_credential(self, credential: ModelApiCredential) -> None:
+        self.db.delete(credential)
+        self.db.flush()
+
+    def get_setting(self, key: str) -> ApiCenterSetting | None:
+        return self.db.get(ApiCenterSetting, key)
+
+    def set_setting(self, key: str, value: str) -> ApiCenterSetting:
+        setting = self.get_setting(key)
+        if setting is None:
+            setting = ApiCenterSetting(key=key, value=value)
+            self.db.add(setting)
+        else:
+            setting.value = value
+        self.db.flush()
+        return setting
 
     def list_auto_assign_credentials(self) -> list[ModelApiCredential]:
         return list(
