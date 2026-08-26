@@ -24,6 +24,7 @@ def api_center_summary(
     _: User = Depends(require_roles("admin")),
     service: ApiCenterService = Depends(get_api_center_service),
 ):
+    service.initialize_runtime()
     return service.summary()
 
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from collections.abc import Callable
 from dataclasses import replace
 from typing import TypeVar
 
+from app.ai.contracts import CancellationSignal
 from app.services.search_models import (
     SearchBranchDiagnostic,
     SearchBranchResult,
@@ -14,11 +16,36 @@ from app.services.search_models import (
 T = TypeVar("T")
 
 
+def _call_with_signal(
+    call: Callable[..., T],
+    signal: CancellationSignal,
+) -> T:
+    """Support legacy no-argument branches during the cancellation rollout."""
+
+    try:
+        parameters = inspect.signature(call).parameters.values()
+    except (TypeError, ValueError):
+        return call(signal)
+
+    accepts_positional_signal = any(
+        parameter.kind
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.VAR_POSITIONAL,
+        )
+        for parameter in parameters
+    )
+    if accepts_positional_signal:
+        return call(signal)
+    return call()
+
+
 class SearchBranchRunner:
     async def run_thread(
         self,
         source: str,
-        call: Callable[[], T],
+        call: Callable[..., T],
         *,
         timeout_seconds: float,
         retry_attempts: int = 0,
@@ -26,6 +53,7 @@ class SearchBranchRunner:
     ) -> SearchBranchResult[T]:
         started = time.monotonic()
         deadline = started + max(0.001, timeout_seconds)
+        cancellation = CancellationSignal()
         last_error: Exception | None = None
         for attempt in range(max(0, retry_attempts) + 1):
             remaining = deadline - time.monotonic()
@@ -33,11 +61,15 @@ class SearchBranchRunner:
                 return self._timed_out(source, started)
             try:
                 value = await asyncio.wait_for(
-                    asyncio.to_thread(call),
+                    asyncio.to_thread(_call_with_signal, call, cancellation),
                     timeout=remaining,
                 )
             except asyncio.TimeoutError:
+                cancellation.cancel()
                 return self._timed_out(source, started)
+            except asyncio.CancelledError:
+                cancellation.cancel()
+                raise
             except Exception as exc:
                 last_error = exc
                 if attempt >= max(0, retry_attempts):

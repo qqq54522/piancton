@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Generic, Literal, TypeVar
 
@@ -9,6 +10,27 @@ from app.schemas.ai import SearchUnderstanding
 
 class SearchUnavailable(RuntimeError):
     """Raised when an external search backend cannot serve a request."""
+
+
+@dataclass(frozen=True)
+class SearchDeadline:
+    """Shared wall-clock budget for one online search request."""
+
+    expires_at: float
+
+    @classmethod
+    def from_timeout(cls, timeout_seconds: float) -> "SearchDeadline":
+        return cls(time.monotonic() + max(0.01, timeout_seconds))
+
+    def remaining(self) -> float:
+        return max(0.0, self.expires_at - time.monotonic())
+
+    def clamp(self, configured_seconds: float) -> float:
+        return min(max(0.01, configured_seconds), self.remaining())
+
+    @property
+    def expired(self) -> bool:
+        return self.remaining() <= 0
 
 
 @dataclass(frozen=True)

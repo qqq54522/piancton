@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.ai.contracts import ModelProviderNotConfigured, ModelRequest
+from app.ai.contracts import ModelCallResult, ModelProviderNotConfigured, ModelRequest
 from app.ai.openai_compatible import OpenAICompatibleModelProvider
-from app.schemas.api_center import ApiCredentialCreate
+from app.schemas.api_center import ApiCredentialCreate, RoutingSlotUpdate
 from app.services import api_center_service
 from app.services.api_center_service import ApiCenterService
 from tests.conftest import login
@@ -120,19 +120,23 @@ def test_health_check_updates_credential_status(client, monkeypatch):
         },
     ).json()
 
-    def fake_generate_json(self, request):
-        self.last_attempts = [
+    def fake_generate_json_with_attempts(self, request):
+        attempts = (
             {
                 "provider": "api.openai.test",
                 "model": self.model_name,
                 "status": "ok",
                 "duration_ms": 12,
                 "error": "",
-            }
-        ]
-        return {"ok": True}
+            },
+        )
+        return ModelCallResult({"ok": True}, attempts)
 
-    monkeypatch.setattr(OpenAICompatibleModelProvider, "generate_json", fake_generate_json)
+    monkeypatch.setattr(
+        OpenAICompatibleModelProvider,
+        "generate_json_with_attempts",
+        fake_generate_json_with_attempts,
+    )
 
     response = client.post(
         f"/api/admin/api-center/credentials/{created['id']}/test",
@@ -172,19 +176,23 @@ def test_run_all_health_checks_checks_non_disabled_keys(client, monkeypatch):
         },
     )
 
-    def fake_generate_json(self, request):
-        self.last_attempts = [
+    def fake_generate_json_with_attempts(self, request):
+        attempts = (
             {
                 "provider": "api.openai.test",
                 "model": self.model_name,
                 "status": "ok",
                 "duration_ms": 10,
                 "error": "",
-            }
-        ]
-        return {"ok": True, "task": request.task}
+            },
+        )
+        return ModelCallResult({"ok": True, "task": request.task}, attempts)
 
-    monkeypatch.setattr(OpenAICompatibleModelProvider, "generate_json", fake_generate_json)
+    monkeypatch.setattr(
+        OpenAICompatibleModelProvider,
+        "generate_json_with_attempts",
+        fake_generate_json_with_attempts,
+    )
 
     response = client.post(
         "/api/admin/api-center/health-checks/run-all",
@@ -245,19 +253,23 @@ def test_runtime_scheduler_writes_non_search_calls_directly_to_api_center(
     db_factory,
     monkeypatch,
 ):
-    def fake_generate_json(self, request):
-        self.last_attempts = [
+    def fake_generate_json_with_attempts(self, request):
+        attempts = (
             {
                 "provider": "agent.example.test",
                 "model": self.model_name,
                 "status": "ok",
                 "duration_ms": 7,
                 "error": "",
-            }
-        ]
-        return {"answer": "ok", "suggestedQuestions": []}
+            },
+        )
+        return ModelCallResult({"answer": "ok", "suggestedQuestions": []}, attempts)
 
-    monkeypatch.setattr(OpenAICompatibleModelProvider, "generate_json", fake_generate_json)
+    monkeypatch.setattr(
+        OpenAICompatibleModelProvider,
+        "generate_json_with_attempts",
+        fake_generate_json_with_attempts,
+    )
 
     with db_factory() as db:
         service = ApiCenterService(db)
@@ -342,7 +354,9 @@ def test_environment_credentials_are_imported_into_api_center(db_factory, monkey
     monkeypatch.setattr(api_center_service, "get_settings", lambda: settings)
 
     with db_factory() as db:
-        summary = ApiCenterService(db).summary()
+        service = ApiCenterService(db)
+        service.initialize_runtime()
+        summary = service.summary()
 
     labels = {item.label for item in summary.credentials}
     assert {
@@ -357,23 +371,35 @@ def test_environment_credentials_are_imported_into_api_center(db_factory, monkey
     assert summary.overview.configured_slot_count >= 4
 
 
+def test_api_center_summary_is_read_only_until_runtime_initialization(db_factory):
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        assert service.summary().routing_slots == []
+        service.initialize_runtime()
+        assert service.summary().routing_slots
+
+
 def test_api_center_scheduler_uses_healthy_auto_credentials(db_factory, monkeypatch):
     calls: list[str] = []
 
-    def fake_generate_json(self, request):
+    def fake_generate_json_with_attempts(self, request):
         calls.append(self.model_name)
-        self.last_attempts = [
+        attempts = (
             {
                 "provider": "api.example.test",
                 "model": self.model_name,
                 "status": "ok",
                 "duration_ms": 9,
                 "error": "",
-            }
-        ]
-        return {"ok": True, "task": request.task}
+            },
+        )
+        return ModelCallResult({"ok": True, "task": request.task}, attempts)
 
-    monkeypatch.setattr(OpenAICompatibleModelProvider, "generate_json", fake_generate_json)
+    monkeypatch.setattr(
+        OpenAICompatibleModelProvider,
+        "generate_json_with_attempts",
+        fake_generate_json_with_attempts,
+    )
 
     with db_factory() as db:
         service = ApiCenterService(db)
@@ -426,20 +452,24 @@ def test_api_center_scheduler_uses_healthy_auto_credentials(db_factory, monkeypa
 def test_api_center_scheduler_skips_saturated_credential(db_factory, monkeypatch):
     calls: list[str] = []
 
-    def fake_generate_json(self, request):
+    def fake_generate_json_with_attempts(self, request):
         calls.append(self.model_name)
-        self.last_attempts = [
+        attempts = (
             {
                 "provider": "api.example.test",
                 "model": self.model_name,
                 "status": "ok",
                 "duration_ms": 11,
                 "error": "",
-            }
-        ]
-        return {"ok": True, "task": request.task}
+            },
+        )
+        return ModelCallResult({"ok": True, "task": request.task}, attempts)
 
-    monkeypatch.setattr(OpenAICompatibleModelProvider, "generate_json", fake_generate_json)
+    monkeypatch.setattr(
+        OpenAICompatibleModelProvider,
+        "generate_json_with_attempts",
+        fake_generate_json_with_attempts,
+    )
 
     with db_factory() as db:
         service = ApiCenterService(db)
@@ -497,6 +527,95 @@ def test_api_center_scheduler_skips_saturated_credential(db_factory, monkeypatch
     busy_read = next(item for item in summary.credentials if item.id == busy.id)
     assert busy_read.current_concurrency == 1
     assert busy_read.capacity_status == "saturated"
+
+
+def test_manual_slot_uses_explicit_credentials_when_auto_assign_is_disabled(
+    db_factory,
+    monkeypatch,
+):
+    calls: list[str] = []
+
+    def fake_generate_json_with_attempts(self, request):
+        calls.append(self.model_name)
+        attempts = (
+            {
+                "provider": "manual.example.test",
+                "model": self.model_name,
+                "status": "ok",
+                "duration_ms": 8,
+                "error": "",
+            },
+        )
+        return ModelCallResult({"ok": True, "task": request.task}, attempts)
+
+    monkeypatch.setattr(
+        OpenAICompatibleModelProvider,
+        "generate_json_with_attempts",
+        fake_generate_json_with_attempts,
+    )
+
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        credential = service.create_credential(
+            ApiCredentialCreate(
+                label="人工指定 Key",
+                base_url="https://manual.example.test/v1",
+                model_name="gpt-manual",
+                api_key="sk-manual-value-1234",
+                task_scope=["asset_agent_chat"],
+                auto_assign_enabled=False,
+            ),
+            actor_user_id="admin",
+        )
+        service.update_slot(
+            "asset_agent_chat",
+            RoutingSlotUpdate(
+                primary_credential_id=credential.id,
+                auto_select_enabled=False,
+            ),
+            actor_user_id="admin",
+        )
+        provider = service.build_scheduled_provider(
+            fallback_provider=_UnconfiguredProvider()
+        )
+        result = provider.generate_json(
+            ModelRequest(
+                task="asset_agent_chat",
+                prompt="Return JSON",
+                input_text="test",
+                timeout_seconds=5,
+            )
+        )
+
+    assert result["ok"] is True
+    assert calls == ["gpt-manual"]
+
+
+def test_runtime_attempt_is_committed_in_trace_session(db_factory):
+    with db_factory() as db:
+        service = ApiCenterService(db, trace_session_factory=db_factory)
+        credential = service.create_credential(
+            ApiCredentialCreate(
+                label="独立状态 Key",
+                base_url="https://runtime.example.test/v1",
+                model_name="gpt-runtime",
+                api_key="sk-runtime-value-1234",
+            ),
+            actor_user_id="admin",
+        )
+        service.record_runtime_attempt(
+            credential.id,
+            status="ok",
+            duration_ms=42,
+            error_summary=None,
+        )
+
+    with db_factory() as db:
+        persisted = ApiCenterService(db).repo.get_credential(credential.id)
+
+    assert persisted is not None
+    assert persisted.last_status == "ok"
+    assert persisted.last_latency_ms == 42
 
 
 class _UnconfiguredProvider:

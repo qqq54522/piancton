@@ -7,10 +7,12 @@ from typing import TypeVar, cast
 from pydantic import BaseModel, ValidationError
 
 from app.ai.contracts import (
+    CancellationSignal,
     ModelProvider,
     ModelProviderError,
     ModelProviderNotConfigured,
     ModelRequest,
+    generate_validated_json_with_attempts,
 )
 from app.ai.knowledge import AiKnowledge
 from app.ai.normalizer import normalize_model_payload
@@ -79,6 +81,7 @@ class AiService:
         self.selling_point_timeout_seconds = selling_point_timeout_seconds
         self.proof_point_timeout_seconds = proof_point_timeout_seconds
         self.candidate_review_timeout_seconds = candidate_review_timeout_seconds
+        self.last_call_attempts: tuple[dict, ...] = ()
 
     def provider_status(self) -> ProviderStatus:
         return ProviderStatus(
@@ -161,17 +164,32 @@ class AiService:
             )
         return result.model_copy(update={"phrases": cleaned})
 
-    def understand_search(self, keyword: str) -> SearchUnderstanding:
-        routing = self.route_search_system(keyword)
-        return self.understand_search_from_route(keyword, routing)
+    def understand_search(
+        self,
+        keyword: str,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> SearchUnderstanding:
+        routing = self.route_search_system(keyword, cancellation=cancellation)
+        return self.understand_search_from_route(
+            keyword,
+            routing,
+            cancellation=cancellation,
+        )
 
-    def route_search_system(self, keyword: str) -> SearchSystemRouting:
+    def route_search_system(
+        self,
+        keyword: str,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> SearchSystemRouting:
         return self._run(
             ModelRequest(
                 task="search_system_routing",
                 prompt=build_system_routing_prompt(),
                 input_text=keyword,
                 timeout_seconds=self.system_routing_timeout_seconds,
+                cancellation=cancellation,
             ),
             SearchSystemRouting,
         )
@@ -180,14 +198,26 @@ class AiService:
         self,
         keyword: str,
         routing: SearchSystemRouting,
+        *,
+        cancellation: CancellationSignal | None = None,
     ) -> SearchUnderstanding:
-        selling_points = self.understand_selling_points_from_route(keyword, routing)
-        return self.understand_proof_points(keyword, selling_points)
+        selling_points = self.understand_selling_points_from_route(
+            keyword,
+            routing,
+            cancellation=cancellation,
+        )
+        return self.understand_proof_points(
+            keyword,
+            selling_points,
+            cancellation=cancellation,
+        )
 
     def understand_selling_points_from_route(
         self,
         keyword: str,
         routing: SearchSystemRouting,
+        *,
+        cancellation: CancellationSignal | None = None,
     ) -> SearchUnderstanding:
         system_codes = self._validated_routed_system_codes(routing)
         if not system_codes:
@@ -222,6 +252,7 @@ class AiService:
                     f"原始查询：{keyword}"
                 ),
                 timeout_seconds=self.selling_point_timeout_seconds,
+                cancellation=cancellation,
             ),
             SearchUnderstanding,
         )
@@ -232,6 +263,8 @@ class AiService:
         self,
         keyword: str,
         selling_points: SearchUnderstanding,
+        *,
+        cancellation: CancellationSignal | None = None,
     ) -> SearchUnderstanding:
         concept_codes = self._matched_concept_codes(selling_points)
         if not concept_codes:
@@ -253,6 +286,7 @@ class AiService:
                     f"原始查询：{keyword}"
                 ),
                 timeout_seconds=self.proof_point_timeout_seconds,
+                cancellation=cancellation,
             ),
             SearchProofPointUnderstanding,
         )
@@ -277,6 +311,7 @@ class AiService:
         keyword: str,
         understanding: SearchUnderstanding | None,
         candidates: list[dict],
+        cancellation: CancellationSignal | None = None,
     ) -> SearchCandidateReviewResult:
         if not candidates:
             return SearchCandidateReviewResult(decisions=[])
@@ -293,6 +328,7 @@ class AiService:
                 prompt=build_candidate_review_prompt(),
                 input_text=json.dumps(payload, ensure_ascii=False),
                 timeout_seconds=self.candidate_review_timeout_seconds,
+                cancellation=cancellation,
             ),
             SearchCandidateReviewResult,
         )
@@ -303,6 +339,7 @@ class AiService:
         keyword: str,
         understanding: SearchUnderstanding | None,
         candidates: list[dict],
+        cancellation: CancellationSignal | None = None,
     ) -> SearchResultRecommendationReasonResult:
         if not candidates:
             return SearchResultRecommendationReasonResult(reasons=[])
@@ -318,6 +355,7 @@ class AiService:
                 task="search_result_recommendation_reason",
                 prompt=build_result_recommendation_reason_prompt(),
                 input_text=json.dumps(payload, ensure_ascii=False),
+                cancellation=cancellation,
             ),
             SearchResultRecommendationReasonResult,
         )
@@ -673,40 +711,30 @@ class AiService:
                 )
             )
 
-        validated_runner = getattr(self.provider, "generate_validated_json", None)
-        if callable(validated_runner):
-            try:
-                return cast(ResultModel, validated_runner(request, validate))
-            except ModelProviderNotConfigured as exc:
-                raise AppError(
-                    "provider_not_configured",
-                    str(exc),
-                    status_code=503,
-                ) from exc
-            except ModelProviderError as exc:
-                raise AppError(
-                    "model_provider_error",
-                    str(exc),
-                    status_code=502,
-                ) from exc
-
         try:
-            payload = self.provider.generate_json(request)
+            call = generate_validated_json_with_attempts(
+                self.provider,
+                request,
+                validate,
+            )
+            self.last_call_attempts = call.attempts
+            return cast(ResultModel, call.value)
         except ModelProviderNotConfigured as exc:
+            self.last_call_attempts = _attempts_from_exception(exc)
             raise AppError(
                 "provider_not_configured",
                 str(exc),
                 status_code=503,
             ) from exc
         except ModelProviderError as exc:
+            self.last_call_attempts = _attempts_from_exception(exc)
             raise AppError(
                 "model_provider_error",
                 str(exc),
                 status_code=502,
             ) from exc
-        try:
-            return validate(payload)
         except ValidationError as exc:
+            self.last_call_attempts = _attempts_from_exception(exc)
             raise AppError(
                 "model_response_invalid",
                 "模型返回内容不符合项目结构要求",
@@ -822,3 +850,10 @@ class AiService:
         return bool(text) and any(
             marker in text for marker in SECONDARY_REASON_BOUNDARY_MARKERS
         )
+
+
+def _attempts_from_exception(exc: Exception) -> tuple[dict, ...]:
+    attempts = getattr(exc, "attempts", ())
+    if not isinstance(attempts, (list, tuple)):
+        return ()
+    return tuple(item for item in attempts if isinstance(item, dict))

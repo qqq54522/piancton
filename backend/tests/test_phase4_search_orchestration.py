@@ -3894,7 +3894,7 @@ def test_phase4_reranker_skips_when_remaining_budget_cannot_cover_call():
     assert total_timed_out is False
 
 
-def test_phase4_reranker_budget_starts_after_query_understanding(db_factory):
+def test_phase4_search_total_budget_includes_query_understanding(db_factory):
     class Provider:
         configured = True
 
@@ -3939,13 +3939,13 @@ def test_phase4_reranker_budget_starts_after_query_understanding(db_factory):
             reranker_timeout_seconds=0.03,
         ).search("同一个模糊画面关键词", 12)
 
-    assert reranker.calls == 1
+    assert reranker.calls == 0
     reranker_branch = next(
         item
         for item in response.search_diagnostics.branches
         if item.source == "reranker"
     )
-    assert reranker_branch.status == "ok"
+    assert reranker_branch.status == "timed_out"
 
 
 def test_phase4_global_recall_remains_when_no_selling_point_is_understood(db_factory):

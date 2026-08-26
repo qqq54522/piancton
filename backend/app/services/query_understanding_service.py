@@ -3,6 +3,13 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 
+from app.ai.contracts import (
+    CancellationSignal,
+    call_with_optional_cancellation,
+    has_candidate_review_capability,
+    has_routed_system_code_capability,
+    has_staged_search_capabilities,
+)
 from app.ai.skill_loader import INTENT_PROMPT_VERSION
 from app.core.errors import AppError
 from app.domain.business_intents import BusinessIntentCatalog
@@ -38,12 +45,19 @@ class IntentMatch:
     matched_terms: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class LocalUnderstandingContext:
+    understanding: SearchUnderstanding | None
+    matches: list[IntentMatch]
+    negated_names: tuple[str, ...]
+
+
 LOCAL_TRUST_THRESHOLD = 0.85
 AMBIGUOUS_CONFIDENCE_GAP = 0.05
 UNCERTAIN_FALLBACK_CONFIDENCE = 0.74
 EXPLORATION_CONFIDENCE = 0.88
 EXPLORATION_OVERRIDE_THRESHOLD = 0.9
-LOCAL_MATCHER_VERSION = "2026-07-27.2"
+LOCAL_MATCHER_VERSION = "2026-08-26.1"
 TRANSFER_TRAINING_PHRASES = ("变式训练", "同类题训练")
 TRANSFER_TRAINING_CONTEXT = (
     "例题",
@@ -162,38 +176,27 @@ class QueryUnderstandingService:
         query = keyword.strip()
         if not query:
             return None
-        negated = self._negated_intent_names(query)
-        composed = self._composition_understanding(query, negated)
-        if composed is not None:
-            return composed
-        matches = self._local_matches(query)
-        exploration = self._exploration_understanding(query, matches, negated)
-        if exploration is not None:
-            return exploration
-        if matches and self._should_trust_local(query, matches):
-            return self._with_local_proof_points(
-                query,
-                self._understanding_from_matches(
-                    query,
-                    matches,
-                    negated_names=negated,
-                ),
-            )
+        context = self._local_understanding_context(query)
+        if context.understanding is not None:
+            return context.understanding
 
         ai_understanding = self._understand_with_ai(query)
         if ai_understanding:
-            return _with_negated_concepts(ai_understanding, negated)
+            return _with_negated_concepts(
+                ai_understanding,
+                context.negated_names,
+            )
 
-        if matches:
+        if context.matches:
             return self._understanding_from_matches(
                 query,
-                matches,
-                negated_names=negated,
+                context.matches,
+                negated_names=context.negated_names,
                 confidence_cap=UNCERTAIN_FALLBACK_CONFIDENCE,
                 fallback_reason="本地意图不确定，AI 不可用，使用本地弱兜底",
             )
-        if negated:
-            return self._negative_only_understanding(query, negated)
+        if context.negated_names:
+            return self._negative_only_understanding(query, context.negated_names)
         return None
 
     def cache_key(self, keyword: str) -> str:
@@ -285,34 +288,143 @@ class QueryUnderstandingService:
         query = keyword.strip()
         if not query:
             return None
-        negated = self._negated_intent_names(query)
-        composed = self._composition_understanding(query, negated)
-        if composed is not None:
-            return composed
-        matches = self._local_matches(query)
-        exploration = self._exploration_understanding(query, matches, negated)
-        if exploration is not None:
-            return exploration
-        if not matches:
-            if negated:
-                return self._negative_only_understanding(query, negated)
-            return None
-        if self._should_trust_local(query, matches):
-            return self._with_local_proof_points(
-                query,
-                self._understanding_from_matches(
+        context = self._local_understanding_context(query)
+        if context.understanding is not None:
+            return context.understanding
+        if not context.matches:
+            if context.negated_names:
+                return self._negative_only_understanding(
                     query,
-                    matches,
-                    negated_names=negated,
-                ),
-            )
+                    context.negated_names,
+                )
+            return None
         return self._understanding_from_matches(
             query,
-            matches,
-            negated_names=negated,
+            context.matches,
+            negated_names=context.negated_names,
             confidence_cap=UNCERTAIN_FALLBACK_CONFIDENCE,
             fallback_reason="本地意图仍需消歧，不进入高置信卖点主通道",
         )
+
+    def _local_understanding_context(self, query: str) -> LocalUnderstandingContext:
+        negated = self._negated_intent_names(query)
+        matches = self._local_matches(query)
+        exploration = self._exploration_understanding(query, matches, negated)
+        if exploration is not None:
+            return LocalUnderstandingContext(exploration, matches, negated)
+        boundary = self._boundary_ambiguity_understanding(query, matches, negated)
+        if boundary is not None:
+            return LocalUnderstandingContext(boundary, matches, negated)
+        composed = self._composition_understanding(query, negated)
+        local = self._trusted_local_understanding(query, matches, negated)
+        if composed is not None and self._should_prefer_composition(
+            query,
+            matches,
+            local,
+            composed,
+        ):
+            return LocalUnderstandingContext(composed, matches, negated)
+        return LocalUnderstandingContext(local, matches, negated)
+
+    def _trusted_local_understanding(
+        self,
+        query: str,
+        matches: list[IntentMatch],
+        negated_names: tuple[str, ...],
+    ) -> SearchUnderstanding | None:
+        if not matches or not self._should_trust_local(query, matches):
+            return None
+        return self._with_local_proof_points(
+            query,
+            self._understanding_from_matches(
+                query,
+                matches,
+                negated_names=negated_names,
+            ),
+        )
+
+    def _should_prefer_composition(
+        self,
+        query: str,
+        matches: list[IntentMatch],
+        local: SearchUnderstanding | None,
+        composed: SearchUnderstanding,
+    ) -> bool:
+        """Let a governed semantic composition resolve weak or less-specific matches."""
+        if not matches or local is None:
+            return True
+        if local.query_type in {
+            "multi_business_intent_search",
+            "exploratory_business_intent_search",
+        }:
+            return False
+        top_confidence = matches[0].confidence
+        composed_confidence = max(
+            (
+                item.weight
+                for item in composed.matched_business_concepts
+                if item.relation == "direct"
+            ),
+            default=0.0,
+        )
+        local_codes = {
+            _concept_key(item.concept)
+            for item in local.matched_business_concepts
+            if item.relation == "direct"
+        }
+        composed_codes = {
+            _concept_key(item.concept)
+            for item in composed.matched_business_concepts
+        }
+        same_intent = bool(local_codes & composed_codes)
+        if (
+            not same_intent
+            and _has_unique_explicit_primary(matches[0], matches[1:])
+        ):
+            return _composition_has_more_specific_evidence(
+                composed,
+                matches[0],
+            )
+        composed_has_detail = bool(
+            composed.matched_proof_points or composed.matched_evidence_points
+        )
+        if (
+            same_intent
+            and composed.matched_proof_points
+            and any(
+                item.reason.startswith("组合语义命中")
+                for item in composed.matched_proof_points
+            )
+            and (
+                not local.matched_proof_points
+                or {
+                    item.code for item in local.matched_proof_points
+                }
+                != {
+                    item.code for item in composed.matched_proof_points
+                }
+            )
+        ):
+            return True
+        if composed_has_detail and not local.matched_proof_points:
+            # A composed proof may disambiguate a weaker neighboring concept,
+            # but it must not steal an otherwise trusted selling-point query
+            # whose detail is intentionally reserved for the staged model.
+            if not same_intent:
+                return True
+            if composed_confidence > top_confidence + 0.005:
+                return True
+        if (
+            same_intent
+            and composed.matched_evidence_points
+            and not local.matched_evidence_points
+        ):
+            return True
+        if same_intent and composed_has_detail and not local.matched_proof_points:
+            return composed_confidence >= top_confidence - 0.02
+        if composed_confidence > top_confidence + 0.005:
+            return True
+        return top_confidence < LOCAL_TRUST_THRESHOLD
 
     def should_use_model(
         self,
@@ -365,10 +477,17 @@ class QueryUnderstandingService:
         self,
         keyword: str,
         local_understanding: SearchUnderstanding,
+        *,
+        cancellation: CancellationSignal | None = None,
     ) -> SearchUnderstanding | None:
         if not self.ai_service or not self.supports_staged_model:
             return None
-        return self.ai_service.understand_proof_points(keyword, local_understanding)
+        return call_with_optional_cancellation(
+            self.ai_service.understand_proof_points,
+            keyword,
+            local_understanding,
+            cancellation=cancellation,
+        )
 
     def arbitrate_model_understanding(
         self,
@@ -396,29 +515,43 @@ class QueryUnderstandingService:
                     model_understanding.matched_evidence_points
                 ),
             )
-        return model_understanding
+        return self._with_local_proof_points(
+            model_understanding.original_query,
+            model_understanding,
+            model_matches=list(model_understanding.matched_proof_points),
+            model_evidence_matches=list(model_understanding.matched_evidence_points),
+        )
 
-    def understand_with_model(self, keyword: str) -> SearchUnderstanding | None:
+    def understand_with_model(
+        self,
+        keyword: str,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> SearchUnderstanding | None:
         query = keyword.strip()
         if not query or not self.ai_service or not self.ai_service.provider.configured:
             return None
         return _with_negated_concepts(
-            self.ai_service.understand_search(query),
+            call_with_optional_cancellation(
+                self.ai_service.understand_search,
+                query,
+                cancellation=cancellation,
+            ),
             self._negated_intent_names(query),
         )
 
     @property
     def supports_staged_model(self) -> bool:
         return bool(
-            self.ai_service
-            and callable(getattr(self.ai_service, "route_search_system", None))
-            and callable(
-                getattr(self.ai_service, "understand_selling_points_from_route", None)
-            )
-            and callable(getattr(self.ai_service, "understand_proof_points", None))
+            self.ai_service and has_staged_search_capabilities(self.ai_service)
         )
 
-    def route_with_model(self, keyword: str) -> SearchSystemRouting:
+    def route_with_model(
+        self,
+        keyword: str,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> SearchSystemRouting:
         query = keyword.strip()
         if not query or not self.ai_service or not self.supports_staged_model:
             raise AppError(
@@ -426,7 +559,11 @@ class QueryUnderstandingService:
                 "查询理解模型不支持分层调用",
                 status_code=503,
             )
-        return self.ai_service.route_search_system(query)
+        return call_with_optional_cancellation(
+            self.ai_service.route_search_system,
+            query,
+            cancellation=cancellation,
+        )
 
     def routed_system_codes(
         self,
@@ -434,10 +571,9 @@ class QueryUnderstandingService:
     ) -> tuple[str, ...]:
         if not self.ai_service:
             return ()
-        resolver = getattr(self.ai_service, "routed_system_codes", None)
-        if not callable(resolver):
+        if not has_routed_system_code_capability(self.ai_service):
             return ()
-        resolved = resolver(routing)
+        resolved = self.ai_service.routed_system_codes(routing)
         if not isinstance(resolved, (list, tuple, set)):
             return ()
         return tuple(str(item) for item in resolved)
@@ -446,12 +582,19 @@ class QueryUnderstandingService:
         self,
         keyword: str,
         routing: SearchSystemRouting,
+        *,
+        cancellation: CancellationSignal | None = None,
     ) -> SearchUnderstanding | None:
         query = keyword.strip()
         if not query or not self.ai_service or not self.supports_staged_model:
             return None
         return _with_negated_concepts(
-            self.ai_service.understand_search_from_route(query, routing),
+            call_with_optional_cancellation(
+                self.ai_service.understand_search_from_route,
+                query,
+                routing,
+                cancellation=cancellation,
+            ),
             self._negated_intent_names(query),
         )
 
@@ -459,13 +602,20 @@ class QueryUnderstandingService:
         self,
         keyword: str,
         routing: SearchSystemRouting,
+        *,
+        cancellation: CancellationSignal | None = None,
     ) -> SearchUnderstanding | None:
         query = keyword.strip()
         if not query or not self.ai_service or not self.supports_staged_model:
             return None
         try:
             result = _with_negated_concepts(
-                self.ai_service.understand_selling_points_from_route(query, routing),
+                call_with_optional_cancellation(
+                    self.ai_service.understand_selling_points_from_route,
+                    query,
+                    routing,
+                    cancellation=cancellation,
+                ),
                 self._negated_intent_names(query),
             )
         except AppError:
@@ -479,10 +629,17 @@ class QueryUnderstandingService:
                 return repaired
         return result
 
+    def repair_routed_selling_point_understanding(
+        self,
+        keyword: str,
+        routing: SearchSystemRouting,
+    ) -> SearchUnderstanding | None:
+        """Return a deterministic repair for a routed layer failure."""
+        return self._repair_routed_selling_point_understanding(keyword, routing)
+
     def model_attempts_detail(self) -> str:
-        provider = getattr(self.ai_service, "provider", None)
-        attempts = getattr(provider, "last_attempts", None)
-        if not isinstance(attempts, list) or not attempts:
+        attempts = self._current_model_attempts()
+        if not isinstance(attempts, (list, tuple)) or not attempts:
             return ""
         parts = []
         for attempt in attempts:
@@ -503,9 +660,8 @@ class QueryUnderstandingService:
         task: str,
         layer: str,
     ) -> tuple[ModelAttemptDiagnostic, ...]:
-        provider = getattr(self.ai_service, "provider", None)
-        attempts = getattr(provider, "last_attempts", None)
-        if not isinstance(attempts, list) or not attempts:
+        attempts = self._current_model_attempts()
+        if not attempts:
             return ()
         rows: list[ModelAttemptDiagnostic] = []
         for attempt in attempts:
@@ -525,12 +681,23 @@ class QueryUnderstandingService:
             )
         return tuple(rows)
 
+    def _current_model_attempts(self) -> tuple[dict, ...]:
+        service_attempts = getattr(self.ai_service, "last_call_attempts", ())
+        if isinstance(service_attempts, (list, tuple)) and service_attempts:
+            return tuple(item for item in service_attempts if isinstance(item, dict))
+        provider = getattr(self.ai_service, "provider", None)
+        attempts = getattr(provider, "last_attempts", ())
+        if not isinstance(attempts, (list, tuple)):
+            return ()
+        return tuple(item for item in attempts if isinstance(item, dict))
+
     def review_candidates_with_model(
         self,
         *,
         keyword: str,
         understanding: SearchUnderstanding | None,
         candidates: list[dict],
+        cancellation: CancellationSignal | None = None,
     ):
         query = keyword.strip()
         if (
@@ -538,27 +705,34 @@ class QueryUnderstandingService:
             or not candidates
             or not self.ai_service
             or not self.ai_service.provider.configured
-            or not callable(
-                getattr(self.ai_service, "review_search_candidates", None)
-            )
+            or not has_candidate_review_capability(self.ai_service)
         ):
             return None
-        return self.ai_service.review_search_candidates(
+        return call_with_optional_cancellation(
+            self.ai_service.review_search_candidates,
             keyword=query,
             understanding=understanding,
             candidates=candidates,
+            cancellation=cancellation,
         )
 
     def understand_proof_points_with_model(
         self,
         keyword: str,
         selling_points: SearchUnderstanding,
+        *,
+        cancellation: CancellationSignal | None = None,
     ) -> SearchUnderstanding | None:
         query = keyword.strip()
         if not query or not self.ai_service or not self.supports_staged_model:
             return None
         return _with_negated_concepts(
-            self.ai_service.understand_proof_points(query, selling_points),
+            call_with_optional_cancellation(
+                self.ai_service.understand_proof_points,
+                query,
+                selling_points,
+                cancellation=cancellation,
+            ),
             self._negated_intent_names(query),
         )
 
@@ -830,6 +1004,14 @@ class QueryUnderstandingService:
         # “薄弱点” must not downgrade it into an ambiguous global search.
         if _has_unique_explicit_primary(top, matches[1:]):
             return True
+        if _has_unique_contextual_primary(top, matches[1:]):
+            return True
+        if (
+            top.confidence >= 0.9
+            and second.confidence >= 0.9
+            and _has_independent_strong_evidence(matches)
+        ):
+            return True
         if top.confidence >= 0.9 and second.confidence >= 0.9 and _has_explicit_multi_marker(query):
             return True
         if self._is_ambiguous_query(query) and confidence_gap <= 0.15:
@@ -859,6 +1041,12 @@ class QueryUnderstandingService:
             matches,
             include_weak_alternatives=confidence_cap is not None,
         )
+        if (
+            len(selected) > 1
+            and not _has_explicit_multi_marker(query)
+            and _has_unique_explicit_primary(selected[0], selected[1:])
+        ):
+            selected = selected[:1]
         primary = selected[0]
         concept_matches: list[SearchConceptMatch] = []
         excluded: list[str] = []
@@ -1008,23 +1196,53 @@ class QueryUnderstandingService:
                 or intent.name in negated_names
             ):
                 continue
-            if any(
-                _normalize(term) in needle and not is_term_negated(query, term)
-                for term in signal.excluded_terms
+            if (
+                signal.min_query_length
+                and len(needle) < signal.min_query_length
+                and needle
+                not in {
+                    _normalize(intent.name),
+                    _normalize(intent.display_name),
+                }
             ):
                 continue
+            if _composition_excludes_query(query, needle, signal):
+                continue
             matched_groups: list[tuple[str, str]] = []
+            used_terms: list[str] = []
             for group in signal.groups:
                 matched = [
                     term
                     for term in group.terms
-                    if _normalize(term) in needle and not is_term_negated(query, term)
+                    if len(_normalize(term)) >= 2
+                    and _normalize(term) in needle
+                    and not is_term_negated(query, term)
                 ]
                 if not matched:
                     break
-                matched_groups.append(
-                    (group.name, max(matched, key=lambda item: len(_normalize(item))))
+                selected = next(
+                    (
+                        term
+                        for term in sorted(
+                            matched,
+                            key=lambda item: len(_normalize(item)),
+                            reverse=True,
+                        )
+                        if not any(
+                            _composition_terms_overlap(term, used)
+                            and len(_normalize(term)) < 4
+                            and len(_normalize(used)) < 4
+                            and _normalize(term) != _normalize(used)
+                            and _normalize(used) != needle
+                            for used in used_terms
+                        )
+                    ),
+                    None,
                 )
+                if selected is None:
+                    break
+                matched_groups.append((group.name, selected))
+                used_terms.append(selected)
             if len(matched_groups) != len(signal.groups):
                 continue
             candidates.append((signal.confidence, signal, intent, matched_groups))
@@ -1037,16 +1255,14 @@ class QueryUnderstandingService:
         evidence = "；".join(f"{name}={term}" for name, term in matched_groups)
         proof_matches: list[SearchProofPointMatch] = []
         evidence_matches: list[SearchEvidencePointMatch] = []
-        proof_name = "直属证明点"
-        if signal.proof_point_code:
+        if _composition_can_enter_proof_layer(
+            query,
+            intent,
+            matched_groups,
+            signal,
+        ):
             proof = self.proof_points.catalog.by_code.get(signal.proof_point_code)
             if proof is not None and proof.concept_code == intent.code:
-                proof_name = proof.name
-                allowed_evidence = [
-                    term
-                    for term in signal.evidence_terms
-                    if term in (*proof.search_terms, *proof.asset_terms)
-                ]
                 proof_matches.append(
                     SearchProofPointMatch(
                         code=proof.code,
@@ -1054,7 +1270,11 @@ class QueryUnderstandingService:
                         name=proof.name,
                         reason=f"组合语义命中：{evidence}",
                         weight=confidence,
-                        evidence_terms=allowed_evidence[:3],
+                        evidence_terms=[
+                            term
+                            for term in signal.evidence_terms
+                            if term in (*proof.search_terms, *proof.asset_terms)
+                        ][:3],
                     )
                 )
                 evidence_point = self.evidence_points.catalog.by_code.get(
@@ -1078,7 +1298,7 @@ class QueryUnderstandingService:
         return SearchUnderstanding(
             original_query=query,
             normalized_query=intent.name,
-            search_intent=f"用户在找“{intent.name}”中{proof_name}相关素材",
+            search_intent=f"用户在找“{intent.name}”相关素材",
             query_type="business_intent_search",
             expanded_terms=[],
             matched_business_concepts=[
@@ -1092,7 +1312,54 @@ class QueryUnderstandingService:
             matched_proof_points=proof_matches,
             matched_evidence_points=evidence_matches,
             excluded_concepts=list(negated_names),
-            search_strategy="按受治理的组合语义进入卖点主通道，并下钻到直属证明点",
+            search_strategy="按受治理的组合语义进入卖点主通道；证明点仅在查询明确表达细节时补全",
+        )
+
+    def _boundary_ambiguity_understanding(
+        self,
+        query: str,
+        matches: list[IntentMatch],
+        negated_names: tuple[str, ...],
+    ) -> SearchUnderstanding | None:
+        if not matches or not (
+            _is_shared_boundary_query(query, matches, self.search_policy.ambiguous_terms)
+            or _is_exam_review_boundary_query(query)
+            or _is_transfer_shared_boundary_query(query)
+        ):
+            return None
+        selected = matches[:2]
+        concepts = [
+            SearchConceptMatch(
+                concept=item.intent.display_name,
+                relation="related",
+                reason="共享边界证据不足，需要补充对象、时间尺度或目的后再路由",
+                weight=min(item.confidence, UNCERTAIN_FALLBACK_CONFIDENCE),
+            )
+            for item in selected
+        ]
+        return SearchUnderstanding(
+            original_query=query,
+            normalized_query=selected[0].intent.name,
+            search_intent=(
+                f"当前可能涉及：{'、'.join(item.intent.name for item in selected)}，"
+                "仍需消歧"
+            ),
+            query_type="ambiguous_business_intent_search",
+            expanded_terms=[],
+            matched_business_concepts=concepts,
+            matched_proof_points=[],
+            matched_evidence_points=[],
+            excluded_concepts=_unique(
+                [
+                    *negated_names,
+                    *(
+                        excluded
+                        for item in selected
+                        for excluded in item.intent.exclude_concepts
+                    ),
+                ]
+            ),
+            search_strategy="共享边界语义不足，不执行单卖点硬路由",
         )
 
     def _repair_routed_selling_point_understanding(
@@ -1370,10 +1637,85 @@ def _has_unique_explicit_primary(
         "功能表达命中：",
         "人工短话术精确命中：",
     )
-    return (
-        primary.confidence >= 0.95
-        and any(reason.startswith(explicit_reason_prefixes) for reason in primary.reasons)
+    if (
+        primary.confidence < 0.95
+        or not any(
+            reason.startswith(explicit_reason_prefixes)
+            for reason in primary.reasons
+        )
+    ):
+        return False
+    if all(item.confidence < 0.9 for item in alternatives):
+        return True
+    primary_terms = tuple(_normalize(term) for term in primary.matched_terms)
+    return bool(
+        primary_terms
+        and any(
+            _normalize(term) == _normalize(primary_terms[0])
+            and all(
+                _normalize(candidate) != _normalize(term)
+                and _normalize(candidate) in _normalize(term)
+                for candidate in item.matched_terms
+            )
+            for item in alternatives
+            for term in primary.matched_terms
+        )
+    )
+
+
+def _has_unique_contextual_primary(
+    primary: IntentMatch,
+    alternatives: list[IntentMatch],
+) -> bool:
+    """Trust a complete reviewed pain-point sentence over generic neighbors."""
+    return bool(
+        primary.confidence >= 0.9
+        and any(reason.startswith("家长痛点命中：") for reason in primary.reasons)
+        and len(primary.matched_terms) == 1
+        and _normalize(primary.matched_terms[0])
         and all(item.confidence < 0.9 for item in alternatives)
+    )
+
+
+def _composition_has_more_specific_evidence(
+    composed: SearchUnderstanding,
+    local_primary: IntentMatch,
+) -> bool:
+    """Allow a composed signal to win when it adds an uncovered semantic axis."""
+    reason = next(
+        (
+            item.reason
+            for item in composed.matched_business_concepts
+            if item.relation == "direct"
+        ),
+        "",
+    )
+    composition_terms = [
+        term.strip()
+        for part in reason.split("；")
+        if "=" in part
+        for term in (part.rsplit("=", 1)[-1],)
+        if term.strip()
+    ]
+    local_terms = tuple(
+        _normalize(term) for term in local_primary.matched_terms if _normalize(term)
+    )
+    return any(
+        len(_normalize(term)) >= 3
+        and any(
+            len(_normalize(term)) > len(normalized_local)
+            and normalized_local in _normalize(term)
+            for normalized_local in local_terms
+        )
+        or (
+            len(_normalize(term)) >= 3
+            and not any(
+                normalized_local == _normalize(term)
+                or _normalize(term) in normalized_local
+                for normalized_local in local_terms
+            )
+        )
+        for term in composition_terms
     )
 
 
@@ -1427,6 +1769,134 @@ def _has_explicit_multi_marker(value: str) -> bool:
     return any(
         marker in normalized for marker in ("既要", "还要", "也要", "又要", "同时", "并且", "以及")
     )
+
+
+def _has_independent_strong_evidence(matches: list[IntentMatch]) -> bool:
+    strong = [item for item in matches if item.confidence >= 0.9]
+    if len(strong) < 2:
+        return False
+    primary, secondary = strong[:2]
+    primary_terms = set(primary.matched_terms)
+    secondary_terms = set(secondary.matched_terms)
+    if not primary_terms or not secondary_terms:
+        return False
+    return not any(
+        _composition_terms_overlap(left, right)
+        for left in primary_terms
+        for right in secondary_terms
+    )
+
+
+def _composition_terms_overlap(left: str, right: str) -> bool:
+    normalized_left = _normalize(left)
+    normalized_right = _normalize(right)
+    return bool(
+        normalized_left
+        and normalized_right
+        and (
+            normalized_left in normalized_right
+            or normalized_right in normalized_left
+        )
+    )
+
+
+def _composition_excludes_query(query: str, needle: str, signal) -> bool:
+    """Apply exclusions unless the same term is an explicit positive axis."""
+    positive_terms = {
+        _normalize(term)
+        for group in signal.groups
+        for term in group.terms
+        if _normalize(term)
+    }
+    return any(
+        _normalize(term) in needle
+        and _normalize(term) not in positive_terms
+        and not is_term_negated(query, term)
+        for term in signal.excluded_terms
+    )
+
+
+def _composition_can_enter_proof_layer(
+    query: str,
+    intent: RuntimeIntent,
+    matched_groups: list[tuple[str, str]],
+    signal,
+) -> bool:
+    """Only detailed composed language may open proof-point routing."""
+    evidence = [term for _, term in matched_groups]
+    normalized_query = _normalize(query)
+    if normalized_query in {
+        _normalize(intent.name),
+        _normalize(intent.display_name),
+    }:
+        if not any(
+            _normalize(term) == normalized_query
+            and not is_term_negated(query, term)
+            for term in (
+                signal.exact_proof_trigger_terms
+                or signal.proof_trigger_terms
+            )
+        ):
+            return False
+    if signal.proof_on_composition:
+        if not signal.proof_trigger_terms:
+            return True
+        return any(
+            _normalize(term) in normalized_query
+            and not is_term_negated(query, term)
+            for term in signal.proof_trigger_terms
+        )
+    remainder = _proof_detail_remainder(
+        query,
+        [*evidence, intent.name],
+    )
+    return len(remainder) >= MIN_PROOF_DETAIL_LENGTH or any(
+        len(_normalize(term)) >= 4 and _normalize(term) in normalized_query
+        for term in evidence
+    )
+
+
+def _is_exam_review_boundary_query(query: str) -> bool:
+    needle = _normalize(query)
+    return (
+        "考前" in needle
+        and "快速复习" in needle
+        and ("没时间" in needle or "来不及" in needle)
+    )
+
+
+def _is_transfer_shared_boundary_query(query: str) -> bool:
+    needle = _normalize(query)
+    return (
+        "理解原理" in needle
+        and "换题也会" in needle
+        and any(separator in query for separator in ("，", ",", "；", ";"))
+    )
+
+
+def _is_shared_boundary_query(
+    query: str,
+    matches: list[IntentMatch],
+    ambiguous_terms: tuple[str, ...],
+) -> bool:
+    """Keep shared strong evidence ambiguous when governance marks it as such."""
+    needle = _normalize(query)
+    if not needle or _has_explicit_multi_marker(query):
+        return False
+    if not any(
+        _normalize(term) in needle
+        for term in ambiguous_terms
+        if _normalize(term)
+    ):
+        return False
+    strong = [item for item in matches if item.confidence >= LOCAL_TRUST_THRESHOLD]
+    if len(strong) < 2:
+        return False
+    primary, secondary = strong[:2]
+    if primary.confidence - secondary.confidence > 0.15:
+        return False
+    shared_terms = set(primary.matched_terms) & set(secondary.matched_terms)
+    return any(len(_normalize(term)) >= 4 for term in shared_terms)
 
 
 def _unique(values: list[str]) -> list[str]:

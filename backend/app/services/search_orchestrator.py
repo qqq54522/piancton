@@ -11,11 +11,10 @@ from app.services.query_understanding_service import QueryUnderstandingService
 from app.services.search_concept_context import (
     matches_from_understanding,
     merge_concept_matches,
-    new_concept_matches,
 )
 from app.services.search_diagnostics_service import SearchDiagnosticsService
 from app.services.search_external_branches import SearchExternalBranches
-from app.services.search_models import SearchBranchDiagnostic
+from app.services.search_models import SearchBranchDiagnostic, SearchDeadline
 from app.services.search_orchestrator_helpers import (
     concept_hits as recall_concept_hits,
 )
@@ -25,12 +24,13 @@ from app.services.search_orchestrator_helpers import (
     diagnostics_for_sources,
     elapsed_ms,
     explicit_or_local_understanding,
-    merge_added_concept_hits,
+    finalize_search_response,
     start_external_branches,
 )
 from app.services.search_orchestrator_helpers import (
     database_hits as recall_database_hits,
 )
+from app.services.search_query_context_resolver import SearchQueryContextResolver
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_rerank_coordinator import SearchRerankCoordinator
 from app.services.search_result_recommendation_service import (
@@ -56,6 +56,7 @@ class AsyncSearchOrchestrator:
         result_recommendation: SearchResultRecommendationService,
         system_filter: SearchSystemFilter,
         candidate_limit: int,
+        total_timeout_seconds: float,
     ):
         self.expansion = expansion
         self.query_understanding = query_understanding
@@ -68,7 +69,18 @@ class AsyncSearchOrchestrator:
         self.result_recommendation = result_recommendation
         self.system_filter = system_filter
         self.candidate_limit = max(1, candidate_limit)
+        self.total_timeout_seconds = max(0.1, total_timeout_seconds)
         self.diagnostics = SearchDiagnosticsService()
+        self.query_context = SearchQueryContextResolver(
+            expansion=expansion,
+            query_understanding=query_understanding,
+            query_profile=query_profile,
+            concept_recall=concept_recall,
+            database_recall=database_recall,
+            external_branches=external_branches,
+            ranking=ranking,
+            candidate_limit=self.candidate_limit,
+        )
 
     async def search(
         self,
@@ -80,6 +92,7 @@ class AsyncSearchOrchestrator:
         evidence_point_code: str | None = None,
     ) -> SearchResponse:
         started = time.monotonic()
+        deadline = SearchDeadline.from_timeout(self.total_timeout_seconds)
         local_understanding, explicit_filter = explicit_or_local_understanding(
             self.query_understanding,
             keyword,
@@ -91,7 +104,12 @@ class AsyncSearchOrchestrator:
         external_query = self.expansion.external_keyword(keyword, local_expansions)
 
         meili_task, embedding_branch, understanding_branch = start_external_branches(
-            self.external_branches, external_query, keyword, limit, local_understanding
+            self.external_branches,
+            external_query,
+            keyword,
+            limit,
+            local_understanding,
+            deadline=deadline,
         )
         embedding_result, embedding_task = embedding_branch
         understanding_result, understanding_task = understanding_branch
@@ -137,81 +155,21 @@ class AsyncSearchOrchestrator:
         assert embedding_result is not None
         assert understanding_result is not None
 
-        understanding = self.external_branches.final_understanding(
-            keyword,
-            local_understanding,
-            understanding_result,
-        )
-        model_understanding_succeeded = (
-            self.external_branches.understanding_succeeded(understanding_result)
-        )
-        precision_lock = self.external_branches.requires_precision_lock(
-            understanding_result
-        )
-        if understanding and understanding is not local_understanding:
-            model_expansions = self.expansion.queries_from_understanding(understanding)
-            database_hits = self.ranking.merge_hits(
-                database_hits,
-                recall_database_hits(
-                    self.database_recall,
-                    self.expansion,
-                    keyword,
-                    limit,
-                    self.candidate_limit,
-                    model_expansions,
-                ),
-            )
-
-        understood_matches = matches_from_understanding(understanding, self.concept_recall)
-        if model_understanding_succeeded:
-            concept_matches = understood_matches
-            concept_hits = recall_concept_hits(
-                self.concept_recall, concept_matches, limit, self.candidate_limit
-            )
-        else:
-            added_matches = new_concept_matches(concept_matches, understood_matches)
-            concept_matches, concept_hits = merge_added_concept_hits(
-                concept_matches=concept_matches,
-                concept_hits_value=concept_hits,
-                added_matches=added_matches,
-                concept_recall=self.concept_recall,
-                ranking=self.ranking,
-                limit=limit,
-                candidate_limit=self.candidate_limit,
-            )
-
-        profile = self.query_profile.build(
-            keyword,
+        context = self.query_context.resolve(
+            keyword=keyword,
+            local_understanding=local_understanding,
+            understanding_result=understanding_result,
+            explicit_filter=explicit_filter,
             concept_matches=concept_matches,
-            understanding=understanding,
+            concept_hits_value=concept_hits,
+            database_hits_value=database_hits,
+            limit=limit,
         )
-        if (
-            not explicit_filter
-            and
-            not model_understanding_succeeded
-            and profile.normalized_query != keyword.strip()
-        ):
-            normalized_matches = self.concept_recall.match(profile.normalized_query)
-            added_matches = new_concept_matches(concept_matches, normalized_matches)
-            concept_matches, concept_hits = merge_added_concept_hits(
-                concept_matches=concept_matches,
-                concept_hits_value=concept_hits,
-                added_matches=added_matches,
-                concept_recall=self.concept_recall,
-                ranking=self.ranking,
-                limit=limit,
-                candidate_limit=self.candidate_limit,
-            )
-        profile = self.query_profile.build(
-            keyword,
-            concept_matches=concept_matches,
-            understanding=understanding,
-        )
-        understanding = self.query_understanding.present_recognized_concepts(
-            keyword,
-            understanding,
-            concept_matches,
-        )
+        understanding = context.understanding
+        concept_matches = context.concept_matches
+        concept_hits = context.concept_hits
+        database_hits = context.database_hits
+        precision_lock = context.precision_lock
 
         database_diagnostic = SearchBranchDiagnostic(
             source="database",
@@ -234,7 +192,9 @@ class AsyncSearchOrchestrator:
             len(embedding_hits),
         )
 
-        hits = self.ranking.fuse_sources([concept_hits, database_hits, meili_hits, embedding_hits])
+        hits = self.ranking.fuse_sources(
+            [concept_hits, database_hits, meili_hits, embedding_hits]
+        )
         hits, active_concept_matches = confirmed_route(
             self.ranking, hits, concept_matches, keyword, understanding
         )
@@ -263,6 +223,7 @@ class AsyncSearchOrchestrator:
             keyword,
             hits,
             search_started=optional_rerank_started,
+            deadline=deadline,
             trusted_business_route=bool(active_concept_matches),
         )
         hits, active_concept_matches = confirmed_route(
@@ -275,6 +236,7 @@ class AsyncSearchOrchestrator:
             understanding=understanding,
             hits=hits[: max(limit, self.candidate_limit)],
             limit=limit,
+            deadline=deadline,
         )
         if candidate_review_result.value is not None:
             hits = candidate_review_result.value
@@ -283,36 +245,18 @@ class AsyncSearchOrchestrator:
             )
         branch_diagnostics.append(candidate_review_result.diagnostic)
 
-        response = self.ranking.build_response(
-            keyword=keyword,
-            hits=hits[:limit],
-            search_mode="meilisearch" if meili_hits else "fuzzy",
-            fallback=False,
-            search_understanding=understanding,
-            query_concept_matches=active_concept_matches,
-        )
-        recommendation_result = await self.result_recommendation.enrich(
-            keyword=keyword,
+        return await finalize_search_response(keyword=keyword,
+            limit=limit,
+            hits=hits,
+            meili_hits=meili_hits,
+            active_concept_matches=active_concept_matches,
             understanding=understanding,
-            hits=self.ranking.collapse_asset_groups(hits[:limit]),
-            results=response.results,
-        )
-        branch_diagnostics.append(recommendation_result.diagnostic)
-        if recommendation_result.value is not None:
-            response.results = recommendation_result.value
-
-        total_duration_ms = elapsed_ms(started)
-        search_diagnostics = self.diagnostics.build(
-            total_duration_ms=total_duration_ms,
-            branches=branch_diagnostics,
+            ranking=self.ranking,
+            result_recommendation=self.result_recommendation,
+            diagnostics=self.diagnostics,
+            branch_diagnostics=branch_diagnostics,
             reranker_used=reranker_used,
             total_timed_out=total_timed_out,
+            started=started,
+            deadline=deadline,
         )
-        fallback_reason = self.diagnostics.user_fallback_reason(
-            branch_diagnostics,
-            trusted_business_route=bool(active_concept_matches),
-        )
-        response.fallback = fallback_reason is not None
-        response.fallback_reason = fallback_reason
-        response.search_diagnostics = search_diagnostics
-        return response

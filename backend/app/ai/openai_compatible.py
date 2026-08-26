@@ -11,6 +11,9 @@ from urllib.parse import urlparse
 import httpx
 
 from app.ai.contracts import (
+    CancellationSignal,
+    ModelCallResult,
+    ModelProviderCancelled,
     ModelProviderError,
     ModelProviderNotConfigured,
     ModelRequest,
@@ -87,12 +90,19 @@ class OpenAICompatibleModelProvider:
         return bool(self.base_url and self.api_key and self.model_name)
 
     def generate_json(self, request: ModelRequest) -> dict[str, Any]:
+        return self.generate_json_with_attempts(request).value
+
+    def generate_json_with_attempts(
+        self,
+        request: ModelRequest,
+    ) -> ModelCallResult[dict[str, Any]]:
         if not self.configured:
             raise ModelProviderNotConfigured("OpenAI-compatible 模型 Provider 尚未配置完整")
 
         started = time.monotonic()
         status = "failed"
         error = ""
+        result: dict[str, Any] | None = None
         payload = {
             "model": self.model_name,
             "messages": self._messages(request),
@@ -100,29 +110,39 @@ class OpenAICompatibleModelProvider:
             "response_format": {"type": "json_object"},
         }
         try:
-            if request.timeout_seconds is None:
-                response_payload = self._post_chat_completions(payload)
-            else:
-                response_payload = self._post_chat_completions(
-                    payload,
-                    timeout_seconds=request.timeout_seconds,
-                )
+            post_options: dict[str, Any] = {}
+            if request.timeout_seconds is not None:
+                post_options["timeout_seconds"] = request.timeout_seconds
+            if request.cancellation is not None:
+                post_options["cancellation"] = request.cancellation
+            response_payload = self._post_chat_completions(payload, **post_options)
             result = self._extract_json(response_payload)
             status = "ok"
-            return result
         except Exception as exc:
             error = _safe_attempt_error(exc)
+            attempt = {
+                "provider": self.provider_label,
+                "model": self.model_name,
+                "status": status,
+                "duration_ms": _elapsed_ms(started),
+                "error": error,
+            }
+            if isinstance(exc, ModelProviderCancelled):
+                raise ModelProviderCancelled(str(exc), attempts=(attempt,)) from exc
+            if isinstance(exc, ModelProviderError):
+                raise ModelProviderError(str(exc), attempts=(attempt,)) from exc
             raise
         finally:
-            self.last_attempts = [
-                {
-                    "provider": self.provider_label,
-                    "model": self.model_name,
-                    "status": status,
-                    "duration_ms": _elapsed_ms(started),
-                    "error": error,
-                }
-            ]
+            attempt = {
+                "provider": self.provider_label,
+                "model": self.model_name,
+                "status": status,
+                "duration_ms": _elapsed_ms(started),
+                "error": error,
+            }
+            self.last_attempts = [attempt]
+        assert result is not None
+        return ModelCallResult(result, (attempt,))
 
     @property
     def provider_label(self) -> str:
@@ -190,6 +210,7 @@ class OpenAICompatibleModelProvider:
         payload: dict[str, Any],
         *,
         timeout_seconds: float | None = None,
+        cancellation: CancellationSignal | None = None,
     ) -> dict[str, Any]:
         url = f"{self.base_url}/chat/completions"
         headers = {
@@ -200,19 +221,40 @@ class OpenAICompatibleModelProvider:
             request_timeout = (
                 max(0.1, timeout_seconds) if timeout_seconds is not None else self.timeout_seconds
             )
-            with httpx.Client(timeout=request_timeout) as client:
+            client = httpx.Client(timeout=request_timeout, trust_env=False)
+            remove_cancel_callback = (
+                cancellation.add_callback(client.close)
+                if cancellation is not None
+                else None
+            )
+            try:
+                _raise_if_cancelled(cancellation)
                 response = client.post(url, headers=headers, json=payload)
                 if response.status_code == 400 and "response_format" in payload:
+                    _raise_if_cancelled(cancellation)
                     fallback_payload = {**payload}
                     fallback_payload.pop("response_format", None)
                     response = client.post(url, headers=headers, json=fallback_payload)
+                _raise_if_cancelled(cancellation)
                 response.raise_for_status()
                 data = response.json()
+            finally:
+                if remove_cancel_callback is not None:
+                    remove_cancel_callback()
+                client.close()
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code
             raise ModelProviderError(f"模型服务返回异常状态：{status}") from exc
-        except (httpx.HTTPError, json.JSONDecodeError) as exc:
+        except httpx.TimeoutException as exc:
+            if cancellation is not None and cancellation.cancelled:
+                raise ModelProviderCancelled("模型调用已取消") from exc
+            raise ModelProviderError("模型服务调用超时") from exc
+        except httpx.HTTPError as exc:
+            if cancellation is not None and cancellation.cancelled:
+                raise ModelProviderCancelled("模型调用已取消") from exc
             raise ModelProviderError("模型服务调用失败") from exc
+        except json.JSONDecodeError as exc:
+            raise ModelProviderError("模型服务返回不是合法 JSON") from exc
         if not isinstance(data, dict):
             raise ModelProviderError("模型服务返回格式无效")
         return data
@@ -259,6 +301,11 @@ class OpenAICompatibleModelProvider:
 
 def _elapsed_ms(started: float) -> int:
     return max(0, round((time.monotonic() - started) * 1000))
+
+
+def _raise_if_cancelled(cancellation: CancellationSignal | None) -> None:
+    if cancellation is not None and cancellation.cancelled:
+        raise ModelProviderCancelled("模型调用已取消")
 
 
 def _safe_attempt_error(exc: Exception) -> str:

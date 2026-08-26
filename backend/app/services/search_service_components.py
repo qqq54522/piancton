@@ -127,6 +127,7 @@ def build_search_components(
             ),
             system_filter=SearchSystemFilter(),
             candidate_limit=candidate_limit,
+            total_timeout_seconds=total_timeout_seconds,
         ),
         query_understanding=query_understanding,
     )

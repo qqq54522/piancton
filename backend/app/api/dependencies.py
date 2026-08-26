@@ -49,6 +49,15 @@ def _provider_attempt_count(provider) -> int:
     return max(1, int(getattr(provider, "attempt_count", 1)))
 
 
+def _build_scheduled_provider(db: Session, fallback_provider):
+    api_center = ApiCenterService(
+        db,
+        trace_session_factory=_trace_session_factory(db),
+    )
+    api_center.initialize_runtime()
+    return api_center.build_scheduled_provider(fallback_provider=fallback_provider)
+
+
 def get_db_session_factory():
     return SessionLocal
 
@@ -206,10 +215,7 @@ def get_api_center_service(db: Session = Depends(get_db)) -> ApiCenterService:
 def get_ai_service(db: Session = Depends(get_db)) -> AiService:
     fallback_provider = get_model_provider(purpose="image_analysis")
     return AiService(
-        ApiCenterService(
-            db,
-            trace_session_factory=_trace_session_factory(db),
-        ).build_scheduled_provider(fallback_provider=fallback_provider),
+        _build_scheduled_provider(db, fallback_provider),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
@@ -217,10 +223,7 @@ def get_ai_service(db: Session = Depends(get_db)) -> AiService:
 def get_asset_phrase_ai_service(db: Session = Depends(get_db)) -> AiService:
     fallback_provider = get_model_provider(purpose="asset_phrase")
     return AiService(
-        ApiCenterService(
-            db,
-            trace_session_factory=_trace_session_factory(db),
-        ).build_scheduled_provider(fallback_provider=fallback_provider),
+        _build_scheduled_provider(db, fallback_provider),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
@@ -229,10 +232,7 @@ def get_asset_agent_service(db: Session = Depends(get_db)) -> AssetAgentService:
     fallback_provider = get_model_provider(purpose="asset_phrase")
     return AssetAgentService(
         db,
-        ApiCenterService(
-            db,
-            trace_session_factory=_trace_session_factory(db),
-        ).build_scheduled_provider(fallback_provider=fallback_provider),
+        _build_scheduled_provider(db, fallback_provider),
     )
 
 
@@ -260,10 +260,7 @@ def get_search_ai_service(db: Session = Depends(get_db)) -> AiService:
         purpose="search",
     )
     return AiService(
-        ApiCenterService(
-            db,
-            trace_session_factory=_trace_session_factory(db),
-        ).build_scheduled_provider(fallback_provider=fallback_provider),
+        _build_scheduled_provider(db, fallback_provider),
         knowledge=AiKnowledgeService(db).knowledge(),
         system_routing_timeout_seconds=(settings.search_system_routing_timeout_seconds),
         selling_point_timeout_seconds=(settings.search_selling_point_timeout_seconds),

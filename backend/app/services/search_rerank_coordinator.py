@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from app.services.search_models import SearchBranchDiagnostic, SearchHit
+from app.services.search_models import SearchBranchDiagnostic, SearchDeadline, SearchHit
 from app.services.search_ranking_service import SearchRankingService
 
 
@@ -27,9 +27,14 @@ class SearchRerankCoordinator:
         hits: list[SearchHit],
         *,
         search_started: float,
+        deadline: SearchDeadline | None = None,
         trusted_business_route: bool = False,
     ) -> tuple[list[SearchHit], SearchBranchDiagnostic, bool, bool]:
-        remaining = self.total_timeout_seconds - (time.monotonic() - search_started)
+        remaining = (
+            deadline.remaining()
+            if deadline is not None
+            else self.total_timeout_seconds - (time.monotonic() - search_started)
+        )
         if remaining <= 0:
             return hits, self._timed_out(hits, "总截止时间已到，跳过重排"), False, True
         if not self.ranking.reranker.configured or len(hits) <= 1:

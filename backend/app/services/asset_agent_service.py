@@ -11,6 +11,7 @@ from app.ai.contracts import (
     ModelProviderError,
     ModelProviderNotConfigured,
     ModelRequest,
+    generate_json_with_attempts,
 )
 from app.core.errors import AppError, NotFoundError
 from app.models.asset import AssetGroup
@@ -58,6 +59,7 @@ class AssetAgentService:
     def __init__(self, db: Session, provider: ModelProvider):
         self.db = db
         self.provider = provider
+        self.last_call_attempts: tuple[dict[str, Any], ...] = ()
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
@@ -175,19 +177,28 @@ class AssetAgentService:
         suggestions: list[str]
         used_model: bool
         try:
-            raw = self.provider.generate_json(
+            call = generate_json_with_attempts(
+                self.provider,
                 ModelRequest(
                     task="asset_agent_chat",
                     prompt=prompt,
                     input_text=input_text,
                     timeout_seconds=30,
-                )
+                ),
             )
+            self.last_call_attempts = call.attempts
+            raw = call.value
             result = AssetAgentModelResponse.model_validate(raw)
             answer = result.answer.strip()
             suggestions = _clean_suggestions(result.suggested_questions)
             used_model = True
         except (ModelProviderNotConfigured, ModelProviderError, ValueError) as exc:
+            attempts = getattr(exc, "attempts", ())
+            self.last_call_attempts = (
+                tuple(item for item in attempts if isinstance(item, dict))
+                if isinstance(attempts, (list, tuple))
+                else ()
+            )
             answer = self._fallback_answer(message, images, groups, error=str(exc))
             suggestions = _fallback_suggestions(bool(images or groups))
             used_model = False
@@ -478,7 +489,9 @@ class AssetAgentService:
         return "\n".join(lines)
 
     def _provider_attempts(self) -> list[dict[str, Any]]:
-        attempts = getattr(self.provider, "last_attempts", [])
+        attempts = self.last_call_attempts
+        if not isinstance(attempts, (list, tuple)) or not attempts:
+            attempts = getattr(self.provider, "last_attempts", [])
         return [attempt for attempt in attempts if isinstance(attempt, dict)]
 
 

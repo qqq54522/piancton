@@ -17,6 +17,7 @@ from app.services.search_models import (
     QueryUnderstandingOutcome,
     SearchBranchDiagnostic,
     SearchBranchResult,
+    SearchDeadline,
     SearchHit,
 )
 
@@ -81,6 +82,8 @@ class SearchExternalBranches:
         keyword: str,
         limit: int,
         local_understanding: SearchUnderstanding | None,
+        *,
+        deadline: SearchDeadline | None = None,
     ):
         if _has_high_confidence_local_concept(local_understanding):
             skipped = self.runner.skipped(
@@ -99,8 +102,14 @@ class SearchExternalBranches:
         return asyncio.create_task(
             self.runner.run_thread(
                 "meilisearch",
-                lambda: self.meilisearch.recall_candidates(keyword, recall_limit),
-                timeout_seconds=self.meilisearch_timeout_seconds,
+                lambda _signal: self.meilisearch.recall_candidates(
+                    keyword,
+                    recall_limit,
+                ),
+                timeout_seconds=_clamp_timeout(
+                    self.meilisearch_timeout_seconds,
+                    deadline,
+                ),
             )
         )
 
@@ -108,6 +117,8 @@ class SearchExternalBranches:
         self,
         keyword: str,
         local_understanding: SearchUnderstanding | None,
+        *,
+        deadline: SearchDeadline | None = None,
     ):
         if _has_high_confidence_local_concept(local_understanding):
             return self.runner.skipped(
@@ -123,8 +134,11 @@ class SearchExternalBranches:
         task = asyncio.create_task(
             self.runner.run_thread(
                 "embedding",
-                lambda: self.embedding.query_vector(keyword),
-                timeout_seconds=self.embedding_timeout_seconds,
+                lambda _signal: self.embedding.query_vector(keyword),
+                timeout_seconds=_clamp_timeout(
+                    self.embedding_timeout_seconds,
+                    deadline,
+                ),
             )
         )
         return None, task
@@ -133,6 +147,8 @@ class SearchExternalBranches:
         self,
         keyword: str,
         local_understanding: SearchUnderstanding | None,
+        *,
+        deadline: SearchDeadline | None = None,
     ):
         if not self.understanding.should_use_model(keyword, local_understanding):
             detail = (
@@ -158,14 +174,20 @@ class SearchExternalBranches:
             ), None
         if self.understanding.supports_staged_model:
             task = asyncio.create_task(
-                self._run_staged_understanding(keyword)
+                self._run_staged_understanding(keyword, deadline=deadline)
             )
             return None, task
         task = asyncio.create_task(
             self.runner.run_thread(
                 "query_understanding",
-                lambda: self.understanding.understand_with_model(keyword),
-                timeout_seconds=self.understanding_timeout_seconds,
+                lambda signal: self.understanding.understand_with_model(
+                    keyword,
+                    cancellation=signal,
+                ),
+                timeout_seconds=_clamp_timeout(
+                    self.understanding_timeout_seconds,
+                    deadline,
+                ),
             )
         )
         return None, task
@@ -173,14 +195,19 @@ class SearchExternalBranches:
     async def _run_staged_understanding(
         self,
         keyword: str,
+        *,
+        deadline: SearchDeadline | None = None,
     ) -> SearchBranchResult[QueryUnderstandingOutcome]:
         started = time.monotonic()
         route_result = await self.runner.run_thread(
             "query_system_routing",
-            lambda: self.understanding.route_with_model(keyword),
-            timeout_seconds=(
-                self.system_routing_timeout_seconds
-                + self.understanding_grace_seconds
+            lambda signal: self.understanding.route_with_model(
+                keyword,
+                cancellation=signal,
+            ),
+            timeout_seconds=_clamp_timeout(
+                self.system_routing_timeout_seconds + self.understanding_grace_seconds,
+                deadline,
             ),
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
@@ -241,13 +268,14 @@ class SearchExternalBranches:
 
         selling_result = await self.runner.run_thread(
             "query_selling_point_understanding",
-            lambda: self.understanding.understand_selling_points_with_model_route(
+            lambda signal: self.understanding.understand_selling_points_with_model_route(
                 keyword,
                 routing,
+                cancellation=signal,
             ),
-            timeout_seconds=(
-                self.selling_point_timeout_seconds
-                + self.understanding_grace_seconds
+            timeout_seconds=_clamp_timeout(
+                self.selling_point_timeout_seconds + self.understanding_grace_seconds,
+                deadline,
             ),
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
@@ -262,6 +290,18 @@ class SearchExternalBranches:
             and isinstance(selling_result.value, SearchUnderstanding)
         )
         if not selling_completed:
+            repaired = self.understanding.repair_routed_selling_point_understanding(
+                keyword,
+                routing,
+            )
+            if repaired is not None:
+                selling_understanding = repaired
+                selling_completed = True
+            else:
+                selling_understanding = None
+        else:
+            selling_understanding = selling_result.value
+        if not selling_completed:
             return SearchBranchResult(
                 value=QueryUnderstandingOutcome(
                     understanding=None,
@@ -272,12 +312,21 @@ class SearchExternalBranches:
                 ),
                 diagnostic=SearchBranchDiagnostic(
                     source="query_understanding",
-                    status=selling_result.diagnostic.status,
+                    status=(
+                        "ok"
+                        if selling_understanding is not None
+                        else selling_result.diagnostic.status
+                    ),
                     duration_ms=_elapsed_ms(started),
                     detail=(
                         f"体系路由 {route_result.diagnostic.duration_ms}ms；"
                         f"卖点识别 {selling_result.diagnostic.duration_ms}ms；"
-                        "卖点层未完成，启用精度保护"
+                        + (
+                            "按本地规则保护性补全；"
+                            if selling_understanding is not None
+                            else "卖点层未完成，启用精度保护"
+                        )
+                        +
                         f"{_attempt_suffix('体系Provider', route_attempts_detail)}"
                         f"{_attempt_suffix('卖点Provider', selling_attempts_detail)}"
                     ),
@@ -285,7 +334,6 @@ class SearchExternalBranches:
                 ),
             )
 
-        selling_understanding = selling_result.value
         assert isinstance(selling_understanding, SearchUnderstanding)
         if not selling_understanding.matched_business_concepts:
             return SearchBranchResult(
@@ -304,7 +352,12 @@ class SearchExternalBranches:
                     detail=(
                         f"体系路由 {route_result.diagnostic.duration_ms}ms；"
                         f"卖点识别 {selling_result.diagnostic.duration_ms}ms；"
-                        "未命中卖点，无需进入证明点层"
+                        + (
+                            "按本地规则保护性补全；"
+                            if selling_result.diagnostic.status != "ok"
+                            else ""
+                        )
+                        + "未命中卖点，无需进入证明点层"
                         f"{_attempt_suffix('体系Provider', route_attempts_detail)}"
                         f"{_attempt_suffix('卖点Provider', selling_attempts_detail)}"
                     ),
@@ -314,13 +367,14 @@ class SearchExternalBranches:
 
         proof_result = await self.runner.run_thread(
             "query_proof_point_understanding",
-            lambda: self.understanding.understand_proof_points_with_model(
+            lambda signal: self.understanding.understand_proof_points_with_model(
                 keyword,
                 selling_understanding,
+                cancellation=signal,
             ),
-            timeout_seconds=(
-                self.proof_point_timeout_seconds
-                + self.understanding_grace_seconds
+            timeout_seconds=_clamp_timeout(
+                self.proof_point_timeout_seconds + self.understanding_grace_seconds,
+                deadline,
             ),
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
@@ -460,6 +514,7 @@ class SearchExternalBranches:
         understanding: SearchUnderstanding | None,
         hits: list[SearchHit],
         limit: int,
+        deadline: SearchDeadline | None = None,
     ) -> SearchBranchResult[list[SearchHit]]:
         review_limit = min(max(limit, 1), self.candidate_review_limit)
         contexts = self._candidate_review_contexts(hits[:review_limit])
@@ -493,12 +548,16 @@ class SearchExternalBranches:
             )
         result = await self.runner.run_thread(
             "candidate_review",
-            lambda: self.understanding.review_candidates_with_model(
+            lambda signal: self.understanding.review_candidates_with_model(
                 keyword=keyword,
                 understanding=understanding,
                 candidates=contexts,
+                cancellation=signal,
             ),
-            timeout_seconds=self.candidate_review_timeout_seconds,
+            timeout_seconds=_clamp_timeout(
+                self.candidate_review_timeout_seconds,
+                deadline,
+            ),
         )
         attempts = self.understanding.model_attempts(
             task="search_candidate_review",
@@ -676,3 +735,9 @@ def _has_high_confidence_local_concept(
 
 def _elapsed_ms(started: float) -> int:
     return max(0, round((time.monotonic() - started) * 1000))
+
+
+def _clamp_timeout(configured_seconds: float, deadline: SearchDeadline | None) -> float:
+    if deadline is None:
+        return max(0.01, configured_seconds)
+    return deadline.clamp(configured_seconds)

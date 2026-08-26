@@ -1,8 +1,8 @@
 # 图片搜索系统改造总纲
 
-版本：2.29（全项目 API 调度统一遥测）
-更新时间：2026-08-25
-状态：Phase 0～6 工程完成；六体系 58 个绿色证据表达点可在上传和详情业务层级中维护；16 个核心卖点均已按业务组合语义稳定下钻到直属证明点；真实校验中发现的口语误命中按小补丁补边界和素材话术，不沉淀为大词库；API 中心已从产品化管理页进入运行链路，支持环境 Key 自动导入、算法健康池调度、容量并发占用、系统容量估算、失败冷却、一键巡检和五层搜索 Skill 调用链路遥测；搜索结果推荐说明已从卖点固定文案改为基于“本次查询 + 当前图片 + 命中卖点/证明点/素材话术”的动态推荐理由，并在最终排序/候选复核后通过独立 API 任务批量增强，失败时回退本地确定性理由；视觉基调统一为黑白暖灰，侧边栏与素材库 Agent 已加入原创轻量动效；素材库 Agent 从浏览器本地记录升级为后端用户私有会话，管理员也不得跨用户查看和操作他人聊天记录；素材组和图片版本已建立正式身份码体系，支持同一搜索框中的身份码/分享链接精确查找
+版本：2.33（单服务器 Provider 取消机制收口）
+更新时间：2026-08-26
+状态：Phase 0～6 工程完成；六体系 58 个绿色证据表达点可在上传和详情业务层级中维护；16 个核心卖点均已按业务组合语义稳定下钻到直属证明点；真实校验中发现的口语误命中按小补丁补边界和素材话术，不沉淀为大词库；API 中心已从产品化管理页进入运行链路，支持环境 Key 自动导入、算法健康池调度、容量并发占用、系统容量估算、失败冷却、一键巡检和五层搜索 Skill 调用链路遥测；搜索结果推荐说明已从卖点固定文案改为基于“本次查询 + 当前图片 + 命中卖点/证明点/素材话术”的动态推荐理由，并在最终排序/候选复核后通过独立 API 任务批量增强，失败时回退本地确定性理由；视觉基调统一为黑白暖灰，侧边栏与素材库 Agent 已加入原创轻量动效；素材库 Agent 从浏览器本地记录升级为后端用户私有会话，管理员也不得跨用户查看和操作他人聊天记录；素材组和图片版本已建立正式身份码体系，支持同一搜索框中的身份码/分享链接精确查找；产品/工程体检第二轮已完成请求级 Provider 遥测和前端 Agent 会话模型拆分，剩余事项进入后续生产化治理清单
 适用项目：`piancton`  
 
 > 本文档是图片搜索改造的唯一事实来源（Single Source of Truth）。后续新窗口、新开发者或新模型开始工作前，必须先完整阅读本文档。聊天中的临时想法若未写入本文档，不视为已确定方案。
@@ -12,6 +12,13 @@
 ## 0. 跨窗口接力区
 
 ### 0.1 当前阶段
+
+- 2026-08-26 D222 单服务器 Provider 取消机制收口：为每个外部模型请求增加请求级 `CancellationSignal`，搜索分支超过预算或被取消时主动触发；OpenAI-compatible Provider 在取消回调中关闭当前 `httpx.Client`，结束本机连接池和底层传输，HTTP 错误转换为明确的 Provider cancelled/timeout 状态；Fallback Provider 和 API 中心收到取消后停止继续尝试其他 Key。查询理解服务和搜索线程执行器增加集中式兼容调用层，旧的无取消参数测试替身仍可工作，不把兼容判断散落到业务编排。该实现适用于当前单服务器部署，不新增多 backend 共享容量租约；取消能停止本机等待、连接和后续 fallback，但无法撤销外部 Provider 服务端已经开始的内部推理，若厂商 SDK/网络库忽略关闭信号，Python 线程只能在底层调用返回后结束。验证：后端全量 `300 passed`、Ruff 通过、Pyright `0 errors / 1 existing warning`；前端 TypeScript、ESLint、Vitest `15 files / 48 tests passed`、production build 通过；`git diff --check` 通过。无数据库迁移、无业务事实写入。
+- 2026-08-26 D221 产品/工程体检第二轮阶段性完成：API 中心运行时初始化已固定为显式 `initialize_runtime()` 生命周期动作，`summary()`、运行时 API 选择和 Provider 构建不再隐式创建槽位或同步环境 Key；Provider 调用结果统一使用请求级 `ModelCallResult` 携带 attempts，覆盖 OpenAI-compatible Provider、Fallback Provider、API 中心调度 Provider，并由搜索、素材库 Agent 和 AI Service 优先消费本次请求的遥测快照，避免并发复用实例时串线。查询理解、候选复核和结果推荐理由的动态能力探测收敛为能力协议辅助函数，同时保留旧测试 Provider 的兼容适配。前端 `AssetAgentWidget` 的会话状态、API 归一化、上下文转换和格式化函数已抽到独立 `assetAgentSessionModel.ts`，新增纯逻辑测试；不改变 Agent 隐私、会话时效、图片上下文或业务事实。验证：后端全量 `296 passed`、Ruff 通过、Pyright `0 errors / 1 existing warning`；前端 TypeScript、ESLint、Vitest `15 files / 48 tests passed`、production build 通过；`git diff --check` 通过。无数据库迁移、无正式素材/概念/公共话术/人工 accepted 关系写入。
+- 2026-08-26 D221 阶段启动记录：在 D220 的职责收敛基础上，先把 API 中心运行时初始化改为显式 `initialize_runtime()`，再治理 Provider 实例级 `last_attempts` 的并发串线和动态能力探测；整个阶段不改变模型任务、降级顺序、遥测字段或业务搜索事实源。
+- 2026-08-26 D220 产品/工程体检第一轮收口：在 D219 的回归修复基础上，继续按“职责收敛优先于新增能力”审查搜索和 API 中心。搜索总预算现在由 `AsyncSearchOrchestrator` 显式持有，并通过不可变 `SearchDeadline` 贯穿 Meilisearch、Embedding、查询理解、候选复核、Reranker 和结果推荐理由；原先只由 Reranker 间接读取总预算的职责倒置已解除。新增 `SearchQueryContextResolver`，把本地理解、分层模型结果、概念匹配、数据库补召回和结果展示归一集中封装，编排器只负责启动分支、候选融合、排序/复核和响应收尾。API 中心并发容量策略抽到 `api_center_runtime_policy.py`，人工指定 API 不再错误要求 `auto_assign_enabled`，独立遥测 session 明确 commit。无数据库迁移、无业务数据写入、无六大体系/16 卖点/证明点/人工 accepted 关系变化；后端全量 `294 passed`、Ruff 通过、Pyright `0 errors / 1 existing warning`。本轮未声称解决同步线程底层 HTTP 无法真正取消、Provider 动态探测接口仍较宽和多进程容量账本共享等生产风险。
+
+- 2026-08-25 D219 基线恢复与搜索边界收敛：在进入产品/工程体检前先运行当前完整检查，发现 `282 passed, 10 failed`。本轮治理范围收敛为先修复可复现的意图状态、证明点识别、模型分层失败降级和人工关系准入回归，再进入大模块拆分；不新增六大体系、16 个核心卖点、公共话术、数据库字段或搜索召回来源。具体修复边界：受治理组合语义不能压过更具体的拍题/变式语义；泛化卖点查询不能自动生成直属证明点；第一层已确认的考试阶段查询在第二层模型结构失败时必须按现有本地知识保护性补全；明确证明点查询只允许有对应 accepted 证明关系和素材证据的图片进入；架构阈值、评测用例和当前实现必须保持同一契约。验收以原失败用例全部恢复、后端全量检查继续通过、前端检查不回归为准。
 
 - 2026-08-25 D218 全项目 API 调度统一遥测：用户明确要求 API 调度中心统一覆盖项目中所有 API/模型调用，不限于搜索。现有 `model_call_traces` 继续作为唯一调用台账；API 中心调度 Provider 在每次普通业务调用结束时直接写入成功、失败、超时或未配置/跳过记录，避免依赖搜索日志提交。覆盖上传主图分析、上传前素材话术、搜索五层、素材库 Agent、兼容文案卖点匹配、管理员健康检查；搜索增强的 Embedding、Reranker、Meilisearch 也通过同一台账记录。记录只保留 task、layer、provider、model、状态、耗时和安全错误摘要，不记录完整 Key、Authorization、Prompt、图片字节、外部响应或用户私有 Agent 聊天正文。搜索日志不再重复写入调用台账；API 中心页面改为“全项目 API 调用链路”，状态展示为 OK、失败、超时、未配置/跳过。身份码精确查找仍不调用模型。
 
@@ -696,6 +703,86 @@
 
 - 用户确认官网、手机端等渠道未来会继续细分为大屏/小屏等更多模块，业务端详情页右侧“同渠道/品牌手册/官网/PPT”等周边推荐不应继续把页面撑长。本轮仅调整前端业务端详情页布局：左侧“相关素材推荐”模块保持根据内部图片自适应高度；右侧周边推荐容器在桌面双栏布局下用 `ResizeObserver` 跟随该模块高度，并在容器内纵向滚动，内容不会超过对应模块高度。小屏单栏布局不强制高度限制。
 - 本轮不新增后端推荐接口、不改数据库 schema、不改变渠道识别、搜索召回、Reranker、下载安全、素材关系、设计师/管理员详情页或业务端权限边界。验证：前端 TypeScript、ESLint 和相关单测通过；Docker 重建后 `http://127.0.0.1` 返回 `200`，`/health` 为 `ready`，四服务 healthy。
+
+### 0.49 产品/工程体检第一轮交接（已完成，2026-08-26）
+
+#### 修改文件
+
+- 后端搜索边界：`search_models.py`、`search_external_branches.py`、`search_orchestrator.py`、`search_orchestrator_helpers.py`、`search_rerank_coordinator.py`、`search_result_recommendation_service.py`、`search_service_components.py`、新增 `search_query_context_resolver.py`。
+- 后端 API 中心：`api_center_service.py`、新增 `api_center_runtime_policy.py`。
+- 查询理解和业务边界：`query_understanding_service.py`、`runtime_intents.py`、`public-phrase-governance.json`、`taxonomy/search_policy.json`。
+- 回归契约：`test_api_center.py`、`test_phase4_search_orchestration.py`。
+
+#### 数据迁移
+
+- 无数据库迁移。
+- 无正式素材、概念、公共话术或人工 accepted 关系写入。
+
+#### 验证结果
+
+- 后端 `./.venv/bin/python -m pytest tests -q`：`294 passed`。
+- 后端 `./.venv/bin/ruff check app tests scripts`：通过。
+- 后端 `./.venv/bin/pyright`：`0 errors / 1 existing warning`，警告位于 `search_branch_runner.py` 的历史泛型定义。
+- 架构护栏确认 `search_orchestrator.py` 259 行，查询上下文解析器独立承担归一化流程。
+
+#### 剩余问题
+
+- `asyncio.to_thread()` 超时只取消等待，不会终止底层同步 HTTP 调用；后续需为 Provider 使用可取消的异步 HTTP 或显式请求句柄。
+- 查询理解和推荐理由仍有 `getattr()`/`callable()` 动态探测；后续定义窄接口或能力对象，保留测试 Provider 的兼容适配。
+- Provider 实例级 `last_attempts` 仍可能在并发复用同一个 Provider 时发生遥测错配；后续改为请求级调用结果或结构化调用快照。
+- `getattr()`/`callable()` 动态能力探测仍分散在查询理解、推荐理由和调度 Provider；后续定义窄接口或能力对象，保留测试 Provider 的兼容适配。
+- 进程内容量账本不适用于多 backend 横向扩展；正式扩展前迁移为共享租约。
+
+#### 下一步入口
+
+- 先补齐真实素材闭环、素材覆盖率、证据缺口和搜索反馈运营指标，再处理前端大组件拆分。
+- 工程第二批优先治理 Provider 请求级遥测快照和窄接口；完成后再评估 `AssetAgentWidget.tsx`、`AdminApiCenter.tsx`、`SearchOpsSections.tsx` 的拆分。
+
+### 0.50 产品/工程体检第二轮交接（已完成，2026-08-26）
+
+#### 修改文件
+
+- Provider 请求级结果、取消信号与兼容协议：`backend/app/ai/contracts.py`、`backend/app/ai/openai_compatible.py`、`backend/app/ai/fallback.py`。
+- API 中心初始化与运行时装配：`backend/app/api/dependencies.py`、`backend/app/api/v1/api_center.py`、`backend/app/services/api_center_service.py`、新增 `backend/app/services/api_center_runtime_policy.py`。
+- 调用方遥测消费：`backend/app/services/ai_service.py`、`backend/app/services/asset_agent_service.py`、`backend/app/services/query_understanding_service.py`、`backend/app/services/search_external_branches.py`、`backend/app/services/search_result_recommendation_service.py`、`backend/app/services/search_rerank_coordinator.py`。
+- 动态能力与业务边界：`backend/app/domain/runtime_intents.py`、`backend/app/services/search_models.py`、`skills/understand-image-search-intent/references/public-phrase-governance.json`、`taxonomy/search_policy.json`。
+- 回归契约：`backend/tests/test_ai_provider.py`、`backend/tests/test_api_center.py`、`backend/tests/test_phase4_search_orchestration.py`。
+- 前端 Agent 纯逻辑拆分：`client/src/pages/ImageHome/AssetAgentWidget.tsx`、新增 `client/src/pages/ImageHome/assetAgentSessionModel.ts`、新增 `client/src/pages/ImageHome/assetAgentSessionModel.test.ts`。
+
+#### 结构收口
+
+- Provider 的 attempts 从实例级 `last_attempts` 提升为请求级 `ModelCallResult` 返回值；实例字段仅保留为旧 Provider/测试替身兼容，不再作为正常调用方的权威遥测来源。
+- API 中心的只读摘要和运行时选择不再承担初始化副作用；初始化由管理员摘要接口和 Provider 装配路径显式触发。
+- 查询理解、候选复核和结果推荐理由保留旧测试替身兼容，但动态能力探测集中在 `contracts.py` 的窄能力辅助函数，不再由各业务模块重复判断。
+- `AssetAgentWidget.tsx` 保留 UI 编排、用户交互和 API 调用；会话创建、API 归一化、状态排序、上下文转换、标题/时间/过期格式化和 ID 生成集中到独立纯逻辑模块，避免继续在组件底部堆积重复函数。
+
+#### 数据迁移
+
+- 无数据库迁移。
+- 无正式素材、概念、公共话术或人工 accepted 关系写入。
+
+#### 验证结果
+
+- 后端 `./.venv/bin/python -m pytest tests -q`：`300 passed`。
+- 后端 `./.venv/bin/ruff check app tests scripts`：通过。
+- 后端 `./.venv/bin/pyright`：`0 errors / 1 existing warning`，警告仍位于 `search_branch_runner.py` 的历史泛型定义。
+- 前端 `npm run typecheck`：通过。
+- 前端 `npm run lint`：通过。
+- 前端 `npm run test -- --run`：`15 files / 48 tests passed`。
+- 前端 `npm run build`：生产构建通过。
+- 根目录 `git diff --check`：通过。
+
+#### 剩余问题
+
+- 取消已能关闭本机 Provider HTTP 客户端、停止后续 fallback，并在请求取消与网络超时竞态时保持“已取消”诊断；但无法撤销外部 Provider 服务端已经开始的内部推理，若底层 SDK 忽略关闭信号，工作线程仍需等待其返回。
+- Provider 兼容层仍保留实例级 `last_attempts`，仅作为历史 Provider/测试替身兼容，不是正常调用方的权威遥测来源；后续可在兼容对象退出后再删除。
+- 当前是单 backend 部署，进程内容量账本符合现状；只有未来横向扩展多 backend 时才需要迁移为共享租约。
+- `query_understanding_service.py`、`api_center_service.py` 和 `AdminApiCenter.tsx` 仍是高密度模块；本轮只完成低风险职责收口，暂不继续拆分后台大组件，避免在真实素材闭环和运营指标尚未补齐前扩大变更面。
+
+#### 下一步入口
+
+- 产品侧先补齐真实素材覆盖率、证明点缺口、搜索反馈归档和业务评测闭环。
+- 工程侧下一阶段优先设计可取消 Provider 请求和跨进程容量租约；完成生产边界评估后，再按“配置/巡检/日志”拆 `AdminApiCenter.tsx`，按纯展示计算拆 `SearchOpsSections.tsx`，不把新逻辑继续塞回大组件。
 
 ### 0.2 已由用户明确确认的事实
 
@@ -1618,6 +1705,10 @@ Embedding 语义召回 ────┘
 
 | 编号 | 日期 | 状态 | 决策 |
 |---|---|---|---|
+| D222 | 2026-08-26 | 已确认 | 当前只部署一个 backend，不实现多 backend 共享容量租约。外部 Provider 调用采用请求级 `CancellationSignal`：搜索分支超时/取消时关闭本机 `httpx.Client`，主动结束连接池和传输；Fallback/API 中心收到取消后停止后续 Provider/Key 尝试；线程执行器和查询理解服务通过集中式兼容辅助函数支持旧无参测试替身。取消的验收口径是“本机不再继续等待、连接被关闭、后续 fallback 不再发起”，不宣称能够撤销 Provider 服务端已经开始的内部推理；若底层 SDK 忽略关闭信号，线程仍需等待其返回。该改动不改变六大体系、16 个卖点、证明点、人工 accepted 关系、召回、排序、API 容量算法或业务数据。验证：后端 `300 passed`、Ruff 通过、Pyright `0 errors / 1 existing warning`；前端 `15 files / 48 tests`、typecheck、lint、production build 通过；无数据库迁移。
+| D221 | 2026-08-26 | 已确认 | API 中心运行时初始化必须是显式生命周期动作：由应用启动、管理员摘要或 Provider 装配路径主动调用 `initialize_runtime()`；`summary()`、运行时 API 选择和 Provider 构建本身不得隐式创建槽位或同步环境 Key。Provider attempts 以请求级 `ModelCallResult` 贯穿 OpenAI-compatible、Fallback、API 中心调度 Provider 和各主要调用方；旧实例级 `last_attempts` 只作为兼容层保留。查询理解、候选复核和结果推荐理由使用统一能力协议辅助函数。该收口只消除查询/只读路径的写入副作用并修复并发遥测串线，不改变 API 池、任务映射、容量算法、降级顺序、模型任务或调用台账。验证：后端 `296 passed`、Ruff 通过、Pyright `0 errors / 1 existing warning`；前端 typecheck、lint、`15 files / 48 tests`、production build 通过；无数据库迁移或业务事实写入。 |
+| D220 | 2026-08-26 | 已确认 | 产品/工程体检第一轮以复杂度收敛和生产边界明确为目标，不新增业务事实。搜索总预算由 `AsyncSearchOrchestrator` 显式创建不可变 `SearchDeadline`，统一约束 Meilisearch、Embedding、查询理解、候选复核、Reranker 和结果推荐理由；已完成结果保留，耗尽后按分支降级并写入诊断。新增 `SearchQueryContextResolver` 承担本地/模型理解合并、概念匹配、模型补召回、归一化和展示归一，避免继续把业务判断堆回总编排器；API 中心运行策略独立到 `api_center_runtime_policy.py`，人工指定凭主备配置运行，独立遥测 session 必须明确提交。该决策不改变六大体系、16 个卖点、证明点、人工审核关系、图片准入或排序事实源；后续必须优先治理线程取消语义、Provider 窄接口、API 中心初始化副作用和多进程容量租约。
+| D219 | 2026-08-25 | 已确认 | 产品和工程体检先以当前完整检查暴露的回归为第一批治理入口。修复优先级是：先恢复查询状态和卖点边界，再恢复证明点与人工素材准入，再处理架构阈值和文档/评测契约；不借机新增核心卖点、数据库结构、公共词库或外部召回来源。受治理组合信号只在对象/动作/时间尺度证据不足时兜底，不能压过更具体的拍题、变式训练或考试阶段语义；卖点层查询不自动下钻证明点；模型分层失败时保留第一层已确认的本地安全结果；明确证明点查询必须有对应 accepted 证明关系/素材证据，缺图时返回空。验收以本轮基线失败全部恢复、全量静态检查继续通过、前端契约不回归为准。 |
 | D210 | 2026-08-25 | 已确认 | 素材身份码是正式产品能力，不依赖大模型识别。每个素材组自动生成稳定且不可复用的 `asset_code`，每个图片版本自动生成唯一 `version_code`；标题、主图替换、延展尺寸和业务关系变化不改变素材码，版本码只对应具体图片版本。历史素材迁移时补码，删除和永久清理后保留身份占用记录，禁止重新分配。普通业务端继续只有一个搜索框，粘贴素材码、版本码或分享链接先走确定性精确解析，普通文字才进入现有语义搜索；分享链接仍需登录并遵守业务方/设计师/管理员既有权限，不提供绕过权限的公开下载。 |
 | D211 | 2026-08-25 | 已确认 | 搜索结果图片卡默认不显示常驻工具按钮；鼠标进入、键盘聚焦或触摸设备使用时，右上角唤醒轻量开放式径向操作环，承载发送到素材库 Agent、项目夹、复制身份码和下载。操作按钮使用独立 Icon Button，Tooltip 继续由 `title` 和可访问名称提供；尺寸/版本选择仍是独立标准下拉。该改动只改变前端布局、对齐和微动效，不改变现有回调、权限、身份码、下载计数、搜索排序、数据结构或普通浏览卡片功能边界。 |
 | D212 | 2026-08-25 | 已确认 | 图片卡径向操作环在唤醒时必须同时显示短文字标签和 Icon：发送到 Agent、加入/移出项目夹、复制身份码、下载；默认状态仍保持干净。普通首页瀑布流和搜索结果卡统一复用该组件，瀑布流不再保留左上 Agent 与右上复制两个旧按钮。搜索结果的“推荐点”和动态推荐说明取消前端 `line-clamp` 截断，按每张图片自身内容完整换行；不改变后端推荐逻辑、搜索排序、权限和数据结构。 |
@@ -1789,14 +1880,15 @@ Embedding 语义召回 ────┘
 
 ## 17. 下一步
 
-Phase 0～6 工程改造、回滚点和第一轮文档治理已经完成。后续按顺序推进：
+Phase 0～6 工程改造、Provider 取消机制、回滚点和文档治理已经完成。后续按顺序推进：
 
-1. D104 代码和页面链路已完成；按证据表达点目录在素材详情逐步补标现有 40 个素材组。未补标老素材保持可空并继续依赖已采纳素材话术，不得用 AI 批量自动确认最细业务层级。
-2. D084/D085/D086/D088/D089/D090 六条真实页面边界已通过；继续用新业务话术走查图片级筛选，当前素材缺图时应返回空，不用无关图片补位，并优先把每个新误差固化为回归用例。
-3. 为专家身份、数据、学校、媒体、证书、套餐和效果材料建立来源、时间、口径及核验状态，未核验内容不得进入运行时解释或对外结论。
-4. 16 个稳定卖点代表素材已齐并完成 95 条业务用例真实关系绑定；下一轮优先修复 `SE096` 多卖点合并、`SE094` 学情报告排序，并复核 `SE020/SE021/SE028/SE035/SE050` 的可信意图或人工关系金标准。
-5. 继续用真实业务话术扩充评测，目标为 Top 3 `95/95`、Top 5 全卖点覆盖至少 `94/95`、可信业务查询范围泄漏为 0；纯画面用例补齐画面级金标准前保持 `partial`。
-6. D085 已覆盖 D075 并落地本地强证据/模型仲裁；下一轮用同一 103 条执行本地优先策略回归，同时补齐每级 Provider 遥测并修复 Kimi `403`。复测目标不得低于本地 Top 3 `94/95`、Top 5 `91/95`、业务空结果 0，并重新约束只在缺口/歧义查询中发生的在线模型 P95。Meilisearch 继续是可选增强，不是素材录入前置条件。
-7. D027 已按 D053/D065 落地：本地意图、AI Prompt、图片概念校验读取数据库当前启用卖点，并受 Skill 已确认边界约束；种子脚本只补空缺不覆盖人工字段。
-8. 在目标服务器完成 HTTPS、PostgreSQL、持久化、权限、备份和恢复演练后，才能标记为生产部署已验证。
-9. 后续新增或修改 Skill 必须先判断它是否是一套需要 AI/Agent 理解的完整工作流；底层确定性模块继续留在 Python，并同步维护正式清单、任务映射、防回流测试和对应评测。
+1. D222 已完成单服务器 Provider 取消收口；部署时继续使用当前单 backend 运行方式，观察 Provider 取消后的本机线程、连接和调用台账状态。不要为单服务器提前引入多 backend 共享租约。
+2. D104 代码和页面链路已完成；按证据表达点目录在素材详情逐步补标现有 40 个素材组。未补标老素材保持可空并继续依赖已采纳素材话术，不得用 AI 批量自动确认最细业务层级。
+3. D084/D085/D086/D088/D089/D090 六条真实页面边界已通过；继续用新业务话术走查图片级筛选，当前素材缺图时应返回空，不用无关图片补位，并优先把每个新误差固化为回归用例。
+4. 为专家身份、数据、学校、媒体、证书、套餐和效果材料建立来源、时间、口径及核验状态，未核验内容不得进入运行时解释或对外结论。
+5. 16 个稳定卖点代表素材已齐并完成 95 条业务用例真实关系绑定；下一轮优先修复 `SE096` 多卖点合并、`SE094` 学情报告排序，并复核 `SE020/SE021/SE028/SE035/SE050` 的可信意图或人工关系金标准。
+6. 继续用真实业务话术扩充评测，目标为 Top 3 `95/95`、Top 5 全卖点覆盖至少 `94/95`、可信业务查询范围泄漏为 0；纯画面用例补齐画面级金标准前保持 `partial`。
+7. D085 已覆盖 D075 并落地本地强证据/模型仲裁；下一轮用同一 103 条执行本地优先策略回归，同时补齐每级 Provider 遥测并修复 Kimi `403`。复测目标不得低于本地 Top 3 `94/95`、Top 5 `91/95`、业务空结果 0，并重新约束只在缺口/歧义查询中发生的在线模型 P95。Meilisearch 继续是可选增强，不是素材录入前置条件。
+8. D027 已按 D053/D065 落地：本地意图、AI Prompt、图片概念校验读取数据库当前启用卖点，并受 Skill 已确认边界约束；种子脚本只补空缺不覆盖人工字段。
+9. 在目标服务器完成 HTTPS、PostgreSQL、持久化、权限、备份和恢复演练后，才能标记为生产部署已验证。
+10. 后续新增或修改 Skill 必须先判断它是否是一套需要 AI/Agent 理解的完整工作流；底层确定性模块继续留在 Python，并同步维护正式清单、任务映射、防回流测试和对应评测。

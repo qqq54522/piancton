@@ -5,7 +5,13 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from app.ai.contracts import ModelProviderError, ModelRequest
+from app.ai.contracts import (
+    ModelCallResult,
+    ModelProviderCancelled,
+    ModelProviderError,
+    ModelRequest,
+    generate_json_with_attempts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +34,21 @@ class FallbackModelProvider:
         return max(1, len(self.providers))
 
     def generate_json(self, request: ModelRequest) -> dict[str, Any]:
+        return self.generate_json_with_attempts(request).value
+
+    def generate_json_with_attempts(
+        self,
+        request: ModelRequest,
+    ) -> ModelCallResult[dict[str, Any]]:
         last_error: Exception | None = None
         attempts: list[dict[str, Any]] = []
         for i, provider in enumerate(self.providers):
             started = time.monotonic()
             try:
-                result = provider.generate_json(request)
+                call = generate_json_with_attempts(provider, request)
                 provider_attempts = _provider_attempts(
                     provider,
+                    raw_attempts=call.attempts,
                     fallback_index=i,
                     started=started,
                     status="ok",
@@ -49,10 +62,11 @@ class FallbackModelProvider:
                         provider.model_name,
                         _format_attempts(attempts),
                     )
-                return result
+                return ModelCallResult(call.value, tuple(attempts))
             except (ModelProviderError, Exception) as exc:
                 provider_attempts = _provider_attempts(
                     provider,
+                    raw_attempts=_error_attempts(exc),
                     fallback_index=i,
                     started=started,
                     status="failed",
@@ -68,8 +82,14 @@ class FallbackModelProvider:
                     _format_attempts(attempts),
                 )
                 last_error = exc
+                if isinstance(exc, ModelProviderCancelled) or (
+                    request.cancellation is not None
+                    and request.cancellation.cancelled
+                ):
+                    raise
         raise ModelProviderError(
-            f"all {len(self.providers)} providers failed: {_format_attempts(attempts)}"
+            f"all {len(self.providers)} providers failed: {_format_attempts(attempts)}",
+            attempts=tuple(attempts),
         ) from last_error
 
     def generate_validated_json(
@@ -77,15 +97,25 @@ class FallbackModelProvider:
         request: ModelRequest,
         validator: Callable[[dict[str, Any]], Any],
     ) -> Any:
+        return self.generate_validated_json_with_attempts(request, validator).value
+
+    def generate_validated_json_with_attempts(
+        self,
+        request: ModelRequest,
+        validator: Callable[[dict[str, Any]], Any],
+    ) -> ModelCallResult[Any]:
         last_error: Exception | None = None
         attempts: list[dict[str, Any]] = []
         for i, provider in enumerate(self.providers):
             started = time.monotonic()
+            call: ModelCallResult[dict[str, Any]] | None = None
             try:
-                result = provider.generate_json(request)
+                call = generate_json_with_attempts(provider, request)
+                result = call.value
                 validated = validator(result)
                 provider_attempts = _provider_attempts(
                     provider,
+                    raw_attempts=call.attempts,
                     fallback_index=i,
                     started=started,
                     status="ok",
@@ -100,10 +130,15 @@ class FallbackModelProvider:
                         provider.model_name,
                         _format_attempts(attempts),
                     )
-                return validated
+                return ModelCallResult(validated, tuple(attempts))
             except Exception as exc:
                 provider_attempts = _provider_attempts(
                     provider,
+                    raw_attempts=(
+                        call.attempts
+                        if call is not None
+                        else _error_attempts(exc)
+                    ),
                     fallback_index=i,
                     started=started,
                     status="failed",
@@ -121,22 +156,31 @@ class FallbackModelProvider:
                     _format_attempts(attempts),
                 )
                 last_error = exc
+                if isinstance(exc, ModelProviderCancelled) or (
+                    request.cancellation is not None
+                    and request.cancellation.cancelled
+                ):
+                    raise
         raise ModelProviderError(
-            f"all {len(self.providers)} providers failed: {_format_attempts(attempts)}"
+            f"all {len(self.providers)} providers failed: {_format_attempts(attempts)}",
+            attempts=tuple(attempts),
         ) from last_error
 
 
 def _provider_attempts(
     provider,
     *,
+    raw_attempts: tuple[dict[str, Any], ...],
     fallback_index: int,
     started: float,
     status: str,
     error: Exception | None = None,
     override_status: bool = False,
 ) -> list[dict[str, Any]]:
-    attempts = getattr(provider, "last_attempts", None)
-    if isinstance(attempts, list) and attempts:
+    attempts = raw_attempts
+    if not attempts:
+        attempts = getattr(provider, "last_attempts", None)
+    if isinstance(attempts, (list, tuple)) and attempts:
         return [
             {
                 **attempt,
@@ -160,6 +204,13 @@ def _provider_attempts(
             "error": _safe_error(error) if error else "",
         }
     ]
+
+
+def _error_attempts(exc: Exception) -> tuple[dict[str, Any], ...]:
+    attempts = getattr(exc, "attempts", ())
+    if not isinstance(attempts, tuple):
+        return ()
+    return tuple(item for item in attempts if isinstance(item, dict))
 
 
 def _format_attempts(attempts: list[dict[str, Any]]) -> str:

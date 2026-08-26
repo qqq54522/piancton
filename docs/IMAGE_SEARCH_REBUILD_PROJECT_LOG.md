@@ -1,10 +1,51 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-08-25
+更新时间：2026-08-26
 当前范围：Phase 0～Phase 6；九个正式 Skill 与四类运行时模型任务完成收口；组合语义校准与素材证明点筛选继续按真实业务话术推进
 当前状态：Phase 0～6 工程改造完成；六大体系、16 个核心卖点、三层搜索和人工关系边界保持稳定；16 个核心卖点均已按业务组合语义稳定下钻到直属证明点；真实校验中发现的口语误命中按小补丁补边界和素材话术；2026-08-25 开始实施正式素材身份码与精确查找
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+---
+
+## 2026-08-26：单服务器 Provider 请求取消收口（D222）
+
+### 本轮目标
+
+- 解决外部模型请求超过搜索分支预算后，本机只停止等待、底层同步 HTTP 仍可能继续运行的问题。
+- 保持当前单 backend 部署，不为尚未存在的多 backend 扩展引入共享容量租约。
+
+### 完成内容
+
+- 新增请求级 `CancellationSignal`，从搜索分支超时/取消一路传到 Provider。
+- `OpenAICompatibleModelProvider` 为当前请求注册取消回调；取消时关闭 `httpx.Client`，清理本机连接池和传输，并把取消/超时竞态归一为取消状态。
+- 兼容响应格式的第二次请求前再次检查取消，避免已经取消后又发起一次请求。
+- `FallbackModelProvider` 和 API 中心调度 Provider 在取消后停止继续尝试其他 Provider/Key。
+- 查询理解服务和 `SearchBranchRunner` 增加集中式兼容调用层，历史无取消参数的测试替身仍可工作。
+
+### 业务和架构边界
+
+- 不改变六大体系、16 个核心卖点、证明点、人工 accepted 关系、召回、排序、搜索结果展示和 API 容量算法。
+- “取消完成”的验收口径是：本机不再继续等待、HTTP 连接被关闭、后续 fallback 不再发起。
+- 不能把本机关闭连接描述成撤销 Provider 服务端已经开始的内部推理；如果底层 SDK 忽略关闭信号，线程仍需等待底层调用返回。
+
+### 数据迁移
+
+- 无数据库迁移。
+- 无正式素材、概念、公共话术或人工 accepted 关系写入。
+
+### 验证结果
+
+- 后端 `./.venv/bin/python -m pytest tests -q`：`300 passed`。
+- 后端 `./.venv/bin/ruff check app tests scripts`：通过。
+- 后端 `./.venv/bin/pyright`：`0 errors / 1 existing warning`。
+- 前端 typecheck、ESLint、Vitest `15 files / 48 tests passed`、production build：通过。
+- `git diff --check`：通过。
+
+### 剩余问题与下一步
+
+- 继续观察真实服务器上的 Provider 取消、连接释放和调用台账状态；不宣称能撤销远端服务端推理。
+- 只有未来增加第二个 backend 时，才重新评估把进程内容量账本迁移为共享租约。
 
 ---
 

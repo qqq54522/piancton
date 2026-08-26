@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 import json
-import threading
 import time
-from collections import deque
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, cast
 
 from app.ai.contracts import (
+    ModelCallResult,
     ModelProvider,
+    ModelProviderCancelled,
     ModelProviderError,
     ModelProviderNotConfigured,
     ModelRequest,
+    generate_json_with_attempts,
+    generate_validated_json_with_attempts,
 )
 from app.ai.fallback import _format_attempts
 from app.ai.openai_compatible import OpenAICompatibleModelProvider
@@ -40,6 +42,12 @@ from app.schemas.api_center import (
     ModelTaskName,
     RoutingSlotRead,
     RoutingSlotUpdate,
+)
+from app.services.api_center_runtime_policy import (
+    _CAPACITY_TRACKER,
+    credential_can_run_task,
+    credential_schedule_key,
+    normalize_max_concurrency,
 )
 from app.services.unit_of_work import UnitOfWork
 
@@ -111,88 +119,6 @@ ENV_CREDENTIAL_SPECS: tuple[dict[str, Any], ...] = (
 )
 
 
-class CredentialCapacityTracker:
-    """Process-local capacity ledger for API Center runtime scheduling.
-
-    The database stores stable capacity configuration. This tracker keeps only
-    short-lived runtime facts: in-flight calls and the last few minutes of
-    success/latency signals. It is intentionally provider-neutral and never
-    sees API keys or prompts.
-    """
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._in_flight: dict[str, int] = {}
-        self._recent: dict[str, deque[tuple[float, str, int]]] = {}
-
-    def try_acquire(self, credential_id: str, max_concurrency: int) -> bool:
-        limit = max(1, max_concurrency)
-        with self._lock:
-            current = self._in_flight.get(credential_id, 0)
-            if current >= limit:
-                return False
-            self._in_flight[credential_id] = current + 1
-            return True
-
-    def release(self, credential_id: str) -> None:
-        with self._lock:
-            current = self._in_flight.get(credential_id, 0)
-            if current <= 1:
-                self._in_flight.pop(credential_id, None)
-            else:
-                self._in_flight[credential_id] = current - 1
-
-    def record(self, credential_id: str, *, status: str, duration_ms: int) -> None:
-        now = time.monotonic()
-        with self._lock:
-            calls = self._recent.setdefault(credential_id, deque(maxlen=200))
-            calls.append((now, status, max(0, duration_ms)))
-            self._trim_locked(calls, now)
-
-    def snapshot(
-        self,
-        credential_ids: list[str],
-        *,
-        max_age_seconds: float = 300.0,
-    ) -> dict[str, dict[str, float]]:
-        now = time.monotonic()
-        with self._lock:
-            snapshots: dict[str, dict[str, float]] = {}
-            for credential_id in credential_ids:
-                calls = self._recent.setdefault(credential_id, deque(maxlen=200))
-                self._trim_locked(calls, now, max_age_seconds=max_age_seconds)
-                total = len(calls)
-                failed = sum(1 for _, status, _ in calls if status != "ok")
-                latency_total = sum(duration_ms for _, _, duration_ms in calls)
-                snapshots[credential_id] = {
-                    "in_flight": float(self._in_flight.get(credential_id, 0)),
-                    "runtime_total": float(total),
-                    "runtime_failed": float(failed),
-                    "runtime_failure_rate": failed / total if total else 0.0,
-                    "runtime_avg_latency": latency_total / total if total else 0.0,
-                }
-            return snapshots
-
-    def reset_for_tests(self) -> None:
-        with self._lock:
-            self._in_flight.clear()
-            self._recent.clear()
-
-    def _trim_locked(
-        self,
-        calls: deque[tuple[float, str, int]],
-        now: float,
-        *,
-        max_age_seconds: float = 300.0,
-    ) -> None:
-        cutoff = now - max_age_seconds
-        while calls and calls[0][0] < cutoff:
-            calls.popleft()
-
-
-_CAPACITY_TRACKER = CredentialCapacityTracker()
-
-
 class ApiCenterService:
     def __init__(
         self,
@@ -206,8 +132,6 @@ class ApiCenterService:
         self.trace_session_factory = trace_session_factory
 
     def summary(self) -> ApiCenterSummary:
-        self.ensure_default_slots()
-        self.sync_environment_credentials()
         credentials = self.repo.list_credentials()
         slots = self.repo.list_slots()
         recent_checks = self.repo.list_recent_health_checks(limit=50)
@@ -252,6 +176,11 @@ class ApiCenterService:
             ],
             recent_call_traces=[self._call_trace_read(item) for item in recent_traces],
         )
+
+    def initialize_runtime(self) -> None:
+        """Create default routing data and import environment credentials explicitly."""
+        self.ensure_default_slots()
+        self.sync_environment_credentials()
 
     def ensure_default_slots(self) -> None:
         changed = False
@@ -344,15 +273,12 @@ class ApiCenterService:
         *,
         fallback_provider: ModelProvider,
     ) -> ModelProvider:
-        self.ensure_default_slots()
-        self.sync_environment_credentials()
         return ApiCenterScheduledModelProvider(self, fallback_provider)
 
     def select_credentials_for_task(
         self,
         task: str,
     ) -> tuple[ModelRoutingSlot | None, list[ModelApiCredential]]:
-        self.ensure_default_slots()
         slot = self.repo.get_slot_by_task(task)
         credentials = self.repo.list_credentials()
         by_id = {item.id: item for item in credentials}
@@ -366,14 +292,18 @@ class ApiCenterService:
             ]
             for credential_id in manual_ids:
                 credential = by_id.get(credential_id)
-                if credential and _credential_can_run_task(credential, task):
+                if credential and credential_can_run_task(
+                    credential,
+                    task,
+                    require_auto_assign=False,
+                ):
                     selected.append(credential)
             return slot, selected
 
         candidates = [
             item
             for item in self.repo.list_auto_assign_credentials()
-            if _credential_can_run_task(item, task)
+            if credential_can_run_task(item, task)
         ]
         metrics = _build_schedule_metrics(
             self.repo.list_call_traces_since(hours=24, limit=5000),
@@ -382,7 +312,7 @@ class ApiCenterService:
         runtime = _CAPACITY_TRACKER.snapshot([item.id for item in candidates])
         selected = sorted(
             candidates,
-            key=lambda credential: _credential_schedule_key(
+            key=lambda credential: credential_schedule_key(
                 credential,
                 metrics,
                 runtime,
@@ -401,12 +331,14 @@ class ApiCenterService:
     ) -> None:
         if self.trace_session_factory is not None:
             with self.trace_session_factory() as runtime_db:
-                ApiCenterService(runtime_db).record_runtime_attempt(
+                runtime_service = ApiCenterService(runtime_db)
+                runtime_service.record_runtime_attempt(
                     credential_id,
                     status=status,
                     duration_ms=duration_ms,
                     error_summary=error_summary,
                 )
+                runtime_service.uow.commit()
             return
         credential = self.repo.get_credential(credential_id)
         if not credential:
@@ -445,7 +377,7 @@ class ApiCenterService:
                 priority=payload.priority,
                 timeout_seconds=max(0.5, payload.timeout_seconds),
                 temperature=payload.temperature,
-                max_concurrency=_normalize_max_concurrency(payload.max_concurrency),
+                max_concurrency=normalize_max_concurrency(payload.max_concurrency),
                 auto_assign_enabled=payload.auto_assign_enabled,
                 created_by=actor_user_id,
             )
@@ -538,7 +470,7 @@ class ApiCenterService:
         if payload.temperature is not None:
             credential.temperature = payload.temperature
         if payload.max_concurrency is not None:
-            credential.max_concurrency = _normalize_max_concurrency(payload.max_concurrency)
+            credential.max_concurrency = normalize_max_concurrency(payload.max_concurrency)
         if payload.auto_assign_enabled is not None:
             credential.auto_assign_enabled = payload.auto_assign_enabled
         credential.updated_at = datetime.now(timezone.utc)
@@ -602,6 +534,7 @@ class ApiCenterService:
         status = "failed"
         error = None
         provider: OpenAICompatibleModelProvider | None = None
+        provider_attempts: tuple[dict[str, Any], ...] = ()
         try:
             provider = OpenAICompatibleModelProvider(
                 base_url=credential.base_url,
@@ -610,14 +543,17 @@ class ApiCenterService:
                 timeout_seconds=int(max(1, timeout_seconds)),
                 temperature=credential.temperature,
             )
-            result = provider.generate_json(
+            call = generate_json_with_attempts(
+                provider,
                 ModelRequest(
                     task=payload.task,
                     prompt='请只返回 {"ok": true} 这个 JSON 对象，用于健康检查。',
                     input_text="health check",
                     timeout_seconds=timeout_seconds,
-                )
+                ),
             )
+            provider_attempts = call.attempts
+            result = call.value
             if not isinstance(result, dict):
                 raise AppError("invalid_model_response", "模型没有返回 JSON 对象")
             status = "ok"
@@ -626,7 +562,7 @@ class ApiCenterService:
             error = _safe_error(exc)
         duration_ms = _elapsed_ms(started)
         attempts = _health_check_attempts(
-            provider,
+            provider_attempts,
             credential=credential,
             task=payload.task,
             status=status,
@@ -708,13 +644,16 @@ class ApiCenterService:
     ) -> int:
         if persist and self.trace_session_factory is not None:
             with self.trace_session_factory() as trace_db:
-                return ApiCenterService(trace_db).record_call_traces_from_attempts(
+                trace_service = ApiCenterService(trace_db)
+                added = trace_service.record_call_traces_from_attempts(
                     search_log_id=search_log_id,
                     request_id=request_id,
                     branches=branches,
                     persist=True,
                     output_kind=output_kind,
                 )
+                trace_service.uow.commit()
+                return added
         credentials = self.repo.list_credentials()
         credential_lookup = _credential_lookup(credentials)
         added = 0
@@ -782,7 +721,7 @@ class ApiCenterService:
     ) -> ApiCredentialRead:
         runtime = _CAPACITY_TRACKER.snapshot([item.id]).get(item.id, {})
         metric = metric or {}
-        max_concurrency = _normalize_max_concurrency(item.max_concurrency)
+        max_concurrency = normalize_max_concurrency(item.max_concurrency)
         current_concurrency = int(runtime.get("in_flight", 0))
         available_concurrency = max(0, max_concurrency - current_concurrency)
         total = int(metric.get("total", 0))
@@ -918,6 +857,12 @@ class ApiCenterScheduledModelProvider:
         return 1
 
     def generate_json(self, request: ModelRequest) -> dict[str, Any]:
+        return self._run(request).value
+
+    def generate_json_with_attempts(
+        self,
+        request: ModelRequest,
+    ) -> ModelCallResult[dict[str, Any]]:
         return self._run(request)
 
     def generate_validated_json(
@@ -925,13 +870,20 @@ class ApiCenterScheduledModelProvider:
         request: ModelRequest,
         validator: Callable[[dict[str, Any]], Any],
     ) -> Any:
+        return self._run(request, validator=validator).value
+
+    def generate_validated_json_with_attempts(
+        self,
+        request: ModelRequest,
+        validator: Callable[[dict[str, Any]], Any],
+    ) -> ModelCallResult[Any]:
         return self._run(request, validator=validator)
 
     def _run(
         self,
         request: ModelRequest,
         validator: Callable[[dict[str, Any]], Any] | None = None,
-    ) -> Any:
+    ) -> ModelCallResult[Any]:
         attempts: list[dict[str, Any]] = []
         last_error: Exception | None = None
         slot, credentials = self.api_center.select_credentials_for_task(request.task)
@@ -952,7 +904,7 @@ class ApiCenterScheduledModelProvider:
             for credential in credentials:
                 if not _CAPACITY_TRACKER.try_acquire(
                     credential.id,
-                    _normalize_max_concurrency(credential.max_concurrency),
+                    normalize_max_concurrency(credential.max_concurrency),
                 ):
                     continue
                 acquired_any = True
@@ -964,6 +916,7 @@ class ApiCenterScheduledModelProvider:
                     temperature=credential.temperature,
                 )
                 started = time.monotonic()
+                call: ModelCallResult[dict[str, Any]] | None = None
                 try:
                     attempt_request = replace(
                         request,
@@ -976,11 +929,12 @@ class ApiCenterScheduledModelProvider:
                             ),
                         ),
                     )
-                    payload = provider.generate_json(attempt_request)
+                    call = generate_json_with_attempts(provider, attempt_request)
+                    payload = call.value
                     result = validator(payload) if validator else payload
                     duration_ms = _elapsed_ms(started)
                     current_attempts = _scheduled_attempts(
-                        provider.last_attempts,
+                        call.attempts,
                         credential=credential,
                         fallback_index=fallback_index,
                         status="ok",
@@ -996,13 +950,17 @@ class ApiCenterScheduledModelProvider:
                         duration_ms=duration_ms,
                         error_summary=None,
                     )
-                    return result
+                    return ModelCallResult(result, tuple(attempts))
                 except Exception as exc:
                     duration_ms = _elapsed_ms(started)
                     error = _safe_error(exc)
                     status = _status_for_exception(exc)
                     current_attempts = _scheduled_attempts(
-                        provider.last_attempts,
+                        (
+                            call.attempts
+                            if call is not None
+                            else _error_attempts(exc)
+                        ),
                         credential=credential,
                         fallback_index=fallback_index,
                         status=status,
@@ -1020,6 +978,11 @@ class ApiCenterScheduledModelProvider:
                         error_summary=error,
                     )
                     last_error = exc
+                    if isinstance(exc, ModelProviderCancelled) or (
+                        request.cancellation is not None
+                        and request.cancellation.cancelled
+                    ):
+                        raise
                     fallback_index += 1
                     continue
                 finally:
@@ -1033,7 +996,8 @@ class ApiCenterScheduledModelProvider:
         if attempts:
             raise ModelProviderError(
                 f"API 中心调度的 {len(attempts)} 次模型调用均失败："
-                f"{_format_attempts(attempts)}"
+                f"{_format_attempts(attempts)}",
+                attempts=tuple(attempts),
             ) from last_error
         timeout_attempt = _scheduler_terminal_attempt(
             request,
@@ -1043,13 +1007,16 @@ class ApiCenterScheduledModelProvider:
         )
         self.last_attempts = [timeout_attempt]
         self._record_traces(request, self.last_attempts, status="timed_out")
-        raise ModelProviderError("API 中心可用 API 当前都已达到并发上限，请稍后重试")
+        raise ModelProviderError(
+            "API 中心可用 API 当前都已达到并发上限，请稍后重试",
+            attempts=(timeout_attempt,),
+        )
 
     def _run_fallback(
         self,
         request: ModelRequest,
         validator: Callable[[dict[str, Any]], Any] | None = None,
-    ) -> Any:
+    ) -> ModelCallResult[Any]:
         if not self.fallback_provider.configured:
             self.last_attempts = [
                 _scheduler_terminal_attempt(
@@ -1063,39 +1030,36 @@ class ApiCenterScheduledModelProvider:
             raise ModelProviderNotConfigured("API 中心和环境变量 Provider 均未配置")
         status = "failed"
         error = ""
+        attempts: list[dict[str, Any]] = []
         try:
             if validator:
-                validated_runner = getattr(
+                call = generate_validated_json_with_attempts(
                     self.fallback_provider,
-                    "generate_validated_json",
-                    None,
+                    request,
+                    validator,
                 )
-                if callable(validated_runner):
-                    result = validated_runner(request, validator)
-                else:
-                    result = validator(self.fallback_provider.generate_json(request))
             else:
-                result = self.fallback_provider.generate_json(request)
+                call = generate_json_with_attempts(self.fallback_provider, request)
+            result = call.value
+            attempts = _scheduled_fallback_attempts(
+                call.attempts,
+                request=request,
+                status="ok",
+            )
             status = "ok"
             error = ""
         except Exception as exc:
             status = _status_for_exception(exc)
             error = _safe_error(exc)
+            attempts = _scheduled_fallback_attempts(
+                _error_attempts(exc),
+                request=request,
+                status=status,
+                error=error,
+            )
             raise
         finally:
-            self.last_attempts = [
-                {
-                    **attempt,
-                    "task": request.task,
-                    "layer": TASK_LAYER_LABELS.get(request.task, "模型调用"),
-                    "credential_id": None,
-                    "credential_label": "环境变量兜底",
-                    "status": status,
-                    "error": error or str(attempt.get("error") or ""),
-                }
-                for attempt in getattr(self.fallback_provider, "last_attempts", [])
-                if isinstance(attempt, dict)
-            ]
+            self.last_attempts = attempts
             if not self.last_attempts:
                 self.last_attempts = [
                     _scheduler_terminal_attempt(
@@ -1106,7 +1070,7 @@ class ApiCenterScheduledModelProvider:
                     )
                 ]
             self._record_traces(request, self.last_attempts, status=status)
-        return result
+        return ModelCallResult(result, tuple(self.last_attempts))
 
     def _record_traces(
         self,
@@ -1146,7 +1110,7 @@ def _safe_error(exc: Exception) -> str:
 
 
 def _status_for_exception(exc: Exception) -> str:
-    if isinstance(exc, (TimeoutError,)):
+    if isinstance(exc, (TimeoutError, ModelProviderCancelled)):
         return "timed_out"
     message = str(exc).lower()
     if "timeout" in message or "timed out" in message or "超时" in message:
@@ -1184,10 +1148,6 @@ def _task_timeout(request: ModelRequest, slot: ModelRoutingSlot | None) -> float
     return 20.0
 
 
-def _normalize_max_concurrency(value: int | None) -> int:
-    return min(max(1, int(value or 1)), 20)
-
-
 def _capacity_status(
     *,
     status: str,
@@ -1205,52 +1165,6 @@ def _capacity_status(
     if failure_rate >= 0.5:
         return "degraded"
     return "idle"
-
-
-def _credential_can_run_task(credential: ModelApiCredential, task: str) -> bool:
-    if credential.status != "active" or not credential.auto_assign_enabled:
-        return False
-    scopes = _loads_list(credential.task_scope_json)
-    return not scopes or task in scopes
-
-
-def _credential_schedule_key(
-    credential: ModelApiCredential,
-    metrics: dict[str, dict[str, float]],
-    runtime: dict[str, dict[str, float]],
-) -> tuple[int, int, float, float, float, int, float, int, str]:
-    health_rank = {
-        "ok": 0,
-        None: 1,
-        "failed": 2,
-        "timed_out": 2,
-    }.get(credential.last_status, 1)
-    metric = metrics.get(credential.id, {})
-    runtime_metric = runtime.get(credential.id, {})
-    total = int(metric.get("total", 0))
-    ok = metric.get("ok", 0.0)
-    failed = int(metric.get("failed", 0))
-    runtime_failure_rate = runtime_metric.get("runtime_failure_rate", 0.0)
-    avg_latency = metric.get(
-        "avg_latency",
-        float(credential.last_latency_ms if credential.last_latency_ms is not None else 999_999),
-    )
-    success_rate = ok / total if total else (1.0 if credential.last_status == "ok" else 0.5)
-    max_concurrency = _normalize_max_concurrency(credential.max_concurrency)
-    in_flight = runtime_metric.get("in_flight", 0.0)
-    load_ratio = in_flight / max_concurrency
-    saturated_rank = 1 if in_flight >= max_concurrency else 0
-    return (
-        saturated_rank,
-        health_rank,
-        -success_rate,
-        runtime_failure_rate,
-        load_ratio,
-        failed,
-        avg_latency,
-        credential.priority,
-        credential.created_at.isoformat(),
-    )
 
 
 def _build_schedule_metrics(
@@ -1306,7 +1220,7 @@ def _representative_task(credential: ModelApiCredential) -> ModelTaskName:
 
 
 def _scheduled_attempts(
-    provider_attempts: list[dict[str, Any]],
+    provider_attempts: list[dict[str, Any]] | tuple[dict[str, Any], ...],
     *,
     credential: ModelApiCredential,
     fallback_index: int,
@@ -1344,8 +1258,45 @@ def _scheduled_attempts(
     return attempts
 
 
+def _scheduled_fallback_attempts(
+    provider_attempts: tuple[dict[str, Any], ...],
+    *,
+    request: ModelRequest,
+    status: str,
+    error: str = "",
+) -> list[dict[str, Any]]:
+    attempts = provider_attempts or (
+        _scheduler_terminal_attempt(
+            request,
+            status=status,
+            error=error,
+            duration_ms=0,
+        ),
+    )
+    return [
+        {
+            **attempt,
+            "task": request.task,
+            "layer": TASK_LAYER_LABELS.get(request.task, "模型调用"),
+            "credential_id": None,
+            "credential_label": "环境变量兜底",
+            "status": status,
+            "error": error or str(attempt.get("error") or ""),
+        }
+        for attempt in attempts
+        if isinstance(attempt, dict)
+    ]
+
+
+def _error_attempts(exc: Exception) -> tuple[dict[str, Any], ...]:
+    attempts = getattr(exc, "attempts", ())
+    if not isinstance(attempts, (list, tuple)):
+        return ()
+    return tuple(item for item in attempts if isinstance(item, dict))
+
+
 def _health_check_attempts(
-    provider: OpenAICompatibleModelProvider | None,
+    provider_attempts: tuple[dict[str, Any], ...],
     *,
     credential: ModelApiCredential,
     task: str,
@@ -1353,7 +1304,7 @@ def _health_check_attempts(
     duration_ms: int,
     error: str,
 ) -> list[dict[str, Any]]:
-    raw_attempts = provider.last_attempts if provider else []
+    raw_attempts = provider_attempts
     if not raw_attempts:
         raw_attempts = [
             {

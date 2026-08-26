@@ -28,42 +28,24 @@ import {
 } from '@client/src/features/assets/assetAgentEvents';
 import { clearLegacyAssetAgentStorage } from '@client/src/features/assets/assetAgentStorage';
 import { useAuth } from '@client/src/lib/auth';
-import type {
-  AssetAgentChatResponse,
-  AssetAgentImageContext,
-  AssetAgentSession as ApiAssetAgentSession,
-} from '@client/src/types/api';
-
-type ChatRole = 'user' | 'assistant' | 'system';
-
-interface ChatMessage {
-  id: string;
-  role: ChatRole;
-  content: string;
-  usedModel?: boolean | null;
-}
-
-interface AgentSession {
-  id: string;
-  title: string;
-  messages: ChatMessage[];
-  contextImages: AssetAgentImagePayload[];
-  suggestedQuestions: string[];
-  createdAt: number;
-  updatedAt: number;
-  expiresAt: number;
-}
-
-interface AgentState {
-  sessions: AgentSession[];
-  activeSessionId: string;
-}
-
-const DEFAULT_QUESTIONS = [
-  '这张图适合讲哪个卖点？',
-  '帮我用家长能听懂的话解释',
-  '它和相近卖点的区别是什么？',
-] as const;
+import type { AssetAgentSession as ApiAssetAgentSession } from '@client/src/types/api';
+import {
+  contextPayloadToApi,
+  createLocalSession,
+  DEFAULT_QUESTIONS,
+  formatExpiry,
+  formatSessionTime,
+  isLocalSession,
+  responseMessage,
+  safeId,
+  sessionFromApi,
+  stateFromSessions,
+  titleFromMessage,
+  updateSession,
+  upsertSession,
+  type AgentSession,
+  type AgentState,
+} from './assetAgentSessionModel';
 
 const GREETING_LINES = [
   ['Hello，我在这里', '哪张图拿不准，可以来问我。'],
@@ -71,12 +53,6 @@ const GREETING_LINES = [
   ['有图不确定？', '我帮你把卖点和家长话术讲清楚。'],
   ['今天想找哪张图？', '我可以先帮你读一遍素材。'],
 ] as const;
-
-const MAX_SESSIONS = 20;
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-const LOCAL_SESSION_PREFIX = 'local-';
-const DEFAULT_GREETING =
-  '我是素材库 Agent。你可以把图片发给我，我会按已确认的卖点和素材信息帮你解释。';
 
 const AssetAgentWidget = () => {
   const { user } = useAuth();
@@ -670,151 +646,6 @@ function AssetAgentWidgetInner() {
       </div>
     </div>
   );
-}
-
-function responseMessage(response: AssetAgentChatResponse): ChatMessage {
-  const suffix = response.usedModel ? '' : '\n\n（本次模型不可用，已走本地兜底。）';
-  return {
-    id: safeId(),
-    role: 'assistant',
-    content: `${response.answer}${suffix}`,
-    usedModel: response.usedModel,
-  };
-}
-
-function createLocalSession(message = DEFAULT_GREETING): AgentSession {
-  const now = Date.now();
-  return {
-    id: `${LOCAL_SESSION_PREFIX}${safeId()}`,
-    title: '新对话',
-    messages: [
-      {
-        id: safeId(),
-        role: 'assistant',
-        content: message,
-      },
-    ],
-    contextImages: [],
-    suggestedQuestions: [...DEFAULT_QUESTIONS],
-    createdAt: now,
-    updatedAt: now,
-    expiresAt: now + SESSION_TTL_MS,
-  };
-}
-
-function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
-  return {
-    id: session.id,
-    title: session.title || '历史对话',
-    messages: session.messages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      content: message.content,
-      usedModel: message.usedModel,
-    })),
-    contextImages: session.contextImages.map(contextApiToPayload),
-    suggestedQuestions: session.suggestedQuestions.length > 0
-      ? session.suggestedQuestions
-      : [...DEFAULT_QUESTIONS],
-    createdAt: dateToMillis(session.createdAt),
-    updatedAt: dateToMillis(session.updatedAt),
-    expiresAt: dateToMillis(session.expiresAt),
-  };
-}
-
-function stateFromSessions(sessions: AgentSession[], activeSessionId?: string): AgentState {
-  const normalized = sessions
-    .filter((session) => session.messages.length > 0)
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, MAX_SESSIONS);
-  const fallback = normalized.length > 0 ? normalized : [createLocalSession()];
-  return {
-    sessions: fallback,
-    activeSessionId: activeSessionId && fallback.some((item) => item.id === activeSessionId)
-      ? activeSessionId
-      : fallback[0].id,
-  };
-}
-
-function upsertSession(
-  state: AgentState,
-  session: AgentSession,
-  activeSessionId = session.id,
-): AgentState {
-  const sessions = [
-    session,
-    ...state.sessions.filter((item) => item.id !== session.id && !isLocalSession(item.id)),
-  ]
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, MAX_SESSIONS);
-  return stateFromSessions(sessions, activeSessionId);
-}
-
-function updateSession(
-  state: AgentState,
-  sessionId: string,
-  updater: (session: AgentSession) => AgentSession,
-): AgentState {
-  const sessions = state.sessions
-    .map((session) => (session.id === sessionId ? updater(session) : session))
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, MAX_SESSIONS);
-  return { ...state, sessions };
-}
-
-function contextPayloadToApi(payload: AssetAgentImagePayload): AssetAgentImageContext {
-  return {
-    imageId: payload.imageId,
-    assetGroupId: payload.assetGroupId ?? null,
-    title: payload.title,
-  };
-}
-
-function contextApiToPayload(value: AssetAgentImageContext): AssetAgentImagePayload {
-  return {
-    imageId: value.imageId,
-    assetGroupId: value.assetGroupId ?? null,
-    title: value.title,
-  };
-}
-
-function titleFromMessage(message: string): string {
-  const cleaned = message.replace(/\s+/g, ' ').trim();
-  return cleaned.length > 16 ? `${cleaned.slice(0, 16)}…` : cleaned || '新对话';
-}
-
-function formatSessionTime(value: number): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '刚刚';
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatExpiry(value: number): string {
-  const remainingMs = Math.max(0, value - Date.now());
-  const hours = Math.ceil(remainingMs / (60 * 60 * 1000));
-  if (hours <= 1) return '1 小时内';
-  return `${hours} 小时`;
-}
-
-function dateToMillis(value: string): number {
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
-function isLocalSession(sessionId: string): boolean {
-  return sessionId.startsWith(LOCAL_SESSION_PREFIX);
-}
-
-function safeId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export default AssetAgentWidget;

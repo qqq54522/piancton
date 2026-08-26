@@ -6,9 +6,11 @@ from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import ScoredImage
 from app.services.search_branch_runner import SearchBranchRunner
 from app.services.search_models import (
+    BranchStatus,
     ModelAttemptDiagnostic,
     SearchBranchDiagnostic,
     SearchBranchResult,
+    SearchDeadline,
     SearchHit,
 )
 from app.services.search_scorer import SearchScorer
@@ -37,6 +39,7 @@ class SearchResultRecommendationService:
         understanding: SearchUnderstanding | None,
         hits: list[SearchHit],
         results: list[ScoredImage],
+        deadline: SearchDeadline | None = None,
     ) -> SearchBranchResult[list[ScoredImage]]:
         if not hits or not results:
             return self._skipped(
@@ -63,16 +66,27 @@ class SearchResultRecommendationService:
                 results,
                 "动态推荐理由 API 未配置，保留本地确定性推荐理由",
             )
+        if deadline is not None and deadline.expired:
+            return self._skipped(
+                results,
+                "搜索总时间预算已到，保留本地确定性推荐理由",
+                status="timed_out",
+            )
 
         started = time.monotonic()
         result = await self.runner.run_thread(
             "result_recommendation_reason",
-            lambda: self.ai_service.recommend_search_result_reasons(
+            lambda signal: self.ai_service.recommend_search_result_reasons(
                 keyword=keyword,
                 understanding=understanding,
                 candidates=candidates,
+                cancellation=signal,
             ),
-            timeout_seconds=self.timeout_seconds,
+            timeout_seconds=(
+                deadline.clamp(self.timeout_seconds)
+                if deadline is not None
+                else self.timeout_seconds
+            ),
         )
         attempts = self._model_attempts()
         if result.diagnostic.status != "ok" or result.value is None:
@@ -210,9 +224,13 @@ class SearchResultRecommendationService:
         }
 
     def _model_attempts(self) -> tuple[ModelAttemptDiagnostic, ...]:
-        provider = getattr(self.ai_service, "provider", None)
-        attempts = getattr(provider, "last_attempts", None)
-        if not isinstance(attempts, list):
+        service_attempts = getattr(self.ai_service, "last_call_attempts", ())
+        if isinstance(service_attempts, (list, tuple)) and service_attempts:
+            attempts = service_attempts
+        else:
+            provider = getattr(self.ai_service, "provider", None)
+            attempts = getattr(provider, "last_attempts", None)
+        if not isinstance(attempts, (list, tuple)):
             return ()
         rows = []
         for item in attempts:
@@ -240,12 +258,14 @@ class SearchResultRecommendationService:
         self,
         results: list[ScoredImage],
         detail: str,
+        *,
+        status: BranchStatus = "skipped",
     ) -> SearchBranchResult[list[ScoredImage]]:
         return SearchBranchResult(
             value=results,
             diagnostic=SearchBranchDiagnostic(
                 source="result_recommendation_reason",
-                status="skipped",
+                status=status,
                 duration_ms=0,
                 result_count=0,
                 detail=detail,

@@ -94,6 +94,10 @@ class CompositionSignal:
     excluded_terms: tuple[str, ...]
     evidence_terms: tuple[str, ...]
     confidence: float
+    proof_on_composition: bool = True
+    proof_trigger_terms: tuple[str, ...] = ()
+    exact_proof_trigger_terms: tuple[str, ...] = ()
+    min_query_length: int = 0
 
 
 @dataclass(frozen=True)
@@ -366,9 +370,32 @@ def _load_composition_signals() -> tuple[CompositionSignal, ...]:
                     if (term := str(raw).strip())
                 ),
                 confidence=max(0.0, min(1.0, float(item.get("confidence") or 0.9))),
+                proof_on_composition=bool(item.get("proofOnComposition", True)),
+                proof_trigger_terms=tuple(
+                    term
+                    for raw in item.get("proofTriggerTerms", [])
+                    if (term := str(raw).strip())
+                ),
+                exact_proof_trigger_terms=tuple(
+                    term
+                    for raw in item.get("exactProofTriggerTerms", [])
+                    if (term := str(raw).strip())
+                ),
+                min_query_length=_non_negative_int(item.get("minQueryLength")),
             )
         )
     return tuple(signals)
+
+
+def _non_negative_int(value: object) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float, str)):
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
+    return 0
 
 
 @lru_cache

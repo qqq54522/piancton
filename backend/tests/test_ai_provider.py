@@ -1,8 +1,20 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Event
+from time import sleep
 from types import SimpleNamespace
 
+import httpx
+import pytest
+
 from app.ai import factory
-from app.ai.contracts import ModelProviderError, ModelRequest
+from app.ai.contracts import (
+    CancellationSignal,
+    ModelCallResult,
+    ModelProviderCancelled,
+    ModelProviderError,
+    ModelRequest,
+)
 from app.ai.fallback import FallbackModelProvider
 from app.ai.openai_compatible import OpenAICompatibleModelProvider
 from app.api.dependencies import _provider_attempt_count
@@ -95,6 +107,91 @@ def test_openai_compatible_provider_uses_request_specific_timeout(monkeypatch):
     )
 
     assert captured["timeout_seconds"] == 8
+
+
+def test_openai_compatible_provider_closes_transport_when_cancelled(monkeypatch):
+    class SlowClient:
+        instances = []
+
+        def __init__(self, **_kwargs):
+            self.started = Event()
+            self.closed = Event()
+            self.close_calls = 0
+            self.__class__.instances.append(self)
+
+        def post(self, *_args, **_kwargs):
+            self.started.set()
+            self.closed.wait(timeout=2)
+            raise httpx.ReadError(
+                "transport closed",
+                request=httpx.Request("POST", "https://example.test/v1/chat/completions"),
+            )
+
+        def close(self):
+            self.close_calls += 1
+            self.closed.set()
+
+    monkeypatch.setattr("app.ai.openai_compatible.httpx.Client", SlowClient)
+    provider = OpenAICompatibleModelProvider(
+        base_url="https://example.test/v1",
+        api_key="test-key",
+        model_name="search-model",
+        timeout_seconds=30,
+    )
+    cancellation = CancellationSignal()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(
+            provider.generate_json,
+            ModelRequest(
+                task="search_system_routing",
+                prompt="Return JSON",
+                cancellation=cancellation,
+                timeout_seconds=30,
+            ),
+        )
+        assert SlowClient.instances[0].started.wait(timeout=1)
+        cancellation.cancel()
+        with pytest.raises(ModelProviderCancelled):
+            future.result(timeout=1)
+
+    assert SlowClient.instances[0].close_calls >= 1
+
+
+def test_openai_compatible_provider_maps_timeout_race_to_cancelled(monkeypatch):
+    class TimeoutClient:
+        def __init__(self, **_kwargs):
+            self.closed = False
+
+        def post(self, *_args, **_kwargs):
+            raise httpx.ReadTimeout(
+                "request timed out",
+                request=httpx.Request(
+                    "POST",
+                    "https://example.test/v1/chat/completions",
+                ),
+            )
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr("app.ai.openai_compatible.httpx.Client", TimeoutClient)
+    provider = OpenAICompatibleModelProvider(
+        base_url="https://example.test/v1",
+        api_key="test-key",
+        model_name="search-model",
+    )
+    cancellation = CancellationSignal()
+    cancellation.cancel()
+
+    with pytest.raises(ModelProviderCancelled):
+        provider.generate_json(
+            ModelRequest(
+                task="search_system_routing",
+                prompt="Return JSON",
+                cancellation=cancellation,
+            )
+        )
 
 
 def test_search_tasks_receive_layer_specific_decision_roles():
@@ -448,6 +545,91 @@ def test_fallback_chain_records_provider_attempts():
         ("laozhang", "failed"),
         ("ohmygpt", "ok"),
     ]
+
+
+def test_fallback_chain_stops_after_request_cancellation():
+    called = []
+
+    class Provider:
+        configured = True
+
+        def __init__(self, name: str, *, cancel: bool = False):
+            self.provider_label = name
+            self.model_name = "gpt-5.5"
+            self.cancel = cancel
+
+        def generate_json(self, request):
+            called.append(self.provider_label)
+            if self.cancel:
+                assert request.cancellation is not None
+                request.cancellation.cancel()
+                raise ModelProviderError("模型服务调用失败")
+            return {"ok": True}
+
+    chain = FallbackModelProvider(
+        [
+            Provider("first", cancel=True),
+            Provider("second"),
+        ]
+    )
+    cancellation = CancellationSignal()
+
+    with pytest.raises(ModelProviderError):
+        chain.generate_json(
+            ModelRequest(
+                task="search_system_routing",
+                prompt="Return JSON",
+                cancellation=cancellation,
+            )
+        )
+
+    assert called == ["first"]
+
+
+def test_fallback_chain_keeps_attempts_request_scoped_under_concurrency():
+    class Provider:
+        configured = True
+        provider_label = "shared-provider"
+        model_name = "shared-model"
+
+        def __init__(self):
+            self.last_attempts = []
+
+        def generate_json_with_attempts(self, request):
+            sleep(0.01 if request.input_text == "slow" else 0.001)
+            attempt = {
+                "provider": self.provider_label,
+                "model": self.model_name,
+                "status": "ok",
+                "duration_ms": 1,
+                "request": request.input_text,
+            }
+            self.last_attempts = [attempt]
+            return ModelCallResult(
+                {"request": request.input_text},
+                (attempt,),
+            )
+
+    chain = FallbackModelProvider([Provider()])
+
+    def run(input_text: str):
+        return chain.generate_json_with_attempts(
+            ModelRequest(
+                task="search_system_routing",
+                prompt="Return JSON",
+                input_text=input_text,
+            )
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(run, "slow"), pool.submit(run, "fast")]
+        results = [future.result() for future in futures]
+
+    assert {result.value["request"] for result in results} == {"slow", "fast"}
+    assert {
+        result.attempts[0]["request"]
+        for result in results
+    } == {"slow", "fast"}
 
 
 def test_ai_service_fallback_chain_tries_next_provider_on_invalid_structure():
