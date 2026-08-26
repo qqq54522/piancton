@@ -93,7 +93,8 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 登录失败按账号与客户端 IP 持久化限流，过期 Session 在登录时清理。
 - 登录、图片、标签和用户管理写入审计日志；登录、页面访问和下载写入使用统计事件。
 - 每个响应包含 request ID 与基础安全响应头。
-- 素材库 Agent 会话按用户隔离；用户内可有多个会话记录，管理员不跨用户读取或操作他人私聊。
+- 素材库 Agent 会话按用户隔离；用户内当天可有最多 20 个会话记录，管理员不跨用户读取或操作他人私聊。
+- 素材库 Agent 以 Asia/Shanghai 自然日为记忆边界；每天 00:00 后清理该用户今天以前的全部 Agent 会话，列表为空时自动保留一个空白新对话。
 
 ## 数据与部署
 
@@ -106,7 +107,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 ## 当前状态记录
 
-截至 2026-08-26：
+截至 2026-08-27：
 
 - Phase 0～6 工程改造和旧职责清理完成，数据库 revision 为 `20260826_0026`。
 - `tags` 只保留 6 个稳定体系节点；可变化业务语义位于 `business_concepts`、概念关系、概念搜索表达和素材概念关系。

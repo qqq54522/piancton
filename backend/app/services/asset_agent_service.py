@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -42,7 +43,7 @@ from app.schemas.asset_agent import (
 from app.services.unit_of_work import UnitOfWork
 
 MAX_AGENT_SESSIONS = 20
-SESSION_TTL_HOURS = 24
+AGENT_RESET_TIMEZONE = ZoneInfo("Asia/Shanghai")
 DEFAULT_GREETING = (
     "我是素材库 Agent。你可以把图片发给我，"
     "我会按已确认的卖点和素材信息帮你解释。"
@@ -67,8 +68,10 @@ class AssetAgentService:
         self.uow = UnitOfWork(db)
 
     def list_sessions(self, user: User) -> AssetAgentSessionListResponse:
-        self._delete_expired()
+        self._reset_user_sessions_for_today(user)
         sessions = self.sessions.list_for_user(user.id, limit=MAX_AGENT_SESSIONS)
+        if not sessions:
+            sessions = [self._create_session(user)]
         self.uow.commit()
         return AssetAgentSessionListResponse(
             sessions=[self._session_read(item) for item in sessions]
@@ -79,7 +82,7 @@ class AssetAgentService:
         user: User,
         payload: AssetAgentSessionCreateRequest | None = None,
     ) -> AssetAgentSessionRead:
-        self._delete_expired()
+        self._reset_user_sessions_for_today(user)
         session = self._create_session(
             user,
             title=payload.title if payload else None,
@@ -95,7 +98,7 @@ class AssetAgentService:
         session_id: str,
         payload: AssetAgentSessionContextUpdateRequest,
     ) -> AssetAgentSessionRead:
-        self._delete_expired()
+        self._reset_user_sessions_for_today(user)
         session = self._get_session_or_404(user, session_id)
         previous_ids = {item.image_id for item in self._session_context(session)}
         context_images = _clean_context_images(payload.context_images)
@@ -117,7 +120,7 @@ class AssetAgentService:
         return self._session_read(session)
 
     def delete_session(self, user: User, session_id: str) -> None:
-        self._delete_expired()
+        self._reset_user_sessions_for_today(user)
         session = self._get_session_or_404(user, session_id)
         self.sessions.delete(session)
         self.uow.commit()
@@ -128,8 +131,9 @@ class AssetAgentService:
         session_id: str,
         payload: AssetAgentChatRequest,
     ) -> AssetAgentChatResponse:
-        self._delete_expired()
-        self._get_session_or_404(user, session_id)
+        session = self.sessions.get(session_id)
+        if session and session.user_id != user.id:
+            raise NotFoundError("asset_agent_session_not_found", "聊天记录不存在或已过期")
         payload.conversation_id = session_id
         return self.chat(user, payload)
 
@@ -138,7 +142,7 @@ class AssetAgentService:
         if not message:
             raise AppError("empty_message", "请输入要问素材库 Agent 的问题", status_code=422)
 
-        self._delete_expired()
+        self._reset_user_sessions_for_today(user)
         session = self._session_for_chat(user, payload)
         payload_context = self._context_from_ids(payload.image_ids)
         if payload_context:
@@ -226,7 +230,7 @@ class AssetAgentService:
     ) -> AssetAgentSession:
         if payload.conversation_id:
             session = self.sessions.get_for_user(user.id, payload.conversation_id)
-            if session and not _is_expired(session.expires_at):
+            if session and _is_active_today(session):
                 return session
             if session:
                 self.sessions.delete(session)
@@ -250,7 +254,7 @@ class AssetAgentService:
                 [item.model_dump(by_alias=True) for item in cleaned_context]
             ),
             suggested_questions_json=_json_dump(_fallback_suggestions(bool(cleaned_context))),
-            expires_at=_now() + timedelta(hours=SESSION_TTL_HOURS),
+            expires_at=_next_reset_at(),
             created_at=_now(),
             updated_at=_now(),
         )
@@ -262,14 +266,19 @@ class AssetAgentService:
 
     def _get_session_or_404(self, user: User, session_id: str) -> AssetAgentSession:
         session = self.sessions.get_for_user(user.id, session_id)
-        if not session or _is_expired(session.expires_at):
+        if not session or not _is_active_today(session):
             if session:
                 self.sessions.delete(session)
             raise NotFoundError("asset_agent_session_not_found", "聊天记录不存在或已过期")
         return session
 
-    def _delete_expired(self) -> None:
-        self.sessions.delete_expired(_now())
+    def _reset_user_sessions_for_today(self, user: User) -> None:
+        now = _now()
+        self.sessions.delete_for_user_before_day(
+            user.id,
+            day_start=_current_day_start(now),
+            now=now,
+        )
 
     def _add_message(
         self,
@@ -493,12 +502,32 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _is_expired(value: datetime) -> bool:
-    expires_at = value
+def _is_active_today(session: AssetAgentSession) -> bool:
     now = _now()
+    created_at = session.created_at
+    expires_at = session.expires_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
-    return expires_at <= now
+    return created_at >= _current_day_start(now) and expires_at > now
+
+
+def _current_day_start(now: datetime) -> datetime:
+    local_now = now.astimezone(AGENT_RESET_TIMEZONE)
+    local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return local_start.astimezone(timezone.utc)
+
+
+def _next_reset_at() -> datetime:
+    local_now = _now().astimezone(AGENT_RESET_TIMEZONE)
+    tomorrow = local_now.date() + timedelta(days=1)
+    local_midnight = datetime.combine(
+        tomorrow,
+        datetime.min.time(),
+        tzinfo=AGENT_RESET_TIMEZONE,
+    )
+    return local_midnight.astimezone(timezone.utc)
 
 
 def _datetime_sort_key(value: datetime) -> float:

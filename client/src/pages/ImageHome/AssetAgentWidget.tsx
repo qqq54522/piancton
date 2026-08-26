@@ -418,7 +418,7 @@ function AssetAgentWidgetInner() {
                   ? '正在理解素材上下文'
                   : isTemporarySession
                     ? '当前页面临时记录，未写入账号'
-                    : `${sessionCount} 条个人记录 · ${formatExpiry(activeSession.expiresAt)} 后清空`}
+                    : `${sessionCount} 条今日记录 · ${formatExpiry(activeSession.expiresAt)} 清空`}
               </p>
             </div>
           </div>

@@ -37,7 +37,6 @@ export const DEFAULT_QUESTIONS = [
 ] as const;
 
 export const MAX_SESSIONS = 20;
-export const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 export const LOCAL_SESSION_PREFIX = 'local-';
 export const DEFAULT_GREETING =
   '我是素材库 Agent。你可以把图片发给我，我会按已确认的卖点和素材信息帮你解释。';
@@ -68,7 +67,7 @@ export function createLocalSession(message = DEFAULT_GREETING): AgentSession {
     suggestedQuestions: [...DEFAULT_QUESTIONS],
     createdAt: now,
     updatedAt: now,
-    expiresAt: now + SESSION_TTL_MS,
+    expiresAt: nextLocalMidnightMs(now),
   };
 }
 
@@ -172,10 +171,12 @@ export function formatSessionTime(value: number): string {
 }
 
 export function formatExpiry(value: number): string {
-  const remainingMs = Math.max(0, value - Date.now());
-  const hours = Math.ceil(remainingMs / (60 * 60 * 1000));
-  if (hours <= 1) return '1 小时内';
-  return `${hours} 小时`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '今日 24:00';
+  return `${date.toLocaleDateString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+  })} 00:00`;
 }
 
 export function isLocalSession(sessionId: string): boolean {
@@ -192,4 +193,10 @@ export function safeId(): string {
 function dateToMillis(value: string): number {
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function nextLocalMidnightMs(now: number): number {
+  const date = new Date(now);
+  date.setHours(24, 0, 0, 0);
+  return date.getTime();
 }
