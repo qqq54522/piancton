@@ -134,7 +134,6 @@ class ApiCenterService:
     def summary(self) -> ApiCenterSummary:
         credentials = self.repo.list_credentials()
         slots = self.repo.list_slots()
-        recent_checks = self.repo.list_recent_health_checks(limit=50)
         recent_traces = self.repo.list_recent_call_traces(limit=100)
         recent_day_traces = self.repo.list_call_traces_since(hours=24, limit=2000)
         schedule_metrics = _build_schedule_metrics(
@@ -171,9 +170,6 @@ class ApiCenterService:
                 for item in credentials
             ],
             routing_slots=[self._slot_read(item, credentials) for item in slots],
-            recent_health_checks=[
-                self._health_check_read(item, credentials) for item in recent_checks
-            ],
             recent_call_traces=[self._call_trace_read(item) for item in recent_traces],
         )
 

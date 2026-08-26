@@ -166,5 +166,4 @@ class ApiCenterSummary(ApiModel):
     overview: ApiCenterOverview
     credentials: list[ApiCredentialRead]
     routing_slots: list[RoutingSlotRead]
-    recent_health_checks: list[ApiHealthCheckRead]
     recent_call_traces: list[ApiCallTraceRead]

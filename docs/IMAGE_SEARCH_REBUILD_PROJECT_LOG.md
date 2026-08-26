@@ -8,6 +8,46 @@
 
 ---
 
+## 2026-08-26：API 中心健康明细展示统一（D224）
+
+### 本轮目标
+
+- 解决健康度监测页和调用链路日志重复展示同一批健康检查明细的问题。
+- 让管理员明确区分“健康状态快照”和“真实调用明细”的用途。
+
+### 完成内容
+
+- 健康检查完成后继续保存 `model_api_health_checks` 状态快照，供健康状态、调度排序和指标计算使用。
+- 同一次真实探测继续写入 `model_call_traces`，并以 `outputSummary.kind=health_check` 标识调用明细。
+- 健康度页面移除底部历史列表，只保留自动监测、一键巡检、定时巡检和结果反馈。
+- 健康度页面增加“查看调用链路日志”入口，所有 Provider、模型、任务、状态、耗时和错误摘要统一从调用链路日志查看。
+- `ApiCenterSummary`、前端 API 类型和 OpenAPI 类型移除 `recentHealthChecks`，避免维护第二套展示契约。
+
+### 业务和架构边界
+
+- 不删除 `model_api_health_checks` 表；它仍是调度和健康状态的内部数据源。
+- 不新增第二套调用日志，不改变 Provider、API 调度、容量算法、搜索链路或业务事实。
+- 不记录完整 API Key、Authorization、Prompt、图片字节或 Agent 私有聊天正文。
+
+### 数据迁移
+
+- 无数据库迁移。
+- 无正式素材、概念、公共话术或人工 accepted 关系写入。
+
+### 验证结果
+
+- 后端 API 中心与文档一致性专项：`22 passed`。
+- 后端全量：`305 passed`；Ruff 通过；Pyright `0 errors / 1 existing warning`。
+- 前端 TypeScript、ESLint、Vitest `15 files / 48 tests passed`、production build 通过。
+- `git diff --check` 通过；本地容器重建和管理员页面复核完成。
+
+### 剩余问题与下一步
+
+- 健康状态快照与调用明细是两个用途不同的记录，不能为了前台去重而删除健康快照。
+- 继续观察真实服务器上一键巡检后调用链路日志的展示顺序和可读性。
+
+---
+
 ## 2026-08-26：单服务器 Provider 请求取消收口（D222）
 
 ### 本轮目标

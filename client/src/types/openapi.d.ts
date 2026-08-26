@@ -1208,8 +1208,6 @@ export interface components {
             credentials: components["schemas"]["ApiCredentialRead"][];
             /** Routingslots */
             routingSlots: components["schemas"]["RoutingSlotRead"][];
-            /** Recenthealthchecks */
-            recentHealthChecks: components["schemas"]["ApiHealthCheckRead"][];
             /** Recentcalltraces */
             recentCallTraces: components["schemas"]["ApiCallTraceRead"][];
         };

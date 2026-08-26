@@ -747,6 +747,5 @@ export interface ApiCenterSummary {
   overview: ApiCenterOverview;
   credentials: ApiCredential[];
   routingSlots: RoutingSlot[];
-  recentHealthChecks: ApiHealthCheck[];
   recentCallTraces: ApiCallTrace[];
 }

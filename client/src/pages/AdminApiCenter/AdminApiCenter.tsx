@@ -159,7 +159,9 @@ export default function AdminApiCenter() {
       ) : data ? (
         <div className="mt-7 space-y-6">
           <Overview data={data} />
-          {activeTab === 'health' && <HealthChecks data={data} />}
+          {activeTab === 'health' && (
+            <HealthChecks data={data} onOpenTraces={() => setActiveTab('traces')} />
+          )}
           {activeTab === 'keys' && <ApiKeys data={data} />}
           {activeTab === 'routing' && <RoutingSlots data={data} />}
           {activeTab === 'traces' && <CallTraces data={data} />}
@@ -552,7 +554,13 @@ function BackupPicker({
   );
 }
 
-function HealthChecks({ data }: { data: ApiCenterSummary }) {
+function HealthChecks({
+  data,
+  onOpenTraces,
+}: {
+  data: ApiCenterSummary;
+  onOpenTraces: () => void;
+}) {
   const queryClient = useQueryClient();
   const [credentialId, setCredentialId] = useState(data.credentials[0]?.id ?? '');
   const [task, setTask] = useState<ModelTaskName>('search_system_routing');
@@ -585,7 +593,7 @@ function HealthChecks({ data }: { data: ApiCenterSummary }) {
     <section className="surface-card overflow-hidden">
       <SectionHeader
         title="健康度监测"
-        description="这里分开看三件事：真实调用自动回写、一键巡检、定时巡检。"
+        description="这里管理真实调用自动回写、一键巡检和定时巡检；每次巡检的详细调用记录统一放在调用链路日志。"
       />
       {(runAllMutation.isSuccess || testMutation.isSuccess) && (
         <div className="border-b border-border bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -696,23 +704,14 @@ function HealthChecks({ data }: { data: ApiCenterSummary }) {
           </div>
         </div>
       </div>
-      <div className="divide-y divide-border">
-        {data.recentHealthChecks.length ? data.recentHealthChecks.map((item) => (
-          <div key={item.id} className="grid gap-3 px-4 py-3 text-sm md:grid-cols-[180px_1fr_100px_100px_180px]">
-            <span className="font-medium text-foreground">
-              {displayCredentialName(item.credentialLabel ?? item.credentialId)}
-            </span>
-            <span className="text-muted-foreground">{taskLabels[item.task] ?? item.task}</span>
-            <Badge variant="outline" className={`w-fit ${statusClass[item.status] ?? ''}`}>
-              {statusLabel[item.status] ?? item.status}
-            </Badge>
-            <span>{item.durationMs}ms</span>
-            <span className="text-xs text-muted-foreground">{new Date(item.checkedAt).toLocaleString('zh-CN')}</span>
-            {item.errorSummary && <p className="md:col-span-5 text-xs text-destructive">{item.errorSummary}</p>}
-          </div>
-        )) : (
-          <Empty text="暂无健康测试记录。" />
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+        <p className="text-xs text-muted-foreground">
+          巡检的 Provider、模型、任务、状态、耗时和错误摘要，统一记录在调用链路日志中。
+        </p>
+        <Button variant="outline" size="sm" onClick={onOpenTraces}>
+          <ListTree className="size-4" />
+          查看调用链路日志
+        </Button>
       </div>
     </section>
   );

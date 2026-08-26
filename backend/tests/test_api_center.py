@@ -158,6 +158,16 @@ def test_health_check_updates_credential_status(client, monkeypatch):
     assert response.json()["status"] == "ok"
     summary = client.get("/api/admin/api-center/summary", headers=headers).json()
     assert summary["credentials"][0]["lastStatus"] == "ok"
+    assert "recentHealthChecks" not in summary
+    health_traces = [
+        item
+        for item in summary["recentCallTraces"]
+        if item["outputSummary"].get("kind") == "health_check"
+    ]
+    assert len(health_traces) == 1
+    assert health_traces[0]["task"] == "search_system_routing"
+    assert health_traces[0]["layerName"] == "健康检查"
+    assert health_traces[0]["credentialLabel"] == "OpenAI-健康测试"
 
 
 def test_run_all_health_checks_checks_non_disabled_keys(client, monkeypatch):
