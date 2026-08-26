@@ -255,8 +255,11 @@ def main() -> None:
             understanding = None
             error = ""
             try:
-                route = ai_service.route_search_system(case.query)
-                understanding = ai_service.understand_search_from_route(case.query, route)
+                route = ai_service.route_search_system(case.query).value
+                understanding = ai_service.understand_search_from_route(
+                    case.query,
+                    route,
+                ).value
             except AppError as exc:
                 error = f"{exc.code}: {exc.message}"
             except Exception as exc:  # noqa: BLE001

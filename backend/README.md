@@ -48,12 +48,12 @@ make docker-up
 ## AI Provider
 
 后端支持 `MODEL_PROVIDER=openai_compatible`，通过 OpenAI-compatible
-`/chat/completions` 接口调用多模态模型。必填环境变量：
+`/chat/completions` 接口调用多模态模型。API 中心是日常唯一管理入口，后端实际调用只
+读取 API 中心数据库。
 
-- `MODEL_BASE_URL`
-- `MODEL_API_KEY`
-- `MODEL_NAME`
-- `MODEL_TIMEOUT_SECONDS`，默认 120 秒
+为了兼容已有部署，只有在 API 中心数据库完全没有 API 记录时，系统才会把环境变量中的
+初始配置导入 API 中心一次。导入后不会再反向写回 `.env`，也不会用 `.env` 覆盖 API 中心。
+如果 API 中心没有可用 API，调用会明确返回未配置，不会绕回环境变量。
 
 模型必须能处理图片输入，并稳定返回 JSON 对象。业务层只依赖
 `ModelProvider` 协议；新增或替换模型时，只改 `app/ai` 适配器。

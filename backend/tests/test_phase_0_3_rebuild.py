@@ -2,6 +2,7 @@ from io import BytesIO
 
 from PIL import Image as PillowImage
 
+from app.ai.contracts import ModelCallResult
 from app.api import dependencies
 from app.domain.search_eval import load_search_eval_cases
 from app.main import app
@@ -214,24 +215,26 @@ def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_fact
 
     class FakeAiService:
         def analyze_image(self, _path):
-            return ImageAnalysisResult(
-                image_summary="平板界面展示数学动画和分步计算，顶部可见课程标题。",
-                semantic_profile=ImageSemanticProfile(
-                    visual_facts=["平板学习界面", "数学动画", "分步计算"],
-                    scenes=["居家学习"],
-                    asset_search_phrases=["蓝色平板动画课画面"],
-                ),
-                concept_suggestions=[
-                    ConceptSuggestion(
-                        concept_code="animation_explanation",
-                        system_name="同步校内体系",
-                        concept_name="动画精讲",
-                        confidence=0.94,
-                        evidence_level="A",
-                        relation_role="expresses",
-                        reason="画面展示动画和分步计算，适合动画精讲，不是课后小测。",
-                    )
-                ],
+            return ModelCallResult(
+                ImageAnalysisResult(
+                    image_summary="平板界面展示数学动画和分步计算，顶部可见课程标题。",
+                    semantic_profile=ImageSemanticProfile(
+                        visual_facts=["平板学习界面", "数学动画", "分步计算"],
+                        scenes=["居家学习"],
+                        asset_search_phrases=["蓝色平板动画课画面"],
+                    ),
+                    concept_suggestions=[
+                        ConceptSuggestion(
+                            concept_code="animation_explanation",
+                            system_name="同步校内体系",
+                            concept_name="动画精讲",
+                            confidence=0.94,
+                            evidence_level="A",
+                            relation_role="expresses",
+                            reason="画面展示动画和分步计算，适合动画精讲，不是课后小测。",
+                        )
+                    ],
+                )
             )
 
     app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import cast
 
+from app.ai.contracts import ModelCallResult
 from app.models.image import Image
 from app.schemas.ai import SearchResultRecommendationReasonResult
 from app.schemas.image import SearchResultConceptMatch
@@ -65,28 +66,30 @@ def _image(title: str) -> Image:
 
 class _ConfiguredProvider:
     configured = True
-    last_attempts = [
-        {
-            "provider": "test-provider",
-            "model": "test-model",
-            "status": "ok",
-            "duration_ms": 8,
-            "fallback_index": 0,
-        }
-    ]
 
 
 class _RecommendationAi:
     provider = _ConfiguredProvider()
 
     def recommend_search_result_reasons(self, **_kwargs):
-        return SearchResultRecommendationReasonResult(
-            reasons=[
+        return ModelCallResult(
+            SearchResultRecommendationReasonResult(
+                reasons=[
+                    {
+                        "image_id": "image-1",
+                        "reason": "模型说明：这张图承接了当前查询中的考前冲刺需求。",
+                    },
+                ]
+            ),
+            (
                 {
-                    "image_id": "image-1",
-                    "reason": "模型说明：这张图承接了当前查询中的考前冲刺需求。",
+                    "provider": "test-provider",
+                    "model": "test-model",
+                    "status": "ok",
+                    "duration_ms": 8,
+                    "fallback_index": 0,
                 },
-            ]
+            ),
         )
 
 
@@ -163,7 +166,6 @@ def test_invalid_dynamic_recommendation_falls_back_as_failed_branch():
 class _FailingRecommendationAi:
     class _Provider:
         configured = True
-        last_attempts = []
 
     provider = _Provider()
 

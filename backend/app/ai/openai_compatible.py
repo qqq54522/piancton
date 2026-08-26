@@ -5,7 +5,7 @@ import json
 import mimetypes
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, TypeVar
 from urllib.parse import urlparse
 
 import httpx
@@ -16,8 +16,11 @@ from app.ai.contracts import (
     ModelProviderCancelled,
     ModelProviderError,
     ModelProviderNotConfigured,
+    ModelProviderValidationError,
     ModelRequest,
 )
+
+ValidatedT = TypeVar("ValidatedT")
 
 SEARCH_TASK_ROLES = {
     "search_system_routing": (
@@ -83,16 +86,12 @@ class OpenAICompatibleModelProvider:
         self.model_name = model_name
         self.timeout_seconds = timeout_seconds
         self.temperature = temperature
-        self.last_attempts: list[dict[str, Any]] = []
 
     @property
     def configured(self) -> bool:
         return bool(self.base_url and self.api_key and self.model_name)
 
-    def generate_json(self, request: ModelRequest) -> dict[str, Any]:
-        return self.generate_json_with_attempts(request).value
-
-    def generate_json_with_attempts(
+    def generate_json(
         self,
         request: ModelRequest,
     ) -> ModelCallResult[dict[str, Any]]:
@@ -140,9 +139,24 @@ class OpenAICompatibleModelProvider:
                 "duration_ms": _elapsed_ms(started),
                 "error": error,
             }
-            self.last_attempts = [attempt]
         assert result is not None
         return ModelCallResult(result, (attempt,))
+
+    def generate_validated_json(
+        self,
+        request: ModelRequest,
+        validator: Callable[[dict[str, Any]], ValidatedT],
+    ) -> ModelCallResult[ValidatedT]:
+        call = self.generate_json(request)
+        try:
+            value = validator(call.value)
+        except Exception as exc:
+            raise ModelProviderValidationError(
+                "模型返回内容未通过项目校验",
+                attempts=call.attempts,
+                cause=exc,
+            ) from exc
+        return ModelCallResult(value, call.attempts)
 
     @property
     def provider_label(self) -> str:
@@ -255,6 +269,10 @@ class OpenAICompatibleModelProvider:
             raise ModelProviderError("模型服务调用失败") from exc
         except json.JSONDecodeError as exc:
             raise ModelProviderError("模型服务返回不是合法 JSON") from exc
+        except Exception as exc:
+            if cancellation is not None and cancellation.cancelled:
+                raise ModelProviderCancelled("模型调用已取消") from exc
+            raise
         if not isinstance(data, dict):
             raise ModelProviderError("模型服务返回格式无效")
         return data

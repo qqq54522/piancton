@@ -2,11 +2,13 @@ from pathlib import Path
 
 import pytest
 
+from app.ai.contracts import ModelCallResult
 from app.core.errors import AppError
 from app.services.ai_service import AiService
+from tests.conftest import ModelProviderStub
 
 
-class StaticProvider:
+class StaticProvider(ModelProviderStub):
     name = "test"
     configured = True
 
@@ -16,10 +18,10 @@ class StaticProvider:
 
     def generate_json(self, request):
         self.last_request = request
-        return self.payload
+        return ModelCallResult(self.payload)
 
 
-class SequenceProvider:
+class SequenceProvider(ModelProviderStub):
     name = "test"
     configured = True
 
@@ -29,7 +31,7 @@ class SequenceProvider:
 
     def generate_json(self, request):
         self.requests.append(request)
-        return next(self.payloads)
+        return ModelCallResult(next(self.payloads))
 
 
 def payload(*, concept_suggestions=None):
@@ -68,7 +70,7 @@ def payload(*, concept_suggestions=None):
 
 
 def test_image_analysis_uses_streamlined_semantic_profile_v3_without_content_tags():
-    result = AiService(StaticProvider(payload())).analyze_image(Path("unused.png"))
+    result = AiService(StaticProvider(payload())).analyze_image(Path("unused.png")).value
 
     assert result.semantic_profile.schema_version == 3
     assert "动画讲解数学知识点" in result.semantic_profile.visual_facts
@@ -99,7 +101,11 @@ def test_image_analysis_ignores_legacy_fixed_tag_fields():
         }
     )
 
-    result = AiService(StaticProvider(provider_payload)).analyze_image(Path("unused.png"))
+    result = (
+        AiService(StaticProvider(provider_payload))
+        .analyze_image(Path("unused.png"))
+        .value
+    )
 
     assert "content_tags" not in result.model_dump()
     assert "recommended_search_words" not in result.model_dump()
@@ -111,7 +117,11 @@ def test_image_analysis_allows_provider_payload_without_semantic_profile():
     provider_payload = payload()
     provider_payload.pop("semantic_profile")
 
-    result = AiService(StaticProvider(provider_payload)).analyze_image(Path("unused.png"))
+    result = (
+        AiService(StaticProvider(provider_payload))
+        .analyze_image(Path("unused.png"))
+        .value
+    )
 
     assert result.semantic_profile.schema_version == 3
     assert result.semantic_profile.visual_facts
@@ -147,7 +157,7 @@ def test_image_analysis_allows_short_asset_specific_search_phrases():
         "课堂",
     ]
 
-    result = AiService(StaticProvider(valid)).analyze_image(Path("unused.png"))
+    result = AiService(StaticProvider(valid)).analyze_image(Path("unused.png")).value
     assert result.semantic_profile.asset_search_phrases[-1] == "课堂"
 
 
@@ -168,7 +178,7 @@ def test_pre_upload_phrase_generation_returns_exact_requested_count():
         title="课程同步",
         concept_code="school_sync",
         image_media_type="image/png",
-    )
+    ).value
 
     assert result.phrases == [
         "找一张能体现和学校教材进度一致的图",
@@ -299,7 +309,7 @@ def test_search_intent_normalizes_catalog_codes_to_chinese_names():
             },
         ]
     )
-    result = AiService(provider).understand_search("孩子听不懂老师讲课")
+    result = AiService(provider).understand_search("孩子听不懂老师讲课").value
 
     assert result.expanded_terms[0].term == "同步校内体系 > 动画精讲"
     assert result.matched_business_concepts[0].concept == "同步校内体系 > 动画精讲"
@@ -326,7 +336,7 @@ def test_visual_search_stops_after_system_routing():
         ]
     )
 
-    result = AiService(provider).understand_search("蓝色横版有孩子的图")
+    result = AiService(provider).understand_search("蓝色横版有孩子的图").value
 
     assert result.query_type == "visual_scene_search"
     assert result.matched_business_concepts == []

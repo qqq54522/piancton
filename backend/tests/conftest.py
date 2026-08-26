@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import models  # noqa: F401
+from app.ai.contracts import ModelCallResult
 from app.api.dependencies import get_db
 from app.core.security import hash_password
 from app.db.base import Base
@@ -84,3 +85,14 @@ def login(client: TestClient, username: str, password: str) -> str:
     response = client.post("/api/auth/login", json={"username": username, "password": password})
     assert response.status_code == 200
     return response.json()["csrfToken"]
+
+
+class ModelProviderStub:
+    """Test-only adapter that follows the production Provider contract."""
+
+    name = "test"
+    configured = True
+
+    def generate_validated_json(self, request, validator):
+        call = self.generate_json(request)
+        return ModelCallResult(validator(call.value), call.attempts)

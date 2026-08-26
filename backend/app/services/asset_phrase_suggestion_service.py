@@ -46,6 +46,6 @@ class AssetPhraseSuggestionService:
                 title=title,
                 concept_code=concept_code,
                 image_media_type=staged.media_type,
-            )
+            ).value
         finally:
             self.storage.discard(staged)

@@ -4,7 +4,9 @@ import asyncio
 import hashlib
 import json
 import time
+from dataclasses import replace
 
+from app.ai.contracts import ModelCallResult
 from app.schemas.ai import SearchUnderstanding
 from app.services.embedding_recall_service import EmbeddingRecallService
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
@@ -178,19 +180,45 @@ class SearchExternalBranches:
             )
             return None, task
         task = asyncio.create_task(
-            self.runner.run_thread(
-                "query_understanding",
-                lambda signal: self.understanding.understand_with_model(
-                    keyword,
-                    cancellation=signal,
-                ),
-                timeout_seconds=_clamp_timeout(
-                    self.understanding_timeout_seconds,
-                    deadline,
-                ),
-            )
+            self._run_basic_understanding(keyword, deadline=deadline)
         )
         return None, task
+
+    async def _run_basic_understanding(
+        self,
+        keyword: str,
+        *,
+        deadline: SearchDeadline | None = None,
+    ) -> SearchBranchResult:
+        result = await self.runner.run_thread(
+            "query_understanding",
+            lambda signal: self.understanding.understand_with_model(
+                keyword,
+                cancellation=signal,
+            ),
+            timeout_seconds=_clamp_timeout(
+                self.understanding_timeout_seconds,
+                deadline,
+            ),
+            attempt_task="search_intent_understanding",
+            attempt_layer="第二层：卖点识别",
+        )
+        call = result.value if isinstance(result.value, ModelCallResult) else None
+        if call is None:
+            return result
+        attempts = self.understanding.model_attempts(
+            call.attempts,
+            task="search_intent_understanding",
+            layer="第二层：卖点识别",
+        )
+        return SearchBranchResult(
+            value=call.value,
+            diagnostic=replace(
+                result.diagnostic,
+                result_count=1 if isinstance(call.value, SearchUnderstanding) else 0,
+                attempts=attempts or result.diagnostic.attempts,
+            ),
+        )
 
     async def _run_staged_understanding(
         self,
@@ -211,13 +239,25 @@ class SearchExternalBranches:
             ),
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
+            attempt_task="search_system_routing",
+            attempt_layer="第一层：体系路由",
+        )
+        route_call = (
+            route_result.value
+            if isinstance(route_result.value, ModelCallResult)
+            else None
         )
         route_attempts = self.understanding.model_attempts(
+            route_call.attempts if route_call is not None else (),
             task="search_system_routing",
             layer="第一层：体系路由",
         )
-        route_attempts_detail = self.understanding.model_attempts_detail()
-        if route_result.diagnostic.status != "ok" or route_result.value is None:
+        if not route_attempts:
+            route_attempts = route_result.diagnostic.attempts
+        route_attempts_detail = self.understanding.model_attempts_detail(
+            route_call.attempts if route_call is not None else (),
+        )
+        if route_result.diagnostic.status != "ok" or route_call is None:
             return SearchBranchResult(
                 value=QueryUnderstandingOutcome(
                     understanding=None,
@@ -238,12 +278,45 @@ class SearchExternalBranches:
                 ),
             )
 
-        routing = route_result.value
+        routing = route_call.value
         system_codes = self.understanding.routed_system_codes(routing)
         if not system_codes:
-            understanding = self.understanding.understand_selling_points_with_model_route(
-                keyword,
-                routing,
+            no_system_result = await self.runner.run_thread(
+                "query_selling_point_understanding",
+                lambda signal: self.understanding.understand_selling_points_with_model_route(
+                    keyword,
+                    routing,
+                    cancellation=signal,
+                ),
+                timeout_seconds=_clamp_timeout(
+                    self.selling_point_timeout_seconds
+                    + self.understanding_grace_seconds,
+                    deadline,
+                ),
+                attempt_task="search_intent_understanding",
+                attempt_layer="第二层：卖点识别",
+            )
+            understanding_call = (
+                no_system_result.value
+                if isinstance(no_system_result.value, ModelCallResult)
+                else None
+            )
+            understanding = (
+                understanding_call.value if understanding_call is not None else None
+            )
+            understanding_attempts = (
+                understanding_call.attempts
+                if understanding_call is not None
+                else ()
+            )
+            understanding_diagnostics = (
+                self.understanding.model_attempts(
+                    understanding_attempts,
+                    task="search_intent_understanding",
+                    layer="第二层：卖点识别",
+                )
+                if understanding_call is not None
+                else no_system_result.diagnostic.attempts
             )
             return SearchBranchResult(
                 value=QueryUnderstandingOutcome(
@@ -254,7 +327,7 @@ class SearchExternalBranches:
                 ),
                 diagnostic=SearchBranchDiagnostic(
                     source="query_understanding",
-                    status="ok",
+                    status=no_system_result.diagnostic.status,
                     duration_ms=_elapsed_ms(started),
                     result_count=1 if understanding is not None else 0,
                     detail=(
@@ -262,7 +335,10 @@ class SearchExternalBranches:
                         "无需进入卖点层"
                         f"{_attempt_suffix('体系Provider', route_attempts_detail)}"
                     ),
-                    attempts=route_attempts,
+                    attempts=(
+                        *route_attempts,
+                        *understanding_diagnostics,
+                    ),
                 ),
             )
 
@@ -279,15 +355,28 @@ class SearchExternalBranches:
             ),
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
+            attempt_task="search_intent_understanding",
+            attempt_layer="第二层：卖点识别",
+        )
+        selling_call = (
+            selling_result.value
+            if isinstance(selling_result.value, ModelCallResult)
+            else None
         )
         selling_attempts = self.understanding.model_attempts(
+            selling_call.attempts if selling_call is not None else (),
             task="search_intent_understanding",
             layer="第二层：卖点识别",
         )
-        selling_attempts_detail = self.understanding.model_attempts_detail()
+        if not selling_attempts:
+            selling_attempts = selling_result.diagnostic.attempts
+        selling_attempts_detail = self.understanding.model_attempts_detail(
+            selling_call.attempts if selling_call is not None else (),
+        )
         selling_completed = bool(
             selling_result.diagnostic.status == "ok"
-            and isinstance(selling_result.value, SearchUnderstanding)
+            and selling_call is not None
+            and isinstance(selling_call.value, SearchUnderstanding)
         )
         if not selling_completed:
             repaired = self.understanding.repair_routed_selling_point_understanding(
@@ -300,7 +389,8 @@ class SearchExternalBranches:
             else:
                 selling_understanding = None
         else:
-            selling_understanding = selling_result.value
+            assert selling_call is not None
+            selling_understanding = selling_call.value
         if not selling_completed:
             return SearchBranchResult(
                 value=QueryUnderstandingOutcome(
@@ -378,21 +468,34 @@ class SearchExternalBranches:
             ),
             retry_attempts=self.understanding_retry_attempts,
             retry_backoff_seconds=self.understanding_retry_backoff_seconds,
+            attempt_task="search_proof_point_understanding",
+            attempt_layer="第三层：证明点识别",
+        )
+        proof_call = (
+            proof_result.value
+            if isinstance(proof_result.value, ModelCallResult)
+            else None
         )
         proof_attempts = self.understanding.model_attempts(
+            proof_call.attempts if proof_call is not None else (),
             task="search_proof_point_understanding",
             layer="第三层：证明点识别",
         )
-        proof_attempts_detail = self.understanding.model_attempts_detail()
+        if not proof_attempts:
+            proof_attempts = proof_result.diagnostic.attempts
+        proof_attempts_detail = self.understanding.model_attempts_detail(
+            proof_call.attempts if proof_call is not None else (),
+        )
         proof_completed = bool(
             proof_result.diagnostic.status == "ok"
-            and isinstance(proof_result.value, SearchUnderstanding)
+            and proof_call is not None
+            and isinstance(proof_call.value, SearchUnderstanding)
         )
         return SearchBranchResult(
             value=QueryUnderstandingOutcome(
                 understanding=(
-                    proof_result.value
-                    if proof_completed
+                    proof_call.value
+                    if proof_completed and proof_call is not None
                     else selling_understanding
                 ),
                 routed_system_codes=system_codes,
@@ -558,12 +661,22 @@ class SearchExternalBranches:
                 self.candidate_review_timeout_seconds,
                 deadline,
             ),
+            attempt_task="search_candidate_review",
+            attempt_layer="第四层：候选图片复核",
+        )
+        review_call = (
+            result.value if isinstance(result.value, ModelCallResult) else None
         )
         attempts = self.understanding.model_attempts(
+            review_call.attempts if review_call is not None else (),
             task="search_candidate_review",
             layer="第四层：候选图片复核",
         )
-        attempts_detail = self.understanding.model_attempts_detail()
+        if not attempts:
+            attempts = result.diagnostic.attempts
+        attempts_detail = self.understanding.model_attempts_detail(
+            review_call.attempts if review_call is not None else (),
+        )
         if result.diagnostic.status != "ok" or result.value is None:
             return SearchBranchResult(
                 value=hits,
@@ -580,8 +693,25 @@ class SearchExternalBranches:
                     attempts=attempts,
                 ),
             )
-        reviewed_hits, applied = _apply_candidate_review(hits, result.value.decisions)
-        self.caches.candidate_reviews.set(cache_key, result.value)
+        if review_call is None:
+            detail = "第四层候选图片复核未返回正式模型结果，保留原排序"
+            return SearchBranchResult(
+                value=hits,
+                diagnostic=SearchBranchDiagnostic(
+                    source="candidate_review",
+                    status="failed",
+                    duration_ms=result.diagnostic.duration_ms,
+                    result_count=len(hits),
+                    detail=detail,
+                    attempts=attempts,
+                ),
+            )
+        review_result = review_call.value
+        reviewed_hits, applied = _apply_candidate_review(
+            hits,
+            review_result.decisions,
+        )
+        self.caches.candidate_reviews.set(cache_key, review_result)
         return SearchBranchResult(
             value=reviewed_hits,
             diagnostic=SearchBranchDiagnostic(

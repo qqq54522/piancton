@@ -1,3 +1,4 @@
+from app.ai.contracts import ModelCallResult
 from app.domain.business_intents import (
     BusinessIntent,
     BusinessIntentCatalog,
@@ -146,7 +147,7 @@ def test_query_understanding_falls_back_to_ai_when_local_intent_does_not_match()
 
         def understand_search(self, keyword: str):
             assert keyword == "听课费劲"
-            return "ai-result"
+            return ModelCallResult("ai-result")
 
     service = QueryUnderstandingService(ai_service=FakeAiService())
 
@@ -183,7 +184,7 @@ def test_query_understanding_uses_ai_for_weak_local_match():
 
         def understand_search(self, keyword: str):
             assert keyword == "只说一个模糊词"
-            return ai_result
+            return ModelCallResult(ai_result)
 
     service = QueryUnderstandingService(
         ai_service=FakeAiService(),
@@ -217,7 +218,7 @@ def test_query_understanding_uses_ai_for_configured_ambiguous_terms():
 
         def understand_search(self, keyword: str):
             assert keyword == "需要规划"
-            return ai_result
+            return ModelCallResult(ai_result)
 
     service = QueryUnderstandingService(
         ai_service=FakeAiService(),
@@ -255,7 +256,7 @@ def test_query_understanding_uses_ai_for_ambiguous_local_matches():
 
         def understand_search(self, keyword: str):
             assert keyword == "体现规划"
-            return ai_result
+            return ModelCallResult(ai_result)
 
     service = QueryUnderstandingService(
         ai_service=FakeAiService(),

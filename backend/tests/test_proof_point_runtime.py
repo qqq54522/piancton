@@ -1,6 +1,6 @@
 import pytest
 
-from app.ai.contracts import ModelRequest
+from app.ai.contracts import ModelCallResult, ModelRequest
 from app.ai.normalizer import normalize_model_payload
 from app.domain.proof_points import load_proof_point_catalog
 from app.schemas.ai import (
@@ -117,50 +117,71 @@ def test_unseen_detail_requests_scoped_proof_completion_but_generic_lookup_does_
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_school",
-                        relation="primary",
-                        reason="动画讲解",
-                        weight=0.98,
-                    )
-                ],
-            )
-
-        def understand_selling_points_from_route(self, keyword: str, routing):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="动画精讲",
-                search_intent="短时、单点讲透",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="animation_explanation",
-                        relation="direct",
-                        reason="动画讲解",
-                        weight=0.98,
-                    )
-                ],
-            )
-
-        def understand_proof_points(self, keyword: str, selling_points):
-            return selling_points.model_copy(
-                update={
-                    "matched_proof_points": [
-                        SearchProofPointMatch(
-                            code="pp_animation_pedagogy_design",
-                            concept_code="animation_explanation",
-                            name="官方产品定位与教研方法论",
-                            reason="别拖太久、每回只消化一个小点",
-                            weight=0.96,
-                            evidence_terms=["5-8 分钟动画微课"],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return ModelCallResult(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_school",
+                            relation="primary",
+                            reason="动画讲解",
+                            weight=0.98,
                         )
-                    ]
-                }
+                    ],
+                )
+            )
+
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            routing,
+            *,
+            cancellation=None,
+        ):
+            return ModelCallResult(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="动画精讲",
+                    search_intent="短时、单点讲透",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="animation_explanation",
+                            relation="direct",
+                            reason="动画讲解",
+                            weight=0.98,
+                        )
+                    ],
+                )
+            )
+
+        def routed_system_codes(self, _routing):
+            return ("sync_school",)
+
+        def understand_proof_points(
+            self,
+            keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
+            return ModelCallResult(
+                selling_points.model_copy(
+                    update={
+                        "matched_proof_points": [
+                            SearchProofPointMatch(
+                                code="pp_animation_pedagogy_design",
+                                concept_code="animation_explanation",
+                                name="官方产品定位与教研方法论",
+                                reason="别拖太久、每回只消化一个小点",
+                                weight=0.96,
+                                evidence_terms=["5-8 分钟动画微课"],
+                            )
+                        ]
+                    }
+                )
             )
 
     service = QueryUnderstandingService(ai_service=ScopedAi())
@@ -177,7 +198,10 @@ def test_unseen_detail_requests_scoped_proof_completion_but_generic_lookup_does_
     assert service.should_use_model("帮我找动画精讲图片", generic)
 
     model = service.complete_proof_points_with_model(query, local)
-    merged = service.arbitrate_model_understanding(local, model)
+    merged = service.arbitrate_model_understanding(
+        local,
+        model.value if model is not None else None,
+    )
 
     assert merged is not None
     assert [item.concept for item in merged.matched_business_concepts] == [

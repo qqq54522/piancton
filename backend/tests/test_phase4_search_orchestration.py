@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from app.ai.contracts import ModelCallResult
 from app.core.errors import AppError
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase
@@ -50,6 +51,10 @@ def _understanding(query: str) -> SearchUnderstanding:
     )
 
 
+def _model_result(value):
+    return ModelCallResult(value)
+
+
 def test_phase4_external_branches_start_in_parallel(db_factory, monkeypatch):
     barrier = threading.Barrier(3)
 
@@ -67,9 +72,9 @@ def test_phase4_external_branches_start_in_parallel(db_factory, monkeypatch):
     class ParallelAi:
         provider = Provider()
 
-        def understand_search(self, keyword: str):
+        def understand_search(self, keyword: str, *, cancellation=None):
             barrier.wait(timeout=1)
-            return _understanding(keyword)
+            return _model_result(_understanding(keyword))
 
     with db_factory() as db:
         service = SearchService(
@@ -110,45 +115,61 @@ def test_phase4_staged_model_uses_independent_layer_budgets(db_factory):
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, keyword: str):
+        def route_search_system(self, keyword: str, *, cancellation=None):
             time.sleep(0.02)
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_self_study",
-                        relation="primary",
-                        reason="拍题后分步点拨",
-                        weight=0.98,
-                    )
-                ],
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_self_study",
+                            relation="primary",
+                            reason="拍题后分步点拨",
+                            weight=0.98,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_self_study",)
 
-        def understand_selling_points_from_route(self, keyword: str, _routing):
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
             time.sleep(0.02)
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="AI拍题精学",
-                search_intent="拍题后分步点拨，不直接给答案",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="AI拍题精学",
-                        relation="direct",
-                        reason="同步自学体系内卖点边界命中",
-                        weight=0.98,
-                    )
-                ],
-                search_strategy="只召回已审核 AI 拍题精学素材",
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="AI拍题精学",
+                    search_intent="拍题后分步点拨，不直接给答案",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="AI拍题精学",
+                            relation="direct",
+                            reason="同步自学体系内卖点边界命中",
+                            weight=0.98,
+                        )
+                    ],
+                    search_strategy="只召回已审核 AI 拍题精学素材",
+                )
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
             time.sleep(0.02)
-            return selling_points
+            return _model_result(selling_points)
 
     with db_factory() as db:
         image = _image("拍题精学素材", "guided.png")
@@ -203,29 +224,43 @@ def test_phase4_second_layer_timeout_does_not_open_global_recall(
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_self_study",
-                        relation="primary",
-                        reason="一键拍照后分步解析",
-                        weight=0.97,
-                    )
-                ],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_self_study",
+                            relation="primary",
+                            reason="一键拍照后分步解析",
+                            weight=0.97,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_self_study",)
 
-        def understand_selling_points_from_route(self, _keyword: str, _routing):
+        def understand_selling_points_from_route(
+            self,
+            _keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
             time.sleep(0.08)
-            return _understanding(_keyword)
+            return _model_result(_understanding(_keyword))
 
-        def understand_proof_points(self, _keyword: str, selling_points):
-            return selling_points
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(selling_points)
 
     query = "一键拍照后帮我分析思路，但别直接给最终答案"
     with db_factory() as db:
@@ -267,43 +302,59 @@ def test_phase4_third_layer_timeout_marks_understanding_incomplete(db_factory):
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_self_study",
-                        relation="primary",
-                        reason="拍题后分步分析",
-                        weight=0.97,
-                    )
-                ],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_self_study",
+                            relation="primary",
+                            reason="拍题后分步分析",
+                            weight=0.97,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_self_study",)
 
-        def understand_selling_points_from_route(self, keyword: str, _routing):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="AI拍题精学",
-                search_intent="拍题后分步分析思路",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="AI拍题精学",
-                        relation="direct",
-                        reason="命中同步自学体系下的拍题精学卖点",
-                        weight=0.97,
-                    )
-                ],
-                search_strategy="继续判断直属证明点",
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="AI拍题精学",
+                    search_intent="拍题后分步分析思路",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="AI拍题精学",
+                            relation="direct",
+                            reason="命中同步自学体系下的拍题精学卖点",
+                            weight=0.97,
+                        )
+                    ],
+                    search_strategy="继续判断直属证明点",
+                )
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
             time.sleep(0.08)
-            return selling_points
+            return _model_result(selling_points)
 
     with db_factory() as db:
         response = SearchService(
@@ -333,59 +384,84 @@ def test_phase4_candidate_review_filters_top_candidates(db_factory):
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_companion",
-                        relation="primary",
-                        reason="家长查看学习结果",
-                        weight=0.92,
-                    )
-                ],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_companion",
+                            relation="primary",
+                            reason="家长查看学习结果",
+                            weight=0.92,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_companion",)
 
-        def understand_selling_points_from_route(self, keyword: str, _routing):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="学情报告反馈",
-                search_intent="家长查看学习结果",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="学情报告反馈",
-                        relation="direct",
-                        reason="家长查看学习结果",
-                        weight=0.95,
-                    )
-                ],
-                search_strategy="按学情报告反馈召回",
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="学情报告反馈",
+                    search_intent="家长查看学习结果",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="学情报告反馈",
+                            relation="direct",
+                            reason="家长查看学习结果",
+                            weight=0.95,
+                        )
+                    ],
+                    search_strategy="按学情报告反馈召回",
+                )
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
-            return selling_points
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(selling_points)
 
-        def review_search_candidates(self, *, keyword, understanding, candidates):
-            return SearchCandidateReviewResult(
-                decisions=[
-                    SearchCandidateReviewDecision(
-                        image_id=item["image_id"],
-                        decision=(
-                            "exclude"
-                            if "错题" in item["title"]
-                            else "keep"
-                        ),
-                        confidence=0.9,
-                        reason="第四层候选图与用户原话对照",
-                    )
-                    for item in candidates
-                ],
-                review_strategy="测试第四层过滤",
+        def review_search_candidates(
+            self,
+            *,
+            keyword,
+            understanding,
+            candidates,
+            cancellation=None,
+        ):
+            return _model_result(
+                SearchCandidateReviewResult(
+                    decisions=[
+                        SearchCandidateReviewDecision(
+                            image_id=item["image_id"],
+                            decision=(
+                                "exclude"
+                                if "错题" in item["title"]
+                                else "keep"
+                            ),
+                            confidence=0.9,
+                            reason="第四层候选图与用户原话对照",
+                        )
+                        for item in candidates
+                    ],
+                    review_strategy="测试第四层过滤",
+                )
             )
 
     query = "家长可以查看学习结果"
@@ -455,56 +531,81 @@ def test_phase4_candidate_review_uses_cache_for_same_context(db_factory):
         def __init__(self):
             self.review_calls = 0
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_companion",
-                        relation="primary",
-                        reason="家长查看学习结果",
-                        weight=0.92,
-                    )
-                ],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_companion",
+                            relation="primary",
+                            reason="家长查看学习结果",
+                            weight=0.92,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_companion",)
 
-        def understand_selling_points_from_route(self, keyword: str, _routing):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="学情报告反馈",
-                search_intent="家长查看学习结果",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="学情报告反馈",
-                        relation="direct",
-                        reason="家长查看学习结果",
-                        weight=0.95,
-                    )
-                ],
-                search_strategy="按学情报告反馈召回",
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="学情报告反馈",
+                    search_intent="家长查看学习结果",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="学情报告反馈",
+                            relation="direct",
+                            reason="家长查看学习结果",
+                            weight=0.95,
+                        )
+                    ],
+                    search_strategy="按学情报告反馈召回",
+                )
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
-            return selling_points
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(selling_points)
 
-        def review_search_candidates(self, *, keyword, understanding, candidates):
+        def review_search_candidates(
+            self,
+            *,
+            keyword,
+            understanding,
+            candidates,
+            cancellation=None,
+        ):
             self.review_calls += 1
-            return SearchCandidateReviewResult(
-                decisions=[
-                    SearchCandidateReviewDecision(
-                        image_id=item["image_id"],
-                        decision="keep",
-                        confidence=0.9,
-                        reason="第四层缓存测试",
-                    )
-                    for item in candidates
-                ],
-                review_strategy="缓存测试",
+            return _model_result(
+                SearchCandidateReviewResult(
+                    decisions=[
+                        SearchCandidateReviewDecision(
+                            image_id=item["image_id"],
+                            decision="keep",
+                            confidence=0.9,
+                            reason="第四层缓存测试",
+                        )
+                        for item in candidates
+                    ],
+                    review_strategy="缓存测试",
+                )
             )
 
     query = "家长可以查看学习结果"
@@ -566,56 +667,81 @@ def test_phase4_candidate_review_limits_reviewed_candidates(db_factory):
         def __init__(self):
             self.reviewed_counts = []
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_companion",
-                        relation="primary",
-                        reason="家长查看学习结果",
-                        weight=0.92,
-                    )
-                ],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_companion",
+                            relation="primary",
+                            reason="家长查看学习结果",
+                            weight=0.92,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_companion",)
 
-        def understand_selling_points_from_route(self, keyword: str, _routing):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="学情报告反馈",
-                search_intent="家长查看学习结果",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="学情报告反馈",
-                        relation="direct",
-                        reason="家长查看学习结果",
-                        weight=0.95,
-                    )
-                ],
-                search_strategy="按学情报告反馈召回",
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="学情报告反馈",
+                    search_intent="家长查看学习结果",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="学情报告反馈",
+                            relation="direct",
+                            reason="家长查看学习结果",
+                            weight=0.95,
+                        )
+                    ],
+                    search_strategy="按学情报告反馈召回",
+                )
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
-            return selling_points
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(selling_points)
 
-        def review_search_candidates(self, *, keyword, understanding, candidates):
+        def review_search_candidates(
+            self,
+            *,
+            keyword,
+            understanding,
+            candidates,
+            cancellation=None,
+        ):
             self.reviewed_counts.append(len(candidates))
-            return SearchCandidateReviewResult(
-                decisions=[
-                    SearchCandidateReviewDecision(
-                        image_id=item["image_id"],
-                        decision="keep",
-                        confidence=0.9,
-                        reason="候选数限制测试",
-                    )
-                    for item in candidates
-                ],
-                review_strategy="候选数限制测试",
+            return _model_result(
+                SearchCandidateReviewResult(
+                    decisions=[
+                        SearchCandidateReviewDecision(
+                            image_id=item["image_id"],
+                            decision="keep",
+                            confidence=0.9,
+                            reason="候选数限制测试",
+                        )
+                        for item in candidates
+                    ],
+                    review_strategy="候选数限制测试",
+                )
             )
 
     query = "家长可以查看学习结果"
@@ -673,32 +799,46 @@ def test_phase4_repairs_exam_stage_focus_when_second_layer_is_invalid(db_factory
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_exam",
-                        relation="primary",
-                        reason="考试阶段重点",
-                        weight=0.98,
-                    )
-                ],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_exam",
+                            relation="primary",
+                            reason="考试阶段重点",
+                            weight=0.98,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_exam",)
 
-        def understand_selling_points_from_route(self, _keyword: str, _routing):
+        def understand_selling_points_from_route(
+            self,
+            _keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
             raise AppError(
                 "model_response_invalid",
                 "模型返回内容不符合项目结构要求",
                 status_code=502,
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
-            return selling_points
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(selling_points)
 
     query = "月考期中期末一键划重点"
     with db_factory() as db:
@@ -1629,7 +1769,7 @@ def test_phase4_all_external_failures_keep_database_results(db_factory, monkeypa
     class FailingAi:
         provider = Provider()
 
-        def understand_search(self, _keyword: str):
+        def understand_search(self, _keyword: str, *, cancellation=None):
             raise AppError("model_down", "understanding down", status_code=502)
 
     with db_factory() as db:
@@ -1740,15 +1880,17 @@ def test_phase4_catalog_edit_supersedes_cached_model_understanding(db_factory):
         def __init__(self):
             self.calls = 0
 
-        def understand_search(self, keyword: str):
+        def understand_search(self, keyword: str, *, cancellation=None):
             self.calls += 1
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="缓存刷新卖点",
-                search_intent="模型旧理解",
-                query_type="business_intent_search",
-                matched_business_concepts=[],
-                search_strategy="测试缓存",
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="缓存刷新卖点",
+                    search_intent="模型旧理解",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[],
+                    search_strategy="测试缓存",
+                )
             )
 
     ai = CachedAi()
@@ -2319,42 +2461,58 @@ def test_phase4_trusted_method_predicate_survives_wrong_model(db_factory):
         provider = Provider()
         knowledge = None
 
-        def route_search_system(self, keyword: str):
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_exam",
-                        relation="primary",
-                        reason="模型错误路由",
-                        weight=0.93,
-                    )
-                ],
+        def route_search_system(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_exam",
+                            relation="primary",
+                            reason="模型错误路由",
+                            weight=0.93,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_exam",)
 
-        def understand_selling_points_from_route(self, keyword: str, _routing):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="万能解法",
-                search_intent="错误地将结果词当作主意图",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="万能解法",
-                        relation="direct",
-                        reason="只依据从解一题到通一类",
-                        weight=0.93,
-                    )
-                ],
-                search_strategy="错误模型结果",
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="万能解法",
+                    search_intent="错误地将结果词当作主意图",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="万能解法",
+                            relation="direct",
+                            reason="只依据从解一题到通一类",
+                            weight=0.93,
+                        )
+                    ],
+                    search_strategy="错误模型结果",
+                )
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
-            return selling_points
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
+            return _model_result(selling_points)
 
     with db_factory() as db:
         photo_guided = BusinessConcept(
@@ -2512,27 +2670,29 @@ def test_phase4_exploratory_route_excludes_pending_links_even_with_model_related
         provider = Provider()
         knowledge = None
 
-        def understand_search(self, keyword: str):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="拍照后由 AI 立即讲解或点拨",
-                search_intent="你可能在找：AI拍题精学、极速预习复习",
-                query_type="exploratory_business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="同步自学体系 > AI拍题精学",
-                        relation="related",
-                        reason="可能是拍题讲解，但缺少明确对象",
-                        weight=0.7,
-                    ),
-                    SearchConceptMatch(
-                        concept="同步校内体系 > 极速预习复习",
-                        relation="related",
-                        reason="也可能是拍课本快速梳理",
-                        weight=0.66,
-                    ),
-                ],
-                search_strategy="共享入口词命中多个卖点方向，合并展示供二次筛选",
+        def understand_search(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="拍照后由 AI 立即讲解或点拨",
+                    search_intent="你可能在找：AI拍题精学、极速预习复习",
+                    query_type="exploratory_business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="同步自学体系 > AI拍题精学",
+                            relation="related",
+                            reason="可能是拍题讲解，但缺少明确对象",
+                            weight=0.7,
+                        ),
+                        SearchConceptMatch(
+                            concept="同步校内体系 > 极速预习复习",
+                            relation="related",
+                            reason="也可能是拍课本快速梳理",
+                            weight=0.66,
+                        ),
+                    ],
+                    search_strategy="共享入口词命中多个卖点方向，合并展示供二次筛选",
+                )
             )
 
     with db_factory() as db:
@@ -2766,7 +2926,7 @@ def test_phase4_asset_phrases_filter_support_proof_images_with_direct_assets(
         provider = Provider()
         knowledge = None
 
-        def understand_search(self, keyword: str):
+        def understand_search(self, keyword: str, *, cancellation=None):
             raise AssertionError(f"可信本地话术不应调用外部模型：{keyword}")
 
     with db_factory() as db:
@@ -2869,20 +3029,22 @@ def test_phase4_explicit_proof_query_keeps_matching_support_asset_only(db_factor
         provider = Provider()
         knowledge = None
 
-        def understand_search(self, keyword: str):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="AI定制学习方案",
-                search_intent="用创始人宣讲素材支撑 AI 个性化学习规划",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="AI定制学习方案",
-                        relation="direct",
-                        reason="明确要求 AI 定制学习理念",
-                        weight=0.96,
-                    )
-                ],
+        def understand_search(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="AI定制学习方案",
+                    search_intent="用创始人宣讲素材支撑 AI 个性化学习规划",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="AI定制学习方案",
+                            relation="direct",
+                            reason="明确要求 AI 定制学习理念",
+                            weight=0.96,
+                        )
+                    ],
+                )
             )
 
     with db_factory() as db:
@@ -2950,21 +3112,23 @@ def test_phase4_animation_course_quality_query_cannot_leak_global_results(
         provider = Provider()
         knowledge = None
 
-        def understand_search(self, keyword: str):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="动画精讲",
-                search_intent="体现动画课程质量",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="动画精讲",
-                        relation="direct",
-                        reason="渐进式 Skill 命中同步校内体系内动画精讲",
-                        weight=0.96,
-                    )
-                ],
-                search_strategy="只在已审核动画精讲素材关系内选图",
+        def understand_search(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="动画精讲",
+                    search_intent="体现动画课程质量",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="动画精讲",
+                            relation="direct",
+                            reason="渐进式 Skill 命中同步校内体系内动画精讲",
+                            weight=0.96,
+                        )
+                    ],
+                    search_strategy="只在已审核动画精讲素材关系内选图",
+                )
             )
 
     query = "体现动画课很好"
@@ -3260,56 +3424,74 @@ def test_phase4_unseen_proof_paraphrase_uses_three_layers_and_filters_siblings(
         selling_calls = 0
         proof_calls = 0
 
-        def route_search_system(self, keyword: str):
+        def route_search_system(self, keyword: str, *, cancellation=None):
             self.route_calls += 1
-            return SearchSystemRouting(
-                original_query=keyword,
-                route_type="single_system",
-                candidate_systems=[
-                    SearchSystemCandidate(
-                        code="sync_school",
-                        relation="primary",
-                        reason="动画讲解",
-                        weight=0.98,
-                    )
-                ],
+            return _model_result(
+                SearchSystemRouting(
+                    original_query=keyword,
+                    route_type="single_system",
+                    candidate_systems=[
+                        SearchSystemCandidate(
+                            code="sync_school",
+                            relation="primary",
+                            reason="动画讲解",
+                            weight=0.98,
+                        )
+                    ],
+                )
             )
 
         def routed_system_codes(self, _routing):
             return ("sync_school",)
 
-        def understand_selling_points_from_route(self, keyword: str, _routing):
+        def understand_selling_points_from_route(
+            self,
+            keyword: str,
+            _routing,
+            *,
+            cancellation=None,
+        ):
             self.selling_calls += 1
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="动画精讲",
-                search_intent="短时、单点讲透",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="animation_explanation",
-                        relation="direct",
-                        reason="动画讲解",
-                        weight=0.98,
-                    )
-                ],
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="动画精讲",
+                    search_intent="短时、单点讲透",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="animation_explanation",
+                            relation="direct",
+                            reason="动画讲解",
+                            weight=0.98,
+                        )
+                    ],
+                )
             )
 
-        def understand_proof_points(self, _keyword: str, selling_points):
+        def understand_proof_points(
+            self,
+            _keyword: str,
+            selling_points,
+            *,
+            cancellation=None,
+        ):
             self.proof_calls += 1
-            return selling_points.model_copy(
-                update={
-                    "matched_proof_points": [
-                        SearchProofPointMatch(
-                            code="pp_animation_pedagogy_design",
-                            concept_code="animation_explanation",
-                            name="官方产品定位与教研方法论",
-                            reason="别拖太久、每回只消化一个小点",
-                            weight=0.96,
-                            evidence_terms=["5-8 分钟动画微课"],
-                        )
-                    ]
-                }
+            return _model_result(
+                selling_points.model_copy(
+                    update={
+                        "matched_proof_points": [
+                            SearchProofPointMatch(
+                                code="pp_animation_pedagogy_design",
+                                concept_code="animation_explanation",
+                                name="官方产品定位与教研方法论",
+                                reason="别拖太久、每回只消化一个小点",
+                                weight=0.96,
+                                evidence_terms=["5-8 分钟动画微课"],
+                            )
+                        ]
+                    }
+                )
             )
 
     ai = ScopedProofAi()
@@ -3389,7 +3571,7 @@ def test_phase4_photo_guided_flow_does_not_route_to_fallback_animation(
         provider = Provider()
         knowledge = None
 
-        def understand_search(self, keyword: str):
+        def understand_search(self, keyword: str, *, cancellation=None):
             raise AssertionError(f"可信拍题流程不应调用外部模型：{keyword}")
 
     with db_factory() as db:
@@ -3566,21 +3748,23 @@ def test_phase4_ai_tutor_queries_only_return_reviewed_ai_tutor_assets(
         provider = Provider()
         knowledge = None
 
-        def understand_search(self, keyword: str):
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query="AI私教答疑",
-                search_intent="学习过程中随时获得 AI 答疑",
-                query_type="business_intent_search",
-                matched_business_concepts=[
-                    SearchConceptMatch(
-                        concept="AI私教答疑",
-                        relation="direct",
-                        reason="渐进式 Skill 命中同步自学体系内 AI 私教答疑",
-                        weight=0.97,
-                    )
-                ],
-                search_strategy="只在已审核 AI 私教素材关系内选图",
+        def understand_search(self, keyword: str, *, cancellation=None):
+            return _model_result(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query="AI私教答疑",
+                    search_intent="学习过程中随时获得 AI 答疑",
+                    query_type="business_intent_search",
+                    matched_business_concepts=[
+                        SearchConceptMatch(
+                            concept="AI私教答疑",
+                            relation="direct",
+                            reason="渐进式 Skill 命中同步自学体系内 AI 私教答疑",
+                            weight=0.97,
+                        )
+                    ],
+                    search_strategy="只在已审核 AI 私教素材关系内选图",
+                )
             )
 
     with db_factory() as db:
@@ -3902,9 +4086,9 @@ def test_phase4_search_total_budget_includes_query_understanding(db_factory):
         provider = Provider()
         knowledge = None
 
-        def understand_search(self, keyword: str):
+        def understand_search(self, keyword: str, *, cancellation=None):
             time.sleep(0.08)
-            return _understanding(keyword)
+            return _model_result(_understanding(keyword))
 
     class CountingReranker:
         configured = True

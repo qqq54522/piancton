@@ -2,7 +2,7 @@
 
 更新时间：2026-08-26
 当前范围：Phase 0～Phase 6；九个正式 Skill 与四类运行时模型任务完成收口；组合语义校准与素材证明点筛选继续按真实业务话术推进
-当前状态：Phase 0～6 工程改造完成；六大体系、16 个核心卖点、三层搜索和人工关系边界保持稳定；16 个核心卖点均已按业务组合语义稳定下钻到直属证明点；真实校验中发现的口语误命中按小补丁补边界和素材话术；2026-08-25 开始实施正式素材身份码与精确查找
+当前状态：Phase 0～6 工程改造完成；六大体系、16 个核心卖点、三层搜索和人工关系边界保持稳定；16 个核心卖点均已按业务组合语义稳定下钻到直属证明点；真实校验中发现的口语误命中按边界规则和素材话术治理；2026-08-25 开始实施正式素材身份码与精确查找
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
 
@@ -21,7 +21,9 @@
 - `OpenAICompatibleModelProvider` 为当前请求注册取消回调；取消时关闭 `httpx.Client`，清理本机连接池和传输，并把取消/超时竞态归一为取消状态。
 - 兼容响应格式的第二次请求前再次检查取消，避免已经取消后又发起一次请求。
 - `FallbackModelProvider` 和 API 中心调度 Provider 在取消后停止继续尝试其他 Provider/Key。
-- 查询理解服务和 `SearchBranchRunner` 增加集中式兼容调用层，历史无取消参数的测试替身仍可工作。
+- 查询理解服务和 `SearchBranchRunner` 已统一使用正式请求级 Provider 契约，不再保留无取消参数的生产兼容分支。
+- API 中心在等待并发名额、请求开始前已取消、或没有可用 API 时也会立即结束，不再把取消请求拖到任务预算结束。
+- 容量压测脚本同步到显式 `initialize_runtime()` 和新的调度 Provider 接口，保持维护工具与运行代码一致。
 
 ### 业务和架构边界
 
@@ -36,7 +38,7 @@
 
 ### 验证结果
 
-- 后端 `./.venv/bin/python -m pytest tests -q`：`300 passed`。
+- 后端 `./.venv/bin/python -m pytest tests -q`：`305 passed`。
 - 后端 `./.venv/bin/ruff check app tests scripts`：通过。
 - 后端 `./.venv/bin/pyright`：`0 errors / 1 existing warning`。
 - 前端 typecheck、ESLint、Vitest `15 files / 48 tests passed`、production build：通过。
@@ -46,6 +48,48 @@
 
 - 继续观察真实服务器上的 Provider 取消、连接释放和调用台账状态；不宣称能撤销远端服务端推理。
 - 只有未来增加第二个 backend 时，才重新评估把进程内容量账本迁移为共享租约。
+
+---
+
+## 2026-08-26：Provider 正式契约收口（D223）
+
+### 本轮目标
+
+- 删除 Provider 调用链上已经没有必要的旧方法、实例级遥测状态和动态签名兼容。
+- 让每次调用的业务结果、attempts 和取消信号都通过明确的请求级协议传递。
+
+### 完成内容
+
+- 删除 `generate_json_with_attempts` 和 `generate_validated_json_with_attempts`。
+- 删除 Provider/Service 实例级 `last_attempts`、`last_call_attempts` 及其兼容读取。
+- 删除依赖 `inspect.signature` 的动态兼容判断；搜索理解、候选复核和推荐理由统一依赖正式能力协议。
+- 所有 Provider、API 中心调度、Fallback、AiService、搜索理解、素材库 Agent、推荐理由、脚本和测试替身统一使用 `ModelCallResult` 与请求级 `CancellationSignal`。
+- 修复查询理解结果被多包一层 `ModelCallResult` 后，搜索响应丢失 `search_understanding` 的真实问题。
+
+### 业务和架构边界
+
+- 不改变六大体系、16 个核心卖点、证明点、人工 accepted 关系、召回、排序、API 中心容量算法或单服务器部署边界。
+- `.env` 一次性导入仍是部署迁移入口；API 中心仍是日常 API Key 的唯一管理入口。
+- 本轮只删除已无调用方的正式契约兼容路径，不新增数据库迁移，也不改变业务事实。
+
+### 数据迁移
+
+- 无数据库迁移。
+- 无正式素材、概念、公共话术或人工 accepted 关系写入。
+
+### 验证结果
+
+- 后端 `./.venv/bin/python -m pytest tests -q`：`305 passed`。
+- 后端 `./.venv/bin/ruff check app tests scripts`：通过。
+- 后端 `./.venv/bin/pyright`：`0 errors / 1 existing warning`。
+- 前端 typecheck、ESLint、Vitest `15 files / 48 tests passed`、production build：通过。
+- `git diff --check`：通过。
+
+### 剩余问题与下一步
+
+- 取消仍只能停止本机等待、连接和后续 fallback，不能撤销外部 Provider 已经开始的内部推理。
+- 当前单 backend 的进程内容量账本继续符合部署边界；只有未来横向扩展时才评估共享租约。
+- 仍需在真实服务器完成 Provider 取消、连接释放和调用台账的运行观察。
 
 ---
 

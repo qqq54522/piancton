@@ -119,7 +119,7 @@ def _generate_candidates(service) -> list[dict[str, str]]:
                 prompt=prompt,
                 timeout_seconds=180,
             )
-        )
+        ).value
         for item in payload.get("items", []):
             if not isinstance(item, dict):
                 continue

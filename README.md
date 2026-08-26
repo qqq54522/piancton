@@ -14,7 +14,7 @@
 - PostgreSQL + Alembic，开发环境也可使用 SQLite
 - 本地持久化图片卷，可替换 Storage Provider
 - AI Provider 稳定接口；未配置时明确返回 `503 provider_not_configured`
-- 已支持 OpenAI-compatible 多模态模型接入，API Key 只放后端环境变量
+- 已支持 OpenAI-compatible 多模态模型接入，API Key 统一在管理员“API 中心”维护
 - 模型 Provider 已配置时，上传成功后自动生成语义总结、画面事实、场景、素材独有表达和业务概念关系建议；不再生成固定客观标签
 - AI 建议与负责人确认严格区分来源和审核状态，不覆盖人工确认事实
 - 卖点公共话术集中管理并由关联素材继承，单张图片只维护独有画面和场景说法
@@ -27,7 +27,7 @@
 Phase 0～6 工程改造和旧职责清理已经完成。当前本地素材库已有 1 张已审核代表主图并完成“主要表达”关系确认；下一步再补充 2～5 张代表主图，并重新建立真实搜索基线。
 当前本地检查结果：
 
-- 后端 pytest：92 项通过（含 4 项文档一致性检查）
+- 后端 pytest：305 项通过
 - Ruff、Pyright：通过
 - 前端 TypeScript、ESLint、Vitest、生产构建：通过
 - 搜索评测资产：50 条用例通过结构校验
@@ -85,10 +85,14 @@ npm run generate:api
 
 ## AI 模型配置
 
-第一版推荐只接一个支持图片输入和 JSON 输出的多模态模型。后端通过
-OpenAI-compatible Chat Completions 协议调用，前端永远不接触 API Key。
+API 中心是 API Key、接口地址、模型和启停状态的唯一管理入口。后端实际调用只读取
+API 中心数据库，前端永远不接触完整 API Key。
 
-本地开发在 `backend/.env` 中配置：
+为了兼容已有部署，首次启动且 API 中心还没有任何记录时，系统会把 `.env` 中已有的
+模型配置导入 API 中心一次。导入完成后，后续不会再用 `.env` 覆盖 API 中心；日常新增、
+修改、启用和停用都在 API 中心完成。
+
+新部署也可以先在 `backend/.env` 中提供一次性初始配置：
 
 ```env
 MODEL_PROVIDER=openai_compatible
@@ -98,35 +102,36 @@ MODEL_NAME=your-vision-model
 MODEL_TIMEOUT_SECONDS=120
 ```
 
-服务器 Docker 部署在项目根目录 `.env` 中配置同名变量。若未配置完整，
-`/api/ai/*` 写接口会稳定返回 `503 provider_not_configured`，不会假装成功。
+服务器 Docker 部署时，首次迁移读取项目根目录 `.env` 中的同名变量。若 API 中心没有
+可用 API，`/api/ai/*` 写接口会稳定返回 `503 provider_not_configured`，不会偷偷绕回
+`.env`，也不会假装成功。
 
 如果 API Key 曾经粘贴到聊天、截图或公共文档里，上线前请在模型平台重新生成
 一个新 Key，并废弃旧 Key。
 
-### 密钥配置清单
+### 首次迁移配置清单
 
-真实密钥只写入本机或服务器上的 `.env` / `backend/.env`，不要提交到 GitHub，
-即使仓库是私有仓库也一样。仓库中只保留下面这些变量名和示例占位符。
+真实密钥日常应在 API 中心维护。下面这些环境变量只作为已有部署的首次迁移入口；
+不要提交真实密钥到 GitHub，即使仓库是私有仓库也一样。仓库中只保留变量名和示例占位符。
 
 ```env
-# 通用 AI 能力
+# 首次启动导入 API 中心的通用 AI 配置
 MODEL_PROVIDER=openai_compatible
 MODEL_NAME=your-model-name
 MODEL_BASE_URL=https://api.example.com/v1
 MODEL_API_KEY=replace-with-your-secret-key
 
-# 图片分析专用；不填时回退到通用模型配置
+# 图片分析专用；首次导入时不填则使用通用模型配置
 IMAGE_ANALYSIS_MODEL_NAME=your-vision-model
 IMAGE_ANALYSIS_BASE_URL=https://api.example.com/v1
 IMAGE_ANALYSIS_API_KEY=replace-with-your-secret-key
 
-# 上传前素材话术生成专用；不填时回退到通用模型配置
+# 上传前素材话术生成专用；首次导入时不填则使用通用模型配置
 ASSET_PHRASE_MODEL_NAME=your-text-model
 ASSET_PHRASE_BASE_URL=https://api.example.com/v1
 ASSET_PHRASE_API_KEY=replace-with-your-secret-key
 
-# 搜索理解兜底模型
+# 搜索理解的首次导入配置
 SEARCH_FALLBACK_MODEL_NAME=your-search-fallback-model
 SEARCH_FALLBACK_BASE_URL=https://api.example.com/v1
 SEARCH_FALLBACK_API_KEY=replace-with-your-secret-key
@@ -150,7 +155,8 @@ RERANKER_MODEL_NAME=your-reranker-model
 ```
 
 Docker 部署时从 `.env.docker.example` 复制为 `.env` 后填写；本地直接启动后端时
-从 `backend/.env.example` 复制为 `backend/.env` 后填写。
+从 `backend/.env.example` 复制为 `backend/.env` 后填写。首次启动导入后，之后请只在
+API 中心修改，不要继续同时修改环境文件。
 
 ## Docker 部署
 

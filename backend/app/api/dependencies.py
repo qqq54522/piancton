@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from math import ceil
 
 from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.ai import get_model_provider
 from app.core.config import get_settings
 from app.core.errors import ForbiddenError
 from app.db.session import SessionLocal, get_db
@@ -49,13 +47,13 @@ def _provider_attempt_count(provider) -> int:
     return max(1, int(getattr(provider, "attempt_count", 1)))
 
 
-def _build_scheduled_provider(db: Session, fallback_provider):
+def _build_scheduled_provider(db: Session):
     api_center = ApiCenterService(
         db,
         trace_session_factory=_trace_session_factory(db),
     )
     api_center.initialize_runtime()
-    return api_center.build_scheduled_provider(fallback_provider=fallback_provider)
+    return api_center.build_scheduled_provider()
 
 
 def get_db_session_factory():
@@ -213,26 +211,23 @@ def get_api_center_service(db: Session = Depends(get_db)) -> ApiCenterService:
 
 
 def get_ai_service(db: Session = Depends(get_db)) -> AiService:
-    fallback_provider = get_model_provider(purpose="image_analysis")
     return AiService(
-        _build_scheduled_provider(db, fallback_provider),
+        _build_scheduled_provider(db),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
 
 def get_asset_phrase_ai_service(db: Session = Depends(get_db)) -> AiService:
-    fallback_provider = get_model_provider(purpose="asset_phrase")
     return AiService(
-        _build_scheduled_provider(db, fallback_provider),
+        _build_scheduled_provider(db),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
 
 def get_asset_agent_service(db: Session = Depends(get_db)) -> AssetAgentService:
-    fallback_provider = get_model_provider(purpose="asset_phrase")
     return AssetAgentService(
         db,
-        _build_scheduled_provider(db, fallback_provider),
+        _build_scheduled_provider(db),
     )
 
 
@@ -249,18 +244,8 @@ def get_asset_phrase_suggestion_service(
 
 
 def get_search_ai_service(db: Session = Depends(get_db)) -> AiService:
-    provider_timeout = max(
-        settings.search_understanding_timeout_seconds,
-        settings.search_system_routing_timeout_seconds,
-        settings.search_selling_point_timeout_seconds,
-        settings.search_proof_point_timeout_seconds,
-    )
-    fallback_provider = get_model_provider(
-        timeout_seconds=max(1, ceil(provider_timeout)),
-        purpose="search",
-    )
     return AiService(
-        _build_scheduled_provider(db, fallback_provider),
+        _build_scheduled_provider(db),
         knowledge=AiKnowledgeService(db).knowledge(),
         system_routing_timeout_seconds=(settings.search_system_routing_timeout_seconds),
         selling_point_timeout_seconds=(settings.search_selling_point_timeout_seconds),

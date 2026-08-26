@@ -1,4 +1,4 @@
-from app.ai.contracts import ModelRequest
+from app.ai.contracts import ModelCallResult, ModelRequest
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase, ConceptSystemLink
 from app.models.image import Image
@@ -129,7 +129,6 @@ def test_asset_agent_sessions_are_user_private_even_for_admin(client):
 
 class _RecordingProvider:
     name = "recording"
-    last_attempts = []
 
     @property
     def configured(self):
@@ -137,7 +136,7 @@ class _RecordingProvider:
 
     def generate_json(self, request: ModelRequest):
         self.last_request = request
-        self.last_attempts = [
+        attempts = (
             {
                 "provider": "recording",
                 "model": "test",
@@ -145,8 +144,11 @@ class _RecordingProvider:
                 "duration_ms": 1,
                 "error": "",
             }
-        ]
-        return {
-            "answer": "这张图可以用来解释 AI 定制班。",
-            "suggestedQuestions": ["它和真人督学有什么区别？"],
-        }
+        )
+        return ModelCallResult(
+            {
+                "answer": "这张图可以用来解释 AI 定制班。",
+                "suggestedQuestions": ["它和真人督学有什么区别？"],
+            },
+            attempts,
+        )

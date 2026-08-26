@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Event, Lock
@@ -12,6 +11,7 @@ from typing import (
     Optional,
     Protocol,
     TypeVar,
+    runtime_checkable,
 )
 
 
@@ -27,6 +27,11 @@ class CancellationSignal:
     @property
     def cancelled(self) -> bool:
         return self._event.is_set()
+
+    def wait(self, timeout: float | None = None) -> bool:
+        """Wait until cancellation or timeout and return the signal state."""
+
+        return self._event.wait(timeout)
 
     def cancel(self) -> None:
         with self._lock:
@@ -89,7 +94,7 @@ class ModelRequest:
     cancellation: CancellationSignal | None = None
 
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 
 
 @dataclass(frozen=True)
@@ -106,29 +111,93 @@ class ModelProvider(Protocol):
     @property
     def configured(self) -> bool: ...
 
-    def generate_json(self, request: ModelRequest) -> dict[str, Any]: ...
+    def generate_json(
+        self,
+        request: ModelRequest,
+    ) -> ModelCallResult[dict[str, Any]]: ...
+
+    def generate_validated_json(
+        self,
+        request: ModelRequest,
+        validator: Callable[[dict[str, Any]], T],
+    ) -> ModelCallResult[T]: ...
 
 
+@runtime_checkable
+class BasicSearchModelCapabilities(Protocol):
+    @property
+    def provider(self) -> ModelProvider: ...
+
+    def understand_search(
+        self,
+        keyword: str,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> ModelCallResult[Any]: ...
+
+
+@runtime_checkable
 class StagedSearchModelCapabilities(Protocol):
-    def route_search_system(self, keyword: str) -> Any: ...
+    @property
+    def provider(self) -> ModelProvider: ...
 
-    def understand_selling_points_from_route(self, keyword: str, routing) -> Any: ...
+    def route_search_system(
+        self,
+        keyword: str,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> ModelCallResult[Any]: ...
 
-    def understand_proof_points(self, keyword: str, selling_points) -> Any: ...
+    def understand_selling_points_from_route(
+        self,
+        keyword: str,
+        routing: Any,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> ModelCallResult[Any]: ...
+
+    def understand_proof_points(
+        self,
+        keyword: str,
+        selling_points: Any,
+        *,
+        cancellation: CancellationSignal | None = None,
+    ) -> ModelCallResult[Any]: ...
+
+    def routed_system_codes(
+        self,
+        routing: Any,
+    ) -> tuple[str, ...]: ...
 
 
-class RoutedSystemCodeCapabilities(Protocol):
-    def routed_system_codes(self, routing) -> Any: ...
-
-
+@runtime_checkable
 class CandidateReviewCapabilities(Protocol):
+    @property
+    def provider(self) -> ModelProvider: ...
+
     def review_search_candidates(
         self,
         *,
         keyword: str,
-        understanding,
-        candidates,
-    ) -> Any: ...
+        understanding: Any,
+        candidates: list[dict[str, Any]],
+        cancellation: CancellationSignal | None = None,
+    ) -> ModelCallResult[Any]: ...
+
+
+@runtime_checkable
+class ResultRecommendationCapabilities(Protocol):
+    @property
+    def provider(self) -> ModelProvider: ...
+
+    def recommend_search_result_reasons(
+        self,
+        *,
+        keyword: str,
+        understanding: Any,
+        candidates: list[dict[str, Any]],
+        cancellation: CancellationSignal | None = None,
+    ) -> ModelCallResult[Any]: ...
 
 
 class ModelProviderNotConfigured(RuntimeError):
@@ -157,107 +226,19 @@ class ModelProviderError(RuntimeError):
         self.attempts = attempts
 
 
+class ModelProviderValidationError(ModelProviderError):
+    """Raised when a provider response fails the request validator."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        attempts: tuple[dict[str, Any], ...] = (),
+        cause: Exception,
+    ) -> None:
+        super().__init__(message, attempts=attempts)
+        self.cause = cause
+
+
 class ModelProviderCancelled(ModelProviderError):
     """Raised when a caller cancels an in-flight provider request."""
-
-
-def call_with_optional_cancellation(
-    method: Callable[..., T],
-    *args: Any,
-    cancellation: CancellationSignal | None = None,
-    **kwargs: Any,
-) -> T:
-    """Call a capability while keeping older integrations source-compatible."""
-
-    if cancellation is None:
-        return method(*args, **kwargs)
-
-    try:
-        parameters = inspect.signature(method).parameters.values()
-    except (TypeError, ValueError):
-        # Most real callables expose a signature. For opaque callables, keep the
-        # new contract available and let their own error surface normally.
-        return method(*args, cancellation=cancellation, **kwargs)
-
-    accepts_cancellation = any(
-        parameter.name == "cancellation"
-        or parameter.kind == inspect.Parameter.VAR_KEYWORD
-        for parameter in parameters
-    )
-    if accepts_cancellation:
-        kwargs["cancellation"] = cancellation
-    return method(*args, **kwargs)
-
-
-def has_staged_search_capabilities(
-    value: object,
-) -> bool:
-    return all(
-        callable(getattr(value, name, None))
-        for name in (
-            "route_search_system",
-            "understand_selling_points_from_route",
-            "understand_proof_points",
-        )
-    )
-
-
-def has_routed_system_code_capability(
-    value: object,
-) -> bool:
-    return callable(getattr(value, "routed_system_codes", None))
-
-
-def has_candidate_review_capability(
-    value: object,
-) -> bool:
-    return callable(getattr(value, "review_search_candidates", None))
-
-
-def generate_json_with_attempts(
-    provider: ModelProvider,
-    request: ModelRequest,
-) -> ModelCallResult[dict[str, Any]]:
-    """Call a provider while keeping legacy test doubles compatible."""
-
-    runner = getattr(provider, "generate_json_with_attempts", None)
-    if callable(runner):
-        result = runner(request)
-        if isinstance(result, ModelCallResult):
-            return result
-        if isinstance(result, dict):
-            return ModelCallResult(result, _legacy_attempts(provider))
-        raise TypeError("模型 Provider 返回了无效的请求结果")
-
-    value = provider.generate_json(request)
-    return ModelCallResult(value, _legacy_attempts(provider))
-
-
-def generate_validated_json_with_attempts(
-    provider: ModelProvider,
-    request: ModelRequest,
-    validator,
-) -> ModelCallResult[Any]:
-    """Validate a provider response without losing request-scoped telemetry."""
-
-    runner = getattr(provider, "generate_validated_json_with_attempts", None)
-    if callable(runner):
-        result = runner(request, validator)
-        if isinstance(result, ModelCallResult):
-            return result
-        return ModelCallResult(result, _legacy_attempts(provider))
-
-    legacy_runner = getattr(provider, "generate_validated_json", None)
-    if callable(legacy_runner):
-        value = legacy_runner(request, validator)
-        return ModelCallResult(value, _legacy_attempts(provider))
-
-    raw = generate_json_with_attempts(provider, request)
-    return ModelCallResult(validator(raw.value), raw.attempts)
-
-
-def _legacy_attempts(provider: ModelProvider) -> tuple[dict[str, Any], ...]:
-    attempts = getattr(provider, "last_attempts", ())
-    if not isinstance(attempts, (list, tuple)):
-        return ()
-    return tuple(item.copy() for item in attempts if isinstance(item, dict))

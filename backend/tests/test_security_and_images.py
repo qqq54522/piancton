@@ -3,6 +3,7 @@ from io import BytesIO
 
 from PIL import Image as PillowImage
 
+from app.ai.contracts import ModelCallResult
 from app.api import dependencies
 from app.core.security import hash_secret
 from app.main import app
@@ -11,7 +12,7 @@ from app.models.tag import Tag
 from app.models.user import LoginThrottle
 from app.schemas.ai import ProviderStatus
 from app.services.ai_service import AiService
-from tests.conftest import login
+from tests.conftest import ModelProviderStub, login
 
 
 def png_file(width: int = 8, height: int = 4) -> bytes:
@@ -246,20 +247,22 @@ def test_ai_not_configured_is_explicit(client):
 def test_designer_can_generate_editable_pre_upload_asset_phrases(client):
     captured = {}
 
-    class Provider:
+    class Provider(ModelProviderStub):
         name = "fake"
         configured = True
 
         def generate_json(self, request):
             captured["request"] = request
-            return {
-                "phrases": [
-                    "找一张能体现和学校教材进度一致的图",
-                    "找一张学校学到哪课程就讲到哪的图",
-                    "想找一张教材目录和课程目录能对应上的素材",
-                    "有没有课外课程不会和学校章节脱节的图",
-                ]
-            }
+            return ModelCallResult(
+                {
+                    "phrases": [
+                        "找一张能体现和学校教材进度一致的图",
+                        "找一张学校学到哪课程就讲到哪的图",
+                        "想找一张教材目录和课程目录能对应上的素材",
+                        "有没有课外课程不会和学校章节脱节的图",
+                    ]
+                }
+            )
 
     app.dependency_overrides[
         dependencies.get_asset_phrase_ai_service
@@ -322,30 +325,32 @@ def test_ai_analysis_persists_content_and_new_concept_suggestion(client, db_fact
         )
         db.commit()
 
-    class Provider:
+    class Provider(ModelProviderStub):
         name = "fake"
         configured = True
 
         def generate_json(self, _request):
-            return {
-                "image_summary": "平板界面展示数学动画和分步计算。",
-                "semantic_profile": {
-                    "visual_facts": ["平板学习界面", "数学动画"],
-                    "scenes": ["居家学习"],
-                    "asset_search_phrases": ["蓝色平板动画课画面"],
-                },
-                "concept_suggestions": [
-                    {
-                        "concept_code": "animation_explanation",
-                        "system_name": "同步校内体系",
-                        "concept_name": "动画精讲",
-                        "confidence": 0.94,
-                        "evidence_level": "A",
-                        "relation_role": "expresses",
-                        "reason": "画面展示动画和分步计算，适合动画精讲，不是课后小测。",
-                    }
-                ],
-            }
+            return ModelCallResult(
+                {
+                    "image_summary": "平板界面展示数学动画和分步计算。",
+                    "semantic_profile": {
+                        "visual_facts": ["平板学习界面", "数学动画"],
+                        "scenes": ["居家学习"],
+                        "asset_search_phrases": ["蓝色平板动画课画面"],
+                    },
+                    "concept_suggestions": [
+                        {
+                            "concept_code": "animation_explanation",
+                            "system_name": "同步校内体系",
+                            "concept_name": "动画精讲",
+                            "confidence": 0.94,
+                            "evidence_level": "A",
+                            "relation_role": "expresses",
+                            "reason": "画面展示动画和分步计算，适合动画精讲，不是课后小测。",
+                        }
+                    ],
+                }
+            )
 
     class FakeAiService(AiService):
         def __init__(self):

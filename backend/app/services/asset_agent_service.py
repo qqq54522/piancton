@@ -7,11 +7,11 @@ from typing import Any, cast
 from sqlalchemy.orm import Session
 
 from app.ai.contracts import (
+    ModelCallResult,
     ModelProvider,
     ModelProviderError,
     ModelProviderNotConfigured,
     ModelRequest,
-    generate_json_with_attempts,
 )
 from app.core.errors import AppError, NotFoundError
 from app.models.asset import AssetGroup
@@ -59,7 +59,6 @@ class AssetAgentService:
     def __init__(self, db: Session, provider: ModelProvider):
         self.db = db
         self.provider = provider
-        self.last_call_attempts: tuple[dict[str, Any], ...] = ()
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
@@ -176,9 +175,9 @@ class AssetAgentService:
         answer: str
         suggestions: list[str]
         used_model: bool
+        attempts: tuple[dict[str, Any], ...] = ()
         try:
-            call = generate_json_with_attempts(
-                self.provider,
+            call: ModelCallResult[dict[str, Any]] = self.provider.generate_json(
                 ModelRequest(
                     task="asset_agent_chat",
                     prompt=prompt,
@@ -186,17 +185,17 @@ class AssetAgentService:
                     timeout_seconds=30,
                 ),
             )
-            self.last_call_attempts = call.attempts
+            attempts = call.attempts
             raw = call.value
             result = AssetAgentModelResponse.model_validate(raw)
             answer = result.answer.strip()
             suggestions = _clean_suggestions(result.suggested_questions)
             used_model = True
         except (ModelProviderNotConfigured, ModelProviderError, ValueError) as exc:
-            attempts = getattr(exc, "attempts", ())
-            self.last_call_attempts = (
-                tuple(item for item in attempts if isinstance(item, dict))
-                if isinstance(attempts, (list, tuple))
+            error_attempts = getattr(exc, "attempts", ())
+            attempts = (
+                tuple(item for item in error_attempts if isinstance(item, dict))
+                if isinstance(error_attempts, (list, tuple))
                 else ()
             )
             answer = self._fallback_answer(message, images, groups, error=str(exc))
@@ -215,7 +214,9 @@ class AssetAgentService:
             suggested_questions=suggestions,
             context_cards=context_cards,
             used_model=used_model,
-            provider_attempts=self._provider_attempts(),
+            provider_attempts=[
+                attempt for attempt in attempts if isinstance(attempt, dict)
+            ],
         )
 
     def _session_for_chat(
@@ -487,13 +488,6 @@ class AssetAgentService:
                 lines.append(f"- {_clip(image.image_summary, 180)}")
         lines.append(f"\n模型暂不可用：{_clip(error, 120)}")
         return "\n".join(lines)
-
-    def _provider_attempts(self) -> list[dict[str, Any]]:
-        attempts = self.last_call_attempts
-        if not isinstance(attempts, (list, tuple)) or not attempts:
-            attempts = getattr(self.provider, "last_attempts", [])
-        return [attempt for attempt in attempts if isinstance(attempt, dict)]
-
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)

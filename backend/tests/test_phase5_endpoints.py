@@ -4,6 +4,7 @@ from zipfile import ZipFile
 
 from PIL import Image as PillowImage
 
+from app.ai.contracts import ModelCallResult
 from app.api import dependencies
 from app.main import app
 from app.models.asset import AssetConceptLink, AssetGroup
@@ -299,7 +300,7 @@ def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
 
     class FakeAiService:
         def analyze_image(self, _path):
-            return result["value"]
+            return ModelCallResult(result["value"])
 
     app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
     csrf = login(client, "admin", "admin-password")

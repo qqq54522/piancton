@@ -13,7 +13,7 @@ from typing import Any, cast
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from app.ai.contracts import ModelProviderNotConfigured, ModelRequest, ModelTask
+from app.ai.contracts import ModelCallResult, ModelRequest, ModelTask
 from app.ai.openai_compatible import OpenAICompatibleModelProvider
 from app.db.session import SessionLocal
 from app.models.api_provider import ModelApiCredential, ModelApiHealthCheck
@@ -48,19 +48,6 @@ class ScheduledAttempt:
     credential_id: str | None
     credential_label: str
     error: str = ""
-
-
-class _UnconfiguredProvider:
-    name = "unconfigured"
-    last_attempts: list[dict[str, Any]] = []
-
-    @property
-    def configured(self) -> bool:
-        return False
-
-    def generate_json(self, request: ModelRequest) -> dict[str, Any]:
-        del request
-        raise ModelProviderNotConfigured("stress test does not use fallback provider")
 
 
 def main() -> None:
@@ -142,8 +129,7 @@ def _model_task(task: str) -> ModelTask:
 def _load_credentials(task: ModelTask) -> list[CredentialSnapshot]:
     with SessionLocal() as db:
         service = ApiCenterService(db)
-        service.ensure_default_slots()
-        service.sync_environment_credentials()
+        service.initialize_runtime()
         credentials = [
             item
             for item in service.repo.list_credentials()
@@ -246,7 +232,7 @@ def _call_single_credential(
                 input_text=f"api-center-capacity-probe-level-{level}",
                 timeout_seconds=timeout_seconds,
             )
-        )
+        ).value
         if not isinstance(payload, dict):
             raise RuntimeError("模型没有返回 JSON 对象")
         status = "ok"
@@ -312,11 +298,13 @@ def _call_scheduler_once(task: ModelTask, timeout_seconds: float, index: int) ->
     started = time.monotonic()
     with SessionLocal() as db:
         service = ApiCenterService(db)
-        provider = service.build_scheduled_provider(fallback_provider=_UnconfiguredProvider())
+        service.initialize_runtime()
+        provider = service.build_scheduled_provider()
         status = "failed"
         error = ""
+        call: ModelCallResult[dict[str, Any]] | None = None
         try:
-            payload = provider.generate_json(
+            call = provider.generate_json(
                 ModelRequest(
                     task=task,
                     prompt='请只返回 {"ok": true} 这个 JSON 对象，用于 API 调度压测。',
@@ -324,6 +312,7 @@ def _call_scheduler_once(task: ModelTask, timeout_seconds: float, index: int) ->
                     timeout_seconds=timeout_seconds,
                 )
             )
+            payload = call.value
             if not isinstance(payload, dict):
                 raise RuntimeError("模型没有返回 JSON 对象")
             status = "ok"
@@ -331,8 +320,7 @@ def _call_scheduler_once(task: ModelTask, timeout_seconds: float, index: int) ->
             error = _safe_error(exc)
         finally:
             service.uow.commit()
-        provider_attempts = getattr(provider, "last_attempts", [])
-        attempt = provider_attempts[-1] if provider_attempts else {}
+        attempt = call.attempts[-1] if call is not None and call.attempts else {}
         return ScheduledAttempt(
             status=status,
             duration_ms=_elapsed_ms(started),

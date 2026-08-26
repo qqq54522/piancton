@@ -11,12 +11,14 @@ class AppError(Exception):
         *,
         status_code: int = 400,
         details: Any | None = None,
+        attempts: tuple[dict[str, Any], ...] = (),
     ):
         super().__init__(message)
         self.code = code
         self.message = message
         self.status_code = status_code
         self.details = details
+        self.attempts = attempts
 
 
 class NotFoundError(AppError):

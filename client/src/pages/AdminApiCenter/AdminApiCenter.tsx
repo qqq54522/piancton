@@ -230,7 +230,7 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
       <section className="surface-card overflow-hidden">
         <SectionHeader
           title="新增 API"
-          description="保存后只显示掩码；开启自动分配后，系统会按健康数据自动选择可用 API。"
+          description="API 中心是唯一生效入口。保存后只显示掩码；开启自动分配后，系统会按健康数据自动选择可用 API。"
         />
         <form onSubmit={submit} className="grid gap-3 p-4">
           <LabeledInput

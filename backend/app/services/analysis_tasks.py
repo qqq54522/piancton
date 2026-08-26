@@ -42,7 +42,11 @@ def run_image_analysis_task(
             provider,
             knowledge=AiKnowledgeService(db).knowledge(),
         ).analyze_image(path)
-        analysis.save_ai_analysis(image_id, result, analysis_run_id=analysis_run_id)
+        analysis.save_ai_analysis(
+            image_id,
+            result.value,
+            analysis_run_id=analysis_run_id,
+        )
     except Exception:
         logger.exception("Image analysis task failed", extra={"image_id": image_id})
         analysis.uow.rollback()

@@ -11,8 +11,21 @@ class ModelProvider(Protocol):
     @property
     def configured(self) -> bool: ...
 
-    def generate_json(self, request: ModelRequest) -> dict[str, Any]: ...
+    def generate_json(
+        self,
+        request: ModelRequest,
+    ) -> ModelCallResult[dict[str, Any]]: ...
+
+    def generate_validated_json(
+        self,
+        request: ModelRequest,
+        validator: Callable[[dict[str, Any]], T],
+    ) -> ModelCallResult[T]: ...
 ```
+
+`ModelCallResult` 按请求返回模型值和本次调用 attempts；失败则从异常的
+`attempts` 读取本次调用记录。Provider/Service 实例不得保存可被并发请求覆盖的
+实例级调用遥测状态（例如 `last_attempts` 或 `last_call_attempts`）。
 
 当前运行任务：
 
@@ -31,4 +44,3 @@ class ModelProvider(Protocol):
 - 业务高置信本地路径允许跳过模型；模型失败不得清空已有可信本地结果。
 - 日志不得记录 API key、Authorization、完整 Prompt、业务图片字节或未脱敏外部响应。
 - 批量外发评测必须取得明确授权，并单独报告业务准确性与 Provider 可用性。
-

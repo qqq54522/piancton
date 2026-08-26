@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import time
 from collections.abc import Callable
 from dataclasses import replace
@@ -9,36 +8,12 @@ from typing import TypeVar
 
 from app.ai.contracts import CancellationSignal
 from app.services.search_models import (
+    ModelAttemptDiagnostic,
     SearchBranchDiagnostic,
     SearchBranchResult,
 )
 
 T = TypeVar("T")
-
-
-def _call_with_signal(
-    call: Callable[..., T],
-    signal: CancellationSignal,
-) -> T:
-    """Support legacy no-argument branches during the cancellation rollout."""
-
-    try:
-        parameters = inspect.signature(call).parameters.values()
-    except (TypeError, ValueError):
-        return call(signal)
-
-    accepts_positional_signal = any(
-        parameter.kind
-        in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.VAR_POSITIONAL,
-        )
-        for parameter in parameters
-    )
-    if accepts_positional_signal:
-        return call(signal)
-    return call()
 
 
 class SearchBranchRunner:
@@ -50,18 +25,21 @@ class SearchBranchRunner:
         timeout_seconds: float,
         retry_attempts: int = 0,
         retry_backoff_seconds: float = 0.0,
+        attempt_task: str | None = None,
+        attempt_layer: str | None = None,
     ) -> SearchBranchResult[T]:
         started = time.monotonic()
         deadline = started + max(0.001, timeout_seconds)
         cancellation = CancellationSignal()
         last_error: Exception | None = None
+        failed_attempts: list[ModelAttemptDiagnostic] = []
         for attempt in range(max(0, retry_attempts) + 1):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return self._timed_out(source, started)
             try:
                 value = await asyncio.wait_for(
-                    asyncio.to_thread(_call_with_signal, call, cancellation),
+                    asyncio.to_thread(call, cancellation),
                     timeout=remaining,
                 )
             except asyncio.TimeoutError:
@@ -72,6 +50,13 @@ class SearchBranchRunner:
                 raise
             except Exception as exc:
                 last_error = exc
+                failed_attempts.extend(
+                    _attempt_diagnostics(
+                        exc,
+                        task=attempt_task,
+                        layer=attempt_layer,
+                    )
+                )
                 if attempt >= max(0, retry_attempts):
                     break
                 backoff = min(
@@ -97,6 +82,7 @@ class SearchBranchRunner:
                 status="failed",
                 duration_ms=_elapsed_ms(started),
                 detail=_safe_error(last_error or RuntimeError("分支调用失败")),
+                attempts=tuple(failed_attempts),
             ),
         )
 
@@ -162,3 +148,34 @@ def _safe_error(exc: Exception) -> str:
     if not message:
         return exc.__class__.__name__
     return message[:160]
+
+
+def _attempt_diagnostics(
+    exc: Exception,
+    *,
+    task: str | None,
+    layer: str | None,
+) -> tuple[ModelAttemptDiagnostic, ...]:
+    if not task or not layer:
+        return ()
+    attempts = getattr(exc, "attempts", ())
+    if not isinstance(attempts, (list, tuple)):
+        return ()
+    return tuple(
+        ModelAttemptDiagnostic(
+            task=task,
+            layer=layer,
+            provider=str(item.get("provider") or "unknown")[:120],
+            model=str(item.get("model") or "unknown")[:120],
+            status=str(item.get("status") or "failed")[:24],
+            duration_ms=int(item.get("duration_ms") or 0),
+            fallback_index=(
+                int(item["fallback_index"])
+                if item.get("fallback_index") is not None
+                else None
+            ),
+            error=str(item.get("error") or "")[:300],
+        )
+        for item in attempts
+        if isinstance(item, dict)
+    )

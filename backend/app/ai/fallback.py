@@ -9,8 +9,8 @@ from app.ai.contracts import (
     ModelCallResult,
     ModelProviderCancelled,
     ModelProviderError,
+    ModelProviderValidationError,
     ModelRequest,
-    generate_json_with_attempts,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,6 @@ class FallbackModelProvider:
 
     def __init__(self, providers: list) -> None:
         self.providers = [p for p in providers if p.configured]
-        self.last_attempts: list[dict[str, Any]] = []
 
     @property
     def configured(self) -> bool:
@@ -33,19 +32,17 @@ class FallbackModelProvider:
     def attempt_count(self) -> int:
         return max(1, len(self.providers))
 
-    def generate_json(self, request: ModelRequest) -> dict[str, Any]:
-        return self.generate_json_with_attempts(request).value
-
-    def generate_json_with_attempts(
+    def generate_json(
         self,
         request: ModelRequest,
     ) -> ModelCallResult[dict[str, Any]]:
         last_error: Exception | None = None
         attempts: list[dict[str, Any]] = []
         for i, provider in enumerate(self.providers):
+            _raise_if_cancelled(request, attempts)
             started = time.monotonic()
             try:
-                call = generate_json_with_attempts(provider, request)
+                call = provider.generate_json(request)
                 provider_attempts = _provider_attempts(
                     provider,
                     raw_attempts=call.attempts,
@@ -54,7 +51,6 @@ class FallbackModelProvider:
                     status="ok",
                 )
                 attempts.extend(provider_attempts)
-                self.last_attempts = attempts
                 if i > 0:
                     logger.info(
                         "fallback provider #%d (%s) succeeded after earlier failures: %s",
@@ -73,7 +69,6 @@ class FallbackModelProvider:
                     error=exc,
                 )
                 attempts.extend(provider_attempts)
-                self.last_attempts = attempts
                 logger.warning(
                     "provider #%d (%s) failed: %s — trying next; attempts=%s",
                     i,
@@ -96,32 +91,32 @@ class FallbackModelProvider:
         self,
         request: ModelRequest,
         validator: Callable[[dict[str, Any]], Any],
-    ) -> Any:
-        return self.generate_validated_json_with_attempts(request, validator).value
-
-    def generate_validated_json_with_attempts(
-        self,
-        request: ModelRequest,
-        validator: Callable[[dict[str, Any]], Any],
     ) -> ModelCallResult[Any]:
         last_error: Exception | None = None
         attempts: list[dict[str, Any]] = []
         for i, provider in enumerate(self.providers):
+            _raise_if_cancelled(request, attempts)
             started = time.monotonic()
             call: ModelCallResult[dict[str, Any]] | None = None
             try:
-                call = generate_json_with_attempts(provider, request)
-                result = call.value
-                validated = validator(result)
+                provider_call = provider.generate_json(request)
+                call = provider_call
+                try:
+                    validated = validator(provider_call.value)
+                except Exception as exc:
+                    raise ModelProviderValidationError(
+                        "模型返回内容未通过项目校验",
+                        attempts=provider_call.attempts,
+                        cause=exc,
+                    ) from exc
                 provider_attempts = _provider_attempts(
                     provider,
-                    raw_attempts=call.attempts,
+                    raw_attempts=provider_call.attempts,
                     fallback_index=i,
                     started=started,
                     status="ok",
                 )
                 attempts.extend(provider_attempts)
-                self.last_attempts = attempts
                 if i > 0:
                     logger.info(
                         "fallback provider #%d (%s) produced a valid response after "
@@ -146,7 +141,6 @@ class FallbackModelProvider:
                     override_status=True,
                 )
                 attempts.extend(provider_attempts)
-                self.last_attempts = attempts
                 logger.warning(
                     "provider #%d (%s) failed validation or generation: %s — "
                     "trying next; attempts=%s",
@@ -178,8 +172,6 @@ def _provider_attempts(
     override_status: bool = False,
 ) -> list[dict[str, Any]]:
     attempts = raw_attempts
-    if not attempts:
-        attempts = getattr(provider, "last_attempts", None)
     if isinstance(attempts, (list, tuple)) and attempts:
         return [
             {
@@ -235,3 +227,14 @@ def _safe_error(exc: Exception | None) -> str:
         return ""
     message = str(exc).strip() or exc.__class__.__name__
     return message[:120]
+
+
+def _raise_if_cancelled(
+    request: ModelRequest,
+    attempts: list[dict[str, Any]],
+) -> None:
+    if request.cancellation is not None and request.cancellation.cancelled:
+        raise ModelProviderCancelled(
+            "模型调用已取消",
+            attempts=tuple(attempts),
+        )

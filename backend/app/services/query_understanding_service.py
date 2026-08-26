@@ -4,11 +4,11 @@ import hashlib
 from dataclasses import dataclass
 
 from app.ai.contracts import (
+    BasicSearchModelCapabilities,
     CancellationSignal,
-    call_with_optional_cancellation,
-    has_candidate_review_capability,
-    has_routed_system_code_capability,
-    has_staged_search_capabilities,
+    CandidateReviewCapabilities,
+    ModelCallResult,
+    StagedSearchModelCapabilities,
 )
 from app.ai.skill_loader import INTENT_PROMPT_VERSION
 from app.core.errors import AppError
@@ -479,11 +479,10 @@ class QueryUnderstandingService:
         local_understanding: SearchUnderstanding,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding | None:
-        if not self.ai_service or not self.supports_staged_model:
+    ) -> ModelCallResult[SearchUnderstanding] | None:
+        if not isinstance(self.ai_service, StagedSearchModelCapabilities):
             return None
-        return call_with_optional_cancellation(
-            self.ai_service.understand_proof_points,
+        return self.ai_service.understand_proof_points(
             keyword,
             local_understanding,
             cancellation=cancellation,
@@ -527,40 +526,44 @@ class QueryUnderstandingService:
         keyword: str,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding | None:
+    ) -> ModelCallResult[SearchUnderstanding] | None:
         query = keyword.strip()
-        if not query or not self.ai_service or not self.ai_service.provider.configured:
+        if (
+            not query
+            or not isinstance(self.ai_service, BasicSearchModelCapabilities)
+            or not self.ai_service.provider.configured
+        ):
             return None
-        return _with_negated_concepts(
-            call_with_optional_cancellation(
-                self.ai_service.understand_search,
-                query,
-                cancellation=cancellation,
-            ),
-            self._negated_intent_names(query),
+        call = self.ai_service.understand_search(
+            query,
+            cancellation=cancellation,
+        )
+        return ModelCallResult(
+            _with_negated_concepts(call.value, self._negated_intent_names(query)),
+            call.attempts,
         )
 
     @property
     def supports_staged_model(self) -> bool:
-        return bool(
-            self.ai_service and has_staged_search_capabilities(self.ai_service)
-        )
+        return isinstance(self.ai_service, StagedSearchModelCapabilities)
 
     def route_with_model(
         self,
         keyword: str,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchSystemRouting:
+    ) -> ModelCallResult[SearchSystemRouting]:
         query = keyword.strip()
-        if not query or not self.ai_service or not self.supports_staged_model:
+        if (
+            not query
+            or not isinstance(self.ai_service, StagedSearchModelCapabilities)
+        ):
             raise AppError(
                 "provider_not_configured",
                 "查询理解模型不支持分层调用",
                 status_code=503,
             )
-        return call_with_optional_cancellation(
-            self.ai_service.route_search_system,
+        return self.ai_service.route_search_system(
             query,
             cancellation=cancellation,
         )
@@ -569,9 +572,7 @@ class QueryUnderstandingService:
         self,
         routing: SearchSystemRouting,
     ) -> tuple[str, ...]:
-        if not self.ai_service:
-            return ()
-        if not has_routed_system_code_capability(self.ai_service):
+        if not isinstance(self.ai_service, StagedSearchModelCapabilities):
             return ()
         resolved = self.ai_service.routed_system_codes(routing)
         if not isinstance(resolved, (list, tuple, set)):
@@ -584,18 +585,21 @@ class QueryUnderstandingService:
         routing: SearchSystemRouting,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding | None:
+    ) -> ModelCallResult[SearchUnderstanding] | None:
         query = keyword.strip()
-        if not query or not self.ai_service or not self.supports_staged_model:
+        if (
+            not query
+            or not isinstance(self.ai_service, StagedSearchModelCapabilities)
+        ):
             return None
-        return _with_negated_concepts(
-            call_with_optional_cancellation(
-                self.ai_service.understand_search_from_route,
-                query,
-                routing,
-                cancellation=cancellation,
-            ),
-            self._negated_intent_names(query),
+        call = self.ai_service.understand_search_from_route(
+            query,
+            routing,
+            cancellation=cancellation,
+        )
+        return ModelCallResult(
+            _with_negated_concepts(call.value, self._negated_intent_names(query)),
+            call.attempts,
         )
 
     def understand_selling_points_with_model_route(
@@ -604,30 +608,33 @@ class QueryUnderstandingService:
         routing: SearchSystemRouting,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding | None:
+    ) -> ModelCallResult[SearchUnderstanding] | None:
         query = keyword.strip()
-        if not query or not self.ai_service or not self.supports_staged_model:
+        if (
+            not query
+            or not isinstance(self.ai_service, StagedSearchModelCapabilities)
+        ):
             return None
         try:
-            result = _with_negated_concepts(
-                call_with_optional_cancellation(
-                    self.ai_service.understand_selling_points_from_route,
-                    query,
-                    routing,
-                    cancellation=cancellation,
-                ),
-                self._negated_intent_names(query),
+            call = self.ai_service.understand_selling_points_from_route(
+                query,
+                routing,
+                cancellation=cancellation,
             )
         except AppError:
             repaired = self._repair_routed_selling_point_understanding(query, routing)
             if repaired is not None:
-                return repaired
+                return ModelCallResult(repaired, ())
             raise
+        result = _with_negated_concepts(
+            call.value,
+            self._negated_intent_names(query),
+        )
         if result is None or not result.matched_business_concepts:
             repaired = self._repair_routed_selling_point_understanding(query, routing)
             if repaired is not None:
-                return repaired
-        return result
+                return ModelCallResult(repaired, call.attempts)
+        return ModelCallResult(result, call.attempts)
 
     def repair_routed_selling_point_understanding(
         self,
@@ -637,8 +644,10 @@ class QueryUnderstandingService:
         """Return a deterministic repair for a routed layer failure."""
         return self._repair_routed_selling_point_understanding(keyword, routing)
 
-    def model_attempts_detail(self) -> str:
-        attempts = self._current_model_attempts()
+    @staticmethod
+    def model_attempts_detail(
+        attempts: tuple[dict, ...] | list[dict] | None,
+    ) -> str:
         if not isinstance(attempts, (list, tuple)) or not attempts:
             return ""
         parts = []
@@ -654,13 +663,13 @@ class QueryUnderstandingService:
             parts.append(f"{provider_name}/{model} {status} {duration_ms}ms{suffix}")
         return "；".join(parts)
 
+    @staticmethod
     def model_attempts(
-        self,
+        attempts: tuple[dict, ...] | list[dict] | None,
         *,
         task: str,
         layer: str,
     ) -> tuple[ModelAttemptDiagnostic, ...]:
-        attempts = self._current_model_attempts()
         if not attempts:
             return ()
         rows: list[ModelAttemptDiagnostic] = []
@@ -681,16 +690,6 @@ class QueryUnderstandingService:
             )
         return tuple(rows)
 
-    def _current_model_attempts(self) -> tuple[dict, ...]:
-        service_attempts = getattr(self.ai_service, "last_call_attempts", ())
-        if isinstance(service_attempts, (list, tuple)) and service_attempts:
-            return tuple(item for item in service_attempts if isinstance(item, dict))
-        provider = getattr(self.ai_service, "provider", None)
-        attempts = getattr(provider, "last_attempts", ())
-        if not isinstance(attempts, (list, tuple)):
-            return ()
-        return tuple(item for item in attempts if isinstance(item, dict))
-
     def review_candidates_with_model(
         self,
         *,
@@ -698,18 +697,16 @@ class QueryUnderstandingService:
         understanding: SearchUnderstanding | None,
         candidates: list[dict],
         cancellation: CancellationSignal | None = None,
-    ):
+    ) -> ModelCallResult | None:
         query = keyword.strip()
         if (
             not query
             or not candidates
-            or not self.ai_service
+            or not isinstance(self.ai_service, CandidateReviewCapabilities)
             or not self.ai_service.provider.configured
-            or not has_candidate_review_capability(self.ai_service)
         ):
             return None
-        return call_with_optional_cancellation(
-            self.ai_service.review_search_candidates,
+        return self.ai_service.review_search_candidates(
             keyword=query,
             understanding=understanding,
             candidates=candidates,
@@ -722,18 +719,21 @@ class QueryUnderstandingService:
         selling_points: SearchUnderstanding,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding | None:
+    ) -> ModelCallResult[SearchUnderstanding] | None:
         query = keyword.strip()
-        if not query or not self.ai_service or not self.supports_staged_model:
+        if (
+            not query
+            or not isinstance(self.ai_service, StagedSearchModelCapabilities)
+        ):
             return None
-        return _with_negated_concepts(
-            call_with_optional_cancellation(
-                self.ai_service.understand_proof_points,
-                query,
-                selling_points,
-                cancellation=cancellation,
-            ),
-            self._negated_intent_names(query),
+        call = self.ai_service.understand_proof_points(
+            query,
+            selling_points,
+            cancellation=cancellation,
+        )
+        return ModelCallResult(
+            _with_negated_concepts(call.value, self._negated_intent_names(query)),
+            call.attempts,
         )
 
     def weak_local_fallback(self, keyword: str) -> SearchUnderstanding | None:
@@ -1021,10 +1021,13 @@ class QueryUnderstandingService:
         return confidence_gap > AMBIGUOUS_CONFIDENCE_GAP
 
     def _understand_with_ai(self, query: str) -> SearchUnderstanding | None:
-        if not self.ai_service or not self.ai_service.provider.configured:
+        if (
+            not isinstance(self.ai_service, BasicSearchModelCapabilities)
+            or not self.ai_service.provider.configured
+        ):
             return None
         try:
-            return self.ai_service.understand_search(query)
+            return self.ai_service.understand_search(query).value
         except AppError:
             return None
 
@@ -1746,10 +1749,10 @@ def _shares_single_entry_evidence(selected: list[IntentMatch]) -> bool:
 
 
 def _with_negated_concepts(
-    understanding: SearchUnderstanding | None,
+    understanding: SearchUnderstanding,
     negated_names: tuple[str, ...],
-) -> SearchUnderstanding | None:
-    if understanding is None or not negated_names:
+) -> SearchUnderstanding:
+    if not negated_names:
         return understanding
     return understanding.model_copy(
         update={"excluded_concepts": _unique([*understanding.excluded_concepts, *negated_names])}

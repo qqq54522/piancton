@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from app.ai.contracts import ModelCallResult
 from app.core.errors import AppError
 from app.models.business_concept import (
     BusinessConcept,
@@ -13,9 +14,10 @@ from app.services import analysis_tasks
 from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
 from app.services.image_analysis_service import ImageAnalysisService
+from tests.conftest import ModelProviderStub
 
 
-class StaticProvider:
+class StaticProvider(ModelProviderStub):
     name = "test"
     configured = True
 
@@ -23,10 +25,10 @@ class StaticProvider:
         self.payload = payload
 
     def generate_json(self, _request):
-        return self.payload
+        return ModelCallResult(self.payload)
 
 
-class SequenceProvider:
+class SequenceProvider(ModelProviderStub):
     name = "test"
     configured = True
 
@@ -34,7 +36,7 @@ class SequenceProvider:
         self.payloads = iter(payloads)
 
     def generate_json(self, _request):
-        return next(self.payloads)
+        return ModelCallResult(next(self.payloads))
 
 
 def _analysis_payload(system_name: str, concept_name: str):
@@ -166,7 +168,7 @@ def test_image_analysis_validation_follows_database_knowledge(db_factory):
     renamed = AiService(
         StaticProvider(_analysis_payload("同步校内体系", "动画讲解精学")),
         knowledge=knowledge,
-    ).analyze_image(Path("unused.png"))
+    ).analyze_image(Path("unused.png")).value
     assert renamed.concept_suggestions[0].concept_name == "动画讲解精学"
 
     with pytest.raises(AppError) as exc_info:
@@ -200,7 +202,7 @@ def test_image_analysis_persistence_accepts_database_only_concept_codes(db_facto
         result = AiService(
             StaticProvider(payload),
             knowledge=AiKnowledgeService(db).knowledge(),
-        ).analyze_image(Path("unused.png"))
+        ).analyze_image(Path("unused.png")).value
         assert result.concept_suggestions[0].concept_code == (
             "database_only_selling_point"
         )
@@ -260,7 +262,7 @@ def test_search_understanding_converts_database_only_codes_to_current_names(db_f
     understanding = AiService(
         SequenceProvider([route, payload]),
         knowledge=knowledge,
-    ).understand_search("数据库独有查询")
+    ).understand_search("数据库独有查询").value
 
     assert understanding.matched_business_concepts[0].concept == (
         "同步校内体系 > 数据库查询卖点"
@@ -318,7 +320,7 @@ def test_background_analysis_uses_database_knowledge(
             captured["knowledge"] = knowledge
 
         def analyze_image(self, _path):
-            return expected_result
+            return ModelCallResult(expected_result)
 
     monkeypatch.setattr(analysis_tasks, "ImageService", FakeImageService)
     monkeypatch.setattr(

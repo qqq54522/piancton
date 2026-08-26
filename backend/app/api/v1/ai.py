@@ -44,7 +44,7 @@ def understand_search(
     _: User = Depends(require_write_role),
     service: AiService = Depends(get_search_ai_service),
 ):
-    return service.understand_search(payload.keyword)
+    return service.understand_search(payload.keyword).value
 
 
 @router.post("/selling-points/match", response_model=SellingPointMatchResult)
@@ -53,7 +53,7 @@ def match_selling_points(
     _: User = Depends(require_write_role),
     service: AiService = Depends(get_search_ai_service),
 ):
-    return service.match_selling_points(payload.copy_text)
+    return service.match_selling_points(payload.copy_text).value
 
 
 @router.post(
@@ -93,5 +93,5 @@ def analyze_image(
             "尺寸延展版本继承主图业务信息，无需重复 AI 分析",
         )
     result = service.analyze_image(path)
-    analysis.save_ai_analysis(image_id, result)
-    return result
+    analysis.save_ai_analysis(image_id, result.value)
+    return result.value

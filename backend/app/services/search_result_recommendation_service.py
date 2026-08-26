@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 
+from app.ai.contracts import ModelCallResult, ResultRecommendationCapabilities
 from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import ScoredImage
 from app.services.search_branch_runner import SearchBranchRunner
@@ -54,13 +55,9 @@ class SearchResultRecommendationService:
                 results[: self.result_limit],
             )
         ]
-        provider = getattr(self.ai_service, "provider", None)
         if (
-            provider is None
-            or not provider.configured
-            or not callable(
-                getattr(self.ai_service, "recommend_search_result_reasons", None)
-            )
+            not isinstance(self.ai_service, ResultRecommendationCapabilities)
+            or not self.ai_service.provider.configured
         ):
             return self._skipped(
                 results,
@@ -87,8 +84,17 @@ class SearchResultRecommendationService:
                 if deadline is not None
                 else self.timeout_seconds
             ),
+            attempt_task="search_result_recommendation_reason",
+            attempt_layer="第五层：动态推荐理由",
         )
-        attempts = self._model_attempts()
+        model_call = (
+            result.value if isinstance(result.value, ModelCallResult) else None
+        )
+        attempts = (
+            self._model_attempts(model_call.attempts)
+            if model_call is not None
+            else result.diagnostic.attempts
+        )
         if result.diagnostic.status != "ok" or result.value is None:
             return SearchBranchResult(
                 value=results,
@@ -112,8 +118,22 @@ class SearchResultRecommendationService:
                 ),
             )
 
+        if model_call is None:
+            detail = "动态推荐理由未返回正式模型结果，回退本地确定性推荐理由"
+            return SearchBranchResult(
+                value=results,
+                diagnostic=SearchBranchDiagnostic(
+                    source="result_recommendation_reason",
+                    status="failed",
+                    duration_ms=result.diagnostic.duration_ms,
+                    result_count=0,
+                    detail=detail,
+                    attempts=attempts or (self._synthetic_attempt("failed", detail),),
+                ),
+            )
+        model_result = model_call.value
         candidate_ids = {item["image_id"] for item in candidates}
-        returned_ids = [item.image_id for item in result.value.reasons]
+        returned_ids = [item.image_id for item in model_result.reasons]
         if (
             len(returned_ids) != len(set(returned_ids))
             or set(returned_ids) != candidate_ids
@@ -133,7 +153,7 @@ class SearchResultRecommendationService:
             )
         generated = {
             item.image_id: item.reason.strip()
-            for item in result.value.reasons
+            for item in model_result.reasons
             if item.image_id in candidate_ids and item.reason.strip()
         }
         enriched = [
@@ -223,13 +243,10 @@ class SearchResultRecommendationService:
             ),
         }
 
-    def _model_attempts(self) -> tuple[ModelAttemptDiagnostic, ...]:
-        service_attempts = getattr(self.ai_service, "last_call_attempts", ())
-        if isinstance(service_attempts, (list, tuple)) and service_attempts:
-            attempts = service_attempts
-        else:
-            provider = getattr(self.ai_service, "provider", None)
-            attempts = getattr(provider, "last_attempts", None)
+    def _model_attempts(
+        self,
+        attempts: tuple[dict, ...] | list[dict] | None,
+    ) -> tuple[ModelAttemptDiagnostic, ...]:
         if not isinstance(attempts, (list, tuple)):
             return ()
         rows = []

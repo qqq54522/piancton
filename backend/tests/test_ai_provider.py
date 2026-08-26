@@ -20,6 +20,7 @@ from app.ai.openai_compatible import OpenAICompatibleModelProvider
 from app.api.dependencies import _provider_attempt_count
 from app.schemas.ai import SearchUnderstanding
 from app.services.ai_service import AiService
+from tests.conftest import ModelProviderStub
 
 
 def test_openai_compatible_provider_extracts_json_from_markdown_wrapped_content(monkeypatch):
@@ -51,8 +52,8 @@ def test_openai_compatible_provider_extracts_json_from_markdown_wrapped_content(
         )
     )
 
-    assert result["original_query"] == "老师"
-    assert result["normalized_query"] == "老师"
+    assert result.value["original_query"] == "老师"
+    assert result.value["normalized_query"] == "老师"
 
 
 def test_openai_compatible_provider_sends_image_as_data_url(tmp_path: Path, monkeypatch):
@@ -233,7 +234,7 @@ def test_search_tasks_receive_layer_specific_decision_roles():
 
 
 def test_ai_service_runs_strict_system_selling_point_proof_point_chain():
-    class RecordingProvider:
+    class RecordingProvider(ModelProviderStub):
         name = "recording"
         configured = True
 
@@ -243,52 +244,58 @@ def test_ai_service_runs_strict_system_selling_point_proof_point_chain():
         def generate_json(self, request):
             self.requests.append(request)
             if request.task == "search_system_routing":
-                return {
-                    "original_query": request.input_text,
-                    "route_type": "single_system",
-                    "candidate_systems": [
-                        {
-                            "code": "sync_school",
-                            "relation": "primary",
-                            "reason": "动画讲解",
-                            "weight": 0.98,
-                        }
-                    ],
-                }
+                return ModelCallResult(
+                    {
+                        "original_query": request.input_text,
+                        "route_type": "single_system",
+                        "candidate_systems": [
+                            {
+                                "code": "sync_school",
+                                "relation": "primary",
+                                "reason": "动画讲解",
+                                "weight": 0.98,
+                            }
+                        ],
+                    }
+                )
             if request.task == "search_intent_understanding":
-                return {
+                return ModelCallResult(
+                    {
+                        "original_query": "想找短小的动画课",
+                        "normalized_query": "动画精讲",
+                        "search_intent": "动画讲解",
+                        "query_type": "business_intent_search",
+                        "matched_business_concepts": [
+                            {
+                                "concept": "animation_explanation",
+                                "relation": "direct",
+                                "reason": "明确要求动画讲解",
+                                "weight": 0.98,
+                            }
+                        ],
+                        "matched_proof_points": [],
+                        "matched_evidence_points": [],
+                    }
+                )
+            return ModelCallResult(
+                {
                     "original_query": "想找短小的动画课",
-                    "normalized_query": "动画精讲",
-                    "search_intent": "动画讲解",
-                    "query_type": "business_intent_search",
-                    "matched_business_concepts": [
+                    "matched_proof_points": [
                         {
-                            "concept": "animation_explanation",
-                            "relation": "direct",
-                            "reason": "明确要求动画讲解",
-                            "weight": 0.98,
+                            "code": "pp_animation_pedagogy_design",
+                            "concept_code": "animation_explanation",
+                            "name": "模型名称会被规范化",
+                            "reason": "短小、单点讲透",
+                            "weight": 0.95,
+                            "evidence_terms": ["5-8 分钟动画微课"],
                         }
                     ],
-                    "matched_proof_points": [],
                     "matched_evidence_points": [],
                 }
-            return {
-                "original_query": "想找短小的动画课",
-                "matched_proof_points": [
-                    {
-                        "code": "pp_animation_pedagogy_design",
-                        "concept_code": "animation_explanation",
-                        "name": "模型名称会被规范化",
-                        "reason": "短小、单点讲透",
-                        "weight": 0.95,
-                        "evidence_terms": ["5-8 分钟动画微课"],
-                    }
-                ],
-                "matched_evidence_points": [],
-            }
+            )
 
     provider = RecordingProvider()
-    result = AiService(provider).understand_search("想找短小的动画课")
+    result = AiService(provider).understand_search("想找短小的动画课").value
 
     assert [request.task for request in provider.requests] == [
         "search_system_routing",
@@ -305,62 +312,66 @@ def test_ai_service_runs_strict_system_selling_point_proof_point_chain():
 
 
 def test_ai_service_normalizes_system_route_shape_and_keeps_scoped_proof_hints():
-    class RecordingProvider:
+    class RecordingProvider(ModelProviderStub):
         name = "recording"
         configured = True
 
         def generate_json(self, request):
             if request.task == "search_system_routing":
-                return {
-                    "route_type": "single",
-                    "systems": [
+                return ModelCallResult(
+                    {
+                        "route_type": "single",
+                        "systems": [
+                            {
+                                "system": "同步校内",
+                                "reason": "模型用中文体系名返回",
+                                "weight": "0.96",
+                            }
+                        ],
+                    }
+                )
+            return ModelCallResult(
+                {
+                    "original_query": request.input_text,
+                    "normalized_query": "动画精讲",
+                    "search_intent": "短时间讲透一个知识点",
+                    "query_type": "single_intent_search",
+                    "matched_business_concepts": [
                         {
-                            "system": "同步校内",
-                            "reason": "模型用中文体系名返回",
-                            "weight": "0.96",
+                            "concept": "animation_explanation",
+                            "relation": "direct",
+                            "reason": "模型返回稳定卖点 code",
+                            "weight": 0.97,
                         }
                     ],
+                    "matched_proof_points": [
+                        {
+                            "code": "pp_animation_pedagogy_design",
+                            "concept_code": "animation_explanation",
+                            "name": "模型名称会被规范化",
+                            "reason": "短时间讲透一个知识点",
+                            "weight": 0.94,
+                            "evidence_terms": ["5-8 分钟动画微课"],
+                        },
+                        {
+                            "code": "pp_photo_guided_socratic_method",
+                            "concept_code": "photo_guided_learning",
+                            "name": "跨卖点证明点会被丢弃",
+                            "reason": "越界",
+                            "weight": 0.9,
+                            "evidence_terms": [],
+                        },
+                    ],
+                    "matched_evidence_points": [],
                 }
-            return {
-                "original_query": request.input_text,
-                "normalized_query": "动画精讲",
-                "search_intent": "短时间讲透一个知识点",
-                "query_type": "single_intent_search",
-                "matched_business_concepts": [
-                    {
-                        "concept": "animation_explanation",
-                        "relation": "direct",
-                        "reason": "模型返回稳定卖点 code",
-                        "weight": 0.97,
-                    }
-                ],
-                "matched_proof_points": [
-                    {
-                        "code": "pp_animation_pedagogy_design",
-                        "concept_code": "animation_explanation",
-                        "name": "模型名称会被规范化",
-                        "reason": "短时间讲透一个知识点",
-                        "weight": 0.94,
-                        "evidence_terms": ["5-8 分钟动画微课"],
-                    },
-                    {
-                        "code": "pp_photo_guided_socratic_method",
-                        "concept_code": "photo_guided_learning",
-                        "name": "跨卖点证明点会被丢弃",
-                        "reason": "越界",
-                        "weight": 0.9,
-                        "evidence_terms": [],
-                    },
-                ],
-                "matched_evidence_points": [],
-            }
+            )
 
     service = AiService(RecordingProvider())
-    routing = service.route_search_system("一节课不长，一个点能讲透")
+    routing = service.route_search_system("一节课不长，一个点能讲透").value
     result = service.understand_selling_points_from_route(
         "一节课不长，一个点能讲透",
         routing,
-    )
+    ).value
 
     assert [item.code for item in routing.candidate_systems] == ["sync_school"]
     assert routing.route_type == "single_system"
@@ -370,26 +381,28 @@ def test_ai_service_normalizes_system_route_shape_and_keeps_scoped_proof_hints()
 
 
 def test_ai_service_accepts_search_understanding_shorthand_payload():
-    class ShorthandProvider:
+    class ShorthandProvider(ModelProviderStub):
         name = "shorthand"
         configured = True
 
         def generate_json(self, request):
-            return {
-                "query_state": "business_intent_search",
-                "matched_business_concepts": [
-                    {
-                        "code": "learning_report",
-                        "evidence": ["家长可以查看学习结果"],
-                        "concept": "",
-                    }
-                ],
-                "matched_proof_points": [],
-                "matched_evidence_points": [],
-                "excluded_concepts": [],
-                "expanded_terms": ["学习结果查看", "学习反馈"],
-                "search_strategy": "指向向家长反馈学习结果/学习情况的卖点。",
-            }
+            return ModelCallResult(
+                {
+                    "query_state": "business_intent_search",
+                    "matched_business_concepts": [
+                        {
+                            "code": "learning_report",
+                            "evidence": ["家长可以查看学习结果"],
+                            "concept": "",
+                        }
+                    ],
+                    "matched_proof_points": [],
+                    "matched_evidence_points": [],
+                    "excluded_concepts": [],
+                    "expanded_terms": ["学习结果查看", "学习反馈"],
+                    "search_strategy": "指向向家长反馈学习结果/学习情况的卖点。",
+                }
+            )
 
     service = AiService(ShorthandProvider())
     result = service._run(
@@ -399,7 +412,7 @@ def test_ai_service_accepts_search_understanding_shorthand_payload():
             input_text="第一层候选体系：sync_companion\n原始查询：家长可以查看学习结果",
         ),
         result_type=SearchUnderstanding,
-    )
+    ).value
 
     assert result.original_query == "家长可以查看学习结果"
     assert result.query_type == "business_intent_search"
@@ -515,21 +528,18 @@ def test_fallback_chain_records_provider_attempts():
             self.provider_label = provider_label
             self.model_name = "gpt-5.5"
             self.fails = fails
-            self.last_attempts = []
 
         def generate_json(self, _request):
-            self.last_attempts = [
-                {
-                    "provider": self.provider_label,
-                    "model": self.model_name,
-                    "status": "failed" if self.fails else "ok",
-                    "duration_ms": 12,
-                    "error": "模型服务调用失败" if self.fails else "",
-                }
-            ]
+            attempt = {
+                "provider": self.provider_label,
+                "model": self.model_name,
+                "status": "failed" if self.fails else "ok",
+                "duration_ms": 12,
+                "error": "模型服务调用失败" if self.fails else "",
+            }
             if self.fails:
-                raise ModelProviderError("模型服务调用失败")
-            return {"ok": True}
+                raise ModelProviderError("模型服务调用失败", attempts=(attempt,))
+            return ModelCallResult({"ok": True}, (attempt,))
 
     chain = FallbackModelProvider(
         [
@@ -538,10 +548,11 @@ def test_fallback_chain_records_provider_attempts():
         ]
     )
 
-    assert chain.generate_json(ModelRequest(task="search_system_routing", prompt="")) == {
-        "ok": True
-    }
-    assert [(item["provider"], item["status"]) for item in chain.last_attempts] == [
+    result = chain.generate_json(
+        ModelRequest(task="search_system_routing", prompt="")
+    )
+    assert result.value == {"ok": True}
+    assert [(item["provider"], item["status"]) for item in result.attempts] == [
         ("laozhang", "failed"),
         ("ohmygpt", "ok"),
     ]
@@ -586,16 +597,43 @@ def test_fallback_chain_stops_after_request_cancellation():
     assert called == ["first"]
 
 
+def test_fallback_chain_does_not_start_when_request_is_already_cancelled():
+    called = []
+
+    class Provider:
+        configured = True
+
+        def __init__(self, name: str):
+            self.provider_label = name
+            self.model_name = name
+
+        def generate_json(self, _request):
+            called.append(self.provider_label)
+            return {"ok": True}
+
+    chain = FallbackModelProvider([Provider("first"), Provider("second")])
+    cancellation = CancellationSignal()
+    cancellation.cancel()
+
+    with pytest.raises(ModelProviderCancelled, match="已取消"):
+        chain.generate_json(
+            ModelRequest(
+                task="search_system_routing",
+                prompt="Return JSON",
+                cancellation=cancellation,
+            )
+        )
+
+    assert called == []
+
+
 def test_fallback_chain_keeps_attempts_request_scoped_under_concurrency():
     class Provider:
         configured = True
         provider_label = "shared-provider"
         model_name = "shared-model"
 
-        def __init__(self):
-            self.last_attempts = []
-
-        def generate_json_with_attempts(self, request):
+        def generate_json(self, request):
             sleep(0.01 if request.input_text == "slow" else 0.001)
             attempt = {
                 "provider": self.provider_label,
@@ -604,7 +642,6 @@ def test_fallback_chain_keeps_attempts_request_scoped_under_concurrency():
                 "duration_ms": 1,
                 "request": request.input_text,
             }
-            self.last_attempts = [attempt]
             return ModelCallResult(
                 {"request": request.input_text},
                 (attempt,),
@@ -613,7 +650,7 @@ def test_fallback_chain_keeps_attempts_request_scoped_under_concurrency():
     chain = FallbackModelProvider([Provider()])
 
     def run(input_text: str):
-        return chain.generate_json_with_attempts(
+        return chain.generate_json(
             ModelRequest(
                 task="search_system_routing",
                 prompt="Return JSON",
@@ -640,19 +677,19 @@ def test_ai_service_fallback_chain_tries_next_provider_on_invalid_structure():
         def __init__(self, provider_label: str, payload):
             self.provider_label = provider_label
             self.payload = payload
-            self.last_attempts = []
 
         def generate_json(self, _request):
-            self.last_attempts = [
-                {
-                    "provider": self.provider_label,
-                    "model": self.model_name,
-                    "status": "ok",
-                    "duration_ms": 9,
-                    "error": "",
-                }
-            ]
-            return self.payload
+            attempt = {
+                "provider": self.provider_label,
+                "model": self.model_name,
+                "status": "ok",
+                "duration_ms": 9,
+                "error": "",
+            }
+            return ModelCallResult(
+                self.payload,
+                (attempt,),
+            )
 
     chain = FallbackModelProvider(
         [
@@ -684,12 +721,12 @@ def test_ai_service_fallback_chain_tries_next_provider_on_invalid_structure():
 
     result = AiService(chain).route_search_system("期中期末一键划重点")
 
-    assert [item.code for item in result.candidate_systems] == ["sync_exam"]
-    assert [(item["provider"], item["status"]) for item in chain.last_attempts] == [
+    assert [item.code for item in result.value.candidate_systems] == ["sync_exam"]
+    assert [(item["provider"], item["status"]) for item in result.attempts] == [
         ("laozhang", "failed"),
         ("ohmygpt", "ok"),
     ]
-    assert "业务体系路由必须至少返回一个候选体系" in chain.last_attempts[0]["error"]
+    assert result.attempts[0]["error"] == "模型返回内容未通过项目校验"
 
 
 def test_fallback_chain_error_includes_sanitized_attempt_summary():
@@ -699,19 +736,19 @@ def test_fallback_chain_error_includes_sanitized_attempt_summary():
 
         def __init__(self, provider_label: str):
             self.provider_label = provider_label
-            self.last_attempts = []
 
         def generate_json(self, _request):
-            self.last_attempts = [
-                {
-                    "provider": self.provider_label,
-                    "model": self.model_name,
-                    "status": "failed",
-                    "duration_ms": 7,
-                    "error": "模型服务返回异常状态：400",
-                }
-            ]
-            raise ModelProviderError("模型服务返回异常状态：400")
+            attempt = {
+                "provider": self.provider_label,
+                "model": self.model_name,
+                "status": "failed",
+                "duration_ms": 7,
+                "error": "模型服务返回异常状态：400",
+            }
+            raise ModelProviderError(
+                "模型服务返回异常状态：400",
+                attempts=(attempt,),
+            )
 
     chain = FallbackModelProvider(
         [FailingProvider("laozhang"), FailingProvider("ohmygpt")]

@@ -8,11 +8,12 @@ from pydantic import BaseModel, ValidationError
 
 from app.ai.contracts import (
     CancellationSignal,
+    ModelCallResult,
     ModelProvider,
     ModelProviderError,
     ModelProviderNotConfigured,
+    ModelProviderValidationError,
     ModelRequest,
-    generate_validated_json_with_attempts,
 )
 from app.ai.knowledge import AiKnowledge
 from app.ai.normalizer import normalize_model_payload
@@ -81,7 +82,6 @@ class AiService:
         self.selling_point_timeout_seconds = selling_point_timeout_seconds
         self.proof_point_timeout_seconds = proof_point_timeout_seconds
         self.candidate_review_timeout_seconds = candidate_review_timeout_seconds
-        self.last_call_attempts: tuple[dict, ...] = ()
 
     def provider_status(self) -> ProviderStatus:
         return ProviderStatus(
@@ -90,8 +90,8 @@ class AiService:
             model_name=get_settings().model_name,
         )
 
-    def analyze_image(self, image_path: Path) -> ImageAnalysisResult:
-        result = self._run(
+    def analyze_image(self, image_path: Path) -> ModelCallResult[ImageAnalysisResult]:
+        call = self._run(
             ModelRequest(
                 task="image_content_analysis",
                 prompt=build_task_prompt(
@@ -102,8 +102,12 @@ class AiService:
             ),
             ImageAnalysisResult,
         )
-        self._validate_image_analysis(result)
-        return result
+        try:
+            self._validate_image_analysis(call.value)
+        except AppError as exc:
+            exc.attempts = call.attempts
+            raise
+        return call
 
     def generate_asset_search_phrases(
         self,
@@ -113,7 +117,7 @@ class AiService:
         title: str = "",
         concept_code: str = "",
         image_media_type: str | None = None,
-    ) -> AssetSearchPhraseSuggestion:
+    ) -> ModelCallResult[AssetSearchPhraseSuggestion]:
         if count < 2 or count > 5:
             raise AppError(
                 "invalid_phrase_count",
@@ -136,7 +140,7 @@ class AiService:
                 else ""
             ),
         ]
-        result = self._run(
+        call = self._run(
             ModelRequest(
                 task="asset_search_phrase_generation",
                 prompt=build_task_prompt("asset_search_phrase_generation"),
@@ -146,35 +150,46 @@ class AiService:
             ),
             AssetSearchPhraseSuggestion,
         )
+        result = call.value
         cleaned = list(
             dict.fromkeys(item.strip() for item in result.phrases if item.strip())
         )
-        self._validate_profile_items(
-            "素材独有搜索表达",
-            cleaned,
-            limit=count,
-            max_length=80,
-        )
+        try:
+            self._validate_profile_items(
+                "素材独有搜索表达",
+                cleaned,
+                limit=count,
+                max_length=80,
+            )
+        except AppError as exc:
+            exc.attempts = call.attempts
+            raise
         if len(cleaned) != count:
-            raise AppError(
+            error = AppError(
                 "model_response_invalid",
                 f"模型需要返回正好 {count} 条素材独有话术",
                 status_code=502,
                 details={"expected": count, "actual": len(cleaned)},
             )
-        return result.model_copy(update={"phrases": cleaned})
+            error.attempts = call.attempts
+            raise error
+        return ModelCallResult(result.model_copy(update={"phrases": cleaned}), call.attempts)
 
     def understand_search(
         self,
         keyword: str,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding:
+    ) -> ModelCallResult[SearchUnderstanding]:
         routing = self.route_search_system(keyword, cancellation=cancellation)
-        return self.understand_search_from_route(
+        understanding = self.understand_search_from_route(
             keyword,
-            routing,
+            routing.value,
             cancellation=cancellation,
+        )
+        return ModelCallResult(
+            understanding.value,
+            (*routing.attempts, *understanding.attempts),
         )
 
     def route_search_system(
@@ -182,7 +197,7 @@ class AiService:
         keyword: str,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchSystemRouting:
+    ) -> ModelCallResult[SearchSystemRouting]:
         return self._run(
             ModelRequest(
                 task="search_system_routing",
@@ -200,16 +215,20 @@ class AiService:
         routing: SearchSystemRouting,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding:
+    ) -> ModelCallResult[SearchUnderstanding]:
         selling_points = self.understand_selling_points_from_route(
             keyword,
             routing,
             cancellation=cancellation,
         )
-        return self.understand_proof_points(
+        proof_points = self.understand_proof_points(
             keyword,
-            selling_points,
+            selling_points.value,
             cancellation=cancellation,
+        )
+        return ModelCallResult(
+            proof_points.value,
+            (*selling_points.attempts, *proof_points.attempts),
         )
 
     def understand_selling_points_from_route(
@@ -218,7 +237,7 @@ class AiService:
         routing: SearchSystemRouting,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding:
+    ) -> ModelCallResult[SearchUnderstanding]:
         system_codes = self._validated_routed_system_codes(routing)
         if not system_codes:
             query_type = (
@@ -226,21 +245,24 @@ class AiService:
                 if routing.route_type == "visual_scene"
                 else "no_reliable_intent_search"
             )
-            return SearchUnderstanding(
-                original_query=keyword,
-                normalized_query=keyword.strip(),
-                search_intent=(
-                    "查询只包含画面或版式要求"
-                    if query_type == "visual_scene_search"
-                    else "未识别到可靠业务体系"
+            return ModelCallResult(
+                SearchUnderstanding(
+                    original_query=keyword,
+                    normalized_query=keyword.strip(),
+                    search_intent=(
+                        "查询只包含画面或版式要求"
+                        if query_type == "visual_scene_search"
+                        else "未识别到可靠业务体系"
+                    ),
+                    query_type=query_type,
+                    expanded_terms=[],
+                    matched_business_concepts=[],
+                    excluded_concepts=[],
+                    search_strategy="不执行卖点硬路由",
                 ),
-                query_type=query_type,
-                expanded_terms=[],
-                matched_business_concepts=[],
-                excluded_concepts=[],
-                search_strategy="不执行卖点硬路由",
+                (),
             )
-        result = self._run(
+        call = self._run(
             ModelRequest(
                 task="search_intent_understanding",
                 prompt=build_selling_point_prompt(
@@ -256,8 +278,13 @@ class AiService:
             ),
             SearchUnderstanding,
         )
-        self._validate_routed_concepts(result, system_codes)
-        return self._with_scoped_proof_point_hints(result)
+        result = call.value
+        try:
+            self._validate_routed_concepts(result, system_codes)
+        except AppError as exc:
+            exc.attempts = call.attempts
+            raise
+        return ModelCallResult(self._with_scoped_proof_point_hints(result), call.attempts)
 
     def understand_proof_points(
         self,
@@ -265,10 +292,10 @@ class AiService:
         selling_points: SearchUnderstanding,
         *,
         cancellation: CancellationSignal | None = None,
-    ) -> SearchUnderstanding:
+    ) -> ModelCallResult[SearchUnderstanding]:
         concept_codes = self._matched_concept_codes(selling_points)
         if not concept_codes:
-            return selling_points
+            return ModelCallResult(selling_points, ())
         available_proofs = {
             item.concept_code for item in load_proof_point_catalog().points
         }
@@ -276,8 +303,8 @@ class AiService:
             code for code in concept_codes if code in available_proofs
         )
         if not concept_codes:
-            return selling_points
-        result = self._run(
+            return ModelCallResult(selling_points, ())
+        call = self._run(
             ModelRequest(
                 task="search_proof_point_understanding",
                 prompt=build_proof_point_prompt(concept_codes),
@@ -290,19 +317,23 @@ class AiService:
             ),
             SearchProofPointUnderstanding,
         )
+        result = call.value
         proof_matches, evidence_matches = self._scoped_proof_point_matches(
             result.matched_proof_points,
             result.matched_evidence_points,
             concept_codes,
         )
-        return selling_points.model_copy(
-            update={
-                "matched_proof_points": proof_matches,
-                "matched_evidence_points": evidence_matches,
-                "search_strategy": (
-                    result.search_strategy or selling_points.search_strategy
-                ),
-            }
+        return ModelCallResult(
+            selling_points.model_copy(
+                update={
+                    "matched_proof_points": proof_matches,
+                    "matched_evidence_points": evidence_matches,
+                    "search_strategy": (
+                        result.search_strategy or selling_points.search_strategy
+                    ),
+                }
+            ),
+            call.attempts,
         )
 
     def review_search_candidates(
@@ -312,9 +343,9 @@ class AiService:
         understanding: SearchUnderstanding | None,
         candidates: list[dict],
         cancellation: CancellationSignal | None = None,
-    ) -> SearchCandidateReviewResult:
+    ) -> ModelCallResult[SearchCandidateReviewResult]:
         if not candidates:
-            return SearchCandidateReviewResult(decisions=[])
+            return ModelCallResult(SearchCandidateReviewResult(decisions=[]), ())
         payload = {
             "query": keyword,
             "understanding": (
@@ -340,9 +371,12 @@ class AiService:
         understanding: SearchUnderstanding | None,
         candidates: list[dict],
         cancellation: CancellationSignal | None = None,
-    ) -> SearchResultRecommendationReasonResult:
+    ) -> ModelCallResult[SearchResultRecommendationReasonResult]:
         if not candidates:
-            return SearchResultRecommendationReasonResult(reasons=[])
+            return ModelCallResult(
+                SearchResultRecommendationReasonResult(reasons=[]),
+                (),
+            )
         payload = {
             "query": keyword,
             "understanding": (
@@ -687,7 +721,10 @@ class AiService:
             lines.append(f"  - 排除边界：{'、'.join(node.negative_evidence)}")
         return "\n".join(lines)
 
-    def match_selling_points(self, copy: str) -> SellingPointMatchResult:
+    def match_selling_points(
+        self,
+        copy: str,
+    ) -> ModelCallResult[SellingPointMatchResult]:
         return self._run(
             ModelRequest(
                 task="copy_selling_point_matching",
@@ -697,7 +734,11 @@ class AiService:
             SellingPointMatchResult,
         )
 
-    def _run(self, request: ModelRequest, result_type: type[ResultModel]) -> ResultModel:
+    def _run(
+        self,
+        request: ModelRequest,
+        result_type: type[ResultModel],
+    ) -> ModelCallResult[ResultModel]:
         def validate(payload):
             return result_type.model_validate(
                 normalize_model_payload(
@@ -712,34 +753,46 @@ class AiService:
             )
 
         try:
-            call = generate_validated_json_with_attempts(
-                self.provider,
-                request,
-                validate,
+            return cast(
+                ModelCallResult[ResultModel],
+                self.provider.generate_validated_json(request, validate),
             )
-            self.last_call_attempts = call.attempts
-            return cast(ResultModel, call.value)
         except ModelProviderNotConfigured as exc:
-            self.last_call_attempts = _attempts_from_exception(exc)
             raise AppError(
                 "provider_not_configured",
                 str(exc),
                 status_code=503,
+                attempts=exc.attempts,
             ) from exc
+        except ModelProviderValidationError as exc:
+            if isinstance(exc.cause, ValidationError):
+                raise AppError(
+                    "model_response_invalid",
+                    "模型返回内容不符合项目结构要求",
+                    status_code=502,
+                    details=exc.cause.errors(),
+                    attempts=exc.attempts,
+                ) from exc.cause
+            raise AppError(
+                "model_response_invalid",
+                str(exc.cause),
+                status_code=502,
+                attempts=exc.attempts,
+            ) from exc.cause
         except ModelProviderError as exc:
-            self.last_call_attempts = _attempts_from_exception(exc)
             raise AppError(
                 "model_provider_error",
                 str(exc),
                 status_code=502,
+                attempts=exc.attempts,
             ) from exc
         except ValidationError as exc:
-            self.last_call_attempts = _attempts_from_exception(exc)
             raise AppError(
                 "model_response_invalid",
                 "模型返回内容不符合项目结构要求",
                 status_code=502,
                 details=exc.errors(),
+                attempts=(),
             ) from exc
 
     def _validate_image_analysis(self, result: ImageAnalysisResult) -> None:
@@ -850,10 +903,3 @@ class AiService:
         return bool(text) and any(
             marker in text for marker in SECONDARY_REASON_BOUNDARY_MARKERS
         )
-
-
-def _attempts_from_exception(exc: Exception) -> tuple[dict, ...]:
-    attempts = getattr(exc, "attempts", ())
-    if not isinstance(attempts, (list, tuple)):
-        return ()
-    return tuple(item for item in attempts if isinstance(item, dict))
