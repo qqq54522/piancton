@@ -68,6 +68,41 @@ def test_expired_login_throttle_does_not_turn_bad_password_into_500(client, db_f
     assert response.json()["code"] == "unauthorized"
 
 
+def test_same_forwarded_host_origin_is_trusted_for_csrf(client):
+    csrf = login(client, "business", "business-password")
+
+    response = client.post(
+        "/api/usage/page-view",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Origin": "http://192.168.1.5",
+            "X-Forwarded-Host": "192.168.1.5",
+            "X-Forwarded-Proto": "http",
+        },
+        json={"path": "/", "title": "素材库"},
+    )
+
+    assert response.status_code == 204
+
+
+def test_mismatched_external_origin_is_rejected_for_csrf(client):
+    csrf = login(client, "business", "business-password")
+
+    response = client.post(
+        "/api/usage/page-view",
+        headers={
+            "X-CSRF-Token": csrf,
+            "Origin": "https://example.invalid",
+            "X-Forwarded-Host": "192.168.1.5",
+            "X-Forwarded-Proto": "http",
+        },
+        json={"path": "/", "title": "素材库"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["message"] == "请求来源不受信任"
+
+
 def test_business_cannot_write_and_tag_catalog_is_read_only(client):
     login(client, "business", "business-password")
     assert client.get("/api/admin/users").status_code == 403

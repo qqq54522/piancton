@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 import threading
 import time
 from collections import deque
+from urllib.parse import urlparse
 
 from app.models.api_provider import ModelApiCredential
 
@@ -93,25 +93,47 @@ def normalize_max_concurrency(value: int | None) -> int:
     return min(max(1, int(value or 1)), 20)
 
 
-def credential_can_run_task(
+def credential_is_available(
     credential: ModelApiCredential,
-    task: str,
     *,
     require_auto_assign: bool = True,
 ) -> bool:
-    if credential.status != "active":
+    if credential.status == "disabled":
         return False
-    if require_auto_assign and not credential.auto_assign_enabled:
+    if require_auto_assign and (
+        credential.status != "active" or not credential.auto_assign_enabled
+    ):
         return False
-    scopes = _loads_list(credential.task_scope_json)
-    return not scopes or task in scopes
+    return True
+
+
+def credential_provider_group(credential: ModelApiCredential) -> str:
+    parsed = urlparse(credential.base_url)
+    return (parsed.hostname or credential.base_url).lower()
+
+
+def provider_runtime_snapshot(
+    credentials: list[ModelApiCredential],
+    runtime: dict[str, dict[str, float]],
+) -> dict[str, dict[str, float]]:
+    providers: dict[str, dict[str, float]] = {}
+    for credential in credentials:
+        provider = providers.setdefault(
+            credential_provider_group(credential),
+            {"in_flight": 0.0, "runtime_total": 0.0},
+        )
+        credential_runtime = runtime.get(credential.id, {})
+        provider["in_flight"] += credential_runtime.get("in_flight", 0.0)
+        provider["runtime_total"] += credential_runtime.get("runtime_total", 0.0)
+    return providers
 
 
 def credential_schedule_key(
     credential: ModelApiCredential,
     metrics: dict[str, dict[str, float]],
     runtime: dict[str, dict[str, float]],
-) -> tuple[int, int, float, float, float, int, float, int, str]:
+    provider_runtime: dict[str, dict[str, float]],
+) -> tuple[int, int, int, int, float, int, float, int, float, float, int, float, int, str]:
     health_rank = {
         "ok": 0,
         None: 1,
@@ -124,6 +146,13 @@ def credential_schedule_key(
     ok = metric.get("ok", 0.0)
     failed = int(metric.get("failed", 0))
     runtime_failure_rate = runtime_metric.get("runtime_failure_rate", 0.0)
+    runtime_total = int(runtime_metric.get("runtime_total", 0))
+    provider_metric = provider_runtime.get(
+        credential_provider_group(credential),
+        {},
+    )
+    provider_in_flight = provider_metric.get("in_flight", 0.0)
+    provider_runtime_total = int(provider_metric.get("runtime_total", 0))
     avg_latency = metric.get(
         "avg_latency",
         float(
@@ -139,24 +168,23 @@ def credential_schedule_key(
     in_flight = runtime_metric.get("in_flight", 0.0)
     load_ratio = in_flight / max_concurrency
     saturated_rank = 1 if in_flight >= max_concurrency else 0
+    runtime_health_rank = (
+        0 if runtime_failure_rate <= 0.1 else 1 if runtime_failure_rate <= 0.3 else 2
+    )
+    history_health_rank = 0 if success_rate >= 0.9 else 1 if success_rate >= 0.7 else 2
     return (
         saturated_rank,
         health_rank,
-        -success_rate,
-        runtime_failure_rate,
+        runtime_health_rank,
+        history_health_rank,
+        provider_in_flight,
+        provider_runtime_total,
         load_ratio,
+        runtime_total,
+        runtime_failure_rate,
+        -success_rate,
         failed,
         avg_latency,
         credential.priority,
         credential.created_at.isoformat(),
     )
-
-
-def _loads_list(raw: str) -> list[str]:
-    try:
-        value = json.loads(raw or "[]")
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]

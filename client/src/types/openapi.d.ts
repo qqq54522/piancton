@@ -743,6 +743,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/api-center/call-traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Api Call Traces */
+        get: operations["list_api_call_traces_api_admin_api_center_call_traces_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/api-center/credentials": {
         parameters: {
             query?: never;
@@ -754,6 +771,23 @@ export interface paths {
         put?: never;
         /** Create Api Credential */
         post: operations["create_api_credential_api_admin_api_center_credentials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/credentials/temperature-probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe Api Credential Temperature */
+        post: operations["probe_api_credential_temperature_api_admin_api_center_credentials_temperature_probe_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -778,6 +812,23 @@ export interface paths {
         patch: operations["update_api_credential_api_admin_api_center_credentials__credential_id__patch"];
         trace?: never;
     };
+    "/api/admin/api-center/provider-groups/{provider_group}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable Api Provider Group */
+        post: operations["disable_api_provider_group_api_admin_api_center_provider_groups__provider_group__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/api-center/credentials/{credential_id}/test": {
         parameters: {
             query?: never;
@@ -795,6 +846,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/api-center/credentials/{credential_id}/temperature-tune": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tune Api Credential Temperature */
+        post: operations["tune_api_credential_temperature_api_admin_api_center_credentials__credential_id__temperature_tune_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/api-center/health-checks/run-all": {
         parameters: {
             query?: never;
@@ -806,6 +874,23 @@ export interface paths {
         put?: never;
         /** Run Api Health Checks */
         post: operations["run_api_health_checks_api_admin_api_center_health_checks_run_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/maintenance/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Api Center Maintenance */
+        post: operations["run_api_center_maintenance_api_admin_api_center_maintenance_run_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1185,6 +1270,12 @@ export interface components {
             searchLogId?: string | null;
             /** Requestid */
             requestId?: string | null;
+            /** Searchkeyword */
+            searchKeyword?: string | null;
+            /** Searchresultcount */
+            searchResultCount?: number | null;
+            /** Searchtimedout */
+            searchTimedOut?: boolean | null;
             /** Task */
             task: string;
             /** Layername */
@@ -1203,6 +1294,18 @@ export interface components {
             durationMs: number;
             /** Fallbackindex */
             fallbackIndex?: number | null;
+            /** Errorcode */
+            errorCode?: string | null;
+            /** Errorcategory */
+            errorCategory?: string | null;
+            /** Errorseverity */
+            errorSeverity?: string | null;
+            /** Errorretryable */
+            errorRetryable?: boolean | null;
+            /** Erroroperatoraction */
+            errorOperatorAction?: string | null;
+            /** Errorsystemaction */
+            errorSystemAction?: string | null;
             /** Errorsummary */
             errorSummary?: string | null;
             /** Responsevalid */
@@ -1216,6 +1319,19 @@ export interface components {
              * Format: date-time
              */
             createdAt: string;
+        };
+        /** ApiCallTraceListResponse */
+        ApiCallTraceListResponse: {
+            /** Items */
+            items: components["schemas"]["ApiCallTraceRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Hasmore */
+            hasMore: boolean;
         };
         /** ApiCenterOverview */
         ApiCenterOverview: {
@@ -1239,12 +1355,90 @@ export interface components {
         /** ApiCenterSummary */
         ApiCenterSummary: {
             overview: components["schemas"]["ApiCenterOverview"];
+            maintenance: components["schemas"]["ApiCenterMaintenanceRead"];
             /** Credentials */
             credentials: components["schemas"]["ApiCredentialRead"][];
+            /**
+             * Providergroups
+             * @default []
+             */
+            providerGroups: components["schemas"]["ApiProviderGroupRead"][];
             /** Routingslots */
             routingSlots: components["schemas"]["RoutingSlotRead"][];
             /** Recentcalltraces */
             recentCallTraces: components["schemas"]["ApiCallTraceRead"][];
+        };
+        /** ApiCenterMaintenanceRead */
+        ApiCenterMaintenanceRead: {
+            /** Enabled */
+            enabled: boolean;
+            /** Intervalminutes */
+            intervalMinutes: number;
+            /** Startupdelayseconds */
+            startupDelaySeconds: number;
+            /** Maxcredentialspercycle */
+            maxCredentialsPerCycle: number;
+            /** Calltraceretentiondays */
+            callTraceRetentionDays: number;
+            /** Healthcheckretentiondays */
+            healthCheckRetentionDays: number;
+            /** Laststartedat */
+            lastStartedAt?: string | null;
+            /** Lastfinishedat */
+            lastFinishedAt?: string | null;
+            /**
+             * Laststatus
+             * @default idle
+             */
+            lastStatus: string;
+            /** Lasterror */
+            lastError?: string | null;
+            /**
+             * Lastcheckedcount
+             * @default 0
+             */
+            lastCheckedCount: number;
+            /**
+             * Lastokcount
+             * @default 0
+             */
+            lastOkCount: number;
+            /**
+             * Lastfailedcount
+             * @default 0
+             */
+            lastFailedCount: number;
+            /**
+             * Lastdeletedcalltracecount
+             * @default 0
+             */
+            lastDeletedCallTraceCount: number;
+            /**
+             * Lastdeletedhealthcheckcount
+             * @default 0
+             */
+            lastDeletedHealthCheckCount: number;
+            /** Nextrunat */
+            nextRunAt?: string | null;
+        };
+        /** ApiCenterMaintenanceRunResult */
+        ApiCenterMaintenanceRunResult: {
+            /** Status */
+            status: string;
+            /** Startedat */
+            startedAt: string;
+            /** Finishedat */
+            finishedAt: string;
+            /** Checkedcount */
+            checkedCount: number;
+            /** Okcount */
+            okCount: number;
+            /** Failedcount */
+            failedCount: number;
+            /** Deletedcalltracecount */
+            deletedCallTraceCount: number;
+            /** Deletedhealthcheckcount */
+            deletedHealthCheckCount: number;
         };
         /** ApiCredentialCreate */
         ApiCredentialCreate: {
@@ -1271,7 +1465,7 @@ export interface components {
              * @default active
              * @enum {string}
              */
-            status: "active" | "disabled" | "cooling" | "invalid";
+            status: "active" | "disabled";
             /**
              * Priority
              * @default 100
@@ -1288,6 +1482,11 @@ export interface components {
              */
             temperature: number;
             /**
+             * Temperatureenabled
+             * @default true
+             */
+            temperatureEnabled: boolean;
+            /**
              * Maxconcurrency
              * @default 1
              */
@@ -1297,6 +1496,27 @@ export interface components {
              * @default true
              */
             autoAssignEnabled: boolean;
+        };
+        /** ApiCredentialCapabilityRead */
+        ApiCredentialCapabilityRead: {
+            /** Capability */
+            capability: string;
+            /** Label */
+            label: string;
+            /**
+             * Status
+             * @default unknown
+             * @enum {string}
+             */
+            status: "ok" | "failed" | "unknown";
+            /** Lasttask */
+            lastTask?: string | null;
+            /** Durationms */
+            durationMs?: number | null;
+            /** Errorsummary */
+            errorSummary?: string | null;
+            /** Checkedat */
+            checkedAt?: string | null;
         };
         /** ApiCredentialRead */
         ApiCredentialRead: {
@@ -1322,10 +1542,17 @@ export interface components {
             timeoutSeconds: number;
             /** Temperature */
             temperature: number;
+            /** Temperatureenabled */
+            temperatureEnabled: boolean;
             /** Maxconcurrency */
             maxConcurrency: number;
             /** Autoassignenabled */
             autoAssignEnabled: boolean;
+            /**
+             * Capabilityprofile
+             * @default []
+             */
+            capabilityProfile: components["schemas"]["ApiCredentialCapabilityRead"][];
             /**
              * Currentconcurrency
              * @default 0
@@ -1390,13 +1617,15 @@ export interface components {
             /** Taskscope */
             taskScope?: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat")[] | null;
             /** Status */
-            status?: ("active" | "disabled" | "cooling" | "invalid") | null;
+            status?: ("active" | "disabled") | null;
             /** Priority */
             priority?: number | null;
             /** Timeoutseconds */
             timeoutSeconds?: number | null;
             /** Temperature */
             temperature?: number | null;
+            /** Temperatureenabled */
+            temperatureEnabled?: boolean | null;
             /** Maxconcurrency */
             maxConcurrency?: number | null;
             /** Autoassignenabled */
@@ -1427,6 +1656,18 @@ export interface components {
             status: string;
             /** Durationms */
             durationMs: number;
+            /** Errorcode */
+            errorCode?: string | null;
+            /** Errorcategory */
+            errorCategory?: string | null;
+            /** Errorseverity */
+            errorSeverity?: string | null;
+            /** Errorretryable */
+            errorRetryable?: boolean | null;
+            /** Erroroperatoraction */
+            errorOperatorAction?: string | null;
+            /** Errorsystemaction */
+            errorSystemAction?: string | null;
             /** Errorsummary */
             errorSummary?: string | null;
             /**
@@ -1457,6 +1698,99 @@ export interface components {
             failedCount: number;
             /** Checks */
             checks: components["schemas"]["ApiHealthCheckRead"][];
+        };
+        /** ApiTemperatureProbeRead */
+        ApiTemperatureProbeRead: {
+            /** Temperature */
+            temperature?: number | null;
+            /**
+             * Temperatureenabled
+             * @default true
+             */
+            temperatureEnabled: boolean;
+            /** Status */
+            status: string;
+            /** Durationms */
+            durationMs: number;
+            /** Errorcode */
+            errorCode?: string | null;
+            /** Errorcategory */
+            errorCategory?: string | null;
+            /** Errorseverity */
+            errorSeverity?: string | null;
+            /** Errorretryable */
+            errorRetryable?: boolean | null;
+            /** Erroroperatoraction */
+            errorOperatorAction?: string | null;
+            /** Errorsystemaction */
+            errorSystemAction?: string | null;
+            /** Errorsummary */
+            errorSummary?: string | null;
+            /**
+             * Checkedat
+             * Format: date-time
+             */
+            checkedAt: string;
+        };
+        /** ApiTemperatureProbeRequest */
+        ApiTemperatureProbeRequest: {
+            /** Baseurl */
+            baseUrl: string;
+            /** Modelname */
+            modelName: string;
+            /** Apikey */
+            apiKey: string;
+            /**
+             * Task
+             * @default search_system_routing
+             * @enum {string}
+             */
+            task: "image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat";
+            /**
+             * Temperature
+             * @default 0.2
+             */
+            temperature: number;
+            /** Candidatetemperatures */
+            candidateTemperatures?: number[] | null;
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+        };
+        /** ApiTemperatureTuneRequest */
+        ApiTemperatureTuneRequest: {
+            /** Task */
+            task?: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat") | null;
+            /** Candidatetemperatures */
+            candidateTemperatures?: number[] | null;
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+            /**
+             * Persist
+             * @default true
+             */
+            persist: boolean;
+        };
+        /** ApiTemperatureTuneResult */
+        ApiTemperatureTuneResult: {
+            /** Credentialid */
+            credentialId: string;
+            /** Credentiallabel */
+            credentialLabel?: string | null;
+            /** Status */
+            status: string;
+            /** Previoustemperature */
+            previousTemperature: number;
+            /**
+             * Previoustemperatureenabled
+             * @default true
+             */
+            previousTemperatureEnabled: boolean;
+            /** Selectedtemperature */
+            selectedTemperature?: number | null;
+            /** Selectedtemperatureenabled */
+            selectedTemperatureEnabled?: boolean | null;
+            /** Probes */
+            probes: components["schemas"]["ApiTemperatureProbeRead"][];
         };
         /** AssetAgentChatRequest */
         AssetAgentChatRequest: {
@@ -2689,6 +3023,10 @@ export interface components {
             backupCredentialIds: string[];
             /** Backupcredentiallabels */
             backupCredentialLabels: string[];
+            /** Excludedcredentialids */
+            excludedCredentialIds: string[];
+            /** Excludedcredentiallabels */
+            excludedCredentialLabels: string[];
             /** Timeoutseconds */
             timeoutSeconds: number;
             /** Hedgingdelayms */
@@ -2705,6 +3043,33 @@ export interface components {
              */
             updatedAt: string;
         };
+        /** ApiProviderGroupRead */
+        ApiProviderGroupRead: {
+            /** Providergroup */
+            providerGroup: string;
+            /** Credentialcount */
+            credentialCount: number;
+            /** Activecredentialcount */
+            activeCredentialCount: number;
+            /** Autoassigncredentialcount */
+            autoAssignCredentialCount: number;
+            /** Currentconcurrency */
+            currentConcurrency: number;
+            /** Recentcallcount */
+            recentCallCount: number;
+            /** Recentfailurerate */
+            recentFailureRate: number;
+            /** Recenttimeoutcount */
+            recentTimeoutCount: number;
+            /**
+             * Status
+             * @default ok
+             * @enum {string}
+             */
+            status: "ok" | "watch" | "degraded";
+            /** Recommendation */
+            recommendation?: string | null;
+        };
         /** RoutingSlotUpdate */
         RoutingSlotUpdate: {
             /** Label */
@@ -2713,6 +3078,8 @@ export interface components {
             primaryCredentialId?: string | null;
             /** Backupcredentialids */
             backupCredentialIds?: string[] | null;
+            /** Excludedcredentialids */
+            excludedCredentialIds?: string[] | null;
             /** Timeoutseconds */
             timeoutSeconds?: number | null;
             /** Hedgingdelayms */
@@ -5008,7 +5375,9 @@ export interface operations {
     };
     understand_search_api_ai_search_intent_post: {
         parameters: {
-            query?: never;
+            query?: {
+                request_id?: string | null;
+            };
             header?: {
                 "X-CSRF-Token"?: string | null;
             };
@@ -5046,7 +5415,9 @@ export interface operations {
     };
     match_selling_points_api_ai_selling_points_match_post: {
         parameters: {
-            query?: never;
+            query?: {
+                request_id?: string | null;
+            };
             header?: {
                 "X-CSRF-Token"?: string | null;
             };
@@ -5187,6 +5558,46 @@ export interface operations {
             };
         };
     };
+    list_api_call_traces_api_admin_api_center_call_traces_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                task?: string | null;
+                status?: string | null;
+                provider?: string | null;
+                credential_id?: string | null;
+                request_id?: string | null;
+                keyword?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCallTraceListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_api_credential_api_admin_api_center_credentials_post: {
         parameters: {
             query?: never;
@@ -5222,6 +5633,41 @@ export interface operations {
             };
         };
     };
+    probe_api_credential_temperature_api_admin_api_center_credentials_temperature_probe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiTemperatureProbeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTemperatureTuneResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_api_credential_api_admin_api_center_credentials__credential_id__delete: {
         parameters: {
             query?: never;
@@ -5241,6 +5687,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_api_provider_group_api_admin_api_center_provider_groups__provider_group__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_group: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProviderGroupRead"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -5327,6 +5806,43 @@ export interface operations {
             };
         };
     };
+    tune_api_credential_temperature_api_admin_api_center_credentials__credential_id__temperature_tune_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                credential_id: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiTemperatureTuneRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTemperatureTuneResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     run_api_health_checks_api_admin_api_center_health_checks_run_all_post: {
         parameters: {
             query?: never;
@@ -5349,6 +5865,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiHealthCheckRunResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_api_center_maintenance_api_admin_api_center_maintenance_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCenterMaintenanceRunResult"];
                 };
             };
             /** @description Validation Error */

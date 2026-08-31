@@ -1,10 +1,593 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-08-27
+更新时间：2026-09-01
 当前范围：Phase 0～Phase 6；九个正式 Skill 与九类运行时模型任务完成收口；组合语义校准与素材证明点筛选继续按真实业务话术推进
-当前状态：Phase 0～6 工程改造完成；当前打开的本地项目作为唯一基准；本地库已升级到 `20260826_0026`，包含 40 个素材组、40 张图片、16 个业务概念和 55 条人工 accepted 关系；API 中心已收口为运行时唯一入口，并新增管理员使用统计；素材库 Agent 已改为按用户在 Asia/Shanghai 每天 00:00 自然日重置，清空后只保留一个空白新对话
+当前状态：Phase 0～6 工程改造完成；当前打开的本地项目作为唯一基准；本地库已升级到 `20260829_0031`，包含 40 个素材组、40 张图片、16 个业务概念和 55 条人工 accepted 关系；API 中心已收口为运行时唯一入口，管理员启停与运行健康已经分离，所有未停用 API 都可人工指定，API 级自动候选资格与任务级运行方式分别控制自动选择；单 backend 调度已具备请求级快照、短 TTL 指标缓存、真实任务预算保护和并行接力；API 管理页新增中转站聚合概览与管理员一键停用整站；API 库存已增加 Key 指纹判重和凭据生命周期审计；素材库 Agent 已改为按用户在 Asia/Shanghai 每天 00:00 自然日重置，清空后只保留一个空白新对话
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+---
+
+## 2026-09-01：多卖点结果按理解重点编排（D252）
+
+### 用户目标
+
+- 修复“洋葱的拍题精学举一反三”这类明确多卖点查询只突出一个方向的问题。
+- 精准不等于每次只返回一个卖点；原话里明确涉及几个卖点，就应该返回几个卖点方向，并把话里重点排在前面。
+
+### 完成内容
+
+- 确认当前理解层已经能把“洋葱的拍题精学举一反三”识别为 `multi_business_intent_search`，同时命中 `举一反三` 和 `AI拍题精学`。
+- 定位问题在后续多卖点结果编排：召回分数或标题强命中可能把次要卖点抢到第一。
+- 修改多卖点 active concept 编排逻辑，按 `SearchUnderstanding.matched_business_concepts` 的顺序重排可信卖点，而不是只按召回分数排序。
+- 保持多卖点“每个方向至少先保留一张可信素材”的既有策略，后续结果再展示剩余相关素材。
+
+### 验证结果
+
+- Docker 后端已重建并 healthy。
+- 新增多卖点排序测试通过。
+- 多卖点边界、查询状态和业务校准回归：`40 passed`。
+- 真实后端搜索“洋葱的拍题精学举一反三”前两位为 `举一反三`、`拍题精学`，两个卖点方向均保留。
+
+### 本轮边界
+
+- 不修改查询理解规则。
+- 不修改业务词库、公共话术、模型 Prompt、人工素材关系或数据库 schema。
+- 不放宽可信素材准入：多卖点仍只从已审核 `expresses/supports` 关系中进入主通道。
+
+---
+
+## 2026-08-31：专项培优训练拔高口语强路由（D251）
+
+### 用户目标
+
+- 修复“题型突破”“想训练拔高的图”等话术在页面搜索中搜不到或前排不准的问题。
+- 不能靠随手堆长句补丁，要保持专项培优、举一反三、学段衔接等相邻卖点边界稳定。
+
+### 完成内容
+
+- 确认 `题型突破` 后端已能通过 `targeted-module-breakthrough` 组合语义命中 `专项培优 / 按题型和薄弱点定向突破`。
+- 定位 `想训练拔高的图` 的真实问题：数据库 accepted 话术存在，但人工 alias 在口语长句中只形成弱/中证据，加上“图/素材”泛搜索词后没有进入强路由。
+- 在 `public-phrase-governance.json` 的 `difficulty-excellence-upgrade` 组合信号里补入 `训练拔高/拔高训练`，让“训练 + 拔高”类口语统一进入受治理组合语义，而不是逐句硬贴。
+- 新增两条业务校准样例：`想训练拔高的图`、`想找训练拔高素材`。
+- 补充搜索理解回归，锁定这两类口语必须进入 `pp_exam_focus_targeted_modules`。
+
+### 验证结果
+
+- Docker 后端已重建并 healthy。
+- 搜索理解与业务校准回归：`39 passed`。
+- 真实后端搜索验证：`题型突破` 首位 `考前专项突破`；`想训练拔高的图`、`想找训练拔高素材` 首位 `重难点培优`。
+
+### 本轮边界
+
+- 不修改数据库 schema。
+- 不修改模型 Prompt、API 调度、上传链路或排序主链路。
+- 不新增卖点、证明点或体系。
+- 不把泛词“训练”“拔高”单独升为强公共话术；只有“训练拔高/拔高训练”这类完整业务表达进入专项培优组合语义。
+
+---
+
+## 2026-08-29：API 中心 P0 可靠性第五步（D241）
+
+### 用户目标
+
+- 进入 API 库存治理阶段，避免未来导入 100～200 个 API 后出现重复、不可追溯和难维护问题。
+- 同一个中转站、同一个模型、同一个 Key 不应重复保存；同站不同 Key 或同 Key 不同模型仍应允许。
+- API 新增、修改、停用、删除和整站停用需要留下后台审计，但不能泄露密钥。
+
+### 完成内容
+
+- `model_api_credentials` 新增 `api_key_fingerprint`，保存不可逆 SHA-256 指纹，用于库存判重。
+- 新增迁移 `20260829_0031_api_credential_inventory_governance.py`，并为 Provider 类型、规范化地址、模型和 Key 指纹建立库存身份索引。
+- 新增和关键字段更新时，服务层先按库存身份判重，再执行真实探针；重复时返回 `api_credential_duplicate`，不消耗模型调用。
+- 历史凭据在运行时初始化或后续 API 操作中自动补齐 Key 指纹。
+- 后台 API Center route 接入 `AuditService`，记录凭据新增、修改/启停、删除、温度调优和整站停用。
+- 审计详情只包含非敏感字段、变更字段、受影响凭据 ID/标签和 request_id；完整 Key、Key preview、Prompt、图片字节和上游响应不进入审计。
+
+### 验证结果
+
+- 本地 API Center 专项：`55 passed`。
+- 后端定向 Ruff：通过。
+- 后端定向 Pyright：`0 errors, 0 warnings, 0 informations`。
+- 文档一致性：`4 passed`。
+- 临时 SQLite 从空库升级到 head：通过。
+
+### 本轮边界
+
+- 不改变 API 调度排序、接力、预算或并发算法。
+- 不改变搜索语义、六大体系、16 个卖点、证明点、Prompt、素材事实源或 Agent 记忆。
+- 不实现多服务器共享容量租约。
+- 不实现服务器定时巡检。
+- 当前仍不做密钥静态加密，生产密钥加密继续作为后续 P1。
+
+---
+
+## 2026-08-29：API 中心 P0 可靠性第四步（D240）
+
+### 用户目标
+
+- 开始第四波“规模化调度基础”，先按单 backend 进程内实现，不提前复杂化到多服务器。
+- 未来 API 数量可能增长到 100～200 个，当前调度不能继续依赖一次请求内反复全量查库和重算指标。
+- 如果某个中转站整体抽风，系统应该能识别和提示，但不要擅自停用；管理员需要有一键停用该站全部 API 的操作。
+
+### 完成内容
+
+- 新增请求级调度快照：单次模型任务开始时读取凭据、路由槽位和滚动指标，后续接力循环复用同一快照。
+- 新增 15 秒短 TTL 调度指标缓存，滚动成功率、失败率和延迟不再在一次请求内反复读取 24 小时日志；当前并发占用仍实时读取进程内容量账本。
+- API Center Summary 新增中转站聚合数据，按 Provider 主机展示 Key 数、启用数、自动候选数、当前占用、24h 调用、失败率、超时数和状态建议。
+- API 管理页新增“中转站概览”，系统按最近异常集中程度标记稳定、观察或建议处理。
+- 新增管理员一键停用某个中转站下全部 API 的后端接口和前端操作；系统不会自动停用或偷偷改管理员启停状态。
+- 同步更新 `docs/API_CENTER_RELIABILITY_REQUIREMENTS.md` 1.2 和总纲 D240。
+
+### 验证结果
+
+- 后端 API Center 专项：`38 passed`。
+- 后端全量：`332 passed, 4 skipped`。
+- 后端定向 Ruff：通过。
+- 后端定向 Pyright：`0 errors, 0 warnings, 0 informations`。
+- 前端 TypeScript：`tsc --noEmit` 通过。
+- 前端 ESLint：通过。
+- 前端 Vitest：`16 files / 51 tests passed`。
+- `git diff --check`：通过。
+
+### 本轮边界
+
+- 不实现多服务器共享容量租约。
+- 不做服务器定时巡检。
+- 不改变搜索语义、六大体系、16 个卖点、证明点、Prompt、素材事实源或 Agent 记忆边界。
+- Provider 级异常只形成观察和人工治理入口，不做系统自动停用。
+
+---
+
+## 2026-08-28：API 中心 P0 可靠性第一步（D237）
+
+### 用户目标
+
+- 开始一步一步优化 API 中心的随机问题，但避免用巨大补丁堆复杂度。
+- 优先处理会导致“页面保存成功、运行时失败/不认模型/不走备用”的结构边界问题。
+- 当前仍不做服务器定时巡检。
+
+### 完成内容
+
+- 后台创建 API 和关键字段更新接口强制执行后端真实探测；探测失败时不入库、不覆盖旧配置。
+- Provider 类型收口到当前已实现的 `openai_compatible`，未知协议保存前拒绝。
+- API 地址会把误填的完整 `/chat/completions` 端点规范化为 Provider 根地址，避免运行时重复拼接。
+- 自动调度候选池不再按 `max_parallel <= 4` 截断，失败时可以继续尝试第 5 个及之后的健康候选。
+- 一键巡检在并行环境按 Provider 主机分组，同站 Key 组内顺序执行，避免同一中转站多 Key 同时压测造成假超时。
+- OpenAI-compatible Provider 的 404 和 5xx 错误码对齐可靠性基线，分别归为 `model_not_found` 和 `upstream_unavailable`。
+- API 中心页面撤掉浏览器本地“定时巡检”伪能力，并把容量文案改为“默认安全容量 + 当前占用”，不再声称系统已估算容量。
+- 更新 `docs/API_CENTER_RELIABILITY_REQUIREMENTS.md` 到 1.1，标记已完成项和剩余 P0。
+
+### 验证结果
+
+- 后端 API 中心专项：`44 passed`。
+- 前端 TypeScript：`tsc --noEmit` 通过。
+- 前端相关 Vitest：`1 passed / 3 tests passed`。
+
+### 剩余 P0
+
+- 建立任务能力探针，至少区分文本 JSON 能力和图片输入能力。
+- 继续优化任务预算切片，避免首个慢 API 在极端情况下吃完全部 fallback 时间。
+- 最后补一次更大范围回归和 Docker 真实中转站验收。
+
+### 本轮边界
+
+- 不新增数据库迁移。
+- 不改变搜索语义、六大体系、16 个卖点、证明点、素材事实源、Prompt 或 Agent 隐私边界。
+
+---
+
+## 2026-08-28：API 中心可靠性需求基线（D236）
+
+### 用户目标
+
+- 不再等每次出现网络、连接、模型、检测或调度问题后逐个打补丁；先建立覆盖完整 API 生命周期的统一需求和验收标准。
+- 当前不实现服务器定时巡检，先确认 API 中心还有哪些已知差距和潜在问题。
+
+### 完成内容
+
+- 新增 `docs/API_CENTER_RELIABILITY_REQUIREMENTS.md`，覆盖故障分类、API 管理、健康与能力探测、调度、日志和管理员体验。
+- 需求逐项标注已完成、部分完成、未完成和延期，并给出 P0/P1/P2 优先级。
+- 建立 16 类场景验收矩阵，覆盖错误密钥、错误模型、地址路径、参数兼容、慢响应、瞬时连接失败、同站多 Key、跨站均衡、429/5xx、非法 JSON、图片能力、重复搜索、停用、删除、页面等待和敏感日志。
+- 明确当前 P0 差距，后续先收口可靠性闭环，再考虑定时巡检等新增能力。
+
+### 本轮边界
+
+- 只新增和更新需求文档，不修改后端、前端、数据库或运行配置。
+- 不改变搜索语义、业务事实、负载均衡、现有健康策略、人工主备或 Agent 隐私边界。
+
+---
+
+## 2026-08-28：API 健康巡检自动等待与校准（D235）
+
+### 用户目标
+
+- 健康检查只需要确认不同速度的 API 能否真实连接并完成最小调用，不应被当前凭据的 20 秒运行上限提前截断。
+- 管理员不手动把 20 秒改成 30、40 秒，也不逐个重复测试；等待、复测和参数校准由系统完成。
+
+### 实现边界
+
+- 健康巡检使用独立的 60 秒系统窗口，瞬时连接/限流/上游/响应错误同轮自动再试一次，页面等待自动覆盖两次最坏尝试和批量并行轮次。
+- 成功后根据真实耗时自动提高该 API 的运行单次上限；失败后保留后续自动巡检，不提示人工调秒数。
+- 不新增数据库字段或迁移，不改变搜索任务总预算、负载均衡、任务屏蔽、人工主备或业务事实。
+
+### 完成与验证
+
+- Provider 响应等待错误不再显示“可调大超时秒数”；健康巡检连续等待失败时明确说明系统已自动重试且后续巡检会继续处理。
+- 健康探针忽略凭据当前运行单次上限，固定使用 60 秒系统窗口；成功后按真实耗时两倍加 10 秒计算 20～60 秒安全值，只自动提高、不向下抖动。
+- 单个与批量巡检的前端等待覆盖每个凭据两次最坏尝试；瞬时错误重试专项、系统窗口与自动校准专项均通过。
+- API 中心与 Provider 专项 `65 passed`，后端全量 `336 passed`，Ruff、目标 Pyright、前端 TypeScript、ESLint、Vitest `16 files / 51 tests passed` 和 production build 均通过。
+- Docker 真实验收：旧记录中约 21 秒被判超时的 `ohmygpt1/2` 单独巡检均恢复 `ok`；最终一键巡检 10 个 API 在约 12.6 秒内完成，结果为健康 10、异常 0。
+
+---
+
+## 2026-08-28：自动 API 健康负载均衡（D234）
+
+### 用户目标
+
+- 多个 API 使用相同模型、但来自不同中转站时，自动调度应动态分散调用，不能让同一个 Key 承受整条五层搜索链和连续请求。
+- 分配必须以搜索成功为前提；异常或满载 API 不应为了随机而被强行选中。
+- 人工指定任务继续严格使用管理员选择的主 API 和备用池。
+
+### 实现边界
+
+- 自动模式在健康档位内按当前占用与最近五分钟调用次数做轮转，再用失败率、延迟和优先级细排。
+- 运行账本在每次调用结束后立即更新；同一搜索的下一层也会重新选择当前压力最低的健康 API。
+- 不新增数据库字段或迁移，不改变模型任务、Prompt、搜索语义、业务事实、任务屏蔽或 Agent 隐私边界。
+
+### 完成与验证
+
+- 调度键新增 Provider 主机级压力与凭据级压力：先均衡不同中转站，再均衡同站内多个 Key；健康档位、任务屏蔽和人工主备边界保持不变。
+- 新增连续 6 次调用覆盖：三个同档健康凭据会全部使用且次数差不超过 1；同一 Provider 有两个 Key、另一 Provider 只有一个 Key 时，两个 Provider 的调用次数差不超过 1。
+- API 中心专项 `35 passed`，后端全量 `333 passed`，Ruff 通过，目标 Pyright `0 errors / 0 warnings`。
+- Docker 实搜“想找一个会提问的AI老师”连续两次均正确返回 1 张素材且五层全部 `ok`。第一次 Provider 顺序为 `laozhang → ohmygpt → laozhang → ohmygpt → laozhang`，第二次自动从 `ohmygpt` 开始并继续交替，证明运行账本会跨层级、跨连续搜索持续分散压力。
+- 当前自动池实际只有 `laozhang` 的三个健康 Key 和 `ohmygpt` 的一个健康 Key；另外四个 ohmygpt Key 当前健康状态仍为超时/失败，DeepSeek 两个 Key 的自动候选资格关闭，因此不会为了均衡而牺牲搜索成功率。
+
+---
+
+## 2026-08-28：搜索 API 必经执行策略（D233）
+
+### 用户目标
+
+- 普通搜索每次都必须真实调用 API 中心，不以模型费用或 2.5 秒速度优先。
+- 一个 API 失败或超时后继续主备，模型链完成后再返回结果；本地链只保护业务事实和全部外部 API 失败时的最终可用性。
+- 相同搜索再次执行也必须产生新的 API 调用，不能命中模型缓存后直接返回。
+
+### 完成内容
+
+- 搜索总等待上限从 2.5 秒提高到 180 秒，页面等待提高到 210 秒。
+- 第一层体系路由、第二层卖点识别、第三层证明点识别、第四层候选复核和第五层推荐理由任务预算调整为 45/60/45/45/45 秒。
+- API 中心任务总预算与凭据单次调用上限分离：槽位预算负责主备合计，单个 attempt 只读取当前凭据上限。
+- 手动业务筛选也会调用模型；删除查询理解和候选复核跨搜索缓存，重复查询每次重新执行 API。
+- 保留 Embedding 向量缓存；它只减少相同向量服务调用，不替代 API 中心模型理解或候选复核。
+- 新增迁移 `20260828_0029_search_api_execution_policy.py`，只提升仍处于旧默认值的五个搜索槽位，不覆盖管理员设置的更大预算。
+
+### 不变边界
+
+- 身份码、素材码和分享链接精确查找继续不调用模型。
+- 模型结果不能覆盖人工 accepted 关系、可信卖点准入、证明点边界或素材事实。
+- 所有外部 API 最终不可用时仍允许本地确定性链返回结果，避免 API 中心成为整站单点故障。
+
+### 验证结果
+
+- 数据库迁移已升级到 `20260828_0029`，五个搜索任务槽位均为自动调度，实际预算为 `45/60/45/45/45` 秒。
+- 后端全量测试 `331 passed`；Ruff、目标 Pyright、前端 TypeScript、ESLint、Vitest `16 files / 51 tests passed` 和 `git diff --check` 均通过。
+- Docker 重建后使用同一句“想找一个体现AI互动教学的卖点”连续搜索两次，两次都返回 1 张正确素材且整次搜索未超时；请求 ID 分别独立。
+- 第一次产生 3 条真实模型调用，第二次产生 5 条真实模型调用；第二次完整执行体系路由、卖点理解、证明点理解、候选复核和推荐理由，全部状态为 `ok`。这证明重复搜索不会再用模型缓存跳过本次 API 调用。
+
+---
+
+## 2026-08-28：搜索结果与 API 调用链路关联（D232）
+
+### 问题与结论
+
+- 查询“想找一个体现AI互动教学的卖点”在 2.605 秒内正确返回 1 张“AI拍题精学”素材；本地概念和数据库召回成功，模型查询理解、重排和候选复核因 2.5 秒搜索总预算到期而降级。
+- 同期调用链路的搜索运行时记录全部缺少 `search_log_id/request_id`，导致不同搜索和被取消的旧请求平铺混在一起。
+- 搜索响应结束后底层同步网络线程才返回连接异常；取消信号已经触发，但 Provider 把关闭连接产生的 `ConnectError` 误分类为 API 地址、DNS 或本机网络故障。
+
+### 完成内容
+
+- 请求编号贯穿请求级 API 中心调度 Provider 和每个模型 attempt；上传分析、素材话术、素材库 Agent 等请求级模型任务也同步保留请求编号。
+- 搜索日志与调用记录支持双向时序关联：先完成的调用在搜索日志提交时回填，晚完成的调用在写入时按请求编号反查搜索日志。
+- API 中心调用链路新增“所属请求”，搜索调用显示搜索原话、返回结果数、是否为部分增强超时和请求编号；分支状态与整次搜索结果分开表达。
+- 取消信号触发后的连接超时、读取超时、通用超时和连接错误统一映射为模型调用取消，不再误报地址或 DNS 故障。
+
+### 修改文件
+
+- `backend/app/ai/contracts.py`
+- `backend/app/ai/openai_compatible.py`
+- `backend/app/api/dependencies.py`
+- `backend/app/repositories/api_center_repository.py`
+- `backend/app/repositories/search_log_repository.py`
+- `backend/app/schemas/api_center.py`
+- `backend/app/services/api_center_service.py`
+- `backend/app/services/search_log_service.py`
+- `backend/tests/test_ai_provider.py`
+- `backend/tests/test_api_center.py`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+
+### 验证结果
+
+- 后端 API 中心、Provider 和取消专项：`60 passed`；后端全量：`330 passed`；Ruff、定向 Pyright 通过。
+- 前端 TypeScript、ESLint、Vitest `16 files / 51 tests passed`、production build：通过。
+- Docker backend/web 重建完成，backend/web/postgres/meilisearch 均 healthy。
+- 内置浏览器真实复测同一句查询仍返回 1 张正确素材；最新调用记录显示搜索原话、`结果已返回 1 张 · 部分增强超时` 和同一请求编号，取消记录为 `超时 / 模型调用已取消`，未再误报地址或 DNS 故障。
+- 无数据库迁移，不改变搜索语义、总预算、召回、排序或素材事实。
+
+---
+
+## 2026-08-28：API 等待预算分层与自动设置（D231）
+
+### 问题
+
+- 健康页“请求等待超时”来自浏览器 30 秒 HTTP 上限，但页面提示错误地让管理员调大模型超时。
+- 新增 API 暴露“超时秒数”，管理员无法在首次接入未知中转站时合理判断。
+- 任务槽位也只显示“超时”，没有说明它是主备尝试合计的任务总预算。
+
+### 本轮目标
+
+- 分开表达页面等待、单次 API 调用和任务总预算，消除三个同名参数。
+- 新增 API 的单次调用上限由兼容测试根据真实耗时自动设置，不再要求管理员猜数字。
+- 健康巡检的页面等待时间根据实际检查数量和后端上限计算，避免后端仍在执行而页面先报错。
+
+### 不变边界
+
+- 不改变任务默认预算、API 主备关系、自动候选资格、健康排序或容量算法。
+- 不改变搜索语义、素材事实、Agent 会话和用户权限。
+
+### 完成内容
+
+- 全局页面请求超时提示移除“调大超时秒数”，避免把 HTTP 等待误导成模型配置问题。
+- 新增 API 表单移除可编辑超时数字，改为“单次调用上限：测试后自动设置”；兼容测试最多给单次探针 60 秒，成功后按最慢探针耗时的 2 倍加 10 秒余量计算，最终限制在 20～60 秒。
+- API 列表把“超时”改为只读“单次调用上限”；测试按钮改为“测试 API 并自动设置”。
+- 调度配置把“超时”改为“任务总等待上限（秒）”，页面明确解释它包含主 API、备用 API、容量等待和重试，通常无需修改。
+- 健康巡检的前端等待上限按 API 数量、单次 30 秒上限、4 路并行轮数和 15 秒页面余量计算；单个检测也保证页面等待长于后端探针。
+- 正式 PostgreSQL 环境的批量巡检使用独立数据库会话最多并行检查 4 个 API；SQLite 测试环境继续顺序执行，避免共享测试连接的线程风险。
+
+### 修改文件
+
+- `backend/app/services/api_center_service.py`
+- `client/src/api/apiCenterWaitPolicy.ts`
+- `client/src/api/apiCenterWaitPolicy.test.ts`
+- `client/src/api/admin.ts`
+- `client/src/api/client.ts`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 验证结果
+
+- 后端 API 中心专项：`30 passed`；后端全量：`327 passed`。
+- 前端 TypeScript、ESLint、Vitest `16 files / 51 tests passed`、production build：通过。
+- Ruff、Pyright、`git diff --check`：通过。
+- Docker backend/web 重建完成，backend/web/postgres/meilisearch 均 healthy。
+- 内置浏览器确认新增 API 不再提供超时输入，API 列表展示“单次调用上限”，调度页展示“任务总等待上限（秒）”及完整解释。
+- 真实点击“一键巡检全部 API”后，10 个 API 均返回检测结果，页面未出现原 30 秒等待误报；结果为 9 个健康、1 个真实连接失败，调用链路准确记录具体 Provider 错误。
+
+---
+
+## 2026-08-28：API 启停、健康与兼容探测分离（D230）
+
+### 本轮目标
+
+- 消除一次网络或模型失败后，人工指定 API 因进入 cooling/invalid 而被静默跳过的复发路径。
+- 把两个层级的“自动调度”改成明确的自动候选资格和任务运行方式。
+- 让新增 API 测试准确区分鉴权、地址/模型、限流、网络、超时、返回格式和温度问题。
+- 支持完全不接受 temperature 参数的 OpenAI-compatible 中转站。
+
+### 已确认边界
+
+- `status` 是管理员启停事实；`last_status/last_error`、健康快照和调用链路是运行健康事实。
+- 人工任务只排除管理员明确停用的 API；自动任务继续使用自动候选资格、任务屏蔽和健康容量排序。
+- 温度探测只对明确温度兼容错误继续尝试；其他错误立即返回真实原因。
+- Provider 分类错误不得记录中转站原始响应、密钥、Prompt 或业务内容。
+
+### 完成内容
+
+- 管理员持久化状态收口为 `active/disabled`；真实调用和健康巡检不再把凭据自动改成 `cooling/invalid`，初始化时会把历史健康状态迁回 `active`。
+- 人工主 API 和备用池只排除管理员明确停用的凭据；一次超时、限流或网络失败仍保留人工配置，并按主备顺序继续尝试。
+- OpenAI-compatible Provider 增加稳定错误码，区分鉴权失败、地址或模型不存在、限流、上游故障、连接失败、连接超时、响应超时、非法 JSON、temperature 值不兼容和参数不支持。
+- 温度测试只在明确的 temperature 兼容错误时继续；鉴权、地址、网络等错误立即停止。新增“不发送 temperature”候选，测试成功后连同 `temperature_enabled=false` 一起保存。
+- API 管理开关改为“允许进入自动候选池（关闭后仍可人工指定）”；任务配置改为“当前任务自动选择/当前任务人工指定”，屏蔽名单改为“本任务自动排除”。
+- OpenAPI 契约和前端类型已重新生成，前后端均使用新的 temperature 模式和错误字段。
+
+### 修改文件
+
+- `backend/alembic/versions/20260828_0028_api_temperature_mode.py`
+- `backend/app/ai/contracts.py`
+- `backend/app/ai/openai_compatible.py`
+- `backend/app/models/api_provider.py`
+- `backend/app/schemas/api_center.py`
+- `backend/app/services/api_center_runtime_policy.py`
+- `backend/app/services/api_center_service.py`
+- `backend/tests/test_ai_provider.py`
+- `backend/tests/test_api_center.py`
+- `client/src/api/admin.ts`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+
+### 数据迁移
+
+- 新增 `20260828_0028_api_temperature_mode.py`，为 `model_api_credentials` 增加非空 `temperature_enabled`，历史记录默认继续发送 temperature。
+- Docker 启动日志确认执行 `20260827_0027 -> 20260828_0028`；数据库 `alembic_version` 为 `20260828_0028`。
+- 本地 10 个 API 均保持 `active`；DeepSeek1/2 为 `auto_assign_enabled=false`，素材库 Agent 仍是 DeepSeek1 主、DeepSeek2 备。
+
+### 验证结果
+
+- 后端专项：`56 passed`；后端全量：`327 passed`。
+- Ruff 通过；Pyright `0 errors / 1 existing warning`，warning 为既有 `search_branch_runner.py` TypeVar 提示。
+- 前端 TypeScript、ESLint、Vitest `15 files / 48 tests passed`、production build：通过；OpenAPI 生成通过；`git diff --check` 通过。
+- Docker backend/web 已重建，backend/web/postgres/meilisearch 均 healthy；`/health` 返回 ready。
+- 内置浏览器验证：新增 API 表单展示 temperature 发送开关和自动候选资格；DeepSeek1/2 展示“仅人工使用”；任务页展示两个明确运行方式，素材库 Agent 保持 DeepSeek1 主和 1 个备用；页面请求成功且无空白或网络失败状态。
+- 真实 Provider 验证：在健康度页面选择 DeepSeek1 和“素材库 Agent：业务解释”执行最小 JSON 探针，页面返回“单个 API 测试完成”，健康 API 从 8 增至 9，24h 调用增加 1 且失败数不变。
+
+### 当前限制
+
+- 第三方中转站仍可能真实超时、限流或宕机；本轮保证的是错误能够被准确分类、自动模式可降级、人工配置不会被瞬时故障静默抹掉，而不是伪造“第三方永不失败”。
+
+---
+
+## 2026-08-28：API 库存与任务调度职责分离（D229）
+
+### 本轮目标
+
+- 修正 D228 把模型与固定任务绑定的错误抽象。
+- 让未来新增任何中转站、密钥和模型在测试保存后立即进入全部人工选择列表，无需改代码。
+- 保持自动调度、人工指定和任务级屏蔽的边界清晰且可组合。
+
+### 已确认边界
+
+- API 管理只负责可用模型库存和全局“加入自动调度池”开关，不再维护模型固定任务范围。
+- 人工指定可以选择任意已启用 API，即使该 API 关闭了自动分配。
+- 自动调度只选择已启用且加入自动调度池的 API，再应用当前任务自己的屏蔽名单和健康容量排序。
+- 任务屏蔽名单只影响自动模式；人工模式由主 API 和备用池完全接管。
+- 旧 `task_scope_json` 暂留数据库兼容，不再作为运行时门槛或管理页面配置。
+
+### 完成内容
+
+- 后端调度策略移除 `task_scope_json` 过滤；自动模式只检查 active、`auto_assign_enabled`、当前任务屏蔽名单和既有健康容量排序。
+- 人工主 API/备用池允许选择任意 active API，不要求开启自动分配，也不受旧任务范围限制；disabled API 仍禁止保存为人工主备。
+- API 管理移除新增和已有 API 的“任务范围”配置；新增表单保留“加入自动调度池”，已有 API 列表新增“自动调度/仅人工指定”即时切换。
+- 调度配置的主 API、备用池和自动屏蔽列表统一展示所有 active API，不再按旧任务范围过滤。
+- 当前 DeepSeek1/DeepSeek2 已设为 `auto_assign_enabled=false` 并清空旧 `task_scope_json`；素材库 Agent 仍为人工主 `deepseek1`、备用 `deepseek2`。
+
+### 修改文件
+
+- `backend/app/services/api_center_runtime_policy.py`
+- `backend/app/services/api_center_service.py`
+- `backend/tests/test_api_center.py`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无 Alembic 迁移，保留旧字段保证历史数据库兼容。
+- 当前本地数据只调整 DeepSeek1/DeepSeek2 的自动调度开关和已废弃任务范围，不改 API 地址、模型、密钥、健康记录或素材业务数据。
+
+### 验证结果
+
+- 后端 API 中心专项：`26 passed`；后端全量：`316 passed`。
+- Ruff 通过；Pyright `0 errors / 1 existing warning`，warning 为既有 `search_branch_runner.py` TypeVar 提示。
+- 前端 TypeScript、ESLint、Vitest `15 files / 48 tests passed`、production build：通过。
+- Docker backend/web 已重建，backend/web/postgres/meilisearch 均 healthy，`http://127.0.0.1` 返回 200。
+- 运行时验证：`asset_agent_chat` 人工候选为 DeepSeek1/DeepSeek2；其他八个自动任务候选均不包含 DeepSeek。
+- 内置浏览器验证：九个任务的人工主 API 下拉均包含全部 10 个 active API；API 管理显示 DeepSeek1/2 为“仅人工指定”；素材库 Agent 主 API 为 DeepSeek1、备用池 1 个；控制台无错误。
+
+### 与 D228 的关系
+
+- D229 修订 D228 的任务范围硬边界；D228 保留为历史记录，不再作为当前实现口径。
+- DeepSeek1/DeepSeek2 作为当前专用模型关闭全局自动分配，并继续由素材库 Agent 人工指定；未来替换成 GPT 或其他模型只需在页面切换人工主备 API。
+
+---
+
+## 2026-08-28：API 任务范围与调度边界收敛（D228）
+
+### 本轮目标
+
+- 解决专用模型需要在其他任务逐个屏蔽的问题。
+- 确认 DeepSeek1/DeepSeek2 只用于素材库 Agent，不会被搜索、上传分析、动态推荐理由等其他任务调用。
+- 避免“调度页保存成功，但运行时未分配”的前后端边界错位。
+
+### 完成内容
+
+- API 管理新增 API 表单增加“可用任务范围”，新增 Key 时直接选择它能跑哪些任务。
+- API 列表新增“任务范围”编辑器，已有 Key 也可在 API 管理中直接调整可用任务。
+- 调度配置页按当前任务过滤主 API、备用池和自动调度屏蔽列表，只展示该任务可用的 API。
+- API 列表展示每个 Key 的可用任务范围，便于检查专用模型边界。
+- 后端 `update_slot` 增加任务范围和启用状态校验；不支持当前任务的 API 不能保存为人工主/备用 API。
+- 当前数据库中 DeepSeek1/DeepSeek2 已收敛为仅允许 `asset_agent_chat`；素材库 Agent 人工指定 DeepSeek1 + DeepSeek2，搜索和动态推荐理由调度均不会选中 DeepSeek。
+
+### 修改文件
+
+- `backend/app/services/api_center_service.py`
+- `backend/tests/test_api_center.py`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无 Alembic 迁移。
+- 当前本地数据修正：DeepSeek1/DeepSeek2 的 `task_scope_json` 改为 `["asset_agent_chat"]`；其他任务槽位未保留 DeepSeek 主/备用引用。
+
+### 验证结果
+
+- 后端 API 中心专项：`25 passed`。
+- 后端全量：`315 passed`。
+- 后端 Ruff：通过。
+- 后端 Pyright：`0 errors / 1 existing warning`，该 warning 为既有 `search_branch_runner.py` TypeVar 提示。
+- 前端 TypeScript、ESLint、Vitest `15 files / 48 tests passed`、production build：通过。
+- 运行时调度验证：`asset_agent_chat` 选中 DeepSeek1/DeepSeek2；`search_system_routing` 与 `search_result_recommendation_reason` 未选中 DeepSeek。
+
+### 剩余问题与下一步
+
+- 任务范围是专用模型的主边界；自动调度屏蔽只用于同一任务内临时排除某些候选 API。
+- 新增和已有 API 的任务范围都已在 API 管理闭环；后续不需要为专用模型到其他任务逐个屏蔽。
+
+---
+
+## 2026-08-27：API 中心温度探测与任务屏蔽（D227）
+
+### 本轮目标
+
+- 让管理员不再靠猜测判断新 API 的 `temperature`，可在 API 管理新增 API 表单中先测试并回填可用值，再由管理员确认保存。
+- 在智能调度配置中按任务屏蔽不希望被自动调用的 API，让其余符合任务范围和健康容量要求的 API 继续自由调度。
+- 保持 API 中心作为唯一运行时入口，不改变搜索语义、素材关系或业务事实。
+
+### 完成内容
+
+- 新增未保存 API 温度探测接口：按当前温度和常见候选值发起最小 JSON 探针，首个成功值回填到新增 API 表单，不创建 API、不保存 Key、不写健康快照或调用链路。
+- 新增 API 表单的温度探测请求等待时间按“单次探测超时 × 候选温度数量 + 缓冲”计算，避免前端全局 30 秒超时先断开并误报网络请求失败。
+- 温度兼容探测固定为最多 5 个候选、单候选最多等待 12 秒；前端按同一上限等待并区分“请求等待超时”和“网络请求失败”，不再靠 30/60/120 秒猜测。
+- 新增 API 表单要求当前地址、模型、密钥测试通过后才能保存；任一关键字段变更后，保存按钮重新锁定，避免未经验证的 Key 进入调度池。
+- 保存 API 和未保存温度探测均校验 `http/https` API 地址和非空模型，明显错误配置直接返回明确错误。
+- 已保存 API 的内部温度调优能力保留，探测记录写入 `model_api_health_checks` 和 `model_call_traces`，调用链路用 `outputSummary.kind=temperature_probe` 区分。
+- `model_routing_slots` 新增任务级屏蔽名单；自动调度筛选候选 API 时会排除当前任务屏蔽的 Key。
+- 删除 API 时同步清理主 API、备用池和屏蔽名单引用。
+- 前端 API 管理新增 API 表单新增“测试并匹配温度”按钮；健康度监测只保留巡检和状态反馈；智能调度配置新增“自动调度屏蔽”选择器。
+- OpenAPI 生成类型和手写前端类型已同步。
+
+### 修改文件
+
+- `backend/alembic/versions/20260827_0027_api_center_slot_exclusions.py`
+- `backend/app/models/api_provider.py`
+- `backend/app/schemas/api_center.py`
+- `backend/app/services/api_center_service.py`
+- `backend/app/api/v1/api_center.py`
+- `backend/tests/test_api_center.py`
+- `client/src/api/admin.ts`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 新增并应用 `20260827_0027_api_center_slot_exclusions.py`。
+- Docker PostgreSQL 当前 revision：`20260827_0027`。
+- 无正式素材、概念、公共话术或人工 accepted 关系写入。
+
+### 验证结果
+
+- 后端 API 中心专项：`24 passed`。
+- 后端 API 中心 + Provider 专项：`41 passed`。
+- 后端全量：`314 passed`。
+- 后端 Ruff：通过。
+- 后端 Pyright：`0 errors / 1 existing warning`，该 warning 为既有 `search_branch_runner.py` TypeVar 提示。
+- 前端 TypeScript、ESLint、Vitest `15 files / 48 tests passed`、production build：通过。
+- OpenAPI 类型已重新生成。
+- Docker backend/web 已重建，backend/web/postgres/meilisearch 均 healthy，`http://127.0.0.1` 返回 200。
+- 内置浏览器刷新 `/admin/api-center`，确认 API 管理新增表单内渲染“测试并匹配温度”，健康度监测不再展示温度匹配入口，智能调度配置仍渲染“自动调度屏蔽”控件。
+
+### 剩余问题与下一步
+
+- 温度探测当前以“首个可用候选值”为准，不对回答质量做业务评测；模型可用不等于搜索准确性变化。
+- 屏蔽名单是任务级自动调度候选收口；如果关闭自动调度，仍由人工主 API/备用池 override。
 
 ---
 
@@ -5777,6 +6360,425 @@ Model：数据结构和关系
 
 1. 在内置浏览器刷新 API 中心，确认全项目调用链路文案和状态标签。
 2. 正式部署前执行现有 Alembic 迁移并用真实上传、搜索、Agent、健康检查各跑一遍，确认台账都有记录。
+
+---
+
+## 2026-08-29：API 中心调用链路日志升级（D242）
+
+### 本轮目标
+
+- 让调用链路日志可按历史分页查询，不再只能看 summary 最近 100 条。
+- 把 Provider 和调度内部已有的稳定错误码持久化到调用台账，避免只能靠中文摘要排查。
+- 保持日志安全边界，不保存完整 Key、Prompt、图片字节、私有聊天正文或上游原文。
+
+### 完成内容
+
+- `model_call_traces` 新增 `error_code` 字段并建立索引。
+- 健康探测、运行时调度、预算耗尽、容量等待、取消、未配置和外部 API 遥测统一写入 `error_code`。
+- 新增管理员接口 `/api/admin/api-center/call-traces`，支持按任务、状态、中转站、API、请求 ID、搜索关键词、错误码或摘要筛选，并返回 `total/limit/offset/hasMore`。
+- API 中心“调用链路日志”页升级为筛选 + 分页表，错误摘要旁显示稳定错误码；summary 仍保留轻量最近调用。
+
+### 修改文件
+
+- `backend/alembic/versions/20260829_0032_api_call_trace_error_code.py`
+- `backend/app/api/v1/api_center.py`
+- `backend/app/models/api_provider.py`
+- `backend/app/repositories/api_center_repository.py`
+- `backend/app/schemas/api_center.py`
+- `backend/app/services/api_center_service.py`
+- `backend/tests/test_api_center.py`
+- `client/src/api/admin.ts`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+- `docs/API_CENTER_RELIABILITY_REQUIREMENTS.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 新增 Alembic 迁移 `20260829_0032_api_call_trace_error_code.py`。
+- Docker Postgres 当前版本：`20260829_0032 (head)`。
+
+### 测试结果
+
+- Docker API Center 专项：`57 passed`。
+- Docker 后端全量：`351 passed, 4 skipped`。
+- 前端生产构建：通过。
+- 前端 ESLint：通过。
+- 前端 Vitest：`16 files / 51 tests passed`。
+- 容器运行镜像未安装 ruff，未能在容器内执行 `python -m ruff check app tests/test_api_center.py`。
+
+### 遗留问题
+
+- 日志保留期限、归档和清理策略尚未实现，仍属于后续生产化治理。
+- 多 backend 共享容量账本和共享遥测队列仍按既有决策延期。
+
+### 下一步
+
+1. 在浏览器刷新 API 中心，进入“调用链路日志”验证筛选、分页和错误码显示。
+2. 后续可继续补日志保留策略、错误码分组统计和异常趋势图。
+
+---
+
+## 2026-08-29：API 中心错误码治理与故障分级（D243）
+
+### 本轮目标
+
+- 把错误码从“日志字段”升级为统一治理目录。
+- 让健康检查、温度探测和调用链路返回同一套故障分类、严重度、可重试性、系统动作和管理员建议。
+- 为下一波自动巡检、自动退避和自动恢复建立可执行的故障语义基础。
+
+### 完成内容
+
+- 新增 `api_center_error_catalog.py`，集中维护配置、鉴权、连接、容量、限流、上游、等待、兼容、响应契约、取消、调度和未知故障分类。
+- `ApiHealthCheckRead`、`ApiTemperatureProbeRead`、`ApiCallTraceRead` 新增分类字段：`errorCategory`、`errorSeverity`、`errorRetryable`、`errorSystemAction`、`errorOperatorAction`。
+- `model_api_health_checks` 新增 `error_code`，健康探测现在把稳定错误码写入健康快照。
+- OpenAI-compatible Provider 的异常 attempt 补写 `error_code`；取消类错误统一为 `request_cancelled`。
+- API 中心调用链路页面显示错误码、故障类别、严重度、可重试性、系统动作和管理员建议，不再只显示一段错误摘要。
+
+### 修改文件
+
+- `backend/alembic/versions/20260829_0033_api_health_check_error_code.py`
+- `backend/app/ai/contracts.py`
+- `backend/app/ai/openai_compatible.py`
+- `backend/app/models/api_provider.py`
+- `backend/app/schemas/api_center.py`
+- `backend/app/services/api_center_error_catalog.py`
+- `backend/app/services/api_center_service.py`
+- `backend/tests/test_api_center.py`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+- `docs/API_CENTER_RELIABILITY_REQUIREMENTS.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 新增 Alembic 迁移 `20260829_0033_api_health_check_error_code.py`。
+- Docker Postgres 当前版本：`20260829_0033 (head)`。
+
+### 测试结果
+
+- Docker 重建：通过。
+- API Center + Provider 定向：`84 passed`。
+- 前端 ESLint：通过。
+
+### 遗留问题
+
+- 自动巡检、日志保留、自动退避和自动恢复尚未实现。
+- 当前错误分类目录先覆盖已有稳定错误码；未来新增 Provider 适配器时需要把新错误码登记到同一目录。
+
+### 下一步
+
+1. 第八波在错误分类基础上实现服务器定时巡检和日志保留策略。
+2. 第九波使用 `errorCategory/errorRetryable/errorSeverity` 做自动退避、隔离和恢复。
+
+---
+
+## 2026-08-30：专项培优公共话术深挖（D245）
+
+### 本轮目标
+
+- 按业务负责人要求，从当前选中卖点 `专项培优 focused_excellence` 开始逐个卖点治理公共话术。
+- 这轮追求“更像真实业务会搜索的话”，不是单纯把每个卖点凑到固定数量。
+- 在补充命中表达的同时，压住过宽短词，避免泛化搜索被单一卖点硬抢。
+
+### 完成内容
+
+- 新增可幂等执行脚本 `backend/scripts/curate_focused_excellence_phrases.py`。
+- 将 `提分`、`突破`、`考前`、`重点`、`高频`、`能力进阶` 等 6 条过宽短词标记为 rejected。
+- 新增 70 条 `专项培优` 公共话术，覆盖：
+  - 薄弱题型、专项模块、单项强化。
+  - 重难点、压轴题、高阶拔高。
+  - 考前阶段、临考复习、划重点。
+  - 全网/群体高频易错题。
+  - 业务端可能输入的长句、口语句、场景句和痛点句。
+- 当前 `专项培优` 话术统计：124 条 accepted、6 条 rejected。
+- 重建 Meilisearch 图片搜索索引，提交 377 条 image search documents。
+
+### 修改文件
+
+- `backend/scripts/curate_focused_excellence_phrases.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 数据变更来源标记为 `focused_excellence_curation_20260830`。
+
+### 测试结果
+
+- 脚本编译通过。
+- 脚本 dry-run 幂等验证通过：再次执行不会重复新增。
+- 后端定向测试：`91 passed`。
+- Docker 健康检查：`{"status":"ready","environment":"production"}`。
+- 真实库搜索冒烟：
+  - `针对薄弱题型集中练` 命中 `专项培优`。
+  - `全网高频错题集中练` 命中 `专项培优`。
+  - `考前只想抓最容易涨分的模块` 命中 `专项培优`。
+  - `根据薄弱点推荐内容` 仍归 `AI定制学习方案`。
+  - `想给孩子提分` 不会被 `专项培优` 硬抢。
+
+### 遗留问题
+
+- 其余卖点还没有逐个深挖治理；此前阶段性批量补充的话术仍需要按卖点继续人工式审查。
+- 当前优化不改变搜索主链路，因此长期能力仍依赖后续持续补充卖点边界、公共话术和素材独有话术。
+
+### 下一步
+
+1. 按同样方法继续治理下一个卖点：先读业务边界，再审现有短词，再补长短句/场景句/痛点句，最后跑边界搜索验证。
+2. 对每个卖点保留 rejected 宽泛词记录，防止后续批量导入又把边界冲散。
+
+---
+
+## 2026-08-30：举一反三公共话术深挖（D246）
+
+### 本轮目标
+
+- 继续按“一个卖点一个卖点过”的方式治理 `举一反三 transfer_practice`。
+- 补充真实业务搜索里会出现的完整表达，而不是只堆标准短词。
+- 保护相邻边界，避免挤占 `万能解法`、`AI拍题精学`、`AI错题本`。
+
+### 完成内容
+
+- 新增可幂等执行脚本 `backend/scripts/curate_transfer_practice_phrases.py`。
+- 将 `训练`、`迁移`、`换题` 等 3 条单独使用时证据不足的过宽短词标记为 rejected。
+- 保留 `迁移练习`、`换题也会`、`变式题训练`、`同类题训练` 等完整表达。
+- 新增 81 条 `举一反三` 公共话术，覆盖：
+  - 先理解原理、出题逻辑和题型本质。
+  - 讲完一道题后继续练同类题、相似题、变式题。
+  - 换数字、换条件、换问法、考试题拐弯后仍能做。
+  - 拍题讲解后继续推相似题的支撑表达。
+  - 家长、销售、汇报场景里的长句、口语句和痛点句。
+- 当前 `举一反三` 话术统计：138 条 accepted、3 条 rejected。
+- 重建 Meilisearch 图片搜索索引，提交 377 条 image search documents。
+
+### 修改文件
+
+- `backend/scripts/curate_transfer_practice_phrases.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 数据变更来源标记为 `transfer_practice_curation_20260830`。
+
+### 测试结果
+
+- 脚本编译通过。
+- `git diff --check` 通过。
+- 后端相邻边界测试：`107 passed`。
+- 禁用外部模型的真实库搜索冒烟：
+  - `理解原理再做变式题` 命中 `举一反三`。
+  - `一题讲完后还能顺着练同一类题` 命中 `举一反三`。
+  - `孩子例题会做考试题一绕就懵` 命中 `举一反三`。
+  - `同一道题不同方法` 仍归 `万能解法`。
+  - `个人错题练会一类题` 仍归 `AI错题本`。
+  - `训练` 单独不再硬抢 `举一反三`。
+
+### 遗留问题
+
+- `拍题讲解后继续推相似题` 当前真实库搜索可命中 `举一反三`；如果后续业务希望它必须稳定展示为 `AI拍题精学 + 举一反三` 双卖点，需要单独补充多卖点治理规则或 AI 拍题公共话术。
+- 其余卖点仍需继续逐个深挖；此前阶段性批量补充的话术还需要按卖点审查。
+
+### 下一步
+
+1. 继续按相同流程治理下一个卖点。
+2. 每个卖点都保留“新增强表达 + 拒绝过宽词 + 相邻边界验证”的记录，避免后续批量补充冲坏边界。
+
+---
+
+## 2026-08-30：学段衔接公共话术深挖（D247）
+
+### 本轮目标
+
+- 继续按“一个卖点一个卖点过”的方式治理 `学段衔接 stage_transition`。
+- 强化小升初、初升高、新学段断层、小初高一体化等真实业务搜索表达。
+- 保护相邻边界，避免挤占 `同步校内`、`AI定制学习方案`、`专家规划` 和 `极速预习复习`。
+
+### 完成内容
+
+- 新增可幂等执行脚本 `backend/scripts/curate_stage_transition_phrases.py`。
+- 将 `升学`、`学段`、`衔接`、`路径`、`过渡`、`适应`、`难度`、`难度突然变大` 等 8 条单独使用时证据不足的过宽短词标记为 rejected。
+- 保留 `小升初衔接`、`初升高衔接`、`升学过渡`、`新学段适应慢` 等完整表达。
+- 新增 82 条 `学段衔接` 公共话术，覆盖：
+  - 小升初、初升高、幼小衔接等关键升学节点。
+  - 新学段知识断层、难度跃迁、学习方式变化和平稳过渡。
+  - 小初高一体化、从小学到高中、12 年路径和全学段连续覆盖。
+  - 衔接期学习建议和同步/拔高/衔接一站式表达。
+  - 家长、销售、汇报场景里的长句、口语句和痛点句。
+- 当前 `学段衔接` 话术统计：134 条 accepted、8 条 rejected。
+- 重建 Meilisearch 图片搜索索引，提交 377 条 image search documents。
+
+### 修改文件
+
+- `backend/scripts/curate_stage_transition_phrases.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 数据变更来源标记为 `stage_transition_curation_20260830`。
+
+### 测试结果
+
+- 脚本编译通过。
+- `git diff --check` 通过。
+- 脚本 dry-run 幂等验证通过：再次执行不会重复新增。
+- Docker 健康检查：`{"status":"ready","environment":"production"}`。
+- 后端相邻边界测试：`114 passed`。
+- 禁用外部模型的真实库搜索冒烟：
+  - `小升初暑期衔接课` 命中 `学段衔接`。
+  - `初升高知识断层怎么补` 命中 `学段衔接`。
+  - `孩子升学后怕课程难度突然变大` 命中 `学段衔接`。
+  - `从小学到高中不用换体系` 命中 `学段衔接`。
+  - `教材版本同步` 仍归 `同步校内`。
+  - `学习路径自动规划` 仍归 `AI定制学习方案`。
+  - `命题专家设计初升高衔接课程` 保持 `学段衔接 + 专家规划` 多卖点。
+
+### 遗留问题
+
+- 当前真实素材库缺少独立的“小初高一体化 / 全学段连续覆盖”强展示图；相关查询已经能识别为 `学段衔接`，但结果会借用已有配套素材承接。
+- 后续应补一张或一组专门表达“从小学到高中连续覆盖 / 不用换体系 / 12 年路径”的素材，避免全学段查询看起来不像命中的卖点。
+- 其余卖点仍需继续逐个深挖；此前阶段性批量补充的话术还需要按卖点审查。
+
+### 下一步
+
+1. 继续按相同流程治理下一个卖点。
+2. 对 `学段衔接` 后续补素材时，优先补全学段连续覆盖图，而不是继续只堆话术。
+
+---
+
+## 2026-08-30：动画精讲公共话术深挖（D248）
+
+### 本轮目标
+
+- 继续按“一个卖点一个卖点过”的方式治理 `动画精讲 animation_explanation`。
+- 强化动画讲透知识点、抽象知识可视化、短时动画微课和课堂补位等真实业务搜索表达。
+- 保护相邻边界，避免挤占 `AI拍题精学`、`极速预习复习`、`课后小测` 和纯画面动画搜索。
+
+### 完成内容
+
+- 新增可幂等执行脚本 `backend/scripts/curate_animation_explanation_phrases.py`。
+- 将 `动画`、`卡住`、`可视化`、`听不懂`、`故事`、`演示`、`直观`、`知识点`、`讲解`、`课程`、`跟不上课` 等 11 条单独使用时证据不足的过宽短词标记为 rejected。
+- 保留 `动画精讲`、`动画课程`、`动画讲透知识点`、`抽象知识可视化`、`短时间讲透知识点` 等完整表达。
+- 新增 87 条 `动画精讲` 公共话术，覆盖：
+  - 动画、故事化、可视化讲透知识点。
+  - 5-8 分钟短时动画微课、一节课一个点讲透。
+  - 老师讲太快、课堂没听懂、抽象知识听不懂后的补位。
+  - 抽象知识动态化、看不见的变化过程变成可见动画。
+  - 学科原理动画演示和具体课例入口。
+  - 动画课程教研方法论、课程打磨和业务汇报场景。
+- 当前 `动画精讲` 话术统计：136 条 accepted、11 条 rejected。
+- 重建 Meilisearch 图片搜索索引，提交 377 条 image search documents。
+
+### 修改文件
+
+- `backend/scripts/curate_animation_explanation_phrases.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 数据变更来源标记为 `animation_explanation_curation_20260830`。
+
+### 测试结果
+
+- 脚本编译通过。
+- `git diff --check` 通过。
+- 后端相邻边界测试：`123 passed`。
+- 禁用外部模型的真实库搜索冒烟：
+  - `找动画精讲素材能把抽象知识动态讲透` 命中 `动画精讲`。
+  - `要一张把看不见的知识变成能动过程的画面` 命中 `动画精讲`。
+  - `想要把难概念讲成小故事的画面` 命中 `动画精讲`。
+  - `课堂没听懂回家看动画补懂` 命中 `动画精讲`。
+  - `不要拍照搜题要动画精讲` 命中 `动画精讲`。
+  - `拍题后分步分析思路` 仍不归 `动画精讲`。
+  - `课前快速过知识点` 仍归 `极速预习复习`。
+  - `动画` 单独不再硬抢 `动画精讲`。
+
+### 遗留问题
+
+- `刚讲完一个知识点想马上练几题确认` 更接近 `课后小测`，但当前本地链路偏向 `极速预习复习`；后续治理 `课后小测` 时应处理。
+- 当前优化不新增学校课堂效果实证素材；点名学校案例、成绩提升或课堂落地效果的查询仍应按既有缺口规则处理。
+
+### 下一步
+
+1. 继续按相同流程治理下一个卖点。
+2. 后续治理 `课后小测` 时，重点处理“学完/刚讲完知识点后马上练题确认掌握”和极速预习复习的边界。
+
+---
+
+## 2026-08-31：课后小测公共话术深挖（D249）
+
+### 本轮目标
+
+- 继续按“一个卖点一个卖点过”的方式治理 `课后小测 instant_quiz`。
+- 强化“学完/刚讲完/看完课/本节课 + 马上测/练几题/确认会不会/本节掌握度”的真实业务搜索表达。
+- 保护相邻边界，避免挤占 `极速预习复习`、`学情报告反馈` 和 `AI错题本`。
+
+### 完成内容
+
+- 新增可幂等执行脚本 `backend/scripts/curate_instant_quiz_phrases.py`。
+- 将 `分数`、`反馈`、`学习结果看得见`、`学完`、`掌握`、`掌握情况`、`检测`、`正确率`、`测验`、`结果`、`题目`、`日日清` 等 12 条单独使用时证据不足的过宽短词标记为 rejected。
+- 保留 `课后小测`、`学完即测`、`学完马上测`、`学练测闭环`、`课后小测反馈正确率` 等完整表达。
+- 新增 84 条 `课后小测` 公共话术，覆盖：
+  - 学完当前知识点马上小测、看完课立即做题确认掌握。
+  - 刚讲完知识点马上练几题、刚学完一段内容就做小测。
+  - 本节课掌握度、即时反馈、正确率和配套练习。
+  - 孩子说听懂了但不知道真会不会等家长痛点。
+  - 销售、汇报、手机端/PPT 素材检索场景里的长句、短句和口语句。
+- 收口相邻 `极速预习复习 rapid_preview_review` 的 `知识点`、`课后` 两条过宽公共话术，避免“刚讲完知识点马上练几题确认”被快速复习误抢。
+- Skill 公共话术治理规则新增 `instant-quiz-13/14` 校准样例，并补充 `刚讲完/刚学完 + 马上练几题/确认会不会` 组合信号。
+- 当前 `课后小测` 话术统计：132 条 accepted、12 条 rejected。
+- 重建 Meilisearch 图片搜索索引，提交 387 条 image search documents。
+
+### 修改文件
+
+- `backend/scripts/curate_instant_quiz_phrases.py`
+- `backend/tests/test_query_states_and_negation.py`
+- `skills/understand-image-search-intent/references/public-phrase-governance.json`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 数据变更来源标记为 `instant_quiz_curation_20260830`。
+- 当前真实库状态同步记录：386 个素材组、388 张图片、16 个业务概念、477 条人工 accepted 关系。
+
+### 测试结果
+
+- backend 重建通过。
+- 脚本编译通过。
+- `git diff --check` 通过。
+- 后端相邻边界测试：`124 passed`。
+- Docker 健康检查：`{"status":"ready","environment":"production"}`。
+- 禁用外部模型的真实库搜索冒烟：
+  - `刚讲完一个知识点想马上练几题确认` 只命中 `课后小测`。
+  - `刚讲完一个知识点想配个马上练几题确认的素材` 只命中 `课后小测`。
+  - `看完课立即做题确认掌握` 命中 `课后小测`。
+  - `希望素材能表现学完后马上知道到底会不会` 命中 `课后小测`。
+  - `课后小测反馈本节正确率` 命中 `课后小测`。
+  - `课前快速过知识点` 仍归 `极速预习复习`。
+  - `每周报告汇总正确率`、`反馈`、`正确率` 仍归 `学情报告反馈`。
+  - `个人错题以后复习` 仍归 `AI错题本`。
+
+### 遗留问题
+
+- `课后小测` 当前已有重复 `课后小测` accepted 记录，未影响搜索结果；后续可做公共话术去重治理，但本轮不做结构性清洗。
+- 当前优化不新增真实素材，只提升现有素材对真实业务检索话术的承接能力。
+
+### 下一步
+
+1. 继续按同样流程治理下一个卖点。
+2. 后续可以单独做公共话术去重和宽词审计，把批量补词阶段留下的重复项、同义项和弱证据短词继续收干净。
 
 ---
 

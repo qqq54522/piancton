@@ -92,6 +92,7 @@ class ModelRequest:
     image_media_type: Optional[str] = None
     timeout_seconds: Optional[float] = None
     cancellation: CancellationSignal | None = None
+    request_id: Optional[str] = None
 
 
 T = TypeVar("T", covariant=True)
@@ -208,9 +209,11 @@ class ModelProviderNotConfigured(RuntimeError):
         message: str,
         *,
         attempts: tuple[dict[str, Any], ...] = (),
+        code: str = "provider_not_configured",
     ) -> None:
         super().__init__(message)
         self.attempts = attempts
+        self.code = code
 
 
 class ModelProviderError(RuntimeError):
@@ -221,9 +224,11 @@ class ModelProviderError(RuntimeError):
         message: str,
         *,
         attempts: tuple[dict[str, Any], ...] = (),
+        code: str = "provider_error",
     ) -> None:
         super().__init__(message)
         self.attempts = attempts
+        self.code = code
 
 
 class ModelProviderValidationError(ModelProviderError):
@@ -236,9 +241,18 @@ class ModelProviderValidationError(ModelProviderError):
         attempts: tuple[dict[str, Any], ...] = (),
         cause: Exception,
     ) -> None:
-        super().__init__(message, attempts=attempts)
+        super().__init__(message, attempts=attempts, code="validation_error")
         self.cause = cause
 
 
 class ModelProviderCancelled(ModelProviderError):
     """Raised when a caller cancels an in-flight provider request."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        attempts: tuple[dict[str, Any], ...] = (),
+        code: str = "request_cancelled",
+    ) -> None:
+        super().__init__(message, attempts=attempts, code=code)

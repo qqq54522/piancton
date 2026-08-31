@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.api_provider import (
@@ -12,6 +12,7 @@ from app.models.api_provider import (
     ModelCallTrace,
     ModelRoutingSlot,
 )
+from app.models.search_log import SearchLog
 
 
 class ApiCenterRepository:
@@ -31,6 +32,26 @@ class ApiCenterRepository:
             select(ModelApiCredential).where(ModelApiCredential.label == label)
         )
 
+    def find_credential_by_inventory_identity(
+        self,
+        *,
+        provider_type: str,
+        base_url: str,
+        model_name: str,
+        api_key_fingerprint: str,
+        exclude_id: str | None = None,
+    ) -> ModelApiCredential | None:
+        query = (
+            select(ModelApiCredential)
+            .where(ModelApiCredential.provider_type == provider_type)
+            .where(ModelApiCredential.base_url == base_url)
+            .where(ModelApiCredential.model_name == model_name)
+            .where(ModelApiCredential.api_key_fingerprint == api_key_fingerprint)
+        )
+        if exclude_id is not None:
+            query = query.where(ModelApiCredential.id != exclude_id)
+        return self.db.scalar(query.limit(1))
+
     def list_credentials(self) -> list[ModelApiCredential]:
         return list(
             self.db.scalars(
@@ -39,6 +60,31 @@ class ApiCenterRepository:
                     ModelApiCredential.priority.asc(),
                     ModelApiCredential.created_at.desc(),
                 )
+            ).all()
+        )
+
+    def list_credentials_due_for_health_check(
+        self,
+        *,
+        cutoff: datetime,
+        limit: int,
+    ) -> list[ModelApiCredential]:
+        return list(
+            self.db.scalars(
+                select(ModelApiCredential)
+                .where(ModelApiCredential.status == "active")
+                .where(
+                    or_(
+                        ModelApiCredential.last_checked_at.is_(None),
+                        ModelApiCredential.last_checked_at < cutoff,
+                    )
+                )
+                .order_by(
+                    ModelApiCredential.last_checked_at.asc().nulls_first(),
+                    ModelApiCredential.priority.asc(),
+                    ModelApiCredential.created_at.asc(),
+                )
+                .limit(max(1, int(limit)))
             ).all()
         )
 
@@ -116,6 +162,97 @@ class ApiCenterRepository:
             ).all()
         )
 
+    def list_call_traces_filtered(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        task: str | None = None,
+        status: str | None = None,
+        provider: str | None = None,
+        credential_id: str | None = None,
+        request_id: str | None = None,
+        keyword: str | None = None,
+    ) -> tuple[int, list[ModelCallTrace]]:
+        base_filters = []
+        if task:
+            base_filters.append(ModelCallTrace.task == task)
+        if status:
+            base_filters.append(ModelCallTrace.status == status)
+        if provider:
+            provider_pattern = f"%{provider}%"
+            base_filters.append(ModelCallTrace.provider.ilike(provider_pattern))
+        if credential_id:
+            base_filters.append(ModelCallTrace.credential_id == credential_id)
+        if request_id:
+            base_filters.append(ModelCallTrace.request_id == request_id)
+        keyword_filter = None
+        if keyword:
+            keyword_pattern = f"%{keyword}%"
+            keyword_filter = or_(
+                SearchLog.keyword.ilike(keyword_pattern),
+                ModelCallTrace.request_id.ilike(keyword_pattern),
+                ModelCallTrace.layer_name.ilike(keyword_pattern),
+                ModelCallTrace.error_code.ilike(keyword_pattern),
+                ModelCallTrace.error_summary.ilike(keyword_pattern),
+            )
+
+        count_stmt = select(func.count()).select_from(ModelCallTrace)
+        query = select(ModelCallTrace)
+        if keyword_filter is not None:
+            count_stmt = count_stmt.outerjoin(
+                SearchLog,
+                SearchLog.id == ModelCallTrace.search_log_id,
+            )
+            query = query.outerjoin(
+                SearchLog,
+                SearchLog.id == ModelCallTrace.search_log_id,
+            )
+        if base_filters:
+            count_stmt = count_stmt.where(*base_filters)
+            query = query.where(*base_filters)
+        if keyword_filter is not None:
+            count_stmt = count_stmt.where(keyword_filter)
+            query = query.where(keyword_filter)
+
+        safe_limit = min(max(1, int(limit)), 500)
+        safe_offset = max(0, int(offset))
+        total = int(self.db.scalar(count_stmt) or 0)
+        items = list(
+            self.db.scalars(
+                query.order_by(desc(ModelCallTrace.created_at))
+                .offset(safe_offset)
+                .limit(safe_limit)
+            ).all()
+        )
+        return total, items
+
+    def get_search_log_id_by_request_id(self, request_id: str) -> str | None:
+        return self.db.scalar(
+            select(SearchLog.id)
+            .where(SearchLog.request_id == request_id)
+            .order_by(desc(SearchLog.created_at))
+            .limit(1)
+        )
+
+    def search_context_by_ids(
+        self,
+        search_log_ids: set[str],
+    ) -> dict[str, tuple[str, int, bool]]:
+        if not search_log_ids:
+            return {}
+        return {
+            search_log_id: (keyword, result_count, timed_out)
+            for search_log_id, keyword, result_count, timed_out in self.db.execute(
+                select(
+                    SearchLog.id,
+                    SearchLog.keyword,
+                    SearchLog.result_count,
+                    SearchLog.timed_out,
+                ).where(SearchLog.id.in_(search_log_ids))
+            ).all()
+        }
+
     def list_call_traces_since(self, *, hours: int = 24, limit: int = 2000) -> list[ModelCallTrace]:
         since = datetime.now(timezone.utc) - timedelta(hours=max(1, hours))
         return list(
@@ -126,3 +263,17 @@ class ApiCenterRepository:
                 .limit(limit)
             ).all()
         )
+
+    def delete_call_traces_before(self, cutoff: datetime) -> int:
+        result = self.db.execute(
+            delete(ModelCallTrace).where(ModelCallTrace.created_at < cutoff)
+        )
+        self.db.flush()
+        return int(result.rowcount or 0)
+
+    def delete_health_checks_before(self, cutoff: datetime) -> int:
+        result = self.db.execute(
+            delete(ModelApiHealthCheck).where(ModelApiHealthCheck.checked_at < cutoff)
+        )
+        self.db.flush()
+        return int(result.rowcount or 0)

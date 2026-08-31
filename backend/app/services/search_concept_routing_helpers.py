@@ -41,8 +41,12 @@ def active_concept_matches(
         len(trusted) > 1 and understanding.query_type not in MULTI_ROUTE_QUERY_TYPES
     ):
         return ()
-    trusted_keys = {_normalize_concept_name(item.concept) for item in trusted}
-    active = tuple(
+    trusted_order = {
+        _normalize_concept_name(item.concept): index
+        for index, item in enumerate(trusted)
+    }
+    trusted_keys = set(trusted_order)
+    active = [
         match
         for match in concept_matches
         if (exploratory or match.score >= 0.84)
@@ -50,8 +54,9 @@ def active_concept_matches(
             _normalize_concept_name(match.name) in trusted_keys
             or _normalize_concept_name(match.code) in trusted_keys
         )
-    )
-    return active if understanding.query_type in MULTI_ROUTE_QUERY_TYPES else active[:1]
+    ]
+    active.sort(key=lambda match: _concept_understanding_order(match, trusted_order))
+    return tuple(active) if understanding.query_type in MULTI_ROUTE_QUERY_TYPES else tuple(active[:1])
 
 
 def is_excluded(links, matched_ids: set[str]) -> bool:
@@ -134,6 +139,16 @@ def _concept_link_rank(link) -> tuple[int, int]:
     return (
         2 if link.relation_role == "expresses" else 1,
         1 if link.origin in {"manual", "migrated"} else 0,
+    )
+
+
+def _concept_understanding_order(
+    match: ConceptMatch,
+    trusted_order: dict[str, int],
+) -> int:
+    return min(
+        trusted_order.get(_normalize_concept_name(match.name), len(trusted_order)),
+        trusted_order.get(_normalize_concept_name(match.code), len(trusted_order)),
     )
 
 

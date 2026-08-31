@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,10 +12,23 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.middleware import RequestContextMiddleware
-from app.db.session import get_db
+from app.db.session import SessionLocal, get_db
+from app.services.api_center_maintenance import ApiCenterMaintenanceWorker
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name, version="2.0.0")
+api_center_maintenance_worker = ApiCenterMaintenanceWorker(SessionLocal, settings)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    api_center_maintenance_worker.start()
+    try:
+        yield
+    finally:
+        api_center_maintenance_worker.stop()
+
+
+app = FastAPI(title=settings.app_name, version="2.0.0", lifespan=lifespan)
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,

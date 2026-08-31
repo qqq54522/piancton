@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 
 from app.ai.contracts import (
@@ -10,7 +9,6 @@ from app.ai.contracts import (
     ModelCallResult,
     StagedSearchModelCapabilities,
 )
-from app.ai.skill_loader import INTENT_PROMPT_VERSION
 from app.core.errors import AppError
 from app.domain.business_intents import BusinessIntentCatalog
 from app.domain.query_negation import is_term_negated
@@ -57,7 +55,6 @@ AMBIGUOUS_CONFIDENCE_GAP = 0.05
 UNCERTAIN_FALLBACK_CONFIDENCE = 0.74
 EXPLORATION_CONFIDENCE = 0.88
 EXPLORATION_OVERRIDE_THRESHOLD = 0.9
-LOCAL_MATCHER_VERSION = "2026-08-26.1"
 TRANSFER_TRAINING_PHRASES = ("变式训练", "同类题训练")
 TRANSFER_TRAINING_CONTEXT = (
     "例题",
@@ -161,16 +158,6 @@ class QueryUnderstandingService:
         self.search_policy = search_policy or load_search_policy()
         self.proof_points = ProofPointUnderstandingService()
         self.evidence_points = EvidencePointUnderstandingService()
-        knowledge = getattr(self.ai_service, "knowledge", None)
-        catalog_text = str(getattr(knowledge, "catalog_text", "") or "")
-        self._cache_namespace = hashlib.sha256(
-            (
-                f"{INTENT_PROMPT_VERSION}\n"
-                f"{LOCAL_MATCHER_VERSION}\n"
-                f"{self.catalog.version}\n{self.proof_points.catalog.version}\n"
-                f"{self.evidence_points.catalog.version}\n{catalog_text}"
-            ).encode("utf-8")
-        ).hexdigest()[:16]
 
     def understand(self, keyword: str) -> SearchUnderstanding | None:
         query = keyword.strip()
@@ -198,11 +185,6 @@ class QueryUnderstandingService:
         if context.negated_names:
             return self._negative_only_understanding(query, context.negated_names)
         return None
-
-    def cache_key(self, keyword: str) -> str:
-        """Namespace cached model understanding by the active database knowledge."""
-        normalized_query = _normalize(keyword) or keyword.strip().lower()
-        return f"{self._cache_namespace}:{normalized_query}"
 
     def explicit_understanding(
         self,
@@ -435,7 +417,6 @@ class QueryUnderstandingService:
             keyword.strip()
             and self.ai_service
             and self.ai_service.provider.configured
-            and not self._is_manual_business_filter(local_understanding)
         )
 
     def needs_proof_point_completion(

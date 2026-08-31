@@ -1,5 +1,15 @@
 import { api } from './client';
+import {
+  apiCenterRequestWaitMs,
+  HEALTH_CHECK_PARALLELISM,
+  HEALTH_PROBE_ATTEMPTS,
+  HEALTH_PROBE_LIMIT_SECONDS,
+  NEW_API_PROBE_LIMIT_SECONDS,
+} from './apiCenterWaitPolicy';
 import type {
+  ApiCallTraceListParams,
+  ApiCallTraceListResponse,
+  ApiCenterMaintenanceRunResult,
   ApiCenterSummary,
   ApiCredential,
   ApiCredentialCreate,
@@ -7,6 +17,10 @@ import type {
   ApiHealthCheck,
   ApiHealthCheckRunRequest,
   ApiHealthCheckRunResult,
+  ApiTemperatureProbeRequest,
+  ApiTemperatureTuneRequest,
+  ApiTemperatureTuneResult,
+  ApiProviderGroup,
   AssetIdentityCodeListResponse,
   ModelTaskName,
   RoutingSlot,
@@ -60,6 +74,25 @@ export async function fetchApiCenterSummary(): Promise<ApiCenterSummary> {
   return (await api.get('/api/admin/api-center/summary')).data;
 }
 
+export async function fetchApiCallTraces(
+  params: ApiCallTraceListParams = {},
+): Promise<ApiCallTraceListResponse> {
+  return (
+    await api.get('/api/admin/api-center/call-traces', {
+      params: {
+        limit: params.limit,
+        offset: params.offset,
+        task: params.task || undefined,
+        status: params.status || undefined,
+        provider: params.provider || undefined,
+        credential_id: params.credentialId || undefined,
+        request_id: params.requestId || undefined,
+        keyword: params.keyword || undefined,
+      },
+    })
+  ).data;
+}
+
 export async function createApiCredential(payload: ApiCredentialCreate): Promise<ApiCredential> {
   return (await api.post('/api/admin/api-center/credentials', payload)).data;
 }
@@ -75,17 +108,83 @@ export async function deleteApiCredential(id: string): Promise<void> {
   await api.delete(`/api/admin/api-center/credentials/${id}`);
 }
 
+export async function disableApiProviderGroup(providerGroup: string): Promise<ApiProviderGroup> {
+  return (
+    await api.post(
+      `/api/admin/api-center/provider-groups/${encodeURIComponent(providerGroup)}/disable`,
+    )
+  ).data;
+}
+
+export async function probeApiCredentialTemperature(
+  payload: ApiTemperatureProbeRequest,
+): Promise<ApiTemperatureTuneResult> {
+  const perProbeTimeoutSeconds = Math.min(
+    Math.max(payload.timeoutSeconds ?? 20, 0.5),
+    NEW_API_PROBE_LIMIT_SECONDS,
+  );
+  const candidateCount = Math.min(
+    Math.max((payload.candidateTemperatures?.length ?? 5) + 1, 1),
+    6,
+  );
+  return (
+    await api.post('/api/admin/api-center/credentials/temperature-probe', payload, {
+      timeout: apiCenterRequestWaitMs(perProbeTimeoutSeconds, candidateCount),
+    })
+  ).data;
+}
+
 export async function testApiCredential(
   id: string,
   task: ModelTaskName = 'search_system_routing',
 ): Promise<ApiHealthCheck> {
-  return (await api.post(`/api/admin/api-center/credentials/${id}/test`, { task })).data;
+  return (
+    await api.post(`/api/admin/api-center/credentials/${id}/test`, { task }, {
+      timeout: apiCenterRequestWaitMs(
+        HEALTH_PROBE_LIMIT_SECONDS,
+        HEALTH_PROBE_ATTEMPTS,
+      ),
+    })
+  ).data;
+}
+
+export async function tuneApiCredentialTemperature(
+  id: string,
+  payload: ApiTemperatureTuneRequest = {},
+): Promise<ApiTemperatureTuneResult> {
+  return (await api.post(
+    `/api/admin/api-center/credentials/${id}/temperature-tune`,
+    payload,
+  )).data;
 }
 
 export async function runApiHealthChecks(
   payload: ApiHealthCheckRunRequest = {},
+  expectedCredentialCount = 1,
 ): Promise<ApiHealthCheckRunResult> {
-  return (await api.post('/api/admin/api-center/health-checks/run-all', payload)).data;
+  return (
+    await api.post('/api/admin/api-center/health-checks/run-all', payload, {
+      timeout: apiCenterRequestWaitMs(
+        HEALTH_PROBE_LIMIT_SECONDS,
+        expectedCredentialCount * HEALTH_PROBE_ATTEMPTS,
+        HEALTH_CHECK_PARALLELISM,
+      ),
+    })
+  ).data;
+}
+
+export async function runApiCenterMaintenance(
+  expectedCredentialCount = 1,
+): Promise<ApiCenterMaintenanceRunResult> {
+  return (
+    await api.post('/api/admin/api-center/maintenance/run', {}, {
+      timeout: apiCenterRequestWaitMs(
+        HEALTH_PROBE_LIMIT_SECONDS,
+        expectedCredentialCount * HEALTH_PROBE_ATTEMPTS,
+        HEALTH_CHECK_PARALLELISM,
+      ),
+    })
+  ).data;
 }
 
 export async function updateRoutingSlot(

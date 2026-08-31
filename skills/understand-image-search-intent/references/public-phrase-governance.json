@@ -400,15 +400,15 @@
       "termGroups": [
         {
           "name": "学完当前课或知识点对象",
-          "terms": ["课后小测", "学练测闭环", "学完即练", "学完即测", "随堂测验", "看完课", "学完", "每节课", "本节课", "当前知识点", "孩子说听懂了", "听懂了", "课堂", "课后"]
+          "terms": ["课后小测", "学练测闭环", "学完即练", "学完即测", "随堂测验", "看完课", "学完", "刚学完", "刚学内容", "刚讲完", "刚讲完一个知识点", "讲完一个知识点", "讲完知识点", "每节课", "本节课", "当前知识点", "孩子说听懂了", "听懂了", "课堂", "课后"]
         },
         {
           "name": "立即练测或确认掌握动作",
-          "terms": ["小测", "测", "自动测", "测试", "测验", "检测", "做题", "练", "即练", "即测", "马上", "立即", "看看会不会", "到底会没会", "确认掌握", "掌握情况", "掌握没有", "掌握度", "正反馈", "本节掌握度"]
+          "terms": ["小测", "测", "自动测", "测试", "测验", "检测", "做题", "练", "练几题", "马上练", "马上练几题", "配个马上练几题", "接着练", "即练", "即测", "马上", "立即", "立刻确认", "看看会不会", "确认会不会", "确认真会", "到底会没会", "确认掌握", "掌握情况", "掌握没有", "掌握度", "正反馈", "本节掌握度"]
         }
       ],
       "excludedTerms": ["错题本", "历史错题", "个人错题", "长期归档", "以后复习", "错因复盘", "周报", "学习周报", "家长报告", "学情报告", "真人", "老师督学", "考前", "临考", "月考", "期末", "专项", "题型突破", "高频错题", "全网", "群体", "拍题", "拍照讲题", "AI私教", "随时问AI", "学习计划"],
-      "evidenceTerms": ["学完即练流程", "看完课马上测", "学完立即做题"],
+      "evidenceTerms": ["学完即练流程", "看完课马上测", "学完立即做题", "刚讲完知识点马上练几题", "学完马上练几题确认"],
       "confidence": 0.95,
       "exactProofTriggerTerms": ["课后小测"]
     },
@@ -536,7 +536,7 @@
           "terms": ["极速预习", "快速预习", "预习", "快速", "快速过知识点", "5分钟", "5分钟预习", "十分钟", "十分钟预习", "几分钟", "几分钟快速预习", "轻量预习", "快速了解", "快速了解新知识", "提前学", "提前看", "先学", "先学再听课", "提高课堂效率", "课堂效率", "带着问题进课堂", "课前场景", "预习效率", "证明图", "建立认知", "提前知道课堂重点", "课堂重点", "学习前", "新课学习前", "功能适合每天晚上用", "短时间完成预习", "短时间", "短时"]
         }
       ],
-      "excludedTerms": ["考前", "临考", "月考", "期中", "期末", "开学考", "模考", "中考", "高考", "错题本", "错题归档", "历史错题", "个人错题", "拍题", "拍照讲题", "拍题讲解", "不直接给答案", "AI思维教练", "苏格拉底", "学习计划", "学习路径", "个性化学习", "AI定制班", "定制班", "因材施教", "教材同步", "教材版本", "版本适配", "人教版", "北师大版", "专项", "专项突破", "题型突破", "精准补弱", "重难点", "压轴", "高分", "真人", "周报", "学情报告"],
+      "excludedTerms": ["考前", "临考", "月考", "期中", "期末", "开学考", "模考", "中考", "高考", "错题本", "错题归档", "历史错题", "个人错题", "课后小测", "学完即练", "学完即测", "随堂测验", "小测", "刚讲完", "刚讲完一个知识点", "刚学完", "马上练几题", "练几题", "确认会不会", "确认掌握", "本节掌握度", "拍题", "拍照讲题", "拍题讲解", "不直接给答案", "AI思维教练", "苏格拉底", "学习计划", "学习路径", "个性化学习", "AI定制班", "定制班", "因材施教", "教材同步", "教材版本", "版本适配", "人教版", "北师大版", "专项", "专项突破", "题型突破", "精准补弱", "重难点", "压轴", "高分", "真人", "周报", "学情报告"],
       "evidenceTerms": ["课前拍课本预习", "五分钟预习", "快速回顾当天重点"],
       "confidence": 0.95
     },
@@ -555,7 +555,7 @@
           "terms": ["极速复习", "快速复习", "课后复习", "知识回顾", "回顾", "快速回顾", "快速过一遍", "过一遍", "5分钟", "5分钟复习", "十分钟", "十分钟复习", "碎片化复习", "碎片时间", "碎片时间学习", "快速巩固", "轻量复习", "当天复习", "查漏补缺", "快速查漏补缺", "快速回忆", "重新过一遍", "短时间复习", "每天快速巩固", "花很少时间复习", "学习效率高", "课后巩固", "快速回顾重点", "回顾重点", "重点"]
         }
       ],
-      "excludedTerms": ["考前", "临考", "月考", "期中", "期末", "开学考", "模考", "中考", "高考", "考试前", "最后阶段", "错题本", "错题归档", "历史错题", "个人错题", "练习册错题", "错因", "同类题", "变式题", "长期归档", "以后复习", "拍题", "拍照讲题", "拍题讲解", "不直接给答案", "AI思维教练", "苏格拉底", "学习计划", "学习路径", "个性化学习", "AI定制班", "定制班", "因材施教", "教材同步", "教材版本", "版本适配", "人教版", "北师大版", "学校进度", "专项", "专项突破", "题型突破", "精准补弱", "重难点", "压轴", "高分", "真人", "周报", "学情报告"],
+      "excludedTerms": ["考前", "临考", "月考", "期中", "期末", "开学考", "模考", "中考", "高考", "考试前", "最后阶段", "错题本", "错题归档", "历史错题", "个人错题", "练习册错题", "错因", "同类题", "变式题", "长期归档", "以后复习", "课后小测", "学完即练", "学完即测", "随堂测验", "小测", "刚讲完", "刚讲完一个知识点", "刚学完", "马上练几题", "练几题", "确认会不会", "确认掌握", "本节掌握度", "拍题", "拍照讲题", "拍题讲解", "不直接给答案", "AI思维教练", "苏格拉底", "学习计划", "学习路径", "个性化学习", "AI定制班", "定制班", "因材施教", "教材同步", "教材版本", "版本适配", "人教版", "北师大版", "学校进度", "专项", "专项突破", "题型突破", "精准补弱", "重难点", "压轴", "高分", "真人", "周报", "学情报告"],
       "evidenceTerms": ["课后拍笔记复习", "快速回顾当天重点"],
       "confidence": 0.95
     },
@@ -674,7 +674,7 @@
       "termGroups": [
         {
           "name": "高阶难题或优生对象",
-          "terms": ["重难点", "重难点培优", "难题", "压轴题", "高分", "冲高分", "优生", "学有余力", "成绩好", "90分", "满分", "高阶", "高阶能力", "不是只教基础", "培优能力"]
+          "terms": ["重难点", "重难点培优", "难题", "压轴题", "高分", "冲高分", "优生", "学有余力", "成绩好", "90分", "满分", "高阶", "高阶能力", "不是只教基础", "培优能力", "训练拔高", "拔高训练"]
         },
         {
           "name": "拔高冲分或继续提升动作",
@@ -802,6 +802,8 @@
     {"id": "instant-quiz-10", "query": "销售想讲学完马上练", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
     {"id": "instant-quiz-11", "query": "有没有看完课自动测的证明图", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
     {"id": "instant-quiz-12", "query": "想突出课后小测有底气", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-13", "query": "刚讲完一个知识点想马上练几题确认", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
+    {"id": "instant-quiz-14", "query": "刚讲完一个知识点想配个马上练几题确认的素材", "expectedCode": "instant_quiz", "expectedProofPointCode": "pp_learn_practice_loop"},
     {"id": "ai-tutor-01", "query": "AI私教答疑", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
     {"id": "ai-tutor-02", "query": "随时问AI", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
     {"id": "ai-tutor-03", "query": "AI老师可以随时提问", "expectedCode": "ai_tutor_qa", "expectedProofPointCode": "pp_selfstudy_tutor_interactive_qa"},
@@ -996,7 +998,9 @@
     {"id": "difficulty-upgrade-11", "query": "销售想讲培优能力", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
     {"id": "difficulty-upgrade-12", "query": "哪个卖点能体现不是只教基础", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
     {"id": "difficulty-upgrade-13", "query": "有没有强调高阶能力的内容", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
-    {"id": "difficulty-upgrade-14", "query": "想做一张“冲刺高分”的宣传图", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"}
+    {"id": "difficulty-upgrade-14", "query": "想做一张“冲刺高分”的宣传图", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-15", "query": "想训练拔高的图", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"},
+    {"id": "difficulty-upgrade-16", "query": "想找训练拔高素材", "expectedCode": "focused_excellence", "expectedProofPointCode": "pp_exam_focus_targeted_modules"}
   ],
   "evaluationCases": [
     {"id": "expert-school-sync", "level": "expert", "query": "课程目录同步", "expectedCode": "school_sync"},

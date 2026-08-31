@@ -34,7 +34,7 @@ Embedding 画面语义 ──┘
 
 - `SearchService` 只装配依赖并提供同步/异步门面。
 - `AsyncSearchOrchestrator` 只串联流水线。
-- `SearchExternalBranches` 管理外部分支、缓存和主会话水合。
+- `SearchExternalBranches` 管理外部分支、Embedding 缓存和主会话水合；查询理解与候选复核不得跨搜索缓存。
 - `SearchRerankCoordinator` 管理总截止内唯一一次重排。
 - 外部分支先返回轻量候选 ID 或向量，不在线程间共享 SQLAlchemy Session。
 
@@ -42,21 +42,23 @@ Embedding 画面语义 ──┘
 
 | 环节 | 当前预算 |
 |---|---:|
-| 可选召回/重排总截止 | 2.5 秒；不包含渐进式查询理解等待 |
+| 普通搜索总等待上限 | 180 秒；优先保证 API 主链完成，不作为目标延迟 |
 | Meilisearch | 0.2 秒；高置信本地卖点查询跳过 |
 | Embedding | 1.8 秒；高置信本地概念查询跳过 |
-| 第一层体系路由 | 8 秒；只判断六大体系 |
-| 第二层卖点判断 | 20 秒；只读取候选体系卖点摘要与启用目录 |
-| 第三层证明点判断 | 20 秒；只读取已命中卖点的直属证明点 |
+| 第一层体系路由 | 45 秒任务预算；只判断六大体系 |
+| 第二层卖点判断 | 60 秒任务预算；只读取候选体系卖点摘要与启用目录 |
+| 第三层证明点判断 | 45 秒任务预算；只读取已命中卖点的直属证明点 |
+| 第四层候选复核 | 45 秒任务预算；有候选时每次重新调用 |
+| 第五层推荐理由 | 45 秒任务预算；有结果时每次重新调用 |
 | Top 20 Reranker | 1.4 秒，且受剩余总截止约束；可信卖点仅 1～2 组候选时跳过 |
 
-D152 后，GPT-5.5 查询理解正式采用严格三级串行链：体系、卖点、证明点分别使用独立 Prompt、结构约束和 `8s/20s/20s` 预算。第二层不再加载证明点或证据表达点目录，第三层只接收第二层已确认卖点的直属候选，因此单次上下文更短、职责更集中。自然语言在线搜索每次询问模型，本地强证据继续用于阻止错误模型结果覆盖人工确认边界。当前三级链总耗时仍需用真实查询完成端到端 P95 验收，预算上限不能描述成目标延迟或已稳定达标。查询 Embedding、Reranker 和 Meilisearch 仍是可选技术增强，不能突破卖点主通道。
+D233 后，模型主链采用体系、卖点、证明点、候选复核和动态推荐理由的分层任务预算；API 中心任务总预算与凭据单次调用上限分离，一个 Key 失败或超时后在任务剩余预算内继续主备。自然语言在线搜索每次重新询问模型，不复用查询理解或候选复核模型缓存；本地强证据继续用于阻止错误模型结果覆盖人工确认边界，并在全部外部 API 最终不可用时保护搜索结果。预算上限不能描述成目标延迟或已稳定达标。查询 Embedding、Reranker 和 Meilisearch 仍是可选技术增强，不能突破卖点主通道。
 
 ## 降级规则
 
 - Meilisearch 不可用：继续数据库概念/短语召回和其他可用分支。
 - Embedding 不可用：继续数据库与 Meilisearch。
-- 查询理解模型不可用、结构无效或超过 15 秒：继续本地固定目录理解和已有召回，并记录真实降级。
+- 查询理解模型在任务预算内尝试主备后仍不可用或结构无效：继续本地固定目录理解和已有召回，并记录真实降级。
 - 可信卖点主通道有素材：返回该通道，不混入卖点外的标题或话术巧合命中。
 - 可信卖点主通道无已确认素材：返回空结果，明确暴露素材缺口；外部分支不能拿无关库存补位。
 - 待消歧、纯画面或无可靠卖点：允许使用全局图片话术、标题和画面语义候选兜底。
@@ -144,12 +146,15 @@ Provider 未配置或分析失败不影响图片上传、预览、下载和人�
 
 ```env
 SEARCH_BACKEND=database
-SEARCH_TOTAL_TIMEOUT_SECONDS=2.5
+SEARCH_TOTAL_TIMEOUT_SECONDS=180
 SEARCH_MEILISEARCH_TIMEOUT_SECONDS=0.2
 SEARCH_EMBEDDING_TIMEOUT_SECONDS=2.5
 SEARCH_UNDERSTANDING_TIMEOUT_SECONDS=30
-SEARCH_SYSTEM_ROUTING_TIMEOUT_SECONDS=8
-SEARCH_SELLING_POINT_TIMEOUT_SECONDS=20
+SEARCH_SYSTEM_ROUTING_TIMEOUT_SECONDS=45
+SEARCH_SELLING_POINT_TIMEOUT_SECONDS=60
+SEARCH_PROOF_POINT_TIMEOUT_SECONDS=45
+SEARCH_CANDIDATE_REVIEW_TIMEOUT_SECONDS=45
+SEARCH_RESULT_RECOMMENDATION_TIMEOUT_SECONDS=45
 SEARCH_RERANKER_TIMEOUT_SECONDS=2
 SEARCH_CANDIDATE_LIMIT=20
 ```

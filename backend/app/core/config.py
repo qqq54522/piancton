@@ -67,16 +67,16 @@ class Settings(BaseSettings):
     reranker_model_name: str = ""
     reranker_timeout_seconds: float = 5.0
     reranker_top_n: int = 50
-    search_total_timeout_seconds: float = 2.5
+    search_total_timeout_seconds: float = 180.0
     search_meilisearch_timeout_seconds: float = 0.2
     search_embedding_timeout_seconds: float = 2.5
     search_understanding_timeout_seconds: float = 75.0
-    search_system_routing_timeout_seconds: float = 15.0
-    search_selling_point_timeout_seconds: float = 25.0
-    search_proof_point_timeout_seconds: float = 20.0
-    search_candidate_review_timeout_seconds: float = 20.0
+    search_system_routing_timeout_seconds: float = 45.0
+    search_selling_point_timeout_seconds: float = 60.0
+    search_proof_point_timeout_seconds: float = 45.0
+    search_candidate_review_timeout_seconds: float = 45.0
     search_candidate_review_limit: int = 5
-    search_result_recommendation_timeout_seconds: float = 6.0
+    search_result_recommendation_timeout_seconds: float = 45.0
     search_result_recommendation_limit: int = 12
     search_understanding_grace_seconds: float = 5.0
     search_understanding_retry_attempts: int = 1
@@ -85,6 +85,12 @@ class Settings(BaseSettings):
     search_candidate_limit: int = 20
     search_cache_ttl_seconds: float = 300.0
     search_cache_max_entries: int = 512
+    api_center_maintenance_enabled: bool = False
+    api_center_maintenance_interval_minutes: int = 360
+    api_center_maintenance_startup_delay_seconds: int = 300
+    api_center_maintenance_max_credentials_per_cycle: int = 20
+    api_center_call_trace_retention_days: int = 30
+    api_center_health_check_retention_days: int = 90
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

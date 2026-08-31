@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from urllib.parse import urlparse
 
 from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy.orm import Session, sessionmaker
@@ -48,13 +49,17 @@ def _provider_attempt_count(provider) -> int:
     return max(1, int(getattr(provider, "attempt_count", 1)))
 
 
-def _build_scheduled_provider(db: Session):
+def _build_scheduled_provider(
+    db: Session,
+    *,
+    request_id: str | None = None,
+):
     api_center = ApiCenterService(
         db,
         trace_session_factory=_trace_session_factory(db),
     )
     api_center.initialize_runtime()
-    return api_center.build_scheduled_provider()
+    return api_center.build_scheduled_provider(default_request_id=request_id)
 
 
 def get_db_session_factory():
@@ -128,8 +133,14 @@ def get_tag_service(db: Session = Depends(get_db)) -> TagService:
     return TagService(db)
 
 
-def get_search_service(db: Session = Depends(get_db)) -> SearchService:
-    search_ai_service = get_search_ai_service(db)
+def get_search_service(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> SearchService:
+    search_ai_service = get_search_ai_service(
+        db,
+        request_id=request.state.request_id,
+    )
     provider_attempts = _provider_attempt_count(search_ai_service.provider)
     return SearchService(
         db,
@@ -211,24 +222,33 @@ def get_api_center_service(db: Session = Depends(get_db)) -> ApiCenterService:
     return ApiCenterService(db, trace_session_factory=_trace_session_factory(db))
 
 
-def get_ai_service(db: Session = Depends(get_db)) -> AiService:
+def get_ai_service(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AiService:
     return AiService(
-        _build_scheduled_provider(db),
+        _build_scheduled_provider(db, request_id=request.state.request_id),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
 
-def get_asset_phrase_ai_service(db: Session = Depends(get_db)) -> AiService:
+def get_asset_phrase_ai_service(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AiService:
     return AiService(
-        _build_scheduled_provider(db),
+        _build_scheduled_provider(db, request_id=request.state.request_id),
         knowledge=AiKnowledgeService(db).knowledge(),
     )
 
 
-def get_asset_agent_service(db: Session = Depends(get_db)) -> AssetAgentService:
+def get_asset_agent_service(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AssetAgentService:
     return AssetAgentService(
         db,
-        _build_scheduled_provider(db),
+        _build_scheduled_provider(db, request_id=request.state.request_id),
     )
 
 
@@ -244,9 +264,13 @@ def get_asset_phrase_suggestion_service(
     )
 
 
-def get_search_ai_service(db: Session = Depends(get_db)) -> AiService:
+def get_search_ai_service(
+    db: Session = Depends(get_db),
+    *,
+    request_id: str | None = None,
+) -> AiService:
     return AiService(
-        _build_scheduled_provider(db),
+        _build_scheduled_provider(db, request_id=request_id),
         knowledge=AiKnowledgeService(db).knowledge(),
         system_routing_timeout_seconds=(settings.search_system_routing_timeout_seconds),
         selling_point_timeout_seconds=(settings.search_selling_point_timeout_seconds),
@@ -299,12 +323,40 @@ def require_csrf(
     service: AuthService = Depends(get_auth_service),
 ) -> User:
     origin = request.headers.get("origin")
-    if origin and origin not in settings.cors_origin_list:
+    if origin and not _is_trusted_origin_for_request(request, origin):
         raise ForbiddenError("请求来源不受信任")
     if not csrf_header or csrf_header != csrf_cookie:
         raise ForbiddenError("安全令牌无效，请重新登录")
     service.verify_csrf(session, csrf_header)
     return session.user
+
+
+def _is_trusted_origin_for_request(request: Request, origin: str) -> bool:
+    configured = {_normalize_origin(item) for item in settings.cors_origin_list}
+    normalized_origin = _normalize_origin(origin)
+    if normalized_origin in configured:
+        return True
+    forwarded_host = request.headers.get("x-forwarded-host")
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    request_host = forwarded_host or request.headers.get("host") or request.url.netloc
+    request_scheme = forwarded_proto or request.url.scheme
+    request_origin = _normalize_origin(f"{request_scheme}://{request_host}")
+    return normalized_origin == request_origin
+
+
+def _normalize_origin(origin: str) -> str:
+    parsed = urlparse(origin.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return origin.strip().rstrip("/")
+    port = parsed.port
+    host = parsed.hostname.lower()
+    default_port = (
+        port is None
+        or (parsed.scheme == "http" and port == 80)
+        or (parsed.scheme == "https" and port == 443)
+    )
+    netloc = host if default_port else f"{host}:{port}"
+    return f"{parsed.scheme.lower()}://{netloc}"
 
 
 def require_write_role(user: User = Depends(require_csrf)) -> User:

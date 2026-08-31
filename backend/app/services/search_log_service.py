@@ -91,6 +91,11 @@ class SearchLogService:
                     request_id=request_id,
                 )
             )
+            if request_id:
+                self.logs.link_call_traces(
+                    request_id=request_id,
+                    search_log_id=log.id,
+                )
             self.uow.commit()
             return log.id
         except Exception:

@@ -79,7 +79,7 @@ class OpenAICompatibleModelProvider:
         api_key: str,
         model_name: str,
         timeout_seconds: int = 120,
-        temperature: float = 0.2,
+        temperature: float | None = 0.2,
     ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -102,12 +102,13 @@ class OpenAICompatibleModelProvider:
         status = "failed"
         error = ""
         result: dict[str, Any] | None = None
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model_name,
             "messages": self._messages(request),
-            "temperature": self.temperature,
             "response_format": {"type": "json_object"},
         }
+        if self.temperature is not None:
+            payload["temperature"] = self.temperature
         try:
             post_options: dict[str, Any] = {}
             if request.timeout_seconds is not None:
@@ -119,17 +120,23 @@ class OpenAICompatibleModelProvider:
             status = "ok"
         except Exception as exc:
             error = _safe_attempt_error(exc)
+            error_code = getattr(exc, "code", None)
             attempt = {
                 "provider": self.provider_label,
                 "model": self.model_name,
                 "status": status,
                 "duration_ms": _elapsed_ms(started),
                 "error": error,
+                "error_code": error_code,
             }
             if isinstance(exc, ModelProviderCancelled):
                 raise ModelProviderCancelled(str(exc), attempts=(attempt,)) from exc
             if isinstance(exc, ModelProviderError):
-                raise ModelProviderError(str(exc), attempts=(attempt,)) from exc
+                raise ModelProviderError(
+                    str(exc),
+                    attempts=(attempt,),
+                    code=exc.code,
+                ) from exc
             raise
         finally:
             attempt = {
@@ -257,31 +264,58 @@ class OpenAICompatibleModelProvider:
                     remove_cancel_callback()
                 client.close()
         except httpx.HTTPStatusError as exc:
-            status = exc.response.status_code
-            raise ModelProviderError(f"模型服务返回异常状态：{status}") from exc
+            code, message = _classify_http_status_error(exc)
+            raise ModelProviderError(message, code=code) from exc
+        except httpx.ConnectTimeout as exc:
+            if cancellation is not None and cancellation.cancelled:
+                raise ModelProviderCancelled("模型调用已取消") from exc
+            raise ModelProviderError(
+                "连接模型服务超时，请检查 API 地址或网络",
+                code="connection_timeout",
+            ) from exc
+        except httpx.ReadTimeout as exc:
+            if cancellation is not None and cancellation.cancelled:
+                raise ModelProviderCancelled("模型调用已取消") from exc
+            raise ModelProviderError(
+                "模型响应未在本次调用等待时间内完成",
+                code="response_timeout",
+            ) from exc
         except httpx.TimeoutException as exc:
             if cancellation is not None and cancellation.cancelled:
                 raise ModelProviderCancelled("模型调用已取消") from exc
-            raise ModelProviderError("模型服务调用超时") from exc
+            raise ModelProviderError("模型服务调用超时", code="provider_timeout") from exc
+        except httpx.ConnectError as exc:
+            if cancellation is not None and cancellation.cancelled:
+                raise ModelProviderCancelled("模型调用已取消") from exc
+            raise ModelProviderError(
+                "无法连接模型服务，请检查 API 地址、DNS 或本机网络",
+                code="connection_failed",
+            ) from exc
         except httpx.HTTPError as exc:
             if cancellation is not None and cancellation.cancelled:
                 raise ModelProviderCancelled("模型调用已取消") from exc
-            raise ModelProviderError("模型服务调用失败") from exc
+            raise ModelProviderError("模型网络请求失败", code="network_error") from exc
         except json.JSONDecodeError as exc:
-            raise ModelProviderError("模型服务返回不是合法 JSON") from exc
+            raise ModelProviderError(
+                "模型服务返回不是合法 JSON",
+                code="invalid_json_response",
+            ) from exc
         except Exception as exc:
             if cancellation is not None and cancellation.cancelled:
                 raise ModelProviderCancelled("模型调用已取消") from exc
             raise
         if not isinstance(data, dict):
-            raise ModelProviderError("模型服务返回格式无效")
+            raise ModelProviderError("模型服务返回格式无效", code="invalid_response_shape")
         return data
 
     def _extract_json(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:
             message = payload["choices"][0]["message"]
         except (KeyError, IndexError, TypeError) as exc:
-            raise ModelProviderError("模型响应缺少 choices.message") from exc
+            raise ModelProviderError(
+                "模型响应缺少 choices.message",
+                code="invalid_response_shape",
+            ) from exc
 
         parsed = message.get("parsed")
         if isinstance(parsed, dict):
@@ -299,7 +333,7 @@ class OpenAICompatibleModelProvider:
         elif isinstance(content, str):
             text = content
         else:
-            raise ModelProviderError("模型响应内容为空")
+            raise ModelProviderError("模型响应内容为空", code="empty_response")
 
         return self._parse_json_object(text)
 
@@ -314,7 +348,63 @@ class OpenAICompatibleModelProvider:
                 continue
             if isinstance(value, dict):
                 return value
-        raise ModelProviderError("模型没有返回可解析的 JSON 对象")
+        raise ModelProviderError(
+            "模型没有返回可解析的 JSON 对象",
+            code="invalid_json_response",
+        )
+
+
+def _classify_http_status_error(exc: httpx.HTTPStatusError) -> tuple[str, str]:
+    status = exc.response.status_code
+    response_hint = exc.response.text[:2000].lower()
+    if status in {401, 403}:
+        return "authentication_failed", "API 密钥无效或无权访问该模型"
+    if status == 404:
+        return "model_not_found", "API 地址、接口路径或模型名称不存在"
+    if status == 429:
+        return "rate_limited", "模型服务触发限流，请稍后重试或更换 Key"
+    if status in {408, 504}:
+        return "provider_timeout", "模型服务网关响应超时"
+    if status >= 500:
+        return "upstream_unavailable", f"模型上游服务暂时不可用（HTTP {status}）"
+    if status == 400 and any(
+        marker in response_hint
+        for marker in (
+            "response_format",
+            "json_object",
+            "json mode",
+        )
+    ):
+        return "response_format_unsupported", "该模型不接受 response_format 参数"
+    if status == 400 and "temperature" in response_hint:
+        unsupported_parameter_markers = (
+            "unsupported parameter",
+            "unknown parameter",
+            "does not support",
+            "not support",
+            "不支持参数",
+        )
+        if any(marker in response_hint for marker in unsupported_parameter_markers):
+            return "temperature_not_supported", "该模型不接受 temperature 参数"
+        return "temperature_value_unsupported", "该模型不接受当前 temperature 值"
+    if status == 400 and any(
+        marker in response_hint
+        for marker in (
+            "image_url",
+            "image input",
+            "vision",
+            "multimodal",
+            "multi-modal",
+            "不支持图片",
+            "不支持图像",
+            "视觉",
+            "多模态",
+        )
+    ):
+        return "task_capability_unsupported", "该模型不支持当前任务需要的图片输入"
+    if status == 400:
+        return "request_rejected", "模型请求参数不兼容，请检查模型名称和接口协议"
+    return "provider_http_error", f"模型服务返回异常状态（HTTP {status}）"
 
 
 def _elapsed_ms(started: float) -> int:

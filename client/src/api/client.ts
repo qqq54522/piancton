@@ -31,5 +31,8 @@ export function getApiError(error: unknown): ApiErrorBody {
   if (error instanceof AxiosError && error.response?.data) {
     return error.response.data as ApiErrorBody;
   }
+  if (error instanceof AxiosError && error.code === 'ECONNABORTED') {
+    return { code: 'request_timeout', message: '页面等待服务器返回结果已超时，请稍后重试' };
+  }
   return { code: 'network_error', message: '网络请求失败，请稍后重试' };
 }

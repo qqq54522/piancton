@@ -746,7 +746,7 @@
 
   .api-routing-actions {
     display: grid;
-    grid-template-columns: 7rem auto;
+    grid-template-columns: repeat(3, minmax(7rem, 1fr)) auto;
     gap: 1rem;
     align-items: end;
   }
@@ -828,7 +828,7 @@
     }
 
     .api-routing-actions {
-      grid-template-columns: minmax(7rem, 1fr) auto;
+      grid-template-columns: repeat(2, minmax(7rem, 1fr));
     }
   }
 

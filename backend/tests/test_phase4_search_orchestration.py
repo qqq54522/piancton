@@ -19,7 +19,8 @@ from app.schemas.ai import (
     SearchUnderstanding,
 )
 from app.services.search_cache import build_search_caches
-from app.services.search_models import SearchHit
+from app.services.search_concept_routing_service import SearchConceptRoutingService
+from app.services.search_models import ConceptMatch, SearchHit
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_rerank_coordinator import SearchRerankCoordinator
 from app.services.search_service import SearchService
@@ -520,7 +521,7 @@ def test_phase4_candidate_review_filters_top_candidates(db_factory):
     assert "应用" in (branch.detail or "")
 
 
-def test_phase4_candidate_review_uses_cache_for_same_context(db_factory):
+def test_phase4_candidate_review_calls_api_for_same_context_every_time(db_factory):
     class Provider:
         configured = True
 
@@ -529,9 +530,11 @@ def test_phase4_candidate_review_uses_cache_for_same_context(db_factory):
         knowledge = None
 
         def __init__(self):
+            self.route_calls = 0
             self.review_calls = 0
 
         def route_search_system(self, keyword: str, *, cancellation=None):
+            self.route_calls += 1
             return _model_result(
                 SearchSystemRouting(
                     original_query=keyword,
@@ -646,14 +649,15 @@ def test_phase4_candidate_review_uses_cache_for_same_context(db_factory):
 
     assert len(first.results) == 1
     assert len(second.results) == 1
-    assert ai.review_calls == 1
+    assert ai.route_calls == 2
+    assert ai.review_calls == 2
     branch = next(
         item
         for item in second.search_diagnostics.branches
         if item.source == "candidate_review"
     )
-    assert branch.cache_hit is True
-    assert "缓存命中" in (branch.detail or "")
+    assert branch.cache_hit is False
+    assert "第四层复核" in (branch.detail or "")
 
 
 def test_phase4_candidate_review_limits_reviewed_candidates(db_factory):
@@ -1336,6 +1340,94 @@ def test_phase4_photo_question_composition_prefers_photo_learning_asset(
         item.code for item in response.search_understanding.matched_proof_points
     ] == ["pp_selfstudy_photo_question_recognition"]
     assert [item.image.title for item in response.results] == ["拍题精学"]
+
+
+def test_phase4_multi_business_route_respects_understanding_priority(db_factory):
+    with db_factory() as db:
+        transfer = BusinessConcept(code="transfer_practice", name="举一反三")
+        photo = BusinessConcept(code="photo_guided_learning", name="AI拍题精学")
+        transfer_image = _image("举一反三", "transfer-priority.png")
+        photo_image = _image("拍题精学", "photo-priority.png")
+        transfer_group = AssetGroup(
+            title=transfer_image.title,
+            primary_proof_point_code="pp_exam_transfer_principle_first",
+            created_by="designer",
+            images=[transfer_image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=transfer,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        photo_group = AssetGroup(
+            title=photo_image.title,
+            primary_proof_point_code="pp_selfstudy_photo_question_recognition",
+            created_by="designer",
+            images=[photo_image],
+            concept_links=[
+                AssetConceptLink(
+                    concept=photo,
+                    relation_role="expresses",
+                    origin="manual",
+                    review_status="accepted",
+                )
+            ],
+        )
+        db.add_all([transfer_group, photo_group])
+        db.flush()
+        transfer_group.primary_image_id = transfer_image.id
+        photo_group.primary_image_id = photo_image.id
+        db.commit()
+
+        understanding = SearchUnderstanding(
+            original_query="洋葱的拍题精学举一反三",
+            normalized_query="举一反三",
+            search_intent="用户可能同时在找“举一反三、AI拍题精学”相关素材",
+            query_type="multi_business_intent_search",
+            matched_business_concepts=[
+                SearchConceptMatch(
+                    concept="同步考点体系 > 举一反三",
+                    relation="direct",
+                    reason="功能表达命中：举一反三",
+                    weight=0.95,
+                ),
+                SearchConceptMatch(
+                    concept="同步自学体系 > AI拍题精学",
+                    relation="direct",
+                    reason="功能表达命中：拍题精学",
+                    weight=0.95,
+                ),
+            ],
+            search_strategy="按举一反三、AI拍题精学多个候选卖点并行召回",
+        )
+        route = SearchConceptRoutingService().route(
+            [
+                SearchHit(image=photo_image, score=1.0, reasons=("标题匹配",)),
+                SearchHit(image=transfer_image, score=0.95, reasons=("标题匹配",)),
+            ],
+            [
+                ConceptMatch(
+                    concept_id=photo.id,
+                    code=photo.code,
+                    name=photo.name,
+                    score=0.95,
+                ),
+                ConceptMatch(
+                    concept_id=transfer.id,
+                    code=transfer.code,
+                    name=transfer.name,
+                    score=0.95,
+                ),
+            ],
+            keyword="洋葱的拍题精学举一反三",
+            understanding=understanding,
+        )
+
+    assert [hit.image.title for hit in route.hits] == ["举一反三", "拍题精学"]
+    assert [match.name for match in route.active_matches] == ["举一反三", "AI拍题精学"]
 
 
 def test_phase4_photo_socratic_value_composition_prefers_guidance_asset(

@@ -2,23 +2,34 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
+  Ban,
   ChevronDown,
   KeyRound,
   ListTree,
+  PowerOff,
   RadioTower,
   Route,
+  Sparkles,
   Trash2,
 } from 'lucide-react';
 
 import {
   createApiCredential,
   deleteApiCredential,
+  disableApiProviderGroup,
+  fetchApiCallTraces,
   fetchApiCenterSummary,
+  probeApiCredentialTemperature,
+  runApiCenterMaintenance,
   runApiHealthChecks,
   testApiCredential,
   updateApiCredential,
   updateRoutingSlot,
 } from '@client/src/api/admin';
+import {
+  NEW_API_PROBE_LIMIT_SECONDS,
+  recommendedApiCallLimitSeconds,
+} from '@client/src/api/apiCenterWaitPolicy';
 import { getApiError } from '@client/src/api/client';
 import PageHeader from '@client/src/components/PageHeader';
 import { Badge } from '@client/src/components/ui/badge';
@@ -27,9 +38,12 @@ import { Input } from '@client/src/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@client/src/components/ui/popover';
 import { Select } from '@client/src/components/ui/select';
 import type {
+  ApiCallTrace,
   ApiCenterSummary,
   ApiCredential,
   ApiCredentialCreate,
+  ApiCredentialUpdate,
+  ApiTemperatureTuneResult,
   ModelTaskName,
   RoutingSlotUpdate,
 } from '@client/src/types/api';
@@ -70,13 +84,6 @@ const healthCheckTaskLabels: Record<string, string> = {
   asset_agent_chat: taskLabels.asset_agent_chat,
 };
 
-const searchableTasks = [
-  'search_system_routing',
-  'search_intent_understanding',
-  'search_proof_point_understanding',
-  'search_candidate_review',
-] as const satisfies readonly ModelTaskName[];
-
 const statusClass: Record<string, string> = {
   active: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   ok: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -88,7 +95,9 @@ const statusClass: Record<string, string> = {
   idle: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   busy: 'border-slate-200 bg-slate-50 text-slate-700',
   saturated: 'border-amber-200 bg-amber-50 text-amber-700',
+  watch: 'border-amber-200 bg-amber-50 text-amber-700',
   degraded: 'border-red-200 bg-red-50 text-red-700',
+  unknown: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
 const statusLabel: Record<string, string> = {
@@ -99,26 +108,57 @@ const statusLabel: Record<string, string> = {
   unknown: '未知',
 };
 
+const errorCategoryLabel: Record<string, string> = {
+  configuration: '配置',
+  authentication: '鉴权',
+  connectivity: '连接',
+  capacity: '容量',
+  rate_limit: '限流',
+  upstream: '上游',
+  timeout: '等待',
+  compatibility: '兼容',
+  response_contract: '响应契约',
+  cancellation: '取消',
+  scheduler: '调度',
+  unknown: '未知',
+};
+
+const errorSeverityLabel: Record<string, string> = {
+  info: '提示',
+  warning: '观察',
+  error: '处理',
+  critical: '立即处理',
+};
+
+const errorSeverityClass: Record<string, string> = {
+  info: 'border-slate-200 bg-slate-50 text-slate-600',
+  warning: 'border-amber-200 bg-amber-50 text-amber-700',
+  error: 'border-red-200 bg-red-50 text-red-700',
+  critical: 'border-red-300 bg-red-100 text-red-800',
+};
+
 const initialCredentialForm: ApiCredentialCreate = {
   label: '',
   providerType: 'openai_compatible',
   baseUrl: '',
   modelName: '',
   apiKey: '',
-  taskScope: [...searchableTasks],
   status: 'active',
   priority: 100,
   timeoutSeconds: 20,
   temperature: 0.2,
+  temperatureEnabled: true,
   autoAssignEnabled: true,
 };
 
-const HEALTH_SCHEDULE_STORAGE_KEY = 'piancton.apiCenter.healthSchedule.v1';
-
-interface HealthScheduleSettings {
-  enabled: boolean;
-  intervalHours: number;
-  nextRunAt: number;
+function credentialProbeSignature(form: ApiCredentialCreate): string {
+  return JSON.stringify({
+    baseUrl: form.baseUrl.trim(),
+    modelName: form.modelName.trim(),
+    apiKey: form.apiKey.trim(),
+    temperature: form.temperature,
+    temperatureEnabled: form.temperatureEnabled,
+  });
 }
 
 export default function AdminApiCenter() {
@@ -134,7 +174,7 @@ export default function AdminApiCenter() {
       <PageHeader
         eyebrow="API Center"
         title="API 中心"
-        description="统一维护 API、健康检测、自动调度和真实调用链路。"
+        description="统一维护 API 库存、健康检测、任务选择和真实调用链路。"
       />
 
       <div className="mt-7 flex flex-wrap gap-1 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
@@ -211,36 +251,93 @@ function Overview({ data }: { data: ApiCenterSummary }) {
 function ApiKeys({ data }: { data: ApiCenterSummary }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<ApiCredentialCreate>(initialCredentialForm);
+  const [successfulProbeSignature, setSuccessfulProbeSignature] = useState<string | null>(null);
+  const probeSignature = useMemo(() => credentialProbeSignature(form), [form]);
+  const canProbe = Boolean(
+    form.baseUrl.trim()
+    && form.modelName.trim()
+    && form.apiKey.trim()
+  );
+  const hasCurrentProbePassed = successfulProbeSignature === probeSignature;
   const createMutation = useMutation({
     mutationFn: createApiCredential,
     onSuccess: () => {
       setForm(initialCredentialForm);
+      setSuccessfulProbeSignature(null);
       queryClient.invalidateQueries({ queryKey: ['api-center-summary'] });
     },
   });
+  const probeMutation = useMutation({
+    mutationFn: () => probeApiCredentialTemperature({
+      baseUrl: form.baseUrl,
+      modelName: form.modelName,
+      apiKey: form.apiKey,
+      task: 'search_system_routing',
+      temperature: form.temperature ?? 0.2,
+      timeoutSeconds: NEW_API_PROBE_LIMIT_SECONDS,
+    }),
+    onSuccess: (result) => {
+      if (result.status === 'ok' && result.selectedTemperatureEnabled != null) {
+        const recommendedCallLimit = recommendedApiCallLimitSeconds(
+          result.probes.map((probe) => probe.durationMs),
+        );
+        const nextForm = {
+          ...form,
+          timeoutSeconds: recommendedCallLimit,
+          temperature: result.selectedTemperature ?? form.temperature ?? 0.2,
+          temperatureEnabled: result.selectedTemperatureEnabled,
+        };
+        setForm(nextForm);
+        setSuccessfulProbeSignature(credentialProbeSignature(nextForm));
+      } else {
+        setSuccessfulProbeSignature(null);
+      }
+    },
+    onError: () => setSuccessfulProbeSignature(null),
+  });
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'active' | 'disabled' }) =>
-      updateApiCredential(id, { status }),
+    mutationFn: ({ id, payload }: { id: string; payload: ApiCredentialUpdate }) =>
+      updateApiCredential(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
   });
   const deleteMutation = useMutation({
     mutationFn: deleteApiCredential,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
   });
+  const disableProviderGroupMutation = useMutation({
+    mutationFn: disableApiProviderGroup,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
+  });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!hasCurrentProbePassed) return;
     createMutation.mutate(form);
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
-      <section className="surface-card overflow-hidden">
-        <SectionHeader
-          title="新增 API"
-          description="API 中心是唯一生效入口。保存后只显示掩码；开启自动分配后，系统会按健康数据自动选择可用 API。"
-        />
-        <form onSubmit={submit} className="grid gap-3 p-4">
+    <div className="grid gap-4">
+      <ProviderGroups
+        data={data}
+        isDisabling={disableProviderGroupMutation.isPending}
+        onDisableProviderGroup={(providerGroup) => {
+          if (window.confirm(`确认停用 ${providerGroup} 下的全部 API？`)) {
+            disableProviderGroupMutation.mutate(providerGroup);
+          }
+        }}
+      />
+      {disableProviderGroupMutation.isError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {getApiError(disableProviderGroupMutation.error).message}
+        </div>
+      )}
+      <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
+        <section className="surface-card overflow-hidden">
+          <SectionHeader
+            title="新增 API"
+            description="这里维护所有经过测试的可用模型。保存后会立即进入人工可选库存；是否参与自动调度由下方开关决定。"
+          />
+          <form onSubmit={submit} className="grid gap-3 p-4">
           <LabeledInput
             label="API 别名"
             hint="例如 老张A、OpenAI备用、素材Agent"
@@ -267,34 +364,43 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
             onChange={(value) => setForm({ ...form, apiKey: value })}
           />
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-sm">
-              <span className="text-xs font-medium text-muted-foreground">超时秒数</span>
-              <Input
-                type="number"
-                min={1}
-                value={form.timeoutSeconds}
-                onChange={(event) => setForm({ ...form, timeoutSeconds: Number(event.target.value) })}
-              />
+            <div className="grid content-start gap-1.5 text-sm">
+              <span className="text-xs font-medium text-muted-foreground">单次调用上限</span>
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-foreground">
+                {hasCurrentProbePassed ? `${form.timeoutSeconds} 秒` : '测试后自动设置'}
+              </div>
               <span className="text-[11px] leading-4 text-muted-foreground">
-                单个 API 最多等待多久；超时或失败后，会在任务总预算内尝试下一个可用 API。
+                无需填写。系统会根据真实测试耗时自动留出安全余量。
               </span>
-            </label>
+            </div>
             <label className="grid gap-1.5 text-sm">
               <span className="text-xs font-medium text-muted-foreground">输出稳定度</span>
               <Input
                 type="number"
                 step="0.1"
                 value={form.temperature}
+                disabled={!form.temperatureEnabled}
                 onChange={(event) => setForm({ ...form, temperature: Number(event.target.value) })}
               />
+              <span className="flex items-center gap-2 text-[11px] leading-4 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.temperatureEnabled}
+                  onChange={(event) => setForm({
+                    ...form,
+                    temperatureEnabled: event.target.checked,
+                  })}
+                />
+                发送 temperature 参数
+              </span>
               <span className="text-[11px] leading-4 text-muted-foreground">
-                也叫 temperature。0.2 更稳定，适合搜索判断；数值越高，回答越发散。
+                测试会自动匹配可用值；模型不接受该参数时会自动关闭发送。
               </span>
             </label>
           </div>
           <div className="rounded-xl border border-border bg-secondary/60 px-3 py-2 text-xs leading-5 text-muted-foreground">
-            并发容量不需要人工填写。系统会通过真实调用和容量压测估算安全容量，
-            到上限后智能调度会优先换其他健康 API。
+            并发容量采用默认安全值。到上限后智能调度会优先换其他健康 API；
+            后续接入容量探测后再自动写回。
           </div>
           <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm">
             <input
@@ -302,24 +408,49 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
               checked={form.autoAssignEnabled}
               onChange={(event) => setForm({ ...form, autoAssignEnabled: event.target.checked })}
             />
-            <span>加入自动调度池</span>
+            <span>允许进入自动候选池（关闭后仍可人工指定）</span>
           </label>
-          <Button type="submit" disabled={createMutation.isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={probeMutation.isPending || !canProbe}
+            onClick={() => probeMutation.mutate()}
+          >
+            <Sparkles className="size-4" />
+            {probeMutation.isPending ? '正在测试连接与参数...' : '测试 API 并自动设置'}
+          </Button>
+          {probeMutation.isSuccess && (
+            <p className="text-sm text-emerald-700">
+              {temperatureTuneMessage(probeMutation.data)}
+              {probeMutation.data.status === 'ok'
+                ? ` 单次调用上限已自动设置为 ${form.timeoutSeconds} 秒。`
+                : ''}
+            </p>
+          )}
+          {probeMutation.isError && (
+            <p className="text-sm text-destructive">
+              {getApiError(probeMutation.error).message}
+            </p>
+          )}
+          {!hasCurrentProbePassed && canProbe && (
+            <p className="text-xs text-muted-foreground">当前 API 需要先测试通过，再保存到 API 库存。</p>
+          )}
+          <Button type="submit" disabled={createMutation.isPending || !hasCurrentProbePassed}>
             {createMutation.isPending ? '保存中...' : '保存 API'}
           </Button>
           {createMutation.isError && (
             <p className="text-sm text-destructive">{getApiError(createMutation.error).message}</p>
           )}
-        </form>
-      </section>
+          </form>
+        </section>
 
-      <section className="surface-card overflow-hidden">
-        <SectionHeader
-          title="API 列表"
-          description="这里管理所有可用 API。完整密钥不会回显。"
-        />
-        <div className="divide-y divide-border">
-          {data.credentials.length ? data.credentials.map((item) => (
+        <section className="surface-card overflow-hidden">
+          <SectionHeader
+            title="API 列表"
+            description="这里管理所有可用 API。完整密钥不会回显。"
+          />
+          <div className="divide-y divide-border">
+            {data.credentials.length ? data.credentials.map((item) => (
             <div key={item.id} className="grid gap-3 px-4 py-3 text-sm lg:grid-cols-[1fr_auto]">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -337,14 +468,16 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
                 <p className="mt-1 truncate text-xs text-muted-foreground">
                   {item.modelName} · {item.apiKeyPreview}
                 </p>
+                <CapabilityBadges credential={item} />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  占用 {item.currentConcurrency}/{item.maxConcurrency} · 系统估算可用 {item.availableConcurrency}
+                  占用 {item.currentConcurrency}/{item.maxConcurrency} · 当前可接 {item.availableConcurrency}
                   · 24h 调用 {item.recentCallCount} · 失败率 {formatPercent(item.recentFailureRate)}
                   · 平均耗时 {item.recentAverageLatencyMs || item.lastLatencyMs || 0}ms
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  超时 {item.timeoutSeconds}s · 输出稳定度 {item.temperature} · 优先级 P{item.priority}
-                  {item.autoAssignEnabled ? ' · 自动分配' : ' · 不参与自动分配'}
+                  单次调用上限 {item.timeoutSeconds}s · 输出稳定度 {item.temperatureEnabled ? item.temperature : '不发送 temperature'}
+                  · 优先级 P{item.priority}
+                  {item.autoAssignEnabled ? ' · 允许自动候选' : ' · 仅人工使用'}
                   {item.lastLatencyMs ? ` · 最近耗时 ${item.lastLatencyMs}ms` : ''}
                   {item.lastError ? ` · ${item.lastError}` : ''}
                 </p>
@@ -355,11 +488,26 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
                   size="sm"
                   onClick={() => updateMutation.mutate({
                     id: item.id,
-                    status: item.status === 'active' ? 'disabled' : 'active',
+                    payload: { status: item.status === 'active' ? 'disabled' : 'active' },
                   })}
                 >
                   {item.status === 'active' ? '停用' : '启用'}
                 </Button>
+                <button
+                  type="button"
+                  className="pc-switch"
+                  data-checked={item.autoAssignEnabled}
+                  disabled={updateMutation.isPending}
+                  onClick={() => updateMutation.mutate({
+                    id: item.id,
+                    payload: { autoAssignEnabled: !item.autoAssignEnabled },
+                  })}
+                  aria-pressed={item.autoAssignEnabled}
+                  title={item.autoAssignEnabled ? '移出自动候选池' : '允许进入自动候选池'}
+                >
+                  <span className="pc-switch-track" />
+                  <span>{item.autoAssignEnabled ? '允许自动候选' : '仅人工使用'}</span>
+                </button>
                 <Button
                   variant="outline"
                   size="icon"
@@ -376,11 +524,84 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
                 </Button>
               </div>
             </div>
-          )) : (
-            <Empty text="还没有 API。先在左侧添加一个，再做健康测试。" />
-          )}
-        </div>
-      </section>
+            )) : (
+              <Empty text="还没有 API。先在左侧添加一个，再做健康测试。" />
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function ProviderGroups({
+  data,
+  isDisabling,
+  onDisableProviderGroup,
+}: {
+  data: ApiCenterSummary;
+  isDisabling: boolean;
+  onDisableProviderGroup: (providerGroup: string) => void;
+}) {
+  if (!data.providerGroups.length) return null;
+  return (
+    <section className="surface-card overflow-hidden">
+      <SectionHeader
+        title="中转站概览"
+        description="按 API 地址主机名聚合，帮助判断是不是某个站整体波动；系统只给建议，是否整站停用由管理员决定。"
+      />
+      <div className="divide-y divide-border">
+        {data.providerGroups.map((group) => (
+          <div
+            key={group.providerGroup}
+            className="grid gap-3 px-4 py-3 text-sm lg:grid-cols-[1fr_auto]"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-foreground">{group.providerGroup}</span>
+                <Badge variant="outline" className={statusClass[group.status] ?? ''}>
+                  {providerGroupStatusLabel(group.status)}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                API {group.credentialCount} 个 · 启用 {group.activeCredentialCount} 个
+                · 自动候选 {group.autoAssignCredentialCount} 个 · 当前占用 {group.currentConcurrency}
+                · 24h 调用 {group.recentCallCount} · 失败率 {formatPercent(group.recentFailureRate)}
+                · 超时 {group.recentTimeoutCount}
+              </p>
+              {group.recommendation && (
+                <p className="mt-1 text-xs text-muted-foreground">{group.recommendation}</p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isDisabling || group.activeCredentialCount === 0}
+              onClick={() => onDisableProviderGroup(group.providerGroup)}
+            >
+              <PowerOff className="size-4" />
+              停用此站
+            </Button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CapabilityBadges({ credential }: { credential: ApiCredential }) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {credential.capabilityProfile.map((capability) => (
+        <Badge
+          key={capability.capability}
+          variant="outline"
+          className={statusClass[capability.status] ?? ''}
+          title={capabilityTooltip(capability)}
+        >
+          {capability.label} · {capabilityStatusLabel(capability.status)}
+        </Badge>
+      ))}
     </div>
   );
 }
@@ -403,6 +624,7 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
         next[slot.task] = {
           primaryCredentialId: slot.primaryCredentialId ?? '',
           backupCredentialIds: slot.backupCredentialIds,
+          excludedCredentialIds: slot.excludedCredentialIds,
           timeoutSeconds: slot.timeoutSeconds,
           hedgingDelayMs: slot.hedgingDelayMs,
           maxParallel: slot.maxParallel,
@@ -421,15 +643,17 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
     <section className="surface-card overflow-hidden">
       <SectionHeader
         title="智能调度配置"
-        description="开启自动调度时，每次调用都会综合健康、占用、并发上限、成功率、失败率和耗时选择 API；关闭后才按人工指定执行。"
+        description="这里决定每个项目任务是自动选择 API，还是严格使用人工主备；API 管理中的开关只决定模型能否进入自动候选池。"
       />
       <div className="border-b border-border bg-secondary/55 px-4 py-3 text-sm text-muted-foreground">
-        超时秒数表示单个 API 最多等待多久；如果超时、失败或当前 API 满载，系统会在该任务剩余时间内尝试下一个健康 API。
+        任务总等待上限是这个任务从开始到结束的总时间，包含主 API、备用 API、容量等待和重试。
+        一般保留系统默认值即可；它不是某个 API 的单次调用上限。
       </div>
       <div className="divide-y divide-border">
         {data.routingSlots.map((slot) => {
           const draft = drafts[slot.task] ?? {};
           const autoEnabled = draft.autoSelectEnabled ?? slot.autoSelectEnabled;
+          const assignableCredentials = credentialOptions.filter((item) => item.status !== 'disabled');
           return (
             <div key={slot.task} className="api-routing-row text-sm">
               <div className="api-routing-copy min-w-0">
@@ -445,7 +669,7 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
                   aria-pressed={autoEnabled}
                 >
                   <span className="pc-switch-track" />
-                  <span>{autoEnabled ? '自动调度' : '人工指定'}</span>
+                  <span>{autoEnabled ? '当前任务自动选择' : '当前任务人工指定'}</span>
                 </button>
                 <div className="api-routing-field">
                   <span className="api-routing-field-label">主 API</span>
@@ -456,20 +680,31 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
                     className="bg-white/80"
                   >
                     <option value="">自动选择，不固定 API</option>
-                    {credentialOptions.map((item) => (
+                    {assignableCredentials.map((item) => (
                       <option key={item.id} value={item.id}>{displayCredentialLabel(item)}</option>
                     ))}
                   </Select>
+                  <span className="text-[11px] leading-4 text-muted-foreground">
+                    所有未停用 API 都可人工指定；运行失败不会让已指定 API 从这里消失。
+                  </span>
                 </div>
                 <BackupPicker
-                  credentials={credentialOptions}
+                  credentials={assignableCredentials}
                   selected={draft.backupCredentialIds ?? []}
                   onChange={(backupCredentialIds) => setDraft(slot.task, { backupCredentialIds })}
                   disabled={autoEnabled}
                 />
+                <BlockedApiPicker
+                  credentials={assignableCredentials}
+                  selected={draft.excludedCredentialIds ?? []}
+                  onChange={(excludedCredentialIds) => (
+                    setDraft(slot.task, { excludedCredentialIds })
+                  )}
+                  disabled={!autoEnabled}
+                />
                 <div className="api-routing-actions">
                   <label className="api-routing-field">
-                    <span className="api-routing-field-label">超时</span>
+                    <span className="api-routing-field-label">任务总等待上限（秒）</span>
                     <Input
                       className="bg-white/80"
                       type="number"
@@ -477,6 +712,36 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
                       value={draft.timeoutSeconds ?? slot.timeoutSeconds}
                       onChange={(event) => setDraft(slot.task, { timeoutSeconds: Number(event.target.value) })}
                     />
+                    <span className="text-[11px] leading-4 text-muted-foreground">
+                      主 API 和备用 API 的全部尝试合计，通常无需修改。
+                    </span>
+                  </label>
+                  <label className="api-routing-field">
+                    <span className="api-routing-field-label">接力延迟（毫秒）</span>
+                    <Input
+                      className="bg-white/80"
+                      type="number"
+                      min={0}
+                      value={draft.hedgingDelayMs ?? slot.hedgingDelayMs}
+                      onChange={(event) => setDraft(slot.task, { hedgingDelayMs: Number(event.target.value) })}
+                    />
+                    <span className="text-[11px] leading-4 text-muted-foreground">
+                      首个候选超过该时间未返回时，允许启动下一个候选。
+                    </span>
+                  </label>
+                  <label className="api-routing-field">
+                    <span className="api-routing-field-label">并行接力数</span>
+                    <Input
+                      className="bg-white/80"
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={draft.maxParallel ?? slot.maxParallel}
+                      onChange={(event) => setDraft(slot.task, { maxParallel: Number(event.target.value) })}
+                    />
+                    <span className="text-[11px] leading-4 text-muted-foreground">
+                      允许同时等待的候选数；未返回的上游不保证被撤销。
+                    </span>
                   </label>
                   <Button
                     size="sm"
@@ -514,7 +779,7 @@ function BackupPicker({
     return `${item.label} ${item.modelName}`.toLowerCase().includes(keyword);
   });
   const summary = disabled
-    ? '自动调度时由系统选择'
+    ? '当前任务自动选择时由系统决定'
     : selectedCredentials.length
       ? `已选 ${selectedCredentials.length} 个备用 API`
       : '未选择备用 API';
@@ -530,7 +795,7 @@ function BackupPicker({
   return (
     <div className={`api-routing-field api-backup-picker ${disabled ? 'is-disabled' : ''}`}>
       <div className="api-routing-field-label">
-        备用池{disabled ? '（自动调度时由系统选择）' : ''}
+        备用池{disabled ? '（当前任务自动选择时由系统决定）' : ''}
       </div>
       <Popover>
         <PopoverTrigger asChild>
@@ -574,6 +839,87 @@ function BackupPicker({
   );
 }
 
+function BlockedApiPicker({
+  credentials,
+  selected,
+  onChange,
+  disabled,
+}: {
+  credentials: ApiCredential[];
+  selected: string[];
+  onChange: (value: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [query, setQuery] = useState('');
+  const selectedCredentials = credentials.filter((item) => selected.includes(item.id));
+  const filteredCredentials = credentials.filter((item) => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) return true;
+    return `${item.label} ${item.modelName}`.toLowerCase().includes(keyword);
+  });
+  const summary = disabled
+    ? '人工指定时不使用屏蔽名单'
+    : selectedCredentials.length
+      ? `已排除 ${selectedCredentials.length} 个 API`
+      : '未排除 API';
+
+  const toggleCredential = (credentialId: string) => {
+    onChange(
+      selected.includes(credentialId)
+        ? selected.filter((id) => id !== credentialId)
+        : [...selected, credentialId],
+    );
+  };
+
+  return (
+    <div className={`api-routing-field api-backup-picker ${disabled ? 'is-disabled' : ''}`}>
+      <div className="api-routing-field-label">本任务自动排除</div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="api-backup-trigger"
+            disabled={disabled || !credentials.length}
+          >
+            <span>{summary}</span>
+            <Ban className="size-4 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[22rem] rounded-xl p-2">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索 API"
+            className="mb-2"
+          />
+          <div className="api-backup-menu compact-scrollbar">
+            {filteredCredentials.length ? filteredCredentials.map((item) => {
+              const checked = selected.includes(item.id);
+              return (
+                <label key={item.id} className="api-backup-option">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleCredential(item.id)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-foreground">
+                      {displayCredentialLabel(item)}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {item.modelName} · {item.autoAssignEnabled ? '可进入自动候选' : '仅人工使用'}
+                    </span>
+                  </span>
+                </label>
+              );
+            }) : <span className="block px-2 py-3 text-sm text-muted-foreground">暂无匹配 API</span>}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 function HealthChecks({
   data,
   onOpenTraces,
@@ -584,16 +930,28 @@ function HealthChecks({
   const queryClient = useQueryClient();
   const [credentialId, setCredentialId] = useState(data.credentials[0]?.id ?? '');
   const [task, setTask] = useState<ModelTaskName>('search_system_routing');
-  const [schedule, setSchedule] = useState<HealthScheduleSettings>(() => loadHealthSchedule());
+  const activeCredentials = data.credentials.filter((item) => item.status !== 'disabled');
   const runAllMutation = useMutation({
-    mutationFn: () => runApiHealthChecks({ includeDisabled: false }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-center-summary'] });
-      setSchedule((current) => saveHealthSchedule(nextHealthSchedule(current)));
-    },
+    mutationFn: () => runApiHealthChecks(
+      { includeDisabled: false },
+      activeCredentials.length,
+    ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
+  });
+  const maintenanceMutation = useMutation({
+    mutationFn: () => runApiCenterMaintenance(
+      Math.min(
+        Math.max(data.maintenance.maxCredentialsPerCycle, 1),
+        activeCredentials.length || 1,
+      ),
+    ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
   });
   const testMutation = useMutation({
-    mutationFn: () => testApiCredential(credentialId, task),
+    mutationFn: () => testApiCredential(
+      credentialId,
+      task,
+    ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
   });
 
@@ -603,28 +961,26 @@ function HealthChecks({
     }
   }, [credentialId, data.credentials]);
 
-  useEffect(() => {
-    if (!schedule.enabled || runAllMutation.isPending) return;
-    if (Date.now() < schedule.nextRunAt) return;
-    runAllMutation.mutate();
-  }, [runAllMutation, schedule.enabled, schedule.nextRunAt]);
-
   return (
     <section className="surface-card overflow-hidden">
       <SectionHeader
         title="健康度监测"
-        description="这里管理真实调用自动回写、一键巡检和定时巡检；每次巡检的详细调用记录统一放在调用链路日志。"
+        description="这里管理真实调用自动回写、一键巡检和单个 API 测试；每次巡检的详细调用记录统一放在调用链路日志。"
       />
-      {(runAllMutation.isSuccess || testMutation.isSuccess) && (
+      {(runAllMutation.isSuccess || testMutation.isSuccess || maintenanceMutation.isSuccess) && (
         <div className="border-b border-border bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {runAllMutation.data
+          {maintenanceMutation.data
+            ? `后台维护完成：抽检 ${maintenanceMutation.data.checkedCount} 个，健康 ${maintenanceMutation.data.okCount} 个，清理调用日志 ${maintenanceMutation.data.deletedCallTraceCount} 条。`
+            : runAllMutation.data
             ? `巡检完成：共 ${runAllMutation.data.checkedCount} 个，健康 ${runAllMutation.data.okCount} 个，异常 ${runAllMutation.data.failedCount} 个。`
             : '单个 API 测试完成。'}
         </div>
       )}
-      {(runAllMutation.isError || testMutation.isError) && (
+      {(runAllMutation.isError || testMutation.isError || maintenanceMutation.isError) && (
         <div className="border-b border-border bg-red-50 px-4 py-3 text-sm text-red-700">
-          {getApiError(runAllMutation.error ?? testMutation.error).message}
+          {healthCheckErrorMessage(
+            runAllMutation.error ?? testMutation.error ?? maintenanceMutation.error,
+          )}
         </div>
       )}
       <div className="grid gap-3 border-b border-border bg-muted/20 p-4 xl:grid-cols-3">
@@ -639,7 +995,8 @@ function HealthChecks({
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-sm font-semibold text-foreground">一键巡检</h3>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            管理员主动点一次，系统会用最小 JSON 探针检测 API 是否能跑通。
+            系统会用独立的 60 秒窗口执行最小 JSON 探针，不受 API 当前单次调用上限影响。
+            瞬时网络或上游错误会自动再试一次；成功后按真实耗时自动校准，无需手动调整秒数。
           </p>
           <div className="mt-3 grid gap-2">
             <Button
@@ -681,48 +1038,66 @@ function HealthChecks({
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-foreground">定时巡检</h3>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            当前测试版会在打开 API 中心时检查是否到期；到期后自动巡检全部 API。
-            服务器正式部署后，可把同一个巡检接口接入 cron 或任务队列。
-          </p>
-          <div className="mt-3 grid gap-2 text-sm">
-            <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2">
-              <input
-                type="checkbox"
-                checked={schedule.enabled}
-                onChange={(event) => {
-                  setSchedule(saveHealthSchedule({
-                    ...schedule,
-                    enabled: event.target.checked,
-                    nextRunAt: Date.now() + schedule.intervalHours * 60 * 60 * 1000,
-                  }));
-                }}
-              />
-              <span>开启定时巡检</span>
-            </label>
-            <label className="grid gap-1 text-xs text-muted-foreground">
-              巡检间隔（小时）
-              <Input
-                type="number"
-                min={1}
-                max={168}
-                value={schedule.intervalHours}
-                onChange={(event) => {
-                  const intervalHours = Math.max(1, Number(event.target.value) || 24);
-                  setSchedule(saveHealthSchedule({
-                    ...schedule,
-                    intervalHours,
-                    nextRunAt: Date.now() + intervalHours * 60 * 60 * 1000,
-                  }));
-                }}
-              />
-            </label>
-            <p className="text-xs text-muted-foreground">
-              下次巡检：{schedule.enabled ? new Date(schedule.nextRunAt).toLocaleString('zh-CN') : '未开启'}
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-foreground">后台维护</h3>
+            <Badge
+              variant="outline"
+              className={data.maintenance.enabled ? statusClass.ok : statusClass.disabled}
+            >
+              {data.maintenance.enabled ? '已启用' : '未启用'}
+            </Badge>
           </div>
+          <dl className="mt-3 grid gap-2 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">巡检节奏</dt>
+              <dd className="font-medium text-foreground">
+                每 {data.maintenance.intervalMinutes} 分钟 · 单轮最多 {data.maintenance.maxCredentialsPerCycle} 个
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">日志保留</dt>
+              <dd className="font-medium text-foreground">
+                链路 {data.maintenance.callTraceRetentionDays} 天 · 健康 {data.maintenance.healthCheckRetentionDays} 天
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">上次结果</dt>
+              <dd className="font-medium text-foreground">
+                {maintenanceStatusLabel(data.maintenance.lastStatus)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">上次完成</dt>
+              <dd className="font-medium text-foreground">
+                {formatDateTime(data.maintenance.lastFinishedAt)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">下次预计</dt>
+              <dd className="font-medium text-foreground">
+                {formatDateTime(data.maintenance.nextRunAt)}
+              </dd>
+            </div>
+          </dl>
+          <div className="mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            最近抽检 {data.maintenance.lastCheckedCount} 个，
+            清理调用日志 {data.maintenance.lastDeletedCallTraceCount} 条，
+            清理健康记录 {data.maintenance.lastDeletedHealthCheckCount} 条。
+          </div>
+          {data.maintenance.lastError ? (
+            <p className="mt-2 text-xs text-red-700">{data.maintenance.lastError}</p>
+          ) : null}
+          <Button
+            className="mt-3 w-full"
+            variant="outline"
+            size="sm"
+            disabled={!activeCredentials.length || maintenanceMutation.isPending}
+            onClick={() => maintenanceMutation.mutate()}
+          >
+            {maintenanceMutation.isPending ? '维护中...' : '立即执行后台维护'}
+          </Button>
         </div>
+
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
         <p className="text-xs text-muted-foreground">
@@ -738,18 +1113,143 @@ function HealthChecks({
 }
 
 function CallTraces({ data }: { data: ApiCenterSummary }) {
-  const rows = useMemo(() => data.recentCallTraces.slice(0, 80), [data.recentCallTraces]);
+  const pageSize = 50;
+  const [filters, setFilters] = useState({
+    keyword: '',
+    requestId: '',
+    task: '',
+    status: '',
+    provider: '',
+    credentialId: '',
+  });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+  const [offset, setOffset] = useState(0);
+  const tracesQuery = useQuery({
+    queryKey: ['api-call-traces', appliedFilters, offset],
+    queryFn: () => fetchApiCallTraces({
+      ...appliedFilters,
+      limit: pageSize,
+      offset,
+    }),
+  });
+  const rows = tracesQuery.data?.items ?? data.recentCallTraces.slice(0, 80);
+  const total = tracesQuery.data?.total ?? rows.length;
+  const hasMore = tracesQuery.data?.hasMore ?? false;
+  const applyFilters = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setOffset(0);
+    setAppliedFilters(filters);
+  };
+  const resetFilters = () => {
+    const next = {
+      keyword: '',
+      requestId: '',
+      task: '',
+      status: '',
+      provider: '',
+      credentialId: '',
+    };
+    setFilters(next);
+    setAppliedFilters(next);
+    setOffset(0);
+  };
   return (
     <section className="surface-card overflow-hidden">
       <SectionHeader
         title="全项目 API 调用链路"
         description="这里统一显示上传分析、话术生成、搜索、素材库 Agent、文案匹配和健康检查等模型/API 调用结果；不包含完整密钥、Prompt、图片或聊天正文。"
       />
+      <form
+        className="grid gap-3 border-b border-border bg-muted/20 px-4 py-3 md:grid-cols-[1.2fr_1fr_1fr_1fr] xl:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto]"
+        onSubmit={applyFilters}
+      >
+        <Input
+          value={filters.keyword}
+          onChange={(event) => setFilters((current) => ({
+            ...current,
+            keyword: event.target.value,
+          }))}
+          placeholder="搜索关键词 / 错误码 / 摘要"
+        />
+        <Input
+          value={filters.requestId}
+          onChange={(event) => setFilters((current) => ({
+            ...current,
+            requestId: event.target.value,
+          }))}
+          placeholder="请求 ID"
+        />
+        <Select
+          value={filters.task}
+          onChange={(event) => setFilters((current) => ({
+            ...current,
+            task: event.target.value,
+          }))}
+        >
+          <option value="">全部任务</option>
+          {Object.entries(taskLabels).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </Select>
+        <Select
+          value={filters.status}
+          onChange={(event) => setFilters((current) => ({
+            ...current,
+            status: event.target.value,
+          }))}
+        >
+          <option value="">全部状态</option>
+          <option value="ok">OK</option>
+          <option value="failed">失败</option>
+          <option value="timed_out">超时</option>
+          <option value="skipped">未配置/跳过</option>
+        </Select>
+        <Select
+          value={filters.credentialId || (filters.provider ? `provider:${filters.provider}` : '')}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (value.startsWith('provider:')) {
+              setFilters((current) => ({
+                ...current,
+                provider: value.slice('provider:'.length),
+                credentialId: '',
+              }));
+              return;
+            }
+            setFilters((current) => ({
+              ...current,
+              provider: '',
+              credentialId: value,
+            }));
+          }}
+        >
+          <option value="">全部中转站/API</option>
+          {data.providerGroups.map((group) => (
+            <option key={group.providerGroup} value={`provider:${group.providerGroup}`}>
+              中转站：{group.providerGroup}
+            </option>
+          ))}
+          {data.credentials.map((credential) => (
+            <option key={credential.id} value={credential.id}>
+              API：{displayCredentialLabel(credential)}
+            </option>
+          ))}
+        </Select>
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" className="flex-1" disabled={tracesQuery.isFetching}>
+            筛选
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
+            重置
+          </Button>
+        </div>
+      </form>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">时间</th>
+              <th className="px-4 py-3 font-medium">所属请求</th>
               <th className="px-4 py-3 font-medium">层级</th>
               <th className="px-4 py-3 font-medium">Provider / 模型</th>
               <th className="px-4 py-3 font-medium">API</th>
@@ -762,6 +1262,22 @@ function CallTraces({ data }: { data: ApiCenterSummary }) {
             {rows.length ? rows.map((item) => (
               <tr key={item.id}>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString('zh-CN')}</td>
+                <td className="max-w-[260px] px-4 py-3 text-xs">
+                  <div className="truncate font-medium text-foreground" title={traceContextLabel(item)}>
+                    {traceContextLabel(item)}
+                  </div>
+                  {item.searchKeyword && item.searchResultCount != null ? (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      结果已返回 {item.searchResultCount} 张
+                      {item.searchTimedOut ? ' · 部分增强超时' : ''}
+                    </div>
+                  ) : null}
+                  {item.requestId ? (
+                    <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                      {item.requestId.slice(0, 8)}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-4 py-3">
                   <div className="font-medium text-foreground">{item.layerName}</div>
                   <div className="text-xs text-muted-foreground">{item.task}</div>
@@ -776,18 +1292,95 @@ function CallTraces({ data }: { data: ApiCenterSummary }) {
                   </Badge>
                 </td>
                 <td className="px-4 py-3">{item.durationMs}ms</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">{item.errorSummary || '—'}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  <TraceErrorDetail item={item} />
+                </td>
               </tr>
             )) : (
               <tr>
-                <td colSpan={7}><Empty text="暂无 API 调用记录。项目中的任一模型/API 调用完成后都会出现在这里。" /></td>
+                <td colSpan={8}><Empty text="暂无 API 调用记录。项目中的任一模型/API 调用完成后都会出现在这里。" /></td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+        <span>
+          共 {total} 条
+          {tracesQuery.isFetching ? ' · 正在刷新' : ''}
+        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={offset <= 0 || tracesQuery.isFetching}
+            onClick={() => setOffset((current) => Math.max(0, current - pageSize))}
+          >
+            上一页
+          </Button>
+          <span>{Math.floor(offset / pageSize) + 1}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!hasMore || tracesQuery.isFetching}
+            onClick={() => setOffset((current) => current + pageSize)}
+          >
+            下一页
+          </Button>
+        </div>
+      </div>
     </section>
   );
+}
+
+function TraceErrorDetail({ item }: { item: ApiCallTrace }) {
+  if (!item.errorCode && !item.errorSummary) return <>—</>;
+  return (
+    <div className="space-y-1.5">
+      {item.errorCode ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-mono text-[11px] text-foreground">{item.errorCode}</span>
+          {item.errorCategory ? (
+            <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600">
+              {errorCategoryLabel[item.errorCategory] ?? item.errorCategory}
+            </Badge>
+          ) : null}
+          {item.errorSeverity ? (
+            <Badge
+              variant="outline"
+              className={errorSeverityClass[item.errorSeverity] ?? errorSeverityClass.warning}
+            >
+              {errorSeverityLabel[item.errorSeverity] ?? item.errorSeverity}
+            </Badge>
+          ) : null}
+          {item.errorRetryable != null ? (
+            <Badge variant="outline" className="border-border bg-card text-muted-foreground">
+              {item.errorRetryable ? '可重试/可换候选' : '不盲目重试'}
+            </Badge>
+          ) : null}
+        </div>
+      ) : null}
+      {item.errorSummary ? <div>{item.errorSummary}</div> : null}
+      {item.errorSystemAction ? (
+        <div className="text-[11px] text-muted-foreground">
+          系统：{item.errorSystemAction}
+        </div>
+      ) : null}
+      {item.errorOperatorAction ? (
+        <div className="text-[11px] text-muted-foreground">
+          建议：{item.errorOperatorAction}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function traceContextLabel(item: ApiCallTrace): string {
+  if (item.searchKeyword) return `搜索：${item.searchKeyword}`;
+  if (item.outputSummary.kind === 'health_check') return '健康检查';
+  if (item.outputSummary.kind === 'temperature_probe') return '温度探测';
+  if (item.requestId) return '业务请求';
+  return '历史独立调用';
 }
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
@@ -819,44 +1412,75 @@ function capacityLabel(status: string): string {
   return labels[status] ?? status;
 }
 
+function providerGroupStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    ok: '稳定',
+    watch: '观察',
+    degraded: '建议处理',
+  };
+  return labels[status] ?? status;
+}
+
+function capabilityStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    ok: '可用',
+    failed: '不匹配',
+    unknown: '未检测',
+  };
+  return labels[status] ?? status;
+}
+
+function capabilityTooltip(capability: ApiCredential['capabilityProfile'][number]): string {
+  const parts = [
+    `${capability.label}: ${capabilityStatusLabel(capability.status)}`,
+    capability.lastTask ? `最近任务：${taskLabels[capability.lastTask] ?? capability.lastTask}` : '',
+    capability.durationMs != null ? `耗时：${capability.durationMs}ms` : '',
+    capability.errorSummary ? `摘要：${capability.errorSummary}` : '',
+    capability.checkedAt ? `检测时间：${new Date(capability.checkedAt).toLocaleString('zh-CN')}` : '',
+  ].filter(Boolean);
+  return parts.join('\n');
+}
+
 function formatPercent(value: number): string {
   return `${Math.round((value || 0) * 100)}%`;
 }
 
-function loadHealthSchedule(): HealthScheduleSettings {
-  const fallback: HealthScheduleSettings = {
-    enabled: false,
-    intervalHours: 24,
-    nextRunAt: Date.now() + 24 * 60 * 60 * 1000,
-  };
-  try {
-    const raw = window.localStorage.getItem(HEALTH_SCHEDULE_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    const intervalHours = Math.max(1, Number(parsed?.intervalHours || 24));
-    return {
-      enabled: Boolean(parsed?.enabled),
-      intervalHours,
-      nextRunAt: Number(parsed?.nextRunAt || Date.now() + intervalHours * 60 * 60 * 1000),
-    };
-  } catch {
-    return fallback;
+function temperatureTuneMessage(result: ApiTemperatureTuneResult): string {
+  if (result.status !== 'ok' || result.selectedTemperatureEnabled == null) {
+    const lastProbe = result.probes.at(-1);
+    return lastProbe?.errorSummary
+      ? `测试未通过：${lastProbe.errorSummary}`
+      : `测试未通过：已检查 ${result.probes.length} 种参数设置。`;
   }
+  if (!result.selectedTemperatureEnabled) {
+    return '测试通过：该模型不接受 temperature，保存后将自动不发送此参数。';
+  }
+  if (result.selectedTemperature === result.previousTemperature) {
+    return `温度匹配完成：当前 ${result.selectedTemperature} 可用，已保持原设置。`;
+  }
+  return `温度匹配完成：已从 ${result.previousTemperature} 调整为 ${result.selectedTemperature}。`;
 }
 
-function saveHealthSchedule(value: HealthScheduleSettings): HealthScheduleSettings {
-  try {
-    window.localStorage.setItem(HEALTH_SCHEDULE_STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // localStorage 不可用时，仅保留当前页面内的设置。
-  }
-  return value;
+function maintenanceStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    idle: '尚未运行',
+    running: '正在运行',
+    ok: '运行正常',
+    failed: '运行失败',
+  };
+  return labels[status] ?? status;
 }
 
-function nextHealthSchedule(value: HealthScheduleSettings): HealthScheduleSettings {
-  return {
-    ...value,
-    nextRunAt: Date.now() + value.intervalHours * 60 * 60 * 1000,
-  };
+function formatDateTime(value?: string | null): string {
+  return value ? new Date(value).toLocaleString('zh-CN') : '暂无';
+}
+
+function healthCheckErrorMessage(error: unknown): string {
+  const apiError = getApiError(error);
+  if (apiError.code === 'request_timeout') {
+    return '页面等待巡检结果超过预计时间。后台检测可能仍在继续，请稍后刷新或查看调用链路；这不代表 API 已停用，也不需要修改调用上限。';
+  }
+  return apiError.message;
 }
 
 function LabeledInput({

@@ -1,0 +1,98 @@
+@startuml
+title 卖点智库低保真界面原型与页面流程
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam defaultFontName "Arial Unicode MS"
+skinparam rectangle {
+  BorderColor #334155
+  BackgroundColor #F8FAFC
+  FontColor #0F172A
+}
+skinparam package {
+  BorderColor #CBD5E1
+  BackgroundColor #FFFFFF
+  FontColor #0F172A
+}
+skinparam arrow {
+  Color #2563EB
+  Thickness 1.5
+}
+
+rectangle "登录页 /login\n----\n用户名\n密码\n登录按钮\n失败提示" as Login #F1F5F9
+
+rectangle "应用外壳 Layout\n----\n左侧导航\n账号菜单\n角色权限\n页面内容区" as Shell #E0F2FE
+
+package "业务用户主流程" {
+  rectangle "素材库首页 /\n----\n全局搜索框\n渠道筛选\n卖点筛选\n排序\n素材卡片网格" as Home #ECFDF5
+  rectangle "搜索结果区\n----\n动态匹配卖点\n结果卡片\n身份码复制\n搜索反馈\n项目篮" as SearchResult #ECFDF5
+  rectangle "素材详情 /image/:id\n----\n大图预览\n身份码\n下载菜单\n相关素材推荐" as Detail #ECFDF5
+  rectangle "下载/预览\n----\n预览不计数\n下载计数\n按版本下载" as Download #ECFDF5
+}
+
+package "设计师 / 管理员素材维护流" {
+  rectangle "上传主图弹窗\n----\n选择图片\n选择渠道\n选择卖点\n填写素材话术\n上传并发布" as Upload #FFF7ED
+  rectangle "素材工作台\n----\n版本管理\n来源链接\n业务分类\n卖点关系审核\n素材话术审核" as Workspace #FFF7ED
+  rectangle "AI 分析面板\n----\n画面事实\n场景判断\n卖点建议\n话术建议\n错误状态" as AiPanel #FFF7ED
+  rectangle "回收站 /trash\n----\n已删除图片\n恢复\n永久删除" as Trash #FFF7ED
+}
+
+package "管理员运营与系统配置" {
+  rectangle "卖点管理 /admin/concepts\n----\n六大体系\n16 个卖点\n公共话术\n启用/停用" as Concepts #EEF2FF
+  rectangle "渠道管理 /admin/channels\n----\n渠道标签\n渠道话术\n推荐说明" as Channels #EEF2FF
+  rectangle "API 中心 /admin/api-center\n----\n新增 API\n健康检查\n任务路由\n调用链路\n容量/排除" as ApiCenter #EEF2FF
+  rectangle "搜索运营 /admin/search-ops\n----\n概览\n治理\n问题\n审核队列\n概念健康\n性能\n素材缺口\n反馈归档" as SearchOps #EEF2FF
+  rectangle "身份码管理 /admin/identity-codes\n----\n素材码\n版本码\n复制\n历史台账" as IdentityCodes #EEF2FF
+  rectangle "用户与权限 /admin/users\n----\nadmin\ndesigner\nbusiness\n重置密码" as Users #EEF2FF
+  rectangle "审计/统计\n----\n审计日志\n使用统计\n登录/访问/下载" as AuditUsage #EEF2FF
+}
+
+Login --> Shell : 登录成功
+Shell --> Home : 默认进入
+
+Home --> SearchResult : 输入搜索词
+SearchResult --> Detail : 点击素材卡片
+Detail --> Download : 预览或下载
+Detail --> Home : 返回素材库
+Home --> Detail : 点击普通素材卡片
+
+Shell --> Upload : 上传主图\nadmin/designer
+Upload --> Detail : 上传成功
+Detail --> Workspace : 维护素材资产
+Workspace --> AiPanel : 触发/查看 AI 分析
+Workspace --> SearchResult : accepted 关系和话术进入搜索
+Shell --> Trash : 删除素材后查看\nadmin/designer
+Trash --> Home : 恢复后回到素材库
+
+Shell --> Concepts : 管理员
+Shell --> Channels : 管理员
+Shell --> ApiCenter : 管理员
+Shell --> SearchOps : admin/designer
+Shell --> IdentityCodes : 管理员
+Shell --> Users : 管理员
+Shell --> AuditUsage : 管理员
+
+Detail --> Workspace : admin/designer 进入维护区
+Workspace --> SearchResult : accepted 关系进入搜索结果
+
+note bottom of Concepts
+后台页面不是线性流程。
+它们都从左侧导航进入：
+卖点管理、渠道管理、API 中心、
+搜索运营、身份码、用户、审计、统计。
+end note
+
+note bottom of SearchResult
+搜索结果不是只看视觉相似。
+普通搜索走卖点理解和 accepted 关系；
+身份码/分享链接先走精确查找。
+end note
+
+note bottom of ApiCenter
+API 中心是运行时唯一入口。
+.env 只用于首次空库导入；
+日常新增、启停和路由都在后台完成。
+end note
+
+@enduml

@@ -549,6 +549,30 @@ def test_learning_outcome_visibility_keeps_report_and_quiz_as_shared_candidates(
     )
 
 
+def test_after_lesson_practice_confirmation_prefers_instant_quiz_over_rapid_review():
+    service = QueryUnderstandingService()
+
+    for query in [
+        "刚讲完一个知识点想马上练几题确认",
+        "刚讲完一个知识点想配个马上练几题确认的素材",
+    ]:
+        understanding = service.understand_locally(query)
+
+        assert understanding is not None
+        assert understanding.query_type == "business_intent_search"
+        assert [
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        ] == ["课后小测"]
+        assert [
+            item.code for item in understanding.matched_proof_points
+        ] == ["pp_learn_practice_loop"]
+        assert "极速预习复习" not in {
+            item.concept.rsplit(">", 1)[-1].strip()
+            for item in understanding.matched_business_concepts
+        }
+
+
 def test_level_matched_virtual_class_is_trusted_ai_learning_plan():
     query = "动态组建一个与你水平相匹配的虚拟班级，安排个性化的学习节奏与内容"
     understanding = QueryUnderstandingService().understand_locally(query)
@@ -663,6 +687,8 @@ def test_difficulty_upgrade_composition_keeps_neighbor_boundaries():
 
     difficulty = service.understand_locally("从90分往满分冲")
     high_order = service.understand_locally("哪个卖点能体现不是只教基础")
+    training_image = service.understand_locally("想训练拔高的图")
+    training_material = service.understand_locally("想找训练拔高素材")
     exam_stage = service.understand_locally("期末冲刺高分")
     targeted = service.understand_locally("精准补弱")
     transfer = service.understand_locally("讲完当前题再做同类题训练")
@@ -674,6 +700,16 @@ def test_difficulty_upgrade_composition_keeps_neighbor_boundaries():
     assert high_order is not None
     assert [
         item.code for item in high_order.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert training_image is not None
+    assert training_image.query_type == "business_intent_search"
+    assert [
+        item.code for item in training_image.matched_proof_points
+    ] == ["pp_exam_focus_targeted_modules"]
+    assert training_material is not None
+    assert training_material.query_type == "business_intent_search"
+    assert [
+        item.code for item in training_material.matched_proof_points
     ] == ["pp_exam_focus_targeted_modules"]
     assert exam_stage is not None
     assert [

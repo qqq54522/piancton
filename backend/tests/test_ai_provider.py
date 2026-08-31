@@ -16,7 +16,10 @@ from app.ai.contracts import (
     ModelRequest,
 )
 from app.ai.fallback import FallbackModelProvider
-from app.ai.openai_compatible import OpenAICompatibleModelProvider
+from app.ai.openai_compatible import (
+    OpenAICompatibleModelProvider,
+    _classify_http_status_error,
+)
 from app.api.dependencies import _provider_attempt_count
 from app.schemas.ai import SearchUnderstanding
 from app.services.ai_service import AiService
@@ -54,6 +57,48 @@ def test_openai_compatible_provider_extracts_json_from_markdown_wrapped_content(
 
     assert result.value["original_query"] == "老师"
     assert result.value["normalized_query"] == "老师"
+
+
+def test_openai_compatible_provider_omits_temperature_when_disabled(monkeypatch):
+    provider = OpenAICompatibleModelProvider(
+        base_url="https://example.test/v1",
+        api_key="test-key",
+        model_name="reasoning-model",
+        temperature=None,
+    )
+    captured_payload = {}
+
+    def fake_post(payload):
+        captured_payload.update(payload)
+        return {"choices": [{"message": {"content": '{"ok": true}'}}]}
+
+    monkeypatch.setattr(provider, "_post_chat_completions", fake_post)
+
+    result = provider.generate_json(ModelRequest(task="search_system_routing", prompt=""))
+
+    assert result.value == {"ok": True}
+    assert "temperature" not in captured_payload
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "expected_code"),
+    [
+        (401, "unauthorized", "authentication_failed"),
+        (404, "model not found", "model_not_found"),
+        (429, "rate limit", "rate_limited"),
+        (503, "upstream unavailable", "upstream_unavailable"),
+        (400, "Unsupported value: temperature", "temperature_value_unsupported"),
+        (400, "This model does not support temperature", "temperature_not_supported"),
+    ],
+)
+def test_openai_compatible_http_errors_have_stable_codes(status, body, expected_code):
+    request = httpx.Request("POST", "https://example.test/v1/chat/completions")
+    response = httpx.Response(status, request=request, text=body)
+    error = httpx.HTTPStatusError("request failed", request=request, response=response)
+
+    code, _ = _classify_http_status_error(error)
+
+    assert code == expected_code
 
 
 def test_openai_compatible_provider_sends_image_as_data_url(tmp_path: Path, monkeypatch):
@@ -177,6 +222,42 @@ def test_openai_compatible_provider_maps_timeout_race_to_cancelled(monkeypatch):
             self.closed = True
 
     monkeypatch.setattr("app.ai.openai_compatible.httpx.Client", TimeoutClient)
+    provider = OpenAICompatibleModelProvider(
+        base_url="https://example.test/v1",
+        api_key="test-key",
+        model_name="search-model",
+    )
+    cancellation = CancellationSignal()
+    cancellation.cancel()
+
+    with pytest.raises(ModelProviderCancelled):
+        provider.generate_json(
+            ModelRequest(
+                task="search_system_routing",
+                prompt="Return JSON",
+                cancellation=cancellation,
+            )
+        )
+
+
+def test_openai_compatible_provider_maps_connect_race_to_cancelled(monkeypatch):
+    class ConnectClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        def post(self, *_args, **_kwargs):
+            raise httpx.ConnectError(
+                "transport closed during connect",
+                request=httpx.Request(
+                    "POST",
+                    "https://example.test/v1/chat/completions",
+                ),
+            )
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr("app.ai.openai_compatible.httpx.Client", ConnectClient)
     provider = OpenAICompatibleModelProvider(
         base_url="https://example.test/v1",
         api_key="test-key",

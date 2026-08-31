@@ -606,8 +606,10 @@ export interface ApiCredential {
   priority: number;
   timeoutSeconds: number;
   temperature: number;
+  temperatureEnabled: boolean;
   maxConcurrency: number;
   autoAssignEnabled: boolean;
+  capabilityProfile: ApiCredentialCapability[];
   currentConcurrency: number;
   availableConcurrency: number;
   capacityStatus: string;
@@ -622,6 +624,29 @@ export interface ApiCredential {
   updatedAt: string;
 }
 
+export interface ApiCredentialCapability {
+  capability: string;
+  label: string;
+  status: 'ok' | 'failed' | 'unknown';
+  lastTask?: string | null;
+  durationMs?: number | null;
+  errorSummary?: string | null;
+  checkedAt?: string | null;
+}
+
+export interface ApiProviderGroup {
+  providerGroup: string;
+  credentialCount: number;
+  activeCredentialCount: number;
+  autoAssignCredentialCount: number;
+  currentConcurrency: number;
+  recentCallCount: number;
+  recentFailureRate: number;
+  recentTimeoutCount: number;
+  status: 'ok' | 'watch' | 'degraded';
+  recommendation?: string | null;
+}
+
 export interface ApiCredentialCreate {
   label: string;
   providerType?: string;
@@ -629,10 +654,11 @@ export interface ApiCredentialCreate {
   modelName: string;
   apiKey: string;
   taskScope?: ModelTaskName[];
-  status?: 'active' | 'disabled' | 'cooling' | 'invalid';
+  status?: 'active' | 'disabled';
   priority?: number;
   timeoutSeconds?: number;
   temperature?: number;
+  temperatureEnabled?: boolean;
   maxConcurrency?: number;
   autoAssignEnabled?: boolean;
 }
@@ -644,10 +670,11 @@ export interface ApiCredentialUpdate {
   modelName?: string;
   apiKey?: string;
   taskScope?: ModelTaskName[];
-  status?: 'active' | 'disabled' | 'cooling' | 'invalid';
+  status?: 'active' | 'disabled';
   priority?: number;
   timeoutSeconds?: number;
   temperature?: number;
+  temperatureEnabled?: boolean;
   maxConcurrency?: number;
   autoAssignEnabled?: boolean;
 }
@@ -723,6 +750,8 @@ export interface RoutingSlot {
   primaryCredentialLabel?: string | null;
   backupCredentialIds: string[];
   backupCredentialLabels: string[];
+  excludedCredentialIds: string[];
+  excludedCredentialLabels: string[];
   timeoutSeconds: number;
   hedgingDelayMs: number;
   maxParallel: number;
@@ -735,6 +764,7 @@ export interface RoutingSlotUpdate {
   label?: string;
   primaryCredentialId?: string | null;
   backupCredentialIds?: string[];
+  excludedCredentialIds?: string[];
   timeoutSeconds?: number;
   hedgingDelayMs?: number;
   maxParallel?: number;
@@ -749,6 +779,12 @@ export interface ApiHealthCheck {
   task: string;
   status: string;
   durationMs: number;
+  errorCode?: string | null;
+  errorCategory?: string | null;
+  errorSeverity?: string | null;
+  errorRetryable?: boolean | null;
+  errorOperatorAction?: string | null;
+  errorSystemAction?: string | null;
   errorSummary?: string | null;
   checkedAt: string;
 }
@@ -766,10 +802,56 @@ export interface ApiHealthCheckRunResult {
   checks: ApiHealthCheck[];
 }
 
+export interface ApiTemperatureProbe {
+  temperature?: number | null;
+  temperatureEnabled: boolean;
+  status: string;
+  durationMs: number;
+  errorCode?: string | null;
+  errorCategory?: string | null;
+  errorSeverity?: string | null;
+  errorRetryable?: boolean | null;
+  errorOperatorAction?: string | null;
+  errorSystemAction?: string | null;
+  errorSummary?: string | null;
+  checkedAt: string;
+}
+
+export interface ApiTemperatureTuneRequest {
+  task?: ModelTaskName | null;
+  candidateTemperatures?: number[] | null;
+  timeoutSeconds?: number | null;
+  persist?: boolean;
+}
+
+export interface ApiTemperatureProbeRequest {
+  baseUrl: string;
+  modelName: string;
+  apiKey: string;
+  task?: ModelTaskName;
+  temperature?: number;
+  candidateTemperatures?: number[] | null;
+  timeoutSeconds?: number | null;
+}
+
+export interface ApiTemperatureTuneResult {
+  credentialId: string;
+  credentialLabel?: string | null;
+  status: string;
+  previousTemperature: number;
+  previousTemperatureEnabled: boolean;
+  selectedTemperature?: number | null;
+  selectedTemperatureEnabled?: boolean | null;
+  probes: ApiTemperatureProbe[];
+}
+
 export interface ApiCallTrace {
   id: string;
   searchLogId?: string | null;
   requestId?: string | null;
+  searchKeyword?: string | null;
+  searchResultCount?: number | null;
+  searchTimedOut?: boolean | null;
   task: string;
   layerName: string;
   credentialId?: string | null;
@@ -779,10 +861,35 @@ export interface ApiCallTrace {
   status: string;
   durationMs: number;
   fallbackIndex?: number | null;
+  errorCode?: string | null;
+  errorCategory?: string | null;
+  errorSeverity?: string | null;
+  errorRetryable?: boolean | null;
+  errorOperatorAction?: string | null;
+  errorSystemAction?: string | null;
   errorSummary?: string | null;
   responseValid?: boolean | null;
   outputSummary: Record<string, unknown>;
   createdAt: string;
+}
+
+export interface ApiCallTraceListParams {
+  limit?: number;
+  offset?: number;
+  task?: string;
+  status?: string;
+  provider?: string;
+  credentialId?: string;
+  requestId?: string;
+  keyword?: string;
+}
+
+export interface ApiCallTraceListResponse {
+  items: ApiCallTrace[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
 export interface ApiCenterOverview {
@@ -796,9 +903,41 @@ export interface ApiCenterOverview {
   p95LatencyMs: number;
 }
 
+export interface ApiCenterMaintenance {
+  enabled: boolean;
+  intervalMinutes: number;
+  startupDelaySeconds: number;
+  maxCredentialsPerCycle: number;
+  callTraceRetentionDays: number;
+  healthCheckRetentionDays: number;
+  lastStartedAt?: string | null;
+  lastFinishedAt?: string | null;
+  lastStatus: string;
+  lastError?: string | null;
+  lastCheckedCount: number;
+  lastOkCount: number;
+  lastFailedCount: number;
+  lastDeletedCallTraceCount: number;
+  lastDeletedHealthCheckCount: number;
+  nextRunAt?: string | null;
+}
+
+export interface ApiCenterMaintenanceRunResult {
+  status: string;
+  startedAt: string;
+  finishedAt: string;
+  checkedCount: number;
+  okCount: number;
+  failedCount: number;
+  deletedCallTraceCount: number;
+  deletedHealthCheckCount: number;
+}
+
 export interface ApiCenterSummary {
   overview: ApiCenterOverview;
+  maintenance: ApiCenterMaintenance;
   credentials: ApiCredential[];
+  providerGroups: ApiProviderGroup[];
   routingSlots: RoutingSlot[];
   recentCallTraces: ApiCallTrace[];
 }

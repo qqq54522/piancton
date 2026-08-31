@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import json
 import time
 from dataclasses import replace
 
@@ -161,18 +159,6 @@ class SearchExternalBranches:
             return self.runner.skipped(
                 "query_understanding",
                 detail,
-            ), None
-        cache_key = self.understanding.cache_key(keyword)
-        cached = self.caches.understanding.get(cache_key)
-        if cached is not None:
-            return self.runner.cached(
-                "query_understanding",
-                QueryUnderstandingOutcome(
-                    understanding=cached,
-                    route_completed=True,
-                    selling_point_completed=True,
-                    proof_point_completed=True,
-                ),
             ), None
         if self.understanding.supports_staged_model:
             task = asyncio.create_task(
@@ -528,16 +514,9 @@ class SearchExternalBranches:
         result: SearchBranchResult,
     ) -> SearchUnderstanding | None:
         value = result.value
-        completed = True
         if isinstance(value, QueryUnderstandingOutcome):
-            completed = value.proof_point_completed
             value = value.understanding
         if isinstance(value, SearchUnderstanding):
-            if completed and not result.diagnostic.cache_hit:
-                self.caches.understanding.set(
-                    self.understanding.cache_key(keyword),
-                    value,
-                )
             return self.understanding.arbitrate_model_understanding(
                 local_understanding,
                 value,
@@ -632,23 +611,6 @@ class SearchExternalBranches:
                     detail="没有可复核候选",
                 ),
             )
-        cache_key = _candidate_review_cache_key(keyword, understanding, contexts)
-        cached = self.caches.candidate_reviews.get(cache_key)
-        if cached is not None:
-            reviewed_hits, applied = _apply_candidate_review(hits, cached.decisions)
-            return SearchBranchResult(
-                value=reviewed_hits,
-                diagnostic=SearchBranchDiagnostic(
-                    source="candidate_review",
-                    status="ok",
-                    duration_ms=0,
-                    result_count=applied,
-                    cache_hit=True,
-                    detail=(
-                        f"第四层复核缓存命中 {len(contexts)} 张候选，应用 {applied} 条决策"
-                    ),
-                ),
-            )
         result = await self.runner.run_thread(
             "candidate_review",
             lambda signal: self.understanding.review_candidates_with_model(
@@ -711,7 +673,6 @@ class SearchExternalBranches:
             hits,
             review_result.decisions,
         )
-        self.caches.candidate_reviews.set(cache_key, review_result)
         return SearchBranchResult(
             value=reviewed_hits,
             diagnostic=SearchBranchDiagnostic(
@@ -784,35 +745,6 @@ def _cache_key(value: str) -> str:
 
 def _attempt_suffix(label: str, attempts: str) -> str:
     return f"；{label}：{attempts}" if attempts else ""
-
-
-def _candidate_review_cache_key(
-    keyword: str,
-    understanding: SearchUnderstanding | None,
-    contexts: list[dict],
-) -> str:
-    payload = {
-        "keyword": _cache_key(keyword),
-        "understanding": (
-            understanding.model_dump(mode="json") if understanding else None
-        ),
-        "candidates": [_stable_candidate_review_context(item) for item in contexts],
-    }
-    encoded = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        default=str,
-    )
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
-
-def _stable_candidate_review_context(context: dict) -> dict:
-    return {
-        key: value
-        for key, value in context.items()
-        if key not in {"score", "reasons"}
-    }
 
 
 def _apply_candidate_review(hits: list[SearchHit], decisions) -> tuple[list[SearchHit], int]:

@@ -81,7 +81,7 @@ export async function semanticSearch(
   params: SemanticSearchRequest,
 ): Promise<SemanticSearchResponse> {
   return (
-    await api.post('/api/images/search', params, { timeout: 180_000 })
+    await api.post('/api/images/search', params, { timeout: 210_000 })
   ).data;
 }
 

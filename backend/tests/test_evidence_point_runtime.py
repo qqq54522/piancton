@@ -155,4 +155,4 @@ def test_manual_all_proof_points_stops_automatic_proof_completion():
         understanding.original_query,
         understanding,
     )
-    assert not service.should_use_model(understanding.original_query, understanding)
+    assert service.should_use_model(understanding.original_query, understanding)

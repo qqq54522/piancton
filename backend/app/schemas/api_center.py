@@ -25,10 +25,11 @@ class ApiCredentialCreate(ApiModel):
     model_name: str
     api_key: str
     task_scope: list[ModelTaskName] = []
-    status: Literal["active", "disabled", "cooling", "invalid"] = "active"
+    status: Literal["active", "disabled"] = "active"
     priority: int = 100
     timeout_seconds: float = 20.0
     temperature: float = 0.2
+    temperature_enabled: bool = True
     max_concurrency: int = 1
     auto_assign_enabled: bool = True
 
@@ -40,12 +41,23 @@ class ApiCredentialUpdate(ApiModel):
     model_name: Optional[str] = None
     api_key: Optional[str] = None
     task_scope: Optional[list[ModelTaskName]] = None
-    status: Optional[Literal["active", "disabled", "cooling", "invalid"]] = None
+    status: Optional[Literal["active", "disabled"]] = None
     priority: Optional[int] = None
     timeout_seconds: Optional[float] = None
     temperature: Optional[float] = None
+    temperature_enabled: Optional[bool] = None
     max_concurrency: Optional[int] = None
     auto_assign_enabled: Optional[bool] = None
+
+
+class ApiCredentialCapabilityRead(ApiModel):
+    capability: str
+    label: str
+    status: Literal["ok", "failed", "unknown"] = "unknown"
+    last_task: Optional[str] = None
+    duration_ms: Optional[int] = None
+    error_summary: Optional[str] = None
+    checked_at: Optional[datetime] = None
 
 
 class ApiCredentialRead(ApiModel):
@@ -60,8 +72,10 @@ class ApiCredentialRead(ApiModel):
     priority: int
     timeout_seconds: float
     temperature: float
+    temperature_enabled: bool
     max_concurrency: int
     auto_assign_enabled: bool
+    capability_profile: list[ApiCredentialCapabilityRead] = []
     current_concurrency: int = 0
     available_concurrency: int = 0
     capacity_status: str = "idle"
@@ -76,10 +90,24 @@ class ApiCredentialRead(ApiModel):
     updated_at: datetime
 
 
+class ApiProviderGroupRead(ApiModel):
+    provider_group: str
+    credential_count: int
+    active_credential_count: int
+    auto_assign_credential_count: int
+    current_concurrency: int
+    recent_call_count: int
+    recent_failure_rate: float
+    recent_timeout_count: int
+    status: Literal["ok", "watch", "degraded"] = "ok"
+    recommendation: Optional[str] = None
+
+
 class RoutingSlotUpdate(ApiModel):
     label: Optional[str] = None
     primary_credential_id: Optional[str] = None
     backup_credential_ids: Optional[list[str]] = None
+    excluded_credential_ids: Optional[list[str]] = None
     timeout_seconds: Optional[float] = None
     hedging_delay_ms: Optional[int] = None
     max_parallel: Optional[int] = None
@@ -95,6 +123,8 @@ class RoutingSlotRead(ApiModel):
     primary_credential_label: Optional[str] = None
     backup_credential_ids: list[str]
     backup_credential_labels: list[str]
+    excluded_credential_ids: list[str]
+    excluded_credential_labels: list[str]
     timeout_seconds: float
     hedging_delay_ms: int
     max_parallel: int
@@ -115,6 +145,12 @@ class ApiHealthCheckRead(ApiModel):
     task: str
     status: str
     duration_ms: int
+    error_code: Optional[str] = None
+    error_category: Optional[str] = None
+    error_severity: Optional[str] = None
+    error_retryable: Optional[bool] = None
+    error_operator_action: Optional[str] = None
+    error_system_action: Optional[str] = None
     error_summary: Optional[str] = None
     checked_at: datetime
 
@@ -132,10 +168,56 @@ class ApiHealthCheckRunResult(ApiModel):
     checks: list[ApiHealthCheckRead]
 
 
+class ApiTemperatureProbeRead(ApiModel):
+    temperature: Optional[float] = None
+    temperature_enabled: bool = True
+    status: str
+    duration_ms: int
+    error_code: Optional[str] = None
+    error_category: Optional[str] = None
+    error_severity: Optional[str] = None
+    error_retryable: Optional[bool] = None
+    error_operator_action: Optional[str] = None
+    error_system_action: Optional[str] = None
+    error_summary: Optional[str] = None
+    checked_at: datetime
+
+
+class ApiTemperatureTuneRequest(ApiModel):
+    task: Optional[ModelTaskName] = None
+    candidate_temperatures: Optional[list[float]] = None
+    timeout_seconds: Optional[float] = None
+    persist: bool = True
+
+
+class ApiTemperatureProbeRequest(ApiModel):
+    base_url: str
+    model_name: str
+    api_key: str
+    task: ModelTaskName = "search_system_routing"
+    temperature: float = 0.2
+    candidate_temperatures: Optional[list[float]] = None
+    timeout_seconds: Optional[float] = None
+
+
+class ApiTemperatureTuneResult(ApiModel):
+    credential_id: str
+    credential_label: Optional[str] = None
+    status: str
+    previous_temperature: float
+    previous_temperature_enabled: bool = True
+    selected_temperature: Optional[float] = None
+    selected_temperature_enabled: Optional[bool] = None
+    probes: list[ApiTemperatureProbeRead]
+
+
 class ApiCallTraceRead(ApiModel):
     id: str
     search_log_id: Optional[str] = None
     request_id: Optional[str] = None
+    search_keyword: Optional[str] = None
+    search_result_count: Optional[int] = None
+    search_timed_out: Optional[bool] = None
     task: str
     layer_name: str
     credential_id: Optional[str] = None
@@ -145,10 +227,24 @@ class ApiCallTraceRead(ApiModel):
     status: str
     duration_ms: int
     fallback_index: Optional[int] = None
+    error_code: Optional[str] = None
+    error_category: Optional[str] = None
+    error_severity: Optional[str] = None
+    error_retryable: Optional[bool] = None
+    error_operator_action: Optional[str] = None
+    error_system_action: Optional[str] = None
     error_summary: Optional[str] = None
     response_valid: Optional[bool] = None
     output_summary: dict
     created_at: datetime
+
+
+class ApiCallTraceListResponse(ApiModel):
+    items: list[ApiCallTraceRead]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class ApiCenterOverview(ApiModel):
@@ -162,8 +258,40 @@ class ApiCenterOverview(ApiModel):
     p95_latency_ms: int
 
 
+class ApiCenterMaintenanceRead(ApiModel):
+    enabled: bool
+    interval_minutes: int
+    startup_delay_seconds: int
+    max_credentials_per_cycle: int
+    call_trace_retention_days: int
+    health_check_retention_days: int
+    last_started_at: Optional[datetime] = None
+    last_finished_at: Optional[datetime] = None
+    last_status: str = "idle"
+    last_error: Optional[str] = None
+    last_checked_count: int = 0
+    last_ok_count: int = 0
+    last_failed_count: int = 0
+    last_deleted_call_trace_count: int = 0
+    last_deleted_health_check_count: int = 0
+    next_run_at: Optional[datetime] = None
+
+
+class ApiCenterMaintenanceRunResult(ApiModel):
+    status: str
+    started_at: datetime
+    finished_at: datetime
+    checked_count: int
+    ok_count: int
+    failed_count: int
+    deleted_call_trace_count: int
+    deleted_health_check_count: int
+
+
 class ApiCenterSummary(ApiModel):
     overview: ApiCenterOverview
+    maintenance: ApiCenterMaintenanceRead
     credentials: list[ApiCredentialRead]
+    provider_groups: list[ApiProviderGroupRead] = []
     routing_slots: list[RoutingSlotRead]
     recent_call_traces: list[ApiCallTraceRead]
