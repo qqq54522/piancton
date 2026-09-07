@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 
 from app.ai.contracts import ModelCallResult, ResultRecommendationCapabilities
@@ -15,6 +16,19 @@ from app.services.search_models import (
     SearchHit,
 )
 from app.services.search_scorer import SearchScorer
+
+_ROUTE_EXPLANATION_PROCESS_MARKERS = (
+    "未指定渠道",
+    "当前返回",
+    "卡片下方",
+    "已审核素材",
+    "保留手机端大图",
+    "保留手机端小图",
+    "已按当前渠道",
+    "渠道/场景筛选",
+    "同时按",
+    "收窄版位",
+)
 
 
 class SearchResultRecommendationService:
@@ -32,6 +46,130 @@ class SearchResultRecommendationService:
         self.result_limit = max(1, result_limit)
         self.runner = SearchBranchRunner()
         self.scorer = SearchScorer()
+
+    async def explain_route(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        result_count: int,
+        deadline: SearchDeadline | None = None,
+    ) -> SearchBranchResult[str]:
+        if result_count <= 0:
+            return SearchBranchResult(
+                value=None,
+                diagnostic=SearchBranchDiagnostic(
+                    source="search_route_explanation",
+                    status="skipped",
+                    duration_ms=0,
+                    result_count=0,
+                    detail="没有最终结果需要解释命中卖点",
+                ),
+            )
+        if not understanding or not understanding.matched_business_concepts:
+            return SearchBranchResult(
+                value=None,
+                diagnostic=SearchBranchDiagnostic(
+                    source="search_route_explanation",
+                    status="skipped",
+                    duration_ms=0,
+                    result_count=0,
+                    detail="没有可靠卖点命中，不生成顶部解释",
+                ),
+            )
+        explain = getattr(self.ai_service, "explain_search_route", None)
+        provider = getattr(self.ai_service, "provider", None)
+        if explain is None or not getattr(provider, "configured", False):
+            return SearchBranchResult(
+                value=None,
+                diagnostic=SearchBranchDiagnostic(
+                    source="search_route_explanation",
+                    status="skipped",
+                    duration_ms=0,
+                    result_count=0,
+                    detail="命中卖点解释 API 未配置，使用前端默认说明",
+                    attempts=(
+                        self._synthetic_attempt(
+                            "skipped",
+                            "命中卖点解释 API 未配置",
+                            layer="搜索结果：命中卖点解释",
+                        ),
+                    ),
+                ),
+            )
+        if deadline is not None and deadline.expired:
+            return SearchBranchResult(
+                value=None,
+                diagnostic=SearchBranchDiagnostic(
+                    source="search_route_explanation",
+                    status="timed_out",
+                    duration_ms=0,
+                    result_count=0,
+                    detail="搜索总时间预算已到，跳过命中卖点解释",
+                    attempts=(
+                        self._synthetic_attempt(
+                            "timed_out",
+                            "搜索总时间预算已到",
+                            layer="搜索结果：命中卖点解释",
+                        ),
+                    ),
+                ),
+            )
+
+        result = await self.runner.run_thread(
+            "search_route_explanation",
+            lambda signal: explain(
+                keyword=keyword,
+                understanding=understanding,
+                result_count=result_count,
+                cancellation=signal,
+            ),
+            timeout_seconds=(
+                deadline.clamp(self.timeout_seconds)
+                if deadline is not None
+                else self.timeout_seconds
+            ),
+            attempt_task="search_result_recommendation_reason",
+            attempt_layer="搜索结果：命中卖点解释",
+        )
+        model_call = (
+            result.value if isinstance(result.value, ModelCallResult) else None
+        )
+        attempts = (
+            self._model_attempts(
+                model_call.attempts,
+                layer="搜索结果：命中卖点解释",
+            )
+            if model_call is not None
+            else result.diagnostic.attempts
+        )
+        if result.diagnostic.status != "ok" or model_call is None:
+            return SearchBranchResult(
+                value=None,
+                diagnostic=SearchBranchDiagnostic(
+                    source="search_route_explanation",
+                    status=result.diagnostic.status,
+                    duration_ms=result.diagnostic.duration_ms,
+                    result_count=0,
+                    detail=(
+                        result.diagnostic.detail
+                        or "命中卖点解释 API 未完成，使用前端默认说明"
+                    ),
+                    attempts=attempts,
+                ),
+            )
+        explanation = _clean_route_explanation(model_call.value.explanation)
+        return SearchBranchResult(
+            value=explanation or None,
+            diagnostic=SearchBranchDiagnostic(
+                source="search_route_explanation",
+                status="ok" if explanation else "failed",
+                duration_ms=result.diagnostic.duration_ms,
+                result_count=1 if explanation else 0,
+                detail="已生成搜索级命中卖点解释" if explanation else "模型未返回解释",
+                attempts=attempts,
+            ),
+        )
 
     async def enrich(
         self,
@@ -246,6 +384,8 @@ class SearchResultRecommendationService:
     def _model_attempts(
         self,
         attempts: tuple[dict, ...] | list[dict] | None,
+        *,
+        layer: str = "第五层：动态推荐理由",
     ) -> tuple[ModelAttemptDiagnostic, ...]:
         if not isinstance(attempts, (list, tuple)):
             return ()
@@ -256,7 +396,7 @@ class SearchResultRecommendationService:
             rows.append(
                 ModelAttemptDiagnostic(
                     task="search_result_recommendation_reason",
-                    layer="第五层：动态推荐理由",
+                    layer=layer,
                     provider=str(item.get("provider") or "unknown")[:120],
                     model=str(item.get("model") or "unknown")[:120],
                     status=str(item.get("status") or "unknown")[:24],
@@ -291,16 +431,35 @@ class SearchResultRecommendationService:
         )
 
     @staticmethod
-    def _synthetic_attempt(status: str, error: str) -> ModelAttemptDiagnostic:
+    def _synthetic_attempt(
+        status: str,
+        error: str,
+        *,
+        layer: str = "第五层：动态推荐理由",
+    ) -> ModelAttemptDiagnostic:
         return ModelAttemptDiagnostic(
             task="search_result_recommendation_reason",
-            layer="第五层：动态推荐理由",
+            layer=layer,
             provider="api_center",
             model="未调用",
             status=status,
             duration_ms=0,
             error=error[:300],
         )
+
+
+def _clean_route_explanation(value: str) -> str:
+    explanation = re.sub(r"\s+", " ", value).strip()
+    if not explanation:
+        return ""
+    cutoff_indexes = [
+        explanation.find(marker)
+        for marker in _ROUTE_EXPLANATION_PROCESS_MARKERS
+        if marker in explanation
+    ]
+    if cutoff_indexes:
+        explanation = explanation[: min(cutoff_indexes)].strip()
+    return explanation.rstrip("，,；; ")
 
 
 def _elapsed_ms(started: float) -> int:

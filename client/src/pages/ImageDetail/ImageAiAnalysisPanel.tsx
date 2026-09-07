@@ -1,7 +1,4 @@
-import { Loader2, RefreshCw } from 'lucide-react';
-
 import { Badge } from '@client/src/components/ui/badge';
-import { Button } from '@client/src/components/ui/button';
 import { CanRole } from '@client/src/lib/auth';
 import type { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
 import type { useImageDetailActions } from '@client/src/features/images/useImageDetailActions';
@@ -33,8 +30,6 @@ const ProfileTagGroup = ({ title, items }: { title: string; items: string[] }) =
 
 const ImageAiAnalysisPanel = ({
   detail,
-  provider,
-  actions,
 }: {
   detail: ImageDetail;
   provider: ProviderStatusQuery;
@@ -44,7 +39,7 @@ const ImageAiAnalysisPanel = ({
   const active = latest?.status === 'queued' || latest?.status === 'running';
   const status = latest
     ? ({ queued: '排队中', running: '分析中', succeeded: '已完成', failed: '失败' } as const)[latest.status]
-    : '未分析';
+    : '旧数据';
   const visibleGroups = detail.semanticProfile
     ? visibleSemanticProfileGroups(detail.semanticProfile)
     : [];
@@ -55,21 +50,12 @@ const ImageAiAnalysisPanel = ({
       <div className="mt-5 flex items-center justify-between border-t pt-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">AI 画面分析</span>
+            <span className="text-sm font-medium">历史画面信息</span>
             <Badge variant="outline" className="text-[11px]">
-              {active && <Loader2 className="mr-1 size-3 animate-spin" />}{status}
+              {active ? '旧任务处理中' : status}
             </Badge>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!provider.data?.configured || actions.analyzing || active}
-          onClick={() => actions.analyze()}
-        >
-          <RefreshCw className={`mr-1.5 size-3.5 ${actions.analyzing ? 'animate-spin' : ''}`} />
-          {provider.data?.configured ? (active ? '后台分析中…' : '重新分析') : 'AI 未配置'}
-        </Button>
       </div>
 
       {detail.imageSummary && (

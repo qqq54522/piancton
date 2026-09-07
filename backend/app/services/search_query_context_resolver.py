@@ -62,11 +62,13 @@ class SearchQueryContextResolver:
         concept_hits_value: list[SearchHit],
         database_hits_value: list[SearchHit],
         limit: int,
+        pure_vikingdb_required: bool = False,
     ) -> SearchQueryContext:
         understanding = self.external_branches.final_understanding(
             keyword,
             local_understanding,
             understanding_result,
+            pure_vikingdb_required=pure_vikingdb_required,
         )
         model_understanding_succeeded = (
             self.external_branches.understanding_succeeded(understanding_result)
@@ -74,7 +76,23 @@ class SearchQueryContextResolver:
         precision_lock = self.external_branches.requires_precision_lock(
             understanding_result
         )
-        if understanding and understanding is not local_understanding:
+        if (
+            pure_vikingdb_required
+            and not model_understanding_succeeded
+        ):
+            return SearchQueryContext(
+                understanding=None,
+                concept_matches=[],
+                concept_hits=[],
+                database_hits=[],
+                model_understanding_succeeded=False,
+                precision_lock=True,
+            )
+        if (
+            understanding
+            and understanding is not local_understanding
+            and not pure_vikingdb_required
+        ):
             model_expansions = self.expansion.queries_from_understanding(understanding)
             database_hits_value = self.ranking.merge_hits(
                 database_hits_value,
@@ -132,6 +150,11 @@ class SearchQueryContextResolver:
             understanding,
             concept_matches,
         )
+        if pure_vikingdb_required and model_understanding_succeeded and understanding:
+            understanding.search_strategy = (
+                "VikingDB 卖点库存路由："
+                + (understanding.search_strategy or "按命中卖点返回本地图库")
+            )
         return SearchQueryContext(
             understanding=understanding,
             concept_matches=concept_matches,

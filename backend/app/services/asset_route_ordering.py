@@ -26,15 +26,44 @@ def order_routed_assets(
     )
     if understanding.query_type not in MULTI_ROUTE_QUERY_TYPES:
         return ranked
-    prioritized: list[SearchHit] = []
-    used_ids: set[str] = set()
-    for match in active_matches:
-        for hit in ranked:
-            if hit.image.id not in used_ids and _hit_has_concept(hit, match.concept_id):
-                prioritized.append(hit)
-                used_ids.add(hit.image.id)
+    prioritized = _round_robin_by_concept(ranked, active_matches)
+    used_ids = {hit.image.id for hit in prioritized}
+    return [
+        *prioritized,
+        *(hit for hit in ranked if hit.image.id not in used_ids),
+    ]
+
+
+def _round_robin_by_concept(
+    ranked: list[SearchHit],
+    active_matches: tuple[ConceptMatch, ...],
+) -> list[SearchHit]:
+    buckets: dict[str, list[SearchHit]] = {
+        match.concept_id: [] for match in active_matches
+    }
+    for hit in ranked:
+        for match in active_matches:
+            if _hit_has_concept(hit, match.concept_id):
+                buckets[match.concept_id].append(hit)
                 break
-    return [*prioritized, *(hit for hit in ranked if hit.image.id not in used_ids)]
+
+    ordered: list[SearchHit] = []
+    used_ids: set[str] = set()
+    while True:
+        added = False
+        for match in active_matches:
+            bucket = buckets[match.concept_id]
+            while bucket and bucket[0].image.id in used_ids:
+                bucket.pop(0)
+            if not bucket:
+                continue
+            hit = bucket.pop(0)
+            ordered.append(hit)
+            used_ids.add(hit.image.id)
+            added = True
+        if not added:
+            break
+    return ordered
 
 
 def _hit_has_concept(hit: SearchHit, concept_id: str) -> bool:

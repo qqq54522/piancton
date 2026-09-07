@@ -79,7 +79,7 @@ class ImageListResponse(ApiModel):
 
 class SearchRequest(ApiModel):
     keyword: str = Field(min_length=1, max_length=200)
-    limit: int = Field(default=12, ge=1, le=50)
+    limit: int = Field(default=12, ge=1, le=200)
     system_code: Optional[str] = Field(default=None, max_length=100)
     concept_code: Optional[str] = Field(default=None, max_length=100)
     proof_point_code: Optional[str] = Field(default=None, max_length=120)
@@ -154,5 +154,6 @@ class SearchResponse(ApiModel):
     search_understanding: Optional[SearchUnderstanding] = None
     search_diagnostics: Optional[SearchDiagnosticsRead] = None
     match_summary: str
+    route_explanation: Optional[str] = None
     identity_code: Optional[str] = None
     exact_match: bool = False

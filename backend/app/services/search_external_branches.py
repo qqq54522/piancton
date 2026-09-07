@@ -20,6 +20,7 @@ from app.services.search_models import (
     SearchDeadline,
     SearchHit,
 )
+from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 
 
 class SearchExternalBranches:
@@ -43,6 +44,8 @@ class SearchExternalBranches:
         candidate_review_limit: int,
         embedding_top_n: int,
         candidate_limit: int,
+        vikingdb_knowledge_router: VikingDBKnowledgeRouter | None = None,
+        vikingdb_skill_backup_enabled: bool = True,
         understanding_grace_seconds: float = 5.0,
         understanding_retry_attempts: int = 1,
         understanding_retry_backoff_seconds: float = 1.0,
@@ -51,6 +54,8 @@ class SearchExternalBranches:
         self.meilisearch = meilisearch
         self.embedding = embedding
         self.understanding = understanding
+        self.vikingdb_knowledge_router = vikingdb_knowledge_router
+        self.vikingdb_skill_backup_enabled = vikingdb_skill_backup_enabled
         self.caches = caches
         self.meilisearch_timeout_seconds = max(0.01, meilisearch_timeout_seconds)
         self.embedding_timeout_seconds = max(0.01, embedding_timeout_seconds)
@@ -77,6 +82,14 @@ class SearchExternalBranches:
         self.runner = SearchBranchRunner()
         self.semantic_profile = ImageSemanticProfileService()
 
+    @property
+    def pure_vikingdb_knowledge_mode(self) -> bool:
+        return bool(
+            self.vikingdb_knowledge_router is not None
+            and self.vikingdb_knowledge_router.configured
+            and not self.vikingdb_skill_backup_enabled
+        )
+
     def start_meilisearch(
         self,
         keyword: str,
@@ -85,6 +98,14 @@ class SearchExternalBranches:
         *,
         deadline: SearchDeadline | None = None,
     ):
+        if self.pure_vikingdb_knowledge_mode and not _is_manual_business_filter(
+            local_understanding
+        ):
+            skipped = self.runner.skipped(
+                "meilisearch",
+                "火山知识路由测试模式下关闭旧全文召回旁路",
+            )
+            return asyncio.create_task(_ready(skipped))
         if _has_high_confidence_local_concept(local_understanding):
             skipped = self.runner.skipped(
                 "meilisearch",
@@ -120,6 +141,13 @@ class SearchExternalBranches:
         *,
         deadline: SearchDeadline | None = None,
     ):
+        if self.pure_vikingdb_knowledge_mode and not _is_manual_business_filter(
+            local_understanding
+        ):
+            return self.runner.skipped(
+                "embedding",
+                "火山知识路由测试模式下关闭旧 Embedding 旁路",
+            ), None
         if _has_high_confidence_local_concept(local_understanding):
             return self.runner.skipped(
                 "embedding",
@@ -150,15 +178,28 @@ class SearchExternalBranches:
         *,
         deadline: SearchDeadline | None = None,
     ):
-        if not self.understanding.should_use_model(keyword, local_understanding):
-            detail = (
-                "本地高置信业务证据已满足，无需模型补充"
-                if _has_high_confidence_local_concept(local_understanding)
-                else "查询理解模型未配置，使用本地固定目录兜底"
+        if (
+            not _is_manual_business_filter(local_understanding)
+            and
+            self.vikingdb_knowledge_router is not None
+            and self.vikingdb_knowledge_router.configured
+        ):
+            task = asyncio.create_task(
+                self._run_vikingdb_or_skill_understanding(
+                    keyword,
+                    deadline=deadline,
+                )
             )
+            return None, task
+        if _has_high_confidence_local_concept(local_understanding):
             return self.runner.skipped(
                 "query_understanding",
-                detail,
+                "本地高置信业务证据已满足，无需模型补充",
+            ), None
+        if not self.understanding.should_use_model(keyword, local_understanding):
+            return self.runner.skipped(
+                "query_understanding",
+                "查询理解模型未配置，使用本地固定目录兜底",
             ), None
         if self.understanding.supports_staged_model:
             task = asyncio.create_task(
@@ -203,6 +244,55 @@ class SearchExternalBranches:
                 result.diagnostic,
                 result_count=1 if isinstance(call.value, SearchUnderstanding) else 0,
                 attempts=attempts or result.diagnostic.attempts,
+            ),
+        )
+
+    async def _run_vikingdb_or_skill_understanding(
+        self,
+        keyword: str,
+        *,
+        deadline: SearchDeadline | None = None,
+    ) -> SearchBranchResult:
+        assert self.vikingdb_knowledge_router is not None
+        viking_result = await self.runner.run_thread(
+            "vikingdb_knowledge_router",
+            lambda _signal: self.vikingdb_knowledge_router.route(keyword),
+            timeout_seconds=_clamp_timeout(
+                self.selling_point_timeout_seconds,
+                deadline,
+            ),
+        )
+        if isinstance(viking_result.value, SearchUnderstanding):
+            return viking_result
+        if not self.vikingdb_skill_backup_enabled:
+            return SearchBranchResult(
+                value=None,
+                diagnostic=SearchBranchDiagnostic(
+                    source="query_understanding",
+                    status=viking_result.diagnostic.status,
+                    duration_ms=viking_result.diagnostic.duration_ms,
+                    result_count=0,
+                    detail=(
+                        "VikingDB 知识路由未产出可信卖点，且 Skill 备份已关闭："
+                        f"{viking_result.diagnostic.detail or 'no_match'}"
+                    ),
+                ),
+            )
+        fallback = (
+            await self._run_staged_understanding(keyword, deadline=deadline)
+            if self.understanding.supports_staged_model
+            else await self._run_basic_understanding(keyword, deadline=deadline)
+        )
+        return SearchBranchResult(
+            value=fallback.value,
+            diagnostic=replace(
+                fallback.diagnostic,
+                duration_ms=fallback.diagnostic.duration_ms
+                + viking_result.diagnostic.duration_ms,
+                detail=(
+                    "VikingDB 知识路由未命中，已走 Skill 备份；"
+                    f"{fallback.diagnostic.detail or ''}"
+                ).rstrip("；"),
             ),
         )
 
@@ -512,15 +602,28 @@ class SearchExternalBranches:
         keyword: str,
         local_understanding: SearchUnderstanding | None,
         result: SearchBranchResult,
+        *,
+        pure_vikingdb_required: bool | None = None,
     ) -> SearchUnderstanding | None:
+        if pure_vikingdb_required is None:
+            pure_vikingdb_required = (
+                self.pure_vikingdb_knowledge_mode
+                and not _is_manual_business_filter(local_understanding)
+            )
         value = result.value
         if isinstance(value, QueryUnderstandingOutcome):
             value = value.understanding
         if isinstance(value, SearchUnderstanding):
+            if result.diagnostic.source == "vikingdb_knowledge_router":
+                return value
+            if pure_vikingdb_required:
+                return None
             return self.understanding.arbitrate_model_understanding(
                 local_understanding,
                 value,
             )
+        if pure_vikingdb_required:
+            return None
         if result.diagnostic.status in {"failed", "timed_out"}:
             if _has_high_confidence_local_concept(local_understanding):
                 return local_understanding
@@ -792,6 +895,13 @@ def _has_high_confidence_local_concept(
     return any(
         item.weight >= 0.85
         for item in understanding.matched_business_concepts
+    )
+
+
+def _is_manual_business_filter(understanding: SearchUnderstanding | None) -> bool:
+    return bool(
+        understanding
+        and understanding.search_strategy == "按用户手动选择的业务层级执行硬约束搜索"
     )
 
 

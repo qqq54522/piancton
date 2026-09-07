@@ -82,7 +82,7 @@ def test_phase1_concept_can_link_multiple_systems_and_keep_stable_code(
     assert renamed.json()["code"] == "cross_system_learning_method"
     assert renamed.json()["version"] == 2
 
-    added_phrase = client.post(
+    retired_phrase_add = client.post(
         f"/api/business-concepts/{concept['id']}/search-phrases",
         headers=headers,
         json={
@@ -91,11 +91,10 @@ def test_phase1_concept_can_link_multiple_systems_and_keep_stable_code(
             "origin": "manual",
         },
     )
-    assert added_phrase.status_code == 200
-    phrase = added_phrase.json()["searchPhrases"][0]
+    assert retired_phrase_add.status_code == 404
 
-    updated_phrase = client.patch(
-        f"/api/business-concepts/{concept['id']}/search-phrases/{phrase['id']}",
+    retired_phrase_update = client.patch(
+        f"/api/business-concepts/{concept['id']}/search-phrases/legacy-phrase-id",
         headers=headers,
         json={
             "phrase": "课程内容跟学校进度一致",
@@ -103,34 +102,14 @@ def test_phase1_concept_can_link_multiple_systems_and_keep_stable_code(
             "weight": 0.9,
         },
     )
-    assert updated_phrase.status_code == 200
-    updated = updated_phrase.json()["searchPhrases"][0]
-    assert updated["phrase"] == "课程内容跟学校进度一致"
-    assert updated["reviewStatus"] == "rejected"
-    assert updated["weight"] == 0.9
-    assert updated_phrase.json()["version"] == 4
-
-    seeded_phrases = client.post(
-        f"/api/business-concepts/{concept['id']}/search-phrases",
-        headers=headers,
-        json={
-            "phrase": "初始资料中的固定说法",
-            "phraseType": "official",
-            "origin": "source_document",
-        },
-    ).json()["searchPhrases"]
-    seeded_phrase = next(
-        item for item in seeded_phrases if item["phrase"] == "初始资料中的固定说法"
-    )
-    immutable = client.patch(
-        f"/api/business-concepts/{concept['id']}/search-phrases/{seeded_phrase['id']}",
-        headers=headers,
-        json={"phrase": "直接改掉初始资料"},
-    )
-    assert immutable.status_code == 400
+    assert retired_phrase_update.status_code == 404
 
 
-def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(client):
+def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(
+    client, monkeypatch
+):
+    monkeypatch.setattr(dependencies.settings, "vikingdb_knowledge_router_enabled", False)
+    monkeypatch.setattr(dependencies.settings, "vikingdb_enabled", False)
     csrf = login(client, "admin", "admin-password")
     headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
     uploaded = client.post(
@@ -169,7 +148,7 @@ def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(clien
     group = variant.json()
     assert len(group["images"]) == 2
     assert {item["assetRole"] for item in group["images"]} == {"primary", "derivative"}
-    assert {item["phrase"] for item in group["searchPhrases"]} == {"蓝色横版素材"}
+    assert group["searchPhrases"] == []
     assert group["styleLabel"] == "官网风格"
     assert group["isSceneImage"] is True
 
@@ -289,8 +268,4 @@ def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_fact
             and item["conceptCode"] == "animation_explanation"
         ]
     ) == 1
-    assert "负责人手工搜索语" in {
-        item["phrase"]
-        for item in after["searchPhrases"]
-        if item["origin"] == "manual" and item["reviewStatus"] == "accepted"
-    }
+    assert after["searchPhrases"] == []

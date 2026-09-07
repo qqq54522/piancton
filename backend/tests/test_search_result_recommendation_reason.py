@@ -5,7 +5,12 @@ from typing import cast
 
 from app.ai.contracts import ModelCallResult
 from app.models.image import Image
-from app.schemas.ai import SearchResultRecommendationReasonResult
+from app.schemas.ai import (
+    SearchConceptMatch,
+    SearchResultRecommendationReasonResult,
+    SearchRouteExplanationResult,
+    SearchUnderstanding,
+)
 from app.schemas.image import SearchResultConceptMatch
 from app.services.search_models import SearchHit
 from app.services.search_result_recommendation_service import (
@@ -91,6 +96,115 @@ class _RecommendationAi:
                 },
             ),
         )
+
+
+class _RouteExplanationAi:
+    provider = _ConfiguredProvider()
+
+    def explain_search_route(self, **_kwargs):
+        return ModelCallResult(
+            SearchRouteExplanationResult(
+                explanation="这句话提到拍题后学会一类问题，因此命中 AI拍题精学。",
+                generation_strategy="基于用户原话和已命中卖点解释",
+            ),
+            (
+                {
+                    "provider": "test-provider",
+                    "model": "test-model",
+                    "status": "ok",
+                    "duration_ms": 9,
+                    "fallback_index": 0,
+                },
+            ),
+        )
+
+
+class _ContaminatedRouteExplanationAi:
+    provider = _ConfiguredProvider()
+
+    def explain_search_route(self, **_kwargs):
+        return ModelCallResult(
+            SearchRouteExplanationResult(
+                explanation=(
+                    "用户表达的场景是孩子刚完成学习，希望立即通过少量题目检验掌握情况，"
+                    "核心诉求为课后即时巩固与效果确认。未指定渠道时默认保留手机端大图和"
+                    "手机端小图。当前返回 11 组已审核素材，卡片下方只保留所属卖点。"
+                ),
+                generation_strategy="基于用户原话和已命中卖点解释",
+            ),
+            (
+                {
+                    "provider": "test-provider",
+                    "model": "test-model",
+                    "status": "ok",
+                    "duration_ms": 9,
+                    "fallback_index": 0,
+                },
+            ),
+        )
+
+
+def test_route_explanation_explains_matched_selling_points_once():
+    service = SearchResultRecommendationService(_RouteExplanationAi())
+    understanding = SearchUnderstanding(
+        original_query="拍题之后学会一类题",
+        normalized_query="拍题之后学会一类题",
+        search_intent="找拍题精学素材",
+        query_type="business_intent_search",
+        matched_business_concepts=[
+            SearchConceptMatch(
+                concept="AI拍题精学",
+                relation="direct",
+                reason="用户明确说拍题",
+                weight=0.96,
+            )
+        ],
+    )
+
+    result = asyncio.run(
+        service.explain_route(
+            keyword="拍题之后学会一类题",
+            understanding=understanding,
+            result_count=8,
+        )
+    )
+
+    assert result.value == "这句话提到拍题后学会一类问题，因此命中 AI拍题精学。"
+    assert result.diagnostic.source == "search_route_explanation"
+    assert result.diagnostic.status == "ok"
+    assert result.diagnostic.attempts[0].layer == "搜索结果：命中卖点解释"
+
+
+def test_route_explanation_removes_ui_process_tail():
+    service = SearchResultRecommendationService(_ContaminatedRouteExplanationAi())
+    understanding = SearchUnderstanding(
+        original_query="孩子刚学完，想马上练几道题确认一下",
+        normalized_query="孩子刚学完，想马上练几道题确认一下",
+        search_intent="找课后小测素材",
+        query_type="business_intent_search",
+        matched_business_concepts=[
+            SearchConceptMatch(
+                concept="课后小测",
+                relation="direct",
+                reason="用户表达学完后立刻用少量题目检查掌握情况",
+                weight=0.94,
+            )
+        ],
+    )
+
+    result = asyncio.run(
+        service.explain_route(
+            keyword="孩子刚学完，想马上练几道题确认一下",
+            understanding=understanding,
+            result_count=11,
+        )
+    )
+
+    assert result.value is not None
+    assert "课后即时巩固与效果确认" in result.value
+    assert "未指定渠道" not in result.value
+    assert "当前返回" not in result.value
+    assert "卡片下方" not in result.value
 
 
 def test_dynamic_recommendation_overlays_only_final_candidate_ids():

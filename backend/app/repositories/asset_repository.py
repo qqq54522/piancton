@@ -46,14 +46,6 @@ class AssetRepository:
             .options(selectinload(AssetConceptLink.concept))
         )
 
-    def get_search_phrase(self, group_id: str, phrase_id: str) -> AssetSearchPhrase | None:
-        return self.db.scalar(
-            select(AssetSearchPhrase).where(
-                AssetSearchPhrase.id == phrase_id,
-                AssetSearchPhrase.asset_group_id == group_id,
-            )
-        )
-
     def get_source_link(self, group_id: str, link_id: str) -> AssetSourceLink | None:
         return self.db.scalar(
             select(AssetSourceLink).where(

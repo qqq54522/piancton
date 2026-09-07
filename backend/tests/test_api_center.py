@@ -15,7 +15,12 @@ from app.ai.contracts import (
     ModelRequest,
 )
 from app.ai.openai_compatible import OpenAICompatibleModelProvider
-from app.models import ModelApiHealthCheck, ModelCallTrace
+from app.models import (
+    ModelApiCredential,
+    ModelApiHealthCheck,
+    ModelCallTrace,
+    ModelRoutingSlot,
+)
 from app.models.search_log import SearchLog
 from app.schemas.api_center import (
     ApiCredentialCreate,
@@ -101,12 +106,10 @@ def test_admin_api_center_summary_initializes_default_slots(client):
     assert response.status_code == 200
     payload = response.json()
     tasks = {item["task"] for item in payload["routingSlots"]}
-    assert {
-        "search_system_routing",
-        "search_intent_understanding",
-        "search_proof_point_understanding",
-        "search_candidate_review",
-    }.issubset(tasks)
+    assert tasks == {
+        "search_result_recommendation_reason",
+        "asset_agent_chat",
+    }
     assert payload["overview"]["credentialCount"] == 0
 
 
@@ -133,7 +136,7 @@ def test_create_credential_masks_key_and_can_be_disabled(client):
             "baseUrl": "https://api.example.com/v1",
             "modelName": "gpt-test",
             "apiKey": "sk-secret-value-1234",
-            "taskScope": ["search_system_routing"],
+            "taskScope": ["search_result_recommendation_reason"],
             "maxConcurrency": 3,
         },
     )
@@ -313,15 +316,14 @@ def test_api_credential_lifecycle_writes_safe_audit_logs(client):
     }
 
 
-def test_image_capability_probe_sends_probe_image_and_records_status(client, monkeypatch):
+def test_current_search_explanation_probe_uses_text_json_only(client, monkeypatch):
     headers = admin_headers(client)
-    seen_image_paths = []
+    seen_tasks = []
 
     def fake_generate_json(self, request):
-        seen_image_paths.append(request.image_path)
-        assert request.image_path is not None
-        assert request.image_path.exists()
-        assert request.image_media_type == "image/png"
+        seen_tasks.append(request.task)
+        assert request.image_path is None
+        assert request.image_media_type is None
         return ModelCallResult(
             {"ok": True},
             (
@@ -345,26 +347,27 @@ def test_image_capability_probe_sends_probe_image_and_records_status(client, mon
         "/api/admin/api-center/credentials",
         headers=headers,
         json={
-            "label": "视觉模型",
+            "label": "命中解释模型",
             "providerType": "openai_compatible",
             "baseUrl": "https://api.example.test/v1",
-            "modelName": "vision-json",
-            "apiKey": "sk-vision-value-1234",
-            "taskScope": ["image_content_analysis"],
+            "modelName": "text-json",
+            "apiKey": "sk-text-value-1234",
+            "taskScope": ["search_result_recommendation_reason"],
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert seen_image_paths
+    assert seen_tasks == ["search_result_recommendation_reason"]
     capability_status = {
         item["capability"]: item["status"]
         for item in payload["capabilityProfile"]
     }
-    assert capability_status["vision_json"] == "ok"
+    assert capability_status["text_json"] == "ok"
+    assert capability_status["vision_json"] == "unknown"
 
 
-def test_image_capability_probe_marks_unsupported_status(client, monkeypatch):
+def test_current_tasks_do_not_require_vision_capability(client, monkeypatch):
     headers = admin_headers(client)
 
     def fake_generate_json(self, request):
@@ -401,7 +404,7 @@ def test_image_capability_probe_marks_unsupported_status(client, monkeypatch):
             "baseUrl": "https://api.example.test/v1",
             "modelName": "text-only",
             "apiKey": "sk-text-value-1234",
-            "taskScope": ["search_system_routing"],
+            "taskScope": ["search_result_recommendation_reason"],
         },
     )
     assert create.status_code == 200
@@ -409,7 +412,7 @@ def test_image_capability_probe_marks_unsupported_status(client, monkeypatch):
     test = client.post(
         f"/api/admin/api-center/credentials/{create.json()['id']}/test",
         headers=headers,
-        json={"task": "image_content_analysis"},
+        json={"task": "search_result_recommendation_reason"},
     )
 
     assert test.status_code == 200
@@ -419,8 +422,9 @@ def test_image_capability_probe_marks_unsupported_status(client, monkeypatch):
         item["capability"]: item["status"]
         for item in credential["capabilityProfile"]
     }
-    assert test.json()["status"] == "failed"
-    assert capability_status["vision_json"] == "failed"
+    assert test.json()["status"] == "ok"
+    assert capability_status["text_json"] == "ok"
+    assert capability_status["vision_json"] == "unknown"
 
 
 def test_create_credential_rejects_api_that_fails_backend_probe(client, monkeypatch):
@@ -546,11 +550,11 @@ def test_delete_credential_removes_routing_references(client):
             "baseUrl": "https://api.delete.test/v1",
             "modelName": "gpt-delete",
             "apiKey": "sk-delete-value-1234",
-            "taskScope": ["search_system_routing"],
+            "taskScope": ["search_result_recommendation_reason"],
         },
     ).json()
     slot = client.patch(
-        "/api/admin/api-center/routing-slots/search_system_routing",
+        "/api/admin/api-center/routing-slots/search_result_recommendation_reason",
         headers=headers,
         json={
             "primaryCredentialId": created["id"],
@@ -571,13 +575,13 @@ def test_delete_credential_removes_routing_references(client):
     routing = next(
         item
         for item in summary["routingSlots"]
-        if item["task"] == "search_system_routing"
+        if item["task"] == "search_result_recommendation_reason"
     )
     assert routing["primaryCredentialId"] is None
     assert routing["backupCredentialIds"] == []
 
 
-def test_routing_slot_accepts_active_credential_regardless_of_legacy_task_scope(client):
+def test_routing_slot_rejects_credential_outside_task_scope(client):
     headers = admin_headers(client)
     created = client.post(
         "/api/admin/api-center/credentials",
@@ -592,7 +596,7 @@ def test_routing_slot_accepts_active_credential_regardless_of_legacy_task_scope(
     ).json()
 
     response = client.patch(
-        "/api/admin/api-center/routing-slots/search_system_routing",
+        "/api/admin/api-center/routing-slots/search_result_recommendation_reason",
         headers=headers,
         json={
             "primaryCredentialId": created["id"],
@@ -600,8 +604,38 @@ def test_routing_slot_accepts_active_credential_regardless_of_legacy_task_scope(
         },
     )
 
-    assert response.status_code == 200
-    assert response.json()["primaryCredentialId"] == created["id"]
+    assert response.status_code == 400
+    assert response.json()["code"] == "credential_task_scope_mismatch"
+
+
+def test_auto_routing_filters_credentials_outside_task_scope(db_factory):
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        included = service.create_credential(
+            ApiCredentialCreate(
+                label="命中解释专用",
+                base_url="https://search-explain.example.test/v1",
+                model_name="gpt-search-explain",
+                api_key="sk-search-explain-1234",
+                task_scope=["search_result_recommendation_reason"],
+            ),
+            actor_user_id="admin",
+        )
+        service.create_credential(
+            ApiCredentialCreate(
+                label="Agent 专用",
+                base_url="https://agent-only.example.test/v1",
+                model_name="gpt-agent-only",
+                api_key="sk-agent-only-1234",
+                task_scope=["asset_agent_chat"],
+            ),
+            actor_user_id="admin",
+        )
+        _, selected = service.select_credentials_for_task(
+            "search_result_recommendation_reason",
+        )
+
+    assert [item.id for item in selected] == [included.id]
 
 
 def test_routing_slot_rejects_disabled_manual_credential(client):
@@ -665,7 +699,7 @@ def test_health_check_updates_credential_status(client, monkeypatch):
     response = client.post(
         f"/api/admin/api-center/credentials/{created['id']}/test",
         headers=headers,
-        json={"task": "search_system_routing"},
+        json={"task": "search_result_recommendation_reason"},
     )
 
     assert response.status_code == 200
@@ -679,9 +713,52 @@ def test_health_check_updates_credential_status(client, monkeypatch):
         if item["outputSummary"].get("kind") == "health_check"
     ]
     assert len(health_traces) == 1
-    assert health_traces[0]["task"] == "search_system_routing"
+    assert health_traces[0]["task"] == "search_result_recommendation_reason"
     assert health_traces[0]["layerName"] == "健康检查"
     assert health_traces[0]["credentialLabel"] == "OpenAI-健康测试"
+
+
+def test_health_check_rejects_credential_outside_task_scope(client):
+    headers = admin_headers(client)
+    created = client.post(
+        "/api/admin/api-center/credentials",
+        headers=headers,
+        json={
+            "label": "旧图片分析 Key",
+            "baseUrl": "https://api.legacy-image.test/v1",
+            "modelName": "gpt-legacy-image",
+            "apiKey": "sk-legacy-image-1234",
+            "taskScope": ["asset_agent_chat"],
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/admin/api-center/credentials/{created['id']}/test",
+        headers=headers,
+        json={"task": "search_result_recommendation_reason"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "credential_task_scope_mismatch"
+
+
+def test_create_credential_rejects_retired_task_scope(client):
+    headers = admin_headers(client)
+
+    response = client.post(
+        "/api/admin/api-center/credentials",
+        headers=headers,
+        json={
+            "label": "旧图片分析 Key",
+            "baseUrl": "https://api.legacy-image.test/v1",
+            "modelName": "gpt-legacy-image",
+            "apiKey": "sk-legacy-image-1234",
+            "taskScope": ["image_content_analysis"],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "model_task_retired"
 
 
 def test_health_check_uses_system_window_and_auto_expands_runtime_limit(
@@ -718,7 +795,7 @@ def test_health_check_uses_system_window_and_auto_expands_runtime_limit(
     response = client.post(
         f"/api/admin/api-center/credentials/{created['id']}/test",
         headers=headers,
-        json={"task": "search_system_routing", "timeoutSeconds": 1},
+        json={"task": "search_result_recommendation_reason", "timeoutSeconds": 1},
     )
 
     assert response.status_code == 200
@@ -757,7 +834,7 @@ def test_health_check_timeout_message_requires_no_manual_tuning(client, monkeypa
     response = client.post(
         f"/api/admin/api-center/credentials/{created['id']}/test",
         headers=headers,
-        json={"task": "search_system_routing"},
+        json={"task": "search_result_recommendation_reason"},
     )
 
     assert response.status_code == 200
@@ -806,7 +883,7 @@ def test_health_check_retries_transient_connection_failure(client, monkeypatch):
     response = client.post(
         f"/api/admin/api-center/credentials/{created['id']}/test",
         headers=headers,
-        json={"task": "search_system_routing"},
+        json={"task": "search_result_recommendation_reason"},
     )
 
     assert response.status_code == 200
@@ -824,7 +901,7 @@ def test_run_all_health_checks_checks_non_disabled_keys(client, monkeypatch):
             "baseUrl": "https://api.openai.test/v1",
             "modelName": "gpt-active",
             "apiKey": "sk-active-value-1111",
-            "taskScope": ["search_system_routing"],
+            "taskScope": ["search_result_recommendation_reason"],
         },
     ).json()
     client.post(
@@ -836,7 +913,7 @@ def test_run_all_health_checks_checks_non_disabled_keys(client, monkeypatch):
             "modelName": "gpt-disabled",
             "apiKey": "sk-disabled-value-2222",
             "status": "disabled",
-            "taskScope": ["search_system_routing"],
+            "taskScope": ["search_result_recommendation_reason"],
         },
     )
 
@@ -882,7 +959,7 @@ def test_admin_can_run_api_center_maintenance(client):
             "baseUrl": "https://maintenance.example.test/v1",
             "modelName": "gpt-maintenance",
             "apiKey": "sk-maintenance-value-1234",
-            "taskScope": ["search_system_routing"],
+            "taskScope": ["search_result_recommendation_reason"],
         },
     )
 
@@ -901,6 +978,52 @@ def test_admin_can_run_api_center_maintenance(client):
     assert summary["maintenance"]["lastCheckedCount"] == 1
 
 
+def test_api_center_maintenance_skips_retired_scope_credentials(db_factory):
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        current = service.create_credential(
+            ApiCredentialCreate(
+                label="当前任务 Key",
+                base_url="https://maintenance-current.example.test/v1",
+                model_name="gpt-current",
+                api_key="sk-current-value-1234",
+                task_scope=["search_result_recommendation_reason"],
+            ),
+            actor_user_id="admin",
+        )
+        service.repo.add_credential(
+            ModelApiCredential(
+                label="退役范围 Key",
+                provider_type="openai_compatible",
+                base_url="https://maintenance-retired.example.test/v1",
+                model_name="gpt-retired",
+                api_key_secret="sk-retired-value-1234",
+                api_key_preview="sk-****1234",
+                task_scope_json=json.dumps(["image_content_analysis"]),
+                status="active",
+                priority=100,
+                timeout_seconds=20,
+                temperature=0.2,
+                auto_assign_enabled=True,
+            )
+        )
+        db.commit()
+
+        result = service.run_maintenance_cycle(
+            only_due=False,
+            max_credentials_per_cycle=20,
+            call_trace_retention_days=30,
+            health_check_retention_days=90,
+        )
+
+    assert result.checked_count == 1
+    with db_factory() as db:
+        checks = db.query(ModelApiHealthCheck).all()
+
+    assert len(checks) == 1
+    assert checks[0].credential_id == current.id
+
+
 def test_maintenance_cycle_probes_due_credentials_and_prunes_old_logs(db_factory):
     with db_factory() as db:
         service = ApiCenterService(db)
@@ -910,7 +1033,7 @@ def test_maintenance_cycle_probes_due_credentials_and_prunes_old_logs(db_factory
                 base_url="https://maintenance-prune.example.test/v1",
                 model_name="gpt-maintenance",
                 api_key="sk-maintenance-prune-1234",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
             ),
             actor_user_id="admin",
         )
@@ -920,7 +1043,7 @@ def test_maintenance_cycle_probes_due_credentials_and_prunes_old_logs(db_factory
         credential.last_checked_at = now - timedelta(days=1)
         db.add(
             ModelCallTrace(
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 layer_name="旧调用链路",
                 credential_id=created.id,
                 credential_label="自动维护 API",
@@ -935,7 +1058,7 @@ def test_maintenance_cycle_probes_due_credentials_and_prunes_old_logs(db_factory
         db.add(
             ModelApiHealthCheck(
                 credential_id=created.id,
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 status="ok",
                 duration_ms=10,
                 checked_at=now - timedelta(days=100),
@@ -1009,7 +1132,7 @@ def test_temperature_probe_for_unsaved_credential_does_not_persist_key(
                 base_url="https://api.preview.test/v1",
                 model_name="gpt-preview",
                 api_key="sk-preview-value-1234",
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 temperature=0.2,
             )
         )
@@ -1104,7 +1227,7 @@ def test_temperature_probe_rejects_invalid_base_url(db_factory):
                     base_url="api.preview.test/v1",
                     model_name="gpt-preview",
                     api_key="sk-preview-value-1234",
-                    task="search_system_routing",
+                    task="search_result_recommendation_reason",
                     temperature=0.2,
                 )
             )
@@ -1153,14 +1276,14 @@ def test_temperature_tune_persists_first_working_temperature(db_factory, monkeyp
                 base_url="https://api.temperature.test/v1",
                 model_name="gpt-temperature",
                 api_key="sk-temperature-value-1234",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
                 temperature=0.2,
             ),
             actor_user_id="admin",
         )
         result = service.tune_credential_temperature(
             credential.id,
-            ApiTemperatureTuneRequest(task="search_system_routing"),
+            ApiTemperatureTuneRequest(task="search_result_recommendation_reason"),
         )
         persisted = service.repo.get_credential(credential.id)
         traces = [
@@ -1201,7 +1324,7 @@ def test_model_call_attempts_are_recorded_as_traces(db_factory):
                     "status": "ok",
                     "attempts": [
                         {
-                            "task": "search_system_routing",
+                            "task": "search_result_recommendation_reason",
                             "layer": "第一层：体系路由",
                             "provider": "trace.example.com",
                             "model": "gpt-trace",
@@ -1233,7 +1356,7 @@ def test_model_call_trace_persists_error_code(db_factory):
                     "status": "failed",
                     "attempts": [
                         {
-                            "task": "search_system_routing",
+                            "task": "search_result_recommendation_reason",
                             "layer": "第一层：体系路由",
                             "provider": "error-code.example.test",
                             "model": "gpt-test",
@@ -1291,11 +1414,11 @@ def test_admin_call_trace_list_filters_and_paginates(client, db_factory):
             request_id="req-filter-trace",
             branches=[
                 {
-                    "source": "search_system_routing",
+                    "source": "search_result_recommendation_reason",
                     "status": "failed",
                     "attempts": [
                         {
-                            "task": "search_system_routing",
+                            "task": "search_result_recommendation_reason",
                             "layer": "第一层：体系路由",
                             "credential_id": credential_a.id,
                             "provider": "filter-a.example.test",
@@ -1378,7 +1501,7 @@ def test_runtime_trace_resolves_existing_search_by_request_id(db_factory):
                     "status": "timed_out",
                     "attempts": [
                         {
-                            "task": "search_system_routing",
+                            "task": "search_result_recommendation_reason",
                             "layer": "第一层：体系路由",
                             "provider": "example.test",
                             "model": "gpt-test",
@@ -1412,7 +1535,7 @@ def test_search_log_backfills_traces_written_before_search_finishes(db_factory):
                     "status": "ok",
                     "attempts": [
                         {
-                            "task": "search_system_routing",
+                            "task": "search_result_recommendation_reason",
                             "layer": "第一层：体系路由",
                             "provider": "example.test",
                             "model": "gpt-test",
@@ -1540,7 +1663,7 @@ def test_scheduler_separates_task_budget_from_single_api_limit(
         provider = service.build_scheduled_provider()
         provider.generate_json(
             ModelRequest(
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 prompt="Return JSON",
                 timeout_seconds=1,
             )
@@ -1549,45 +1672,52 @@ def test_scheduler_separates_task_budget_from_single_api_limit(
     assert seen_timeouts == [12]
 
 
-def test_upload_slots_raise_existing_auto_budget_without_touching_manual_slots(
+def test_retired_slots_are_not_recreated_and_agent_slot_is_untouched(
     db_factory,
 ):
     with db_factory() as db:
         service = ApiCenterService(db)
         service.ensure_default_slots()
-        phrase_slot = service.repo.get_slot_by_task("asset_search_phrase_generation")
         image_slot = service.repo.get_slot_by_task("image_content_analysis")
         agent_slot = service.repo.get_slot_by_task("asset_agent_chat")
-        assert phrase_slot is not None
-        assert image_slot is not None
+        assert image_slot is None
         assert agent_slot is not None
 
-        phrase_slot.timeout_seconds = 30
-        phrase_slot.hedging_delay_ms = 3500
-        phrase_slot.max_parallel = 2
-        image_slot.timeout_seconds = 60
-        image_slot.hedging_delay_ms = 5000
-        image_slot.max_parallel = 2
         agent_slot.timeout_seconds = 30
         agent_slot.max_parallel = 1
         db.commit()
 
         service.ensure_default_slots()
-        db.refresh(phrase_slot)
-        db.refresh(image_slot)
         db.refresh(agent_slot)
 
-    assert phrase_slot.timeout_seconds == 120
-    assert phrase_slot.hedging_delay_ms == 6000
-    assert phrase_slot.max_parallel == 3
-    assert image_slot.timeout_seconds == 120
-    assert image_slot.hedging_delay_ms == 6000
-    assert image_slot.max_parallel == 3
     assert agent_slot.timeout_seconds == 30
     assert agent_slot.max_parallel == 1
 
 
-def test_upload_attempt_timeout_can_exceed_credential_health_timeout(db_factory):
+def test_initialize_runtime_prunes_retired_slots(db_factory):
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        service.repo.add_slot(
+            ModelRoutingSlot(
+                task="image_content_analysis",
+                label="上传主图：图片语义分析",
+                timeout_seconds=120,
+                hedging_delay_ms=6000,
+                auto_select_enabled=True,
+                backup_credential_ids_json="[]",
+                excluded_credential_ids_json="[]",
+            )
+        )
+        db.commit()
+
+        service.initialize_runtime()
+
+        assert service.repo.get_slot_by_task("image_content_analysis") is None
+        assert service.repo.get_slot_by_task("search_result_recommendation_reason")
+        assert service.repo.get_slot_by_task("asset_agent_chat")
+
+
+def test_retired_upload_attempt_uses_normal_credential_timeout(db_factory):
     with db_factory() as db:
         service = ApiCenterService(db)
         credential = service.create_credential(
@@ -1611,20 +1741,38 @@ def test_upload_attempt_timeout_can_exceed_credential_health_timeout(db_factory)
         )
         search_timeout = api_center_service._scheduled_attempt_timeout_seconds(
             persisted,
-            task="search_system_routing",
+            task="search_result_recommendation_reason",
             remaining_seconds=100,
             remaining_candidate_count=0,
         )
 
-    assert upload_timeout == 55
+    assert upload_timeout == 20
     assert search_timeout == 20
 
 
-def test_transient_vision_timeout_does_not_keep_capability_ok():
+def test_retired_tasks_are_not_scheduled(db_factory):
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        service.create_credential(
+            ApiCredentialCreate(
+                label="通用 API",
+                base_url="https://general.example.test/v1",
+                model_name="gpt-general",
+                api_key="sk-general-1234",
+            ),
+            actor_user_id="admin",
+        )
+        slot, selected = service.select_credentials_for_task("image_content_analysis")
+
+    assert slot is None
+    assert selected == []
+
+
+def test_transient_text_timeout_does_not_keep_capability_ok():
     checked_at = datetime.now(timezone.utc)
     raw = api_center_service._capability_profile_with_result(
         "{}",
-        task="image_content_analysis",
+        task="search_result_recommendation_reason",
         status="ok",
         duration_ms=1000,
         error_summary=None,
@@ -1633,7 +1781,7 @@ def test_transient_vision_timeout_does_not_keep_capability_ok():
 
     updated = api_center_service._capability_profile_with_result(
         raw,
-        task="image_content_analysis",
+        task="search_result_recommendation_reason",
         status="timed_out",
         duration_ms=55000,
         error_summary="模型响应超时",
@@ -1645,7 +1793,7 @@ def test_transient_vision_timeout_does_not_keep_capability_ok():
         for item in api_center_service._capability_reads(updated)
     }
 
-    assert profile["vision_json"] == "unknown"
+    assert profile["text_json"] == "unknown"
 
 
 def test_unconfigured_runtime_call_is_visible_as_skipped(db_factory):
@@ -1727,13 +1875,13 @@ def test_environment_credentials_are_imported_into_api_center(db_factory, monkey
     assert {
         "环境导入 · 搜索主 Key",
         "环境导入 · 搜索备用 Key",
-        "环境导入 · 主图分析 Key",
-        "环境导入 · 话术生成 Key",
+        "环境导入 · 素材库 Agent Key",
     }.issubset(labels)
+    assert "环境导入 · 主图分析 Key" not in labels
     assert all(not item.api_key_preview.endswith("1111" * 2) for item in summary.credentials)
     search_key = next(item for item in summary.credentials if item.label == "环境导入 · 搜索主 Key")
-    assert "search_system_routing" in search_key.task_scope
-    assert summary.overview.configured_slot_count >= 4
+    assert "search_result_recommendation_reason" in search_key.task_scope
+    assert summary.overview.configured_slot_count == 2
 
 
 def test_environment_import_does_not_overwrite_existing_api_center_credentials(
@@ -1768,7 +1916,7 @@ def test_environment_import_does_not_overwrite_existing_api_center_credentials(
                 base_url="https://center.example.test/v1",
                 model_name="center-model",
                 api_key="center-key",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
             ),
             actor_user_id="admin",
         )
@@ -1858,7 +2006,7 @@ def test_disabling_last_api_does_not_fallback_to_environment_provider(
         with pytest.raises(ModelProviderNotConfigured, match="API 中心没有可用"):
             provider.generate_json(
                 ModelRequest(
-                    task="search_system_routing",
+                    task="search_result_recommendation_reason",
                     prompt="Return JSON",
                     timeout_seconds=1,
                 )
@@ -1867,7 +2015,7 @@ def test_disabling_last_api_does_not_fallback_to_environment_provider(
         trace = next(
             item
             for item in service.summary().recent_call_traces
-            if item.task == "search_system_routing"
+            if item.task == "search_result_recommendation_reason"
         )
 
     assert trace.status == "skipped"
@@ -1912,7 +2060,7 @@ def test_api_center_scheduler_uses_healthy_auto_credentials(db_factory, monkeypa
                 base_url="https://api.example.test/v1",
                 model_name="gpt-slow",
                 api_key="sk-slow-1111",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
                 priority=10,
             ),
             actor_user_id="admin",
@@ -1923,7 +2071,7 @@ def test_api_center_scheduler_uses_healthy_auto_credentials(db_factory, monkeypa
                 base_url="https://api.example.test/v1",
                 model_name="gpt-fast",
                 api_key="sk-fast-2222",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
                 priority=99,
             ),
             actor_user_id="admin",
@@ -1937,7 +2085,7 @@ def test_api_center_scheduler_uses_healthy_auto_credentials(db_factory, monkeypa
         provider = service.build_scheduled_provider()
         result = provider.generate_json(
             ModelRequest(
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 prompt="Return JSON",
                 input_text="test",
                 timeout_seconds=15,
@@ -1950,7 +2098,7 @@ def test_api_center_scheduler_uses_healthy_auto_credentials(db_factory, monkeypa
     assert slower.id != result.attempts[0]["credential_id"]
 
 
-def test_auto_scheduler_requires_proven_vision_capability(db_factory, monkeypatch):
+def test_auto_scheduler_for_search_explanation_uses_text_capability(db_factory, monkeypatch):
     calls: list[str] = []
 
     def fake_generate_json(self, request):
@@ -1986,18 +2134,18 @@ def test_auto_scheduler_requires_proven_vision_capability(db_factory, monkeypatc
             ),
             actor_user_id="admin",
         )
-        vision_ready = service.create_credential(
+        lower_priority = service.create_credential(
             ApiCredentialCreate(
-                label="视觉可用 Key",
+                label="低优先级文本 Key",
                 base_url="https://api.example.test/v1",
-                model_name="vision-json",
-                api_key="sk-vision-json-2222",
+                model_name="fallback-text-json",
+                api_key="sk-fallback-text-json-2222",
                 priority=99,
             ),
             actor_user_id="admin",
         )
         unknown_credential = service.repo.get_credential(unknown.id)
-        ready_credential = service.repo.get_credential(vision_ready.id)
+        ready_credential = service.repo.get_credential(lower_priority.id)
         assert unknown_credential is not None
         assert ready_credential is not None
         unknown_credential.last_status = "ok"
@@ -2007,7 +2155,7 @@ def test_auto_scheduler_requires_proven_vision_capability(db_factory, monkeypatc
         ready_credential.capability_profile_json = (
             api_center_service._capability_profile_with_result(
                 "{}",
-                task="image_content_analysis",
+                task="search_result_recommendation_reason",
                 status="ok",
                 duration_ms=9,
                 error_summary=None,
@@ -2020,7 +2168,7 @@ def test_auto_scheduler_requires_proven_vision_capability(db_factory, monkeypatc
         provider = service.build_scheduled_provider()
         result = provider.generate_json(
             ModelRequest(
-                task="image_content_analysis",
+                task="search_result_recommendation_reason",
                 prompt="Return JSON",
                 input_text="test",
                 timeout_seconds=15,
@@ -2028,8 +2176,8 @@ def test_auto_scheduler_requires_proven_vision_capability(db_factory, monkeypatc
         )
 
     assert result.value["ok"] is True
-    assert calls == ["vision-json"]
-    assert result.attempts[0]["credential_label"] == "视觉可用 Key"
+    assert calls == ["text-json"]
+    assert result.attempts[0]["credential_label"] == "未测视觉 Key"
 
 
 def test_api_center_scheduler_balances_repeated_calls_across_healthy_credentials(
@@ -2082,7 +2230,7 @@ def test_api_center_scheduler_balances_repeated_calls_across_healthy_credentials
         for _ in range(6):
             result = provider.generate_json(
                 ModelRequest(
-                    task="search_system_routing",
+                    task="search_result_recommendation_reason",
                     prompt="Return JSON",
                     input_text="test",
                     timeout_seconds=15,
@@ -2149,7 +2297,7 @@ def test_api_center_scheduler_balances_provider_hosts_before_keys(
         for _ in range(6):
             provider.generate_json(
                 ModelRequest(
-                    task="search_system_routing",
+                    task="search_result_recommendation_reason",
                     prompt="Return JSON",
                     input_text="test",
                     timeout_seconds=15,
@@ -2217,7 +2365,7 @@ def test_api_center_scheduler_keeps_more_than_four_fallback_candidates(
         provider = service.build_scheduled_provider()
         result = provider.generate_json(
             ModelRequest(
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 prompt="Return JSON",
                 input_text="test",
                 timeout_seconds=45,
@@ -2269,7 +2417,7 @@ def test_scheduler_protects_relay_budget_in_sequential_mode(db_factory, monkeypa
             credential.last_status = "ok"
             credential.last_latency_ms = 30_000
         service.update_slot(
-            "search_system_routing",
+            "search_result_recommendation_reason",
             RoutingSlotUpdate(
                 timeout_seconds=45,
                 max_parallel=1,
@@ -2282,7 +2430,7 @@ def test_scheduler_protects_relay_budget_in_sequential_mode(db_factory, monkeypa
         with pytest.raises(ModelProviderError):
             provider.generate_json(
                 ModelRequest(
-                    task="search_system_routing",
+                    task="search_result_recommendation_reason",
                     prompt="Return JSON",
                     input_text="test",
                     timeout_seconds=45,
@@ -2358,7 +2506,7 @@ def test_scheduler_hedges_slow_attempt_and_uses_first_success(db_factory, monkey
             credential.last_status = "ok"
             credential.last_latency_ms = 10
         service.update_slot(
-            "search_system_routing",
+            "search_result_recommendation_reason",
             RoutingSlotUpdate(
                 timeout_seconds=20,
                 max_parallel=2,
@@ -2370,7 +2518,7 @@ def test_scheduler_hedges_slow_attempt_and_uses_first_success(db_factory, monkey
         provider = service.build_scheduled_provider()
         result = provider.generate_json(
             ModelRequest(
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 prompt="Return JSON",
                 input_text="test",
                 timeout_seconds=20,
@@ -2418,7 +2566,7 @@ def test_scheduler_reuses_selection_snapshot_metrics_during_request(
             credential.last_status = "ok"
             credential.last_latency_ms = 10
         service.update_slot(
-            "search_system_routing",
+            "search_result_recommendation_reason",
             RoutingSlotUpdate(
                 timeout_seconds=45,
                 max_parallel=1,
@@ -2442,7 +2590,7 @@ def test_scheduler_reuses_selection_snapshot_metrics_during_request(
 
         result = service.build_scheduled_provider().generate_json(
             ModelRequest(
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 prompt="Return JSON",
                 input_text="test",
                 timeout_seconds=45,
@@ -2495,11 +2643,11 @@ def test_provider_group_summary_recommends_disable_for_degraded_host(db_factory)
             persist=True,
             branches=[
                 {
-                    "source": "search_system_routing",
+                    "source": "search_result_recommendation_reason",
                     "status": "timed_out",
                     "attempts": [
                         {
-                            "task": "search_system_routing",
+                            "task": "search_result_recommendation_reason",
                             "layer": "第一层：体系路由",
                             "provider": "relay-a.example.test",
                             "model": "gpt-a",
@@ -2595,7 +2743,7 @@ def test_health_check_targets_are_grouped_by_provider_host():
         [
             api_center_service._HealthProbeTarget(
                 credential_id="a",
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 provider_group="relay.example.test",
             ),
             api_center_service._HealthProbeTarget(
@@ -2605,7 +2753,7 @@ def test_health_check_targets_are_grouped_by_provider_host():
             ),
             api_center_service._HealthProbeTarget(
                 credential_id="c",
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 provider_group="other.example.test",
             ),
         ]
@@ -2647,18 +2795,18 @@ def test_api_center_scheduler_honors_slot_exclusions(db_factory, monkeypatch):
                 base_url="https://api.example.test/v1",
                 model_name="gpt-blocked",
                 api_key="sk-blocked-1111",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
                 priority=1,
             ),
             actor_user_id="admin",
         )
         allowed = service.create_credential(
             ApiCredentialCreate(
-                label="本任务允许 Key",
+                label="本任务低优先允许 Key",
                 base_url="https://api.example.test/v1",
                 model_name="gpt-allowed",
                 api_key="sk-allowed-2222",
-                task_scope=["asset_agent_chat"],
+                task_scope=["search_result_recommendation_reason"],
                 priority=99,
             ),
             actor_user_id="admin",
@@ -2669,7 +2817,7 @@ def test_api_center_scheduler_honors_slot_exclusions(db_factory, monkeypatch):
             credential.last_status = "ok"
             credential.last_latency_ms = 10
         service.update_slot(
-            "search_system_routing",
+            "search_result_recommendation_reason",
             RoutingSlotUpdate(
                 auto_select_enabled=True,
                 excluded_credential_ids=[blocked.id],
@@ -2680,7 +2828,7 @@ def test_api_center_scheduler_honors_slot_exclusions(db_factory, monkeypatch):
         provider = service.build_scheduled_provider()
         result = provider.generate_json(
             ModelRequest(
-                task="search_system_routing",
+                task="search_result_recommendation_reason",
                 prompt="Return JSON",
                 input_text="test",
                 timeout_seconds=15,
@@ -2689,7 +2837,7 @@ def test_api_center_scheduler_honors_slot_exclusions(db_factory, monkeypatch):
         routing = next(
             item
             for item in service.summary().routing_slots
-            if item.task == "search_system_routing"
+            if item.task == "search_result_recommendation_reason"
         )
 
     assert result.value["ok"] is True
@@ -2729,7 +2877,7 @@ def test_api_center_scheduler_skips_saturated_credential(db_factory, monkeypatch
                 base_url="https://api.example.test/v1",
                 model_name="gpt-busy",
                 api_key="sk-busy-1111",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
                 priority=1,
                 max_concurrency=1,
             ),
@@ -2741,7 +2889,7 @@ def test_api_center_scheduler_skips_saturated_credential(db_factory, monkeypatch
                 base_url="https://api.example.test/v1",
                 model_name="gpt-idle",
                 api_key="sk-idle-2222",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
                 priority=99,
                 max_concurrency=1,
             ),
@@ -2759,7 +2907,7 @@ def test_api_center_scheduler_skips_saturated_credential(db_factory, monkeypatch
             provider = service.build_scheduled_provider()
             result = provider.generate_json(
                 ModelRequest(
-                    task="search_system_routing",
+                    task="search_result_recommendation_reason",
                     prompt="Return JSON",
                     input_text="test",
                     timeout_seconds=15,
@@ -2801,7 +2949,7 @@ def test_api_center_scheduler_honors_cancelled_request_before_capacity_wait(
                 base_url="https://busy.example.test/v1",
                 model_name="gpt-busy",
                 api_key="sk-busy-value-1234",
-                task_scope=["search_system_routing"],
+                task_scope=["search_result_recommendation_reason"],
                 max_concurrency=1,
             ),
             actor_user_id="admin",
@@ -2814,7 +2962,7 @@ def test_api_center_scheduler_honors_cancelled_request_before_capacity_wait(
             with pytest.raises(ModelProviderCancelled, match="已取消"):
                 provider.generate_json(
                     ModelRequest(
-                        task="search_system_routing",
+                        task="search_result_recommendation_reason",
                         prompt="Return JSON",
                         input_text="cancelled before capacity wait",
                         timeout_seconds=15,
@@ -2824,7 +2972,7 @@ def test_api_center_scheduler_honors_cancelled_request_before_capacity_wait(
             trace = next(
                 item
                 for item in service.summary().recent_call_traces
-                if item.task == "search_system_routing"
+                if item.task == "search_result_recommendation_reason"
             )
         finally:
             api_center_service._CAPACITY_TRACKER.release(credential.id)

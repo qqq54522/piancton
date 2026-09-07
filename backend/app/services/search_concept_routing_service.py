@@ -54,12 +54,13 @@ class SearchConceptRoutingService:
             )
         routed: list[SearchHit] = []
         evidence_by_image = {}
+        broad_inventory_route = _is_vikingdb_selling_point_inventory_route(understanding)
         for hit, accepted in reviewed:
             evidence = self.asset_selection.evidence(
                 hit, keyword, understanding, {link.concept.code for link in accepted}
             )
             evidence_by_image[hit.image.id] = evidence
-            if not self.asset_selection.allows(
+            if not broad_inventory_route and not self.asset_selection.allows(
                 hit,
                 accepted,
                 keyword,
@@ -108,3 +109,13 @@ class SearchConceptRoutingService:
             ),
             active_matches=active_matches,
         )
+
+
+def _is_vikingdb_selling_point_inventory_route(
+    understanding: SearchUnderstanding | None,
+) -> bool:
+    return bool(
+        understanding
+        and "VikingDB" in (understanding.search_strategy or "")
+        and understanding.matched_business_concepts
+    )

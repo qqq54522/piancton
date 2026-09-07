@@ -63,21 +63,6 @@ export function useAssetActions(groupId: string) {
     }) => assetApi.reviewAssetConcepts(groupId, input.linkIds, input.reviewStatus),
     onSuccess: update,
   });
-  const addPhrase = useMutation({
-    mutationFn: (phrase: string) => assetApi.addAssetSearchPhrase(groupId, phrase),
-    onSuccess: update,
-  });
-  const reviewPhrase = useMutation({
-    mutationFn: (input: {
-      phraseId: string;
-      reviewStatus: 'accepted' | 'rejected';
-    }) => assetApi.reviewAssetSearchPhrase(groupId, input.phraseId, input.reviewStatus),
-    onSuccess: update,
-  });
-  const removePhrase = useMutation({
-    mutationFn: (phraseId: string) => assetApi.removeAssetSearchPhrase(groupId, phraseId),
-    onSuccess: update,
-  });
   const addSourceLink = useMutation({
     mutationFn: (input: Parameters<typeof assetApi.addAssetSourceLink>[1]) => (
       assetApi.addAssetSourceLink(groupId, input)
@@ -97,17 +82,14 @@ export function useAssetActions(groupId: string) {
   });
 
   return {
-    addPhrase,
     addSourceLink,
     addVariant,
     confirmConcept,
     deleteSourceLink,
     deleteVariant,
     replacePrimary,
-    removePhrase,
     reviewConcept,
     reviewConcepts,
-    reviewPhrase,
     updateSourceLink,
     updateBusinessClassification,
   };

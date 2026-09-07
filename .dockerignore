@@ -13,6 +13,8 @@ storage/images/
 *.py[cod]
 backend/.venv/
 backend/.env
+backend/.env.*
+!backend/.env.example
 
 node_modules/
 client/node_modules/

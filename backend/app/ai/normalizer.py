@@ -96,8 +96,6 @@ def normalize_model_payload(
             original_query=_query_from_input_text(request.input_text or ""),
             concept_display_names=concept_display_names,
         )
-    if request.task == "asset_search_phrase_generation":
-        return _normalize_asset_search_phrase_payload(payload)
     if request.task != "image_content_analysis":
         return payload
 
@@ -156,6 +154,14 @@ def _normalize_result_recommendation_reason_payload(
                 reasons.append({"image_id": image_id, "reason": reason})
     return {
         "reasons": reasons,
+        "explanation": str(
+            payload.get("explanation")
+            or payload.get("route_explanation")
+            or payload.get("routeExplanation")
+            or payload.get("recommendation")
+            or payload.get("reason")
+            or ""
+        ).strip(),
         "generation_strategy": str(
             payload.get("generation_strategy")
             or payload.get("strategy")
@@ -325,17 +331,6 @@ def _normalize_weight(value: Any, default: float) -> float:
     except (TypeError, ValueError):
         return default
     return max(0.0, min(1.0, weight))
-
-
-def _normalize_asset_search_phrase_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    normalized = dict(payload)
-    phrases = normalized.get("phrases")
-    if not isinstance(phrases, list):
-        phrases = normalized.get("asset_search_phrases")
-    if not isinstance(phrases, list):
-        profile = normalized.get("semantic_profile")
-        phrases = profile.get("asset_search_phrases") if isinstance(profile, dict) else []
-    return {"phrases": phrases if isinstance(phrases, list) else []}
 
 
 def _normalize_semantic_profile(

@@ -1,7 +1,6 @@
 import { api } from './client';
 
 import type {
-  AssetSearchPhraseSuggestion,
   ImageDetail,
   ImageItem,
   ImageListParams,
@@ -27,7 +26,6 @@ export async function fetchImageDetail(id: string): Promise<ImageDetail> {
 export async function uploadImage(input: {
   file: File;
   title: string;
-  expectedSearchWords?: string[];
   channel?: string;
   styleLabel?: string;
   isSceneImage?: boolean;
@@ -36,7 +34,6 @@ export async function uploadImage(input: {
   const form = new FormData();
   form.append('file', input.file);
   form.append('title', input.title);
-  form.append('expectedSearchWords', (input.expectedSearchWords ?? []).join('\n'));
   if (input.channel?.trim()) form.append('channel', input.channel.trim());
   if (input.styleLabel?.trim()) form.append('styleLabel', input.styleLabel.trim());
   if (typeof input.isSceneImage === 'boolean') {
@@ -91,24 +88,4 @@ export async function submitSearchFeedback(data: SearchFeedbackRequest): Promise
 
 export async function fetchProviderStatus(): Promise<ProviderStatus> {
   return (await api.get('/api/ai/provider')).data;
-}
-
-export async function generateAssetSearchPhrases(input: {
-  file: File;
-  count: number;
-  title?: string;
-  conceptCode?: string;
-}): Promise<AssetSearchPhraseSuggestion> {
-  const form = new FormData();
-  form.append('file', input.file);
-  form.append('count', String(input.count));
-  if (input.title?.trim()) form.append('title', input.title.trim());
-  if (input.conceptCode?.trim()) form.append('conceptCode', input.conceptCode.trim());
-  return (
-    await api.post('/api/ai/asset-search-phrases', form, { timeout: 120_000 })
-  ).data;
-}
-
-export async function analyzeContentTags(id: string): Promise<void> {
-  await api.post(`/api/ai/images/${id}/analyze`);
 }

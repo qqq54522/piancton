@@ -29,15 +29,10 @@ class ModelProvider(Protocol):
 
 当前运行任务：
 
-- `image_content_analysis`
-- `asset_search_phrase_generation`
-- `search_system_routing`
-- `search_intent_understanding`
-- `search_proof_point_understanding`
-- `search_candidate_review`
 - `search_result_recommendation_reason`
-- `copy_selling_point_matching`
 - `asset_agent_chat`
+
+其中 `search_result_recommendation_reason` 当前只用于搜索结果顶部的命中卖点解释，不再为每张图片生成推荐理由。`image_content_analysis`、旧分层搜索理解和 `copy_selling_point_matching` 已退役，不得重新作为当前 API 中心默认槽位恢复。
 
 ## 边界
 

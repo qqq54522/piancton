@@ -6,12 +6,10 @@ import { submitSearchFeedback } from '@client/src/api/image';
 import { Button } from '@client/src/components/ui/button';
 import { useProjectBasket } from '@client/src/features/assets/useProjectBasket';
 import type { SearchFeedbackType, SemanticSearchResponse } from '@client/src/types/api';
-import { channelIntentLabel } from '../channelIntent';
-import { channelRecommendationFor } from '../channelRecommendations';
 import ProjectBasketPanel from './ProjectBasketPanel';
 import SearchFeedbackPanel from './SearchFeedbackPanel';
 import SearchResultGrid from './SearchResultGrid';
-import { searchIntentTitle } from './searchConceptPresentation';
+import { searchIntentOptions, searchIntentTitle } from './searchConceptPresentation';
 import {
   activeRefinementCount,
   filterResultsByRefinements,
@@ -45,15 +43,25 @@ const SemanticSearchResult = ({
   const [feedbackNote, setFeedbackNote] = useState('');
   const [submittedFeedback, setSubmittedFeedback] = useState<SearchFeedbackType | null>(null);
   const projectBasket = useProjectBasket();
+  const matchedSellingPoints = useMemo(
+    () => searchIntentOptions(result.searchUnderstanding).map((item) => item.name),
+    [result.searchUnderstanding],
+  );
   const visibleResults = useMemo(
-    () => filterResultsByRefinements(result.results, refinements),
-    [refinements, result.results],
+    () => filterResultsByRefinements(
+      result.results,
+      refinements,
+      { preserveConceptNames: matchedSellingPoints },
+    ),
+    [matchedSellingPoints, refinements, result.results],
   );
   const refinementCount = activeRefinementCount(refinements);
   const intentTitle = searchIntentTitle(result.searchUnderstanding?.queryType);
-  const channelRecommendation = channelRecommendationFor(refinements.channel);
-  const channelIntent = refinements.channel ? null : refinements.channelIntent;
-  const channelIntentRecommendation = channelIntent?.recommendation;
+  const routeSummary = buildRouteSummary({
+    keyword,
+    matchedSellingPoints,
+    routeExplanation: result.routeExplanation,
+  });
   const feedbackMutation = useMutation({
     mutationFn: (feedbackType: SearchFeedbackType) => submitSearchFeedback({
       searchLogId: result.searchLogId,
@@ -109,15 +117,13 @@ const SemanticSearchResult = ({
         </div>
       )}
 
-      {!result.fallback && (channelRecommendation || channelIntentRecommendation) && (
-        <div className="mb-4 flex flex-col gap-1 rounded-xl border border-border/80 bg-[#f7f7f5] px-4 py-2.5">
-          <p className="text-xs font-semibold leading-5 text-foreground">
-            {channelRecommendation
-              ? `推荐${channelRecommendation.value}`
-              : `已理解：${channelIntentLabel(channelIntent)}使用场景`}
+      {!result.fallback && routeSummary && (
+        <div className="mb-4 flex flex-col gap-1 rounded-lg border border-foreground/10 bg-foreground px-4 py-3 text-background shadow-sm">
+          <p className="text-xs font-semibold leading-5">
+            {routeSummary.title}
           </p>
-          <p className="text-xs leading-5 text-muted-foreground">
-            {channelRecommendation?.description ?? channelIntentRecommendation}
+          <p className="text-xs leading-5 text-background/78">
+            {routeSummary.description}
           </p>
         </div>
       )}
@@ -164,5 +170,61 @@ const SemanticSearchResult = ({
     </div>
   );
 };
+
+interface RouteSummaryInput {
+  keyword: string;
+  matchedSellingPoints: string[];
+  routeExplanation?: string | null;
+}
+
+function buildRouteSummary({
+  keyword,
+  matchedSellingPoints,
+  routeExplanation,
+}: RouteSummaryInput): { title: string; description: string } | null {
+  if (matchedSellingPoints.length === 0) return null;
+  const sellingPointText = matchedSellingPoints.length > 0
+    ? matchedSellingPoints.slice(0, 3).join('、')
+    : '当前需求';
+  return {
+    title: `命中卖点：${sellingPointText}`,
+    description: cleanRouteExplanation(routeExplanation)
+      || buildLocalRouteExplanation(keyword, sellingPointText),
+  };
+}
+
+function cleanRouteExplanation(value?: string | null): string {
+  const processMarkers = [
+    '未指定渠道',
+    '当前返回',
+    '卡片下方',
+    '已审核素材',
+    '保留手机端大图',
+    '保留手机端小图',
+    '已按当前渠道',
+    '渠道/场景筛选',
+    '同时按',
+    '收窄版位',
+  ];
+  const explanation = (value ?? '').replace(/\s+/g, ' ').trim();
+  const cutoffIndexes = processMarkers
+    .map((marker) => explanation.indexOf(marker))
+    .filter((index) => index >= 0);
+  return (cutoffIndexes.length
+    ? explanation.slice(0, Math.min(...cutoffIndexes))
+    : explanation
+  )
+    .replace(/(?:未指定渠道|已按当前渠道\/场景筛选|同时按).+?(?:。|$)/g, '')
+    .replace(/当前返回\s*\d+\s*组[^。]*。?/g, '')
+    .replace(/卡片下方[^。]*。?/g, '')
+    .replace(/[，,；; ]+$/g, '')
+    .trim();
+}
+
+function buildLocalRouteExplanation(keyword: string, sellingPointText: string): string {
+  const query = keyword.trim();
+  const queryText = query ? `「${query}」` : '这句话';
+  return `${queryText}的有效信号不是单个关键词，而是整句话表达出的学习动作、目标结果和使用场景；这些信号与「${sellingPointText}」的核心能力一致，所以优先推荐该卖点下已确认的素材。`;
+}
 
 export default SemanticSearchResult;

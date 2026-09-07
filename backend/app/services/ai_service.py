@@ -21,6 +21,7 @@ from app.ai.skill_loader import (
     build_candidate_review_prompt,
     build_proof_point_prompt,
     build_result_recommendation_reason_prompt,
+    build_search_route_explanation_prompt,
     build_selling_point_prompt,
     build_system_routing_prompt,
     build_task_prompt,
@@ -35,7 +36,6 @@ from app.domain.evidence_points import load_evidence_point_catalog
 from app.domain.proof_points import load_proof_point_catalog
 from app.domain.taxonomy_catalog import load_taxonomy_catalog
 from app.schemas.ai import (
-    AssetSearchPhraseSuggestion,
     ImageAnalysisResult,
     ProviderStatus,
     SearchCandidateReviewResult,
@@ -43,6 +43,7 @@ from app.schemas.ai import (
     SearchProofPointMatch,
     SearchProofPointUnderstanding,
     SearchResultRecommendationReasonResult,
+    SearchRouteExplanationResult,
     SearchSystemRouting,
     SearchUnderstanding,
     SellingPointMatchResult,
@@ -108,72 +109,6 @@ class AiService:
             exc.attempts = call.attempts
             raise
         return call
-
-    def generate_asset_search_phrases(
-        self,
-        image_path: Path,
-        *,
-        count: int,
-        title: str = "",
-        concept_code: str = "",
-        image_media_type: str | None = None,
-    ) -> ModelCallResult[AssetSearchPhraseSuggestion]:
-        if count < 2 or count > 5:
-            raise AppError(
-                "invalid_phrase_count",
-                "AI 素材独有话术数量必须在 2～5 条之间",
-                status_code=422,
-            )
-        concept_context = self._concept_context(concept_code)
-        concept_prompt_context = self._concept_prompt_context(concept_code)
-        context = [
-            f"严格生成数量：{count} 条",
-            (
-                "输出角色：正在素材库中找图的业务人员，"
-                "优先模拟不知道标准卖点名的业务小白"
-            ),
-            f"素材名称：{title.strip()}" if title.strip() else "",
-            f"已选主要卖点：{concept_context}" if concept_context else "",
-            (
-                f"已选卖点业务边界：\n{concept_prompt_context}"
-                if concept_prompt_context
-                else ""
-            ),
-        ]
-        call = self._run(
-            ModelRequest(
-                task="asset_search_phrase_generation",
-                prompt=build_task_prompt("asset_search_phrase_generation"),
-                input_text="\n".join(item for item in context if item),
-                image_path=image_path,
-                image_media_type=image_media_type,
-            ),
-            AssetSearchPhraseSuggestion,
-        )
-        result = call.value
-        cleaned = list(
-            dict.fromkeys(item.strip() for item in result.phrases if item.strip())
-        )
-        try:
-            self._validate_profile_items(
-                "素材独有搜索表达",
-                cleaned,
-                limit=count,
-                max_length=80,
-            )
-        except AppError as exc:
-            exc.attempts = call.attempts
-            raise
-        if len(cleaned) != count:
-            error = AppError(
-                "model_response_invalid",
-                f"模型需要返回正好 {count} 条素材独有话术",
-                status_code=502,
-                details={"expected": count, "actual": len(cleaned)},
-            )
-            error.attempts = call.attempts
-            raise error
-        return ModelCallResult(result.model_copy(update={"phrases": cleaned}), call.attempts)
 
     def understand_search(
         self,
@@ -392,6 +327,43 @@ class AiService:
                 cancellation=cancellation,
             ),
             SearchResultRecommendationReasonResult,
+        )
+
+    def explain_search_route(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        result_count: int,
+        cancellation: CancellationSignal | None = None,
+    ) -> ModelCallResult[SearchRouteExplanationResult]:
+        concept_matches = (
+            understanding.matched_business_concepts if understanding else []
+        )
+        matched_selling_points = [item.concept for item in concept_matches]
+        if not matched_selling_points:
+            return ModelCallResult(SearchRouteExplanationResult(), ())
+        payload = {
+            "query": keyword,
+            "matched_selling_points": [
+                {
+                    "name": item.concept,
+                    "relation": item.relation,
+                    "reason": item.reason,
+                }
+                for item in concept_matches
+            ],
+            "search_intent": understanding.search_intent if understanding else "",
+            "query_type": understanding.query_type if understanding else "",
+        }
+        return self._run(
+            ModelRequest(
+                task="search_result_recommendation_reason",
+                prompt=build_search_route_explanation_prompt(),
+                input_text=json.dumps(payload, ensure_ascii=False),
+                cancellation=cancellation,
+            ),
+            SearchRouteExplanationResult,
         )
 
     def routed_system_codes(

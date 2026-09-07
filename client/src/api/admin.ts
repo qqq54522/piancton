@@ -136,7 +136,7 @@ export async function probeApiCredentialTemperature(
 
 export async function testApiCredential(
   id: string,
-  task: ModelTaskName = 'search_system_routing',
+  task: ModelTaskName = 'search_result_recommendation_reason',
 ): Promise<ApiHealthCheck> {
   return (
     await api.post(`/api/admin/api-center/credentials/${id}/test`, { task }, {

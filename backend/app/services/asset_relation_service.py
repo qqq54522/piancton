@@ -5,7 +5,7 @@ from typing import Literal, cast
 from app.core.errors import AppError, NotFoundError
 from app.domain.evidence_points import load_evidence_point_catalog
 from app.domain.proof_points import load_proof_point_catalog
-from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
+from app.models.asset import AssetConceptLink, AssetGroup
 from app.repositories.asset_repository import AssetRepository
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
@@ -16,13 +16,12 @@ from app.schemas.asset import (
     AssetConceptConfirmation,
     AssetConceptReview,
     AssetGroupRead,
-    AssetSearchPhraseCreate,
-    AssetSearchPhraseReview,
 )
 from app.services.asset_serializers import asset_group_to_read
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from app.services.unit_of_work import UnitOfWork
+from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 
 
 class AssetRelationService:
@@ -34,12 +33,14 @@ class AssetRelationService:
         *,
         search_index: SearchIndexSync | None = None,
         embedding_index: EmbeddingIndexSync | None = None,
+        vector_index: VikingDBVectorIndexSync | None = None,
     ):
         self.assets = AssetRepository(db)
         self.concepts = BusinessConceptRepository(db)
         self.images = ImageRepository(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
+        self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.uow = UnitOfWork(db)
 
     def replace_analysis_suggestions(
@@ -76,29 +77,10 @@ class AssetRelationService:
             )
         self.assets.replace_pending_ai_links(group, links)
 
-        phrases = [
-            AssetSearchPhrase(
-                phrase=phrase,
-                origin="ai",
-                review_status="pending",
-                weight=0.72,
-            )
-            for phrase in _unique_phrases(
-                result.semantic_profile.asset_search_phrases
-            )
-        ]
-        self.assets.replace_pending_ai_phrases(group, phrases)
-
-    def manual_phrases(self, values: list[str]) -> list[AssetSearchPhrase]:
-        return [
-            AssetSearchPhrase(
-                phrase=phrase,
-                origin="manual",
-                review_status="accepted",
-                weight=1.0,
-            )
-            for phrase in _unique_phrases(values)
-        ]
+        # Current vector search mode uses accepted selling-point relations as
+        # the image truth source; AI-generated image phrases are no longer
+        # persisted from upload analysis.
+        self.assets.replace_pending_ai_phrases(group, [])
 
     def confirm(self, group_id: str, payload: AssetConceptConfirmation) -> AssetGroupRead:
         group = self._group(group_id)
@@ -261,58 +243,6 @@ class AssetRelationService:
         self._sync_primary(group_id)
         return asset_group_to_read(self._group(group_id))
 
-    def add_phrase(self, group_id: str, payload: AssetSearchPhraseCreate) -> AssetGroupRead:
-        group = self._group(group_id)
-        phrase = payload.phrase.strip()
-        existing = next(
-            (
-                item
-                for item in group.search_phrases
-                if item.phrase == phrase and item.origin == "manual"
-            ),
-            None,
-        )
-        if existing:
-            existing.weight = payload.weight
-            existing.review_status = "accepted"
-        else:
-            group.search_phrases.append(
-                AssetSearchPhrase(
-                    phrase=phrase,
-                    origin="manual",
-                    review_status="accepted",
-                    weight=payload.weight,
-                )
-            )
-        self.assets.save(group)
-        self.uow.commit()
-        self._sync_primary(group_id)
-        return asset_group_to_read(self._group(group_id))
-
-    def review_phrase(
-        self, group_id: str, phrase_id: str, payload: AssetSearchPhraseReview
-    ) -> AssetGroupRead:
-        phrase = self.assets.get_search_phrase(group_id, phrase_id)
-        if not phrase:
-            raise NotFoundError("asset_search_phrase_not_found", "素材搜索表达不存在")
-        if phrase.origin == "manual":
-            raise AppError("manual_phrase_not_reviewable", "人工搜索表达不需要审核")
-        phrase.review_status = payload.review_status
-        self.assets.save(phrase)
-        self.uow.commit()
-        self._sync_primary(group_id)
-        return asset_group_to_read(self._group(group_id))
-
-    def remove_phrase(self, group_id: str, phrase_id: str) -> AssetGroupRead:
-        phrase = self.assets.get_search_phrase(group_id, phrase_id)
-        if not phrase:
-            raise NotFoundError("asset_search_phrase_not_found", "素材搜索表达不存在")
-        phrase.review_status = "rejected"
-        self.assets.save(phrase)
-        self.uow.commit()
-        self._sync_primary(group_id)
-        return asset_group_to_read(self._group(group_id))
-
     def _sync_primary(self, group_id: str) -> None:
         group = self._group(group_id)
         if not group.primary_image_id:
@@ -322,6 +252,7 @@ class AssetRelationService:
             return
         self.search_index.upsert_image(image)
         self.embedding_index.upsert_image(self.images, image)
+        self.vector_index.best_effort_upsert_image(image)
 
     def _group(self, group_id: str) -> AssetGroup:
         group = self.assets.get(group_id)
@@ -380,14 +311,3 @@ class AssetRelationService:
                 and item.concept_id in concept_ids
             ):
                 item.review_status = "rejected"
-
-
-def _unique_phrases(values: list[str]) -> list[str]:
-    seen: set[str] = set()
-    output: list[str] = []
-    for value in values:
-        phrase = value.strip()[:300]
-        if phrase and phrase not in seen:
-            seen.add(phrase)
-            output.append(phrase)
-    return output[:20]

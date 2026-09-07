@@ -450,41 +450,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/asset-groups/{group_id}/search-phrases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add Asset Search Phrase */
-        post: operations["add_asset_search_phrase_api_asset_groups__group_id__search_phrases_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/asset-groups/{group_id}/search-phrases/{phrase_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove Asset Search Phrase */
-        delete: operations["remove_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__delete"];
-        options?: never;
-        head?: never;
-        /** Review Asset Search Phrase */
-        patch: operations["review_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__patch"];
-        trace?: never;
-    };
     "/api/asset-groups/{group_id}/source-links": {
         parameters: {
             query?: never;
@@ -554,40 +519,6 @@ export interface paths {
         head?: never;
         /** Update Business Concept */
         patch: operations["update_business_concept_api_business_concepts__concept_id__patch"];
-        trace?: never;
-    };
-    "/api/business-concepts/{concept_id}/search-phrases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Add Concept Search Phrase */
-        post: operations["add_concept_search_phrase_api_business_concepts__concept_id__search_phrases_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/business-concepts/{concept_id}/search-phrases/{phrase_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update Concept Search Phrase */
-        patch: operations["update_concept_search_phrase_api_business_concepts__concept_id__search_phrases__phrase_id__patch"];
         trace?: never;
     };
     "/api/business-concepts/{concept_id}/relations": {
@@ -686,23 +617,6 @@ export interface paths {
         put?: never;
         /** Match Selling Points */
         post: operations["match_selling_points_api_ai_selling_points_match_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ai/asset-search-phrases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Generate Asset Search Phrases */
-        post: operations["generate_asset_search_phrases_api_ai_asset_search_phrases_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1262,6 +1176,19 @@ export interface components {
              */
             createdAt: string;
         };
+        /** ApiCallTraceListResponse */
+        ApiCallTraceListResponse: {
+            /** Items */
+            items: components["schemas"]["ApiCallTraceRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Hasmore */
+            hasMore: boolean;
+        };
         /** ApiCallTraceRead */
         ApiCallTraceRead: {
             /** Id */
@@ -1320,54 +1247,6 @@ export interface components {
              */
             createdAt: string;
         };
-        /** ApiCallTraceListResponse */
-        ApiCallTraceListResponse: {
-            /** Items */
-            items: components["schemas"]["ApiCallTraceRead"][];
-            /** Total */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-            /** Hasmore */
-            hasMore: boolean;
-        };
-        /** ApiCenterOverview */
-        ApiCenterOverview: {
-            /** Credentialcount */
-            credentialCount: number;
-            /** Activecredentialcount */
-            activeCredentialCount: number;
-            /** Healthycredentialcount */
-            healthyCredentialCount: number;
-            /** Degradedcredentialcount */
-            degradedCredentialCount: number;
-            /** Configuredslotcount */
-            configuredSlotCount: number;
-            /** Recentcallcount */
-            recentCallCount: number;
-            /** Recentfailurecount */
-            recentFailureCount: number;
-            /** P95Latencyms */
-            p95LatencyMs: number;
-        };
-        /** ApiCenterSummary */
-        ApiCenterSummary: {
-            overview: components["schemas"]["ApiCenterOverview"];
-            maintenance: components["schemas"]["ApiCenterMaintenanceRead"];
-            /** Credentials */
-            credentials: components["schemas"]["ApiCredentialRead"][];
-            /**
-             * Providergroups
-             * @default []
-             */
-            providerGroups: components["schemas"]["ApiProviderGroupRead"][];
-            /** Routingslots */
-            routingSlots: components["schemas"]["RoutingSlotRead"][];
-            /** Recentcalltraces */
-            recentCallTraces: components["schemas"]["ApiCallTraceRead"][];
-        };
         /** ApiCenterMaintenanceRead */
         ApiCenterMaintenanceRead: {
             /** Enabled */
@@ -1425,9 +1304,15 @@ export interface components {
         ApiCenterMaintenanceRunResult: {
             /** Status */
             status: string;
-            /** Startedat */
+            /**
+             * Startedat
+             * Format: date-time
+             */
             startedAt: string;
-            /** Finishedat */
+            /**
+             * Finishedat
+             * Format: date-time
+             */
             finishedAt: string;
             /** Checkedcount */
             checkedCount: number;
@@ -1439,6 +1324,62 @@ export interface components {
             deletedCallTraceCount: number;
             /** Deletedhealthcheckcount */
             deletedHealthCheckCount: number;
+        };
+        /** ApiCenterOverview */
+        ApiCenterOverview: {
+            /** Credentialcount */
+            credentialCount: number;
+            /** Activecredentialcount */
+            activeCredentialCount: number;
+            /** Healthycredentialcount */
+            healthyCredentialCount: number;
+            /** Degradedcredentialcount */
+            degradedCredentialCount: number;
+            /** Configuredslotcount */
+            configuredSlotCount: number;
+            /** Recentcallcount */
+            recentCallCount: number;
+            /** Recentfailurecount */
+            recentFailureCount: number;
+            /** P95Latencyms */
+            p95LatencyMs: number;
+        };
+        /** ApiCenterSummary */
+        ApiCenterSummary: {
+            overview: components["schemas"]["ApiCenterOverview"];
+            maintenance: components["schemas"]["ApiCenterMaintenanceRead"];
+            /** Credentials */
+            credentials: components["schemas"]["ApiCredentialRead"][];
+            /**
+             * Providergroups
+             * @default []
+             */
+            providerGroups: components["schemas"]["ApiProviderGroupRead"][];
+            /** Routingslots */
+            routingSlots: components["schemas"]["RoutingSlotRead"][];
+            /** Recentcalltraces */
+            recentCallTraces: components["schemas"]["ApiCallTraceRead"][];
+        };
+        /** ApiCredentialCapabilityRead */
+        ApiCredentialCapabilityRead: {
+            /** Capability */
+            capability: string;
+            /** Label */
+            label: string;
+            /**
+             * Status
+             * @default unknown
+             * @enum {string}
+             */
+            status: "ok" | "failed" | "unknown";
+            /** Lasttask */
+            lastTask?: string | null;
+            /** Durationms */
+            durationMs?: number | null;
+            /** Errorsummary */
+            errorSummary?: string | null;
+            /** Checkedat */
+            checkedAt?: string | null;
         };
         /** ApiCredentialCreate */
         ApiCredentialCreate: {
@@ -1459,7 +1400,7 @@ export interface components {
              * Taskscope
              * @default []
              */
-            taskScope: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat")[];
+            taskScope: ("image_content_analysis" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat")[];
             /**
              * Status
              * @default active
@@ -1496,27 +1437,6 @@ export interface components {
              * @default true
              */
             autoAssignEnabled: boolean;
-        };
-        /** ApiCredentialCapabilityRead */
-        ApiCredentialCapabilityRead: {
-            /** Capability */
-            capability: string;
-            /** Label */
-            label: string;
-            /**
-             * Status
-             * @default unknown
-             * @enum {string}
-             */
-            status: "ok" | "failed" | "unknown";
-            /** Lasttask */
-            lastTask?: string | null;
-            /** Durationms */
-            durationMs?: number | null;
-            /** Errorsummary */
-            errorSummary?: string | null;
-            /** Checkedat */
-            checkedAt?: string | null;
         };
         /** ApiCredentialRead */
         ApiCredentialRead: {
@@ -1615,7 +1535,7 @@ export interface components {
             /** Apikey */
             apiKey?: string | null;
             /** Taskscope */
-            taskScope?: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat")[] | null;
+            taskScope?: ("image_content_analysis" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat")[] | null;
             /** Status */
             status?: ("active" | "disabled") | null;
             /** Priority */
@@ -1635,10 +1555,10 @@ export interface components {
         ApiHealthCheckCreate: {
             /**
              * Task
-             * @default search_system_routing
+             * @default search_result_recommendation_reason
              * @enum {string}
              */
-            task: "image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat";
+            task: "image_content_analysis" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat";
             /** Timeoutseconds */
             timeoutSeconds?: number | null;
         };
@@ -1679,7 +1599,7 @@ export interface components {
         /** ApiHealthCheckRunRequest */
         ApiHealthCheckRunRequest: {
             /** Task */
-            task?: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat") | null;
+            task?: ("image_content_analysis" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat") | null;
             /**
              * Includedisabled
              * @default false
@@ -1698,6 +1618,33 @@ export interface components {
             failedCount: number;
             /** Checks */
             checks: components["schemas"]["ApiHealthCheckRead"][];
+        };
+        /** ApiProviderGroupRead */
+        ApiProviderGroupRead: {
+            /** Providergroup */
+            providerGroup: string;
+            /** Credentialcount */
+            credentialCount: number;
+            /** Activecredentialcount */
+            activeCredentialCount: number;
+            /** Autoassigncredentialcount */
+            autoAssignCredentialCount: number;
+            /** Currentconcurrency */
+            currentConcurrency: number;
+            /** Recentcallcount */
+            recentCallCount: number;
+            /** Recentfailurerate */
+            recentFailureRate: number;
+            /** Recenttimeoutcount */
+            recentTimeoutCount: number;
+            /**
+             * Status
+             * @default ok
+             * @enum {string}
+             */
+            status: "ok" | "watch" | "degraded";
+            /** Recommendation */
+            recommendation?: string | null;
         };
         /** ApiTemperatureProbeRead */
         ApiTemperatureProbeRead: {
@@ -1742,10 +1689,10 @@ export interface components {
             apiKey: string;
             /**
              * Task
-             * @default search_system_routing
+             * @default search_result_recommendation_reason
              * @enum {string}
              */
-            task: "image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat";
+            task: "image_content_analysis" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat";
             /**
              * Temperature
              * @default 0.2
@@ -1759,7 +1706,7 @@ export interface components {
         /** ApiTemperatureTuneRequest */
         ApiTemperatureTuneRequest: {
             /** Task */
-            task?: ("image_content_analysis" | "asset_search_phrase_generation" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat") | null;
+            task?: ("image_content_analysis" | "search_system_routing" | "search_intent_understanding" | "search_proof_point_understanding" | "search_candidate_review" | "search_result_recommendation_reason" | "copy_selling_point_matching" | "asset_agent_chat") | null;
             /** Candidatetemperatures */
             candidateTemperatures?: number[] | null;
             /** Timeoutseconds */
@@ -2202,16 +2149,6 @@ export interface components {
              */
             updatedAt: string;
         };
-        /** AssetSearchPhraseCreate */
-        AssetSearchPhraseCreate: {
-            /** Phrase */
-            phrase: string;
-            /**
-             * Weight
-             * @default 1
-             */
-            weight: number;
-        };
         /** AssetSearchPhraseRead */
         AssetSearchPhraseRead: {
             /** Id */
@@ -2224,19 +2161,6 @@ export interface components {
             reviewStatus: string;
             /** Weight */
             weight: number;
-        };
-        /** AssetSearchPhraseReview */
-        AssetSearchPhraseReview: {
-            /**
-             * Reviewstatus
-             * @enum {string}
-             */
-            reviewStatus: "accepted" | "rejected";
-        };
-        /** AssetSearchPhraseSuggestion */
-        AssetSearchPhraseSuggestion: {
-            /** Phrases */
-            phrases: string[];
         };
         /** AssetSourceLinkCreate */
         AssetSourceLinkCreate: {
@@ -2334,29 +2258,6 @@ export interface components {
              * @default true
              */
             auto_analyze: boolean;
-        };
-        /** Body_generate_asset_search_phrases_api_ai_asset_search_phrases_post */
-        Body_generate_asset_search_phrases_api_ai_asset_search_phrases_post: {
-            /**
-             * File
-             * Format: binary
-             */
-            file: string;
-            /**
-             * Count
-             * @default 5
-             */
-            count: number;
-            /**
-             * Title
-             * @default
-             */
-            title: string;
-            /**
-             * Concept Code
-             * @default
-             */
-            concept_code: string;
         };
         /** Body_replace_asset_primary_api_asset_groups__group_id__primary_image_post */
         Body_replace_asset_primary_api_asset_groups__group_id__primary_image_post: {
@@ -2540,36 +2441,6 @@ export interface components {
             /** Status */
             status: string;
         };
-        /** ConceptSearchPhraseCreate */
-        ConceptSearchPhraseCreate: {
-            /** Phrase */
-            phrase: string;
-            /**
-             * Phrasetype
-             * @default alias
-             * @enum {string}
-             */
-            phraseType: "official" | "alias" | "pain" | "outcome" | "scenario" | "colloquial" | "typo";
-            /**
-             * Origin
-             * @default manual
-             * @enum {string}
-             */
-            origin: "source_document" | "manual" | "ai" | "search_feedback" | "migrated";
-            /**
-             * Reviewstatus
-             * @default accepted
-             * @enum {string}
-             */
-            reviewStatus: "pending" | "accepted" | "rejected";
-            /**
-             * Weight
-             * @default 1
-             */
-            weight: number;
-            /** Sourceref */
-            sourceRef?: string | null;
-        };
         /** ConceptSearchPhraseRead */
         ConceptSearchPhraseRead: {
             /** Phrase */
@@ -2606,42 +2477,6 @@ export interface components {
              * Format: date-time
              */
             createdAt: string;
-        };
-        /** ConceptSearchPhraseUpdate */
-        ConceptSearchPhraseUpdate: {
-            /** Phrase */
-            phrase?: string | null;
-            /** Phrasetype */
-            phraseType?: ("official" | "alias" | "pain" | "outcome" | "scenario" | "colloquial" | "typo") | null;
-            /** Reviewstatus */
-            reviewStatus?: ("pending" | "accepted" | "rejected") | null;
-            /** Weight */
-            weight?: number | null;
-            /** Sourceref */
-            sourceRef?: string | null;
-        };
-        /** ConceptSuggestion */
-        ConceptSuggestion: {
-            /** Conceptcode */
-            conceptCode?: string | null;
-            /** Systemname */
-            systemName: string;
-            /** Conceptname */
-            conceptName: string;
-            /** Confidence */
-            confidence: number;
-            /**
-             * Evidencelevel
-             * @enum {string}
-             */
-            evidenceLevel: "A" | "B" | "C";
-            /**
-             * Relationrole
-             * @enum {string}
-             */
-            relationRole: "expresses" | "supports";
-            /** Reason */
-            reason: string;
         };
         /** ConceptSystemLinkInput */
         ConceptSystemLinkInput: {
@@ -2743,14 +2578,6 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
-        };
-        /** ImageAnalysisResult */
-        ImageAnalysisResult: {
-            /** Imagesummary */
-            imageSummary: string;
-            semanticProfile?: components["schemas"]["ImageSemanticProfile"];
-            /** Conceptsuggestions */
-            conceptSuggestions?: components["schemas"]["ConceptSuggestion"][];
         };
         /** ImageDetailRead */
         ImageDetailRead: {
@@ -2908,21 +2735,6 @@ export interface components {
              */
             variantCount: number;
         };
-        /** ImageSemanticProfile */
-        ImageSemanticProfile: {
-            /**
-             * Schemaversion
-             * @default 3
-             * @constant
-             */
-            schemaVersion: 3;
-            /** Visualfacts */
-            visualFacts?: string[];
-            /** Scenes */
-            scenes?: string[];
-            /** Assetsearchphrases */
-            assetSearchPhrases?: string[];
-        };
         /** ImageTitleResolution */
         ImageTitleResolution: {
             /** Requestedtitle */
@@ -3042,33 +2854,6 @@ export interface components {
              * Format: date-time
              */
             updatedAt: string;
-        };
-        /** ApiProviderGroupRead */
-        ApiProviderGroupRead: {
-            /** Providergroup */
-            providerGroup: string;
-            /** Credentialcount */
-            credentialCount: number;
-            /** Activecredentialcount */
-            activeCredentialCount: number;
-            /** Autoassigncredentialcount */
-            autoAssignCredentialCount: number;
-            /** Currentconcurrency */
-            currentConcurrency: number;
-            /** Recentcallcount */
-            recentCallCount: number;
-            /** Recentfailurerate */
-            recentFailureRate: number;
-            /** Recenttimeoutcount */
-            recentTimeoutCount: number;
-            /**
-             * Status
-             * @default ok
-             * @enum {string}
-             */
-            status: "ok" | "watch" | "degraded";
-            /** Recommendation */
-            recommendation?: string | null;
         };
         /** RoutingSlotUpdate */
         RoutingSlotUpdate: {
@@ -3495,6 +3280,8 @@ export interface components {
             searchDiagnostics?: components["schemas"]["SearchDiagnosticsRead"] | null;
             /** Matchsummary */
             matchSummary: string;
+            /** Routeexplanation */
+            routeExplanation?: string | null;
             /** Identitycode */
             identityCode?: string | null;
             /**
@@ -3546,40 +3333,10 @@ export interface components {
              */
             searchStrategy: string;
         };
-        /** SellingPoint */
-        SellingPoint: {
-            /** Pointkey */
-            pointKey: string;
-            /** Pointname */
-            pointName: string;
-            /** Weight */
-            weight: number;
-        };
-        /** SellingPointMatchResult */
-        SellingPointMatchResult: {
-            /** Matched */
-            matched?: components["schemas"]["SellingPointSystemMatch"][];
-            /** Expandkeywords */
-            expandKeywords?: string[];
-            /**
-             * Confidence
-             * @default 0
-             */
-            confidence: number;
-        };
         /** SellingPointRequest */
         SellingPointRequest: {
             /** Copy */
             copy: string;
-        };
-        /** SellingPointSystemMatch */
-        SellingPointSystemMatch: {
-            /** Systemkey */
-            systemKey: string;
-            /** Systemname */
-            systemName: string;
-            /** Points */
-            points: components["schemas"]["SellingPoint"][];
         };
         /** SemanticProfileRead */
         SemanticProfileRead: {
@@ -4779,124 +4536,6 @@ export interface operations {
             };
         };
     };
-    add_asset_search_phrase_api_asset_groups__group_id__search_phrases_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                group_id: string;
-            };
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssetSearchPhraseCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssetGroupRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                group_id: string;
-                phrase_id: string;
-            };
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssetGroupRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_asset_search_phrase_api_asset_groups__group_id__search_phrases__phrase_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                group_id: string;
-                phrase_id: string;
-            };
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssetSearchPhraseReview"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssetGroupRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     add_asset_source_link_api_asset_groups__group_id__source_links_post: {
         parameters: {
             query?: never;
@@ -5159,87 +4798,6 @@ export interface operations {
             };
         };
     };
-    add_concept_search_phrase_api_business_concepts__concept_id__search_phrases_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                concept_id: string;
-            };
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConceptSearchPhraseCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BusinessConceptRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_concept_search_phrase_api_business_concepts__concept_id__search_phrases__phrase_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                concept_id: string;
-                phrase_id: string;
-            };
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConceptSearchPhraseUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BusinessConceptRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     add_concept_relation_api_business_concepts__concept_id__relations_post: {
         parameters: {
             query?: never;
@@ -5415,9 +4973,7 @@ export interface operations {
     };
     match_selling_points_api_ai_selling_points_match_post: {
         parameters: {
-            query?: {
-                request_id?: string | null;
-            };
+            query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
             };
@@ -5439,45 +4995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SellingPointMatchResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_asset_search_phrases_api_ai_asset_search_phrases_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-CSRF-Token"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                piancton_csrf?: string | null;
-                piancton_session?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_generate_asset_search_phrases_api_ai_asset_search_phrases_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssetSearchPhraseSuggestion"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -5513,7 +5031,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImageAnalysisResult"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -5699,39 +5217,6 @@ export interface operations {
             };
         };
     };
-    disable_api_provider_group_api_admin_api_center_provider_groups__provider_group__disable_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                provider_group: string;
-            };
-            cookie?: {
-                piancton_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiProviderGroupRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     update_api_credential_api_admin_api_center_credentials__credential_id__patch: {
         parameters: {
             query?: never;
@@ -5756,6 +5241,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiCredentialRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_api_provider_group_api_admin_api_center_provider_groups__provider_group__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_group: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProviderGroupRead"];
                 };
             };
             /** @description Validation Error */

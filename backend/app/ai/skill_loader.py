@@ -1,20 +1,19 @@
 from __future__ import annotations
 
+import json
 from functools import lru_cache
+from typing import Any
 
-from app.core.config import PROJECT_DIR
+from app.core.config import PROJECT_DIR, get_settings
 from app.domain.evidence_points import render_evidence_points_for_prompt
 from app.domain.proof_points import render_proof_points_for_prompt
 from app.domain.taxonomy_catalog import render_catalog_for_prompt
 
 MODEL_SKILLS = {
-    "image_content_analysis": ("analyze-image-asset",),
-    "asset_search_phrase_generation": ("generate-asset-search-phrases",),
     "search_intent_understanding": ("understand-image-search-intent",),
     "search_proof_point_understanding": ("understand-image-search-intent",),
     "search_candidate_review": ("understand-image-search-intent",),
     "search_result_recommendation_reason": ("understand-image-search-intent",),
-    "copy_selling_point_matching": ("match-copy-selling-points",),
 }
 
 INTENT_REFERENCE_BY_SYSTEM = {
@@ -26,6 +25,7 @@ INTENT_REFERENCE_BY_SYSTEM = {
     "sync_companion": "sync-companion.md",
 }
 INTENT_PROMPT_VERSION = "2026-07-27.strict-three-layer-v1"
+DECISION_CARDS_REFERENCE = "selling-point-decision-cards.json"
 
 
 @lru_cache
@@ -44,6 +44,15 @@ def load_intent_reference_file(filename: str) -> str:
     if not path.is_file():
         raise FileNotFoundError(f"意图知识文件不存在：{filename}")
     return path.read_text(encoding="utf-8")
+
+
+@lru_cache
+def load_selling_point_decision_cards() -> dict[str, Any]:
+    text = load_intent_reference_file(DECISION_CARDS_REFERENCE)
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        raise ValueError("卖点判断卡片格式错误")
+    return payload
 
 
 def build_system_routing_prompt() -> str:
@@ -76,6 +85,7 @@ def build_selling_point_prompt(
     system_codes: tuple[str, ...],
     *,
     catalog_text: str,
+    include_decision_cards: bool | None = None,
 ) -> str:
     """Second layer: load only selling-point summaries inside routed systems."""
     invalid = [code for code in system_codes if code not in INTENT_REFERENCE_BY_SYSTEM]
@@ -84,12 +94,77 @@ def build_selling_point_prompt(
     if not system_codes:
         raise ValueError("第二层至少需要一个候选体系")
     sections = [_load_layer_rules("SELLING_POINT_ROUTER_RULES.md")]
+    if include_decision_cards is None:
+        include_decision_cards = (
+            get_settings().search_selling_point_decision_cards_enabled
+        )
+    if include_decision_cards:
+        sections.append(render_selling_point_decision_cards(system_codes))
     if len(system_codes) > 1:
         sections.append(_runtime_intent_summary("cross-system-calibration.md"))
     for code in system_codes:
         sections.append(_runtime_intent_summary(INTENT_REFERENCE_BY_SYSTEM[code]))
     sections.append(catalog_text)
     return "\n\n---\n\n".join(sections)
+
+
+def render_selling_point_decision_cards(system_codes: tuple[str, ...]) -> str:
+    payload = load_selling_point_decision_cards()
+    systems = payload.get("systems")
+    if not isinstance(systems, list):
+        raise ValueError("卖点判断卡片缺少 systems")
+    selected = set(system_codes)
+    lines = [
+        "# 候选体系卖点判断卡片",
+        "",
+        (
+            "用途：先判断卖点本体，再参考公共话术。卡片只服务第二层卖点识别，"
+            "不替代数据库启用目录、人工素材关系或第三层证明点。"
+        ),
+        "",
+        (
+            "判断顺序：oneSentenceDecision → meaningBehind → boundaryLogic → "
+            "definition → object → action → purpose → positiveSignals → "
+            "boundaries → confusesWith。公共话术只能辅助解释，不能覆盖卡片边界。"
+        ),
+    ]
+    for system in systems:
+        if not isinstance(system, dict) or system.get("code") not in selected:
+            continue
+        lines.append(f"\n## {system['code']}")
+        cards = system.get("cards")
+        if not isinstance(cards, list):
+            continue
+        for card in cards:
+            if not isinstance(card, dict):
+                continue
+            code = str(card.get("code", "")).strip()
+            if not code:
+                continue
+            lines.extend(
+                [
+                    f"\n### `{code}` / {card.get('displayName', code)}",
+                    f"- 一句话判定：{card.get('oneSentenceDecision', '')}",
+                    f"- 背后意思：{card.get('meaningBehind', '')}",
+                    f"- 边界逻辑：{card.get('boundaryLogic', '')}",
+                    f"- 本体定义：{card.get('definition', '')}",
+                    f"- 核心对象：{_join_card_items(card.get('object'))}",
+                    f"- 主动作：{_join_card_items(card.get('action'))}",
+                    f"- 用户目的：{_join_card_items(card.get('purpose'))}",
+                    f"- 正向信号：{_join_card_items(card.get('positiveSignals'))}",
+                    f"- 排除边界：{_join_card_items(card.get('boundaries'))}",
+                    f"- 易混卖点：{_join_card_items(card.get('confusesWith'))}",
+                    f"- 判定规则：{card.get('decisionRule', '')}",
+                ]
+            )
+    lines.append("\n只能返回本卡片与当前启用目录共同存在的稳定 code。")
+    return "\n".join(lines)
+
+
+def _join_card_items(value: object) -> str:
+    if not isinstance(value, list):
+        return ""
+    return "；".join(str(item).strip() for item in value if str(item).strip())
 
 
 def build_proof_point_prompt(concept_codes: tuple[str, ...]) -> str:
@@ -175,6 +250,36 @@ def build_result_recommendation_reason_prompt() -> str:
 ```
 
 必须为输入中的每张候选图片返回一条理由；不得返回 Markdown、代码块或协议之外的字段。
+""".strip()
+
+
+def build_search_route_explanation_prompt() -> str:
+    return """
+# 搜索结果：命中卖点解释
+
+用途：生成搜索结果顶部的一段专业命中分析，让运营/市场选图人员一眼理解“为什么这句话应该看这些卖点素材”。
+
+严格边界：
+
+1. 只解释 `query` 与 `matched_selling_points` 之间的关系。
+2. 不评价每张图片，不为单图生成推荐理由，不改变召回、排序或候选准入。
+3. 不重新发明卖点；只能使用输入里已经确认的卖点名称。
+4. 不输出内部实现、模型分数、VikingDB、索引、算法、Provider、返回数量、渠道默认规则或卡片展示规则。
+5. 不写“未指定渠道”“当前返回 X 组”“保留手机端大图/小图”“卡片下方只保留卖点”等流程说明。
+6. 语言面向运营/市场选图人员，要像专业业务判断：拆出用户原话里的对象、
+   动作、目的和隐含需求，再说明它们如何对应命中卖点。
+7. 证据不足时要保守，不夸大、不编造产品能力；最多用 2～3 句中文自然段。
+
+输出协议：
+
+```json
+{
+  "explanation": "一段中文专业命中分析，解释为什么这句话命中这些卖点",
+  "generation_strategy": "本次解释使用的证据范围"
+}
+```
+
+不得返回 Markdown、代码块或协议之外的字段。
 """.strip()
 
 

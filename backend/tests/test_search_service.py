@@ -8,11 +8,14 @@ from app.models.business_concept import (
 )
 from app.models.image import ContentTag, Image
 from app.models.tag import Tag
+from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
-from app.schemas.asset import AssetSearchPhraseCreate, AssetSearchPhraseReview
-from app.services.asset_relation_service import AssetRelationService
+from app.schemas.ai import SearchConceptMatch, SearchUnderstanding
+from app.services.asset_route_ordering import order_routed_assets
+from app.services.concept_search_recall import ConceptSearchRecallService
 from app.services.database_search_recall import database_match_score
 from app.services.related_image_service import RelatedImageService
+from app.services.search_models import ConceptMatch, SearchHit
 from app.services.search_service import SearchService
 
 
@@ -84,6 +87,97 @@ def create_concept_image(
     return image
 
 
+def create_concept(db, *, code: str, name: str) -> BusinessConcept:
+    system = Tag(
+        code=f"system_{code}",
+        name=f"{name}体系",
+        color="#6366F1",
+        node_type="system",
+        assignable=False,
+        status="active",
+    )
+    concept = BusinessConcept(
+        code=code,
+        name=name,
+        system_links=[ConceptSystemLink(system_tag=system)],
+        search_phrases=[
+            ConceptSearchPhrase(
+                phrase=name,
+                phrase_type="business_language",
+                review_status="accepted",
+            )
+        ],
+    )
+    db.add(concept)
+    db.flush()
+    return concept
+
+
+def create_image_for_concept(
+    db,
+    concept: BusinessConcept,
+    *,
+    title: str,
+    channel: str = "手机端大图",
+) -> Image:
+    group = AssetGroup(
+        title=title,
+        created_by="admin",
+        concept_links=[
+            AssetConceptLink(
+                concept=concept,
+                relation_role="expresses",
+                origin="manual",
+                review_status="accepted",
+                confidence=0.9,
+            )
+        ],
+    )
+    image = Image(
+        title=title,
+        file_name=f"{title}.png",
+        storage_key=f"{title}.png",
+        thumbnail_storage_key=f"{title}-thumb.jpg",
+        media_type="image/png",
+        size_bytes=100,
+        uploader="admin",
+        channel=channel,
+        image_summary=f"{title}业务素材",
+        asset_group=group,
+    )
+    db.add(image)
+    db.flush()
+    group.primary_image_id = image.id
+    return image
+
+
+class FixedVikingRouter:
+    configured = True
+
+    def __init__(self, concept_names: list[str]):
+        self.concept_names = concept_names
+
+    def route(self, keyword: str) -> SearchUnderstanding:
+        return SearchUnderstanding(
+            original_query=keyword,
+            normalized_query="、".join(self.concept_names),
+            search_intent="火山已命中卖点，回本地图库取全量素材",
+            query_type="multi_business_intent_search"
+            if len(self.concept_names) > 1
+            else "business_intent_search",
+            search_strategy="VikingDB 先确定卖点，再回本地数据库取已审核素材",
+            matched_business_concepts=[
+                SearchConceptMatch(
+                    concept=f"测试体系 > {name}",
+                    relation="direct",
+                    reason="固定测试命中",
+                    weight=0.96 - index * 0.01,
+                )
+                for index, name in enumerate(self.concept_names)
+            ],
+        )
+
+
 def test_database_search_recalls_accepted_business_concept(db_factory):
     with db_factory() as db:
         image = create_concept_image(db)
@@ -102,6 +196,129 @@ def test_search_reuses_versioned_business_phrase(db_factory):
 
     assert [item.image.id for item in response.results] == [image.id]
     assert any("动画精讲" in reason for reason in response.results[0].match_reasons)
+
+
+def test_concept_recall_allocates_quota_for_each_matched_selling_point(db_factory):
+    with db_factory() as db:
+        photo = create_concept(db, code="photo_guided_learning", name="AI拍题精学")
+        transfer = create_concept(db, code="transfer_practice", name="举一反三")
+        for index in range(8):
+            create_image_for_concept(db, photo, title=f"拍题精学-{index}")
+        transfer_image = create_image_for_concept(db, transfer, title="举一反三-代表图")
+        db.commit()
+
+        recall = ConceptSearchRecallService(
+            BusinessConceptRepository(db),
+            ImageRepository(db),
+        )
+        hits = recall.recall(
+            [
+                ConceptMatch(
+                    concept_id=photo.id,
+                    code=photo.code,
+                    name=photo.name,
+                    score=0.96,
+                ),
+                ConceptMatch(
+                    concept_id=transfer.id,
+                    code=transfer.code,
+                    name=transfer.name,
+                    score=0.95,
+                ),
+            ],
+            limit=3,
+        )
+
+    assert transfer_image.id in {hit.image.id for hit in hits}
+
+
+def test_vikingdb_inventory_route_returns_all_matched_selling_point_assets(db_factory):
+    with db_factory() as db:
+        photo = create_concept(db, code="photo_guided_learning", name="AI拍题精学")
+        transfer = create_concept(db, code="transfer_practice", name="举一反三")
+        universal = create_concept(db, code="universal_method", name="万能解法")
+        images = [
+            create_image_for_concept(db, photo, title="苏格拉底讲解提问"),
+            create_image_for_concept(db, photo, title="拍题入口图"),
+            create_image_for_concept(db, transfer, title="变式训练图"),
+            create_image_for_concept(db, universal, title="多种解法图"),
+        ]
+        db.commit()
+
+        response = SearchService(
+            db,
+            vikingdb_knowledge_router=FixedVikingRouter(
+                ["AI拍题精学", "举一反三", "万能解法"]
+            ),
+            vikingdb_skill_backup_enabled=False,
+            candidate_limit=20,
+            ai_service=None,
+        ).search("拍题学完一题会一类", 20)
+
+    assert {item.image.id for item in response.results} == {image.id for image in images}
+    assert [item.image.title for item in response.results[:3]] == [
+        "拍题入口图",
+        "变式训练图",
+        "多种解法图",
+    ]
+
+
+def test_multi_selling_point_route_interleaves_each_matched_concept(db_factory):
+    with db_factory() as db:
+        photo = create_concept(db, code="photo_guided_learning", name="AI拍题精学")
+        transfer = create_concept(db, code="transfer_practice", name="举一反三")
+        photo_images = [
+            create_image_for_concept(db, photo, title=f"拍题精学-{index}")
+            for index in range(3)
+        ]
+        transfer_images = [
+            create_image_for_concept(db, transfer, title=f"举一反三-{index}")
+            for index in range(2)
+        ]
+        db.commit()
+
+        understanding = SearchUnderstanding(
+            original_query="洋葱的拍题精学让孩子学一题会一类",
+            normalized_query="拍题精学 举一反三",
+            search_intent="同时查找 AI拍题精学 和 举一反三 素材",
+            query_type="multi_business_intent_search",
+            matched_business_concepts=[
+                SearchConceptMatch(
+                    concept="同步自学体系 > AI拍题精学",
+                    relation="direct",
+                    reason="表达拍题精学",
+                    weight=0.96,
+                ),
+                SearchConceptMatch(
+                    concept="同步培优体系 > 举一反三",
+                    relation="direct",
+                    reason="表达一题会一类",
+                    weight=0.95,
+                ),
+            ],
+        )
+        ordered = order_routed_assets(
+            [
+                SearchHit(photo_images[0], score=0.99),
+                SearchHit(photo_images[1], score=0.98),
+                SearchHit(photo_images[2], score=0.97),
+                SearchHit(transfer_images[0], score=0.86),
+                SearchHit(transfer_images[1], score=0.85),
+            ],
+            (
+                ConceptMatch(photo.id, photo.code, photo.name, 0.96),
+                ConceptMatch(transfer.id, transfer.code, transfer.name, 0.95),
+            ),
+            understanding,
+            {},
+        )
+
+    assert [hit.image.title for hit in ordered[:4]] == [
+        "拍题精学-0",
+        "举一反三-0",
+        "拍题精学-1",
+        "举一反三-1",
+    ]
 
 
 def test_search_result_concept_match_includes_manual_recommendation_text(db_factory):
@@ -233,97 +450,6 @@ def test_pending_ai_asset_phrase_does_not_enter_direct_recall(db_factory):
 
     assert score == 0.65
     assert image.id not in {item.image.id for item in response.results}
-
-
-def test_accepting_ai_asset_phrase_refreshes_derived_indexes(db_factory):
-    class RecordingSearchIndex:
-        def __init__(self):
-            self.image_ids: list[str] = []
-
-        def upsert_image(self, image):
-            self.image_ids.append(image.id)
-
-    class RecordingEmbeddingIndex:
-        def __init__(self):
-            self.image_ids: list[str] = []
-
-        def upsert_image(self, _repo, image):
-            self.image_ids.append(image.id)
-
-    with db_factory() as db:
-        image = create_concept_image(db, code="reviewed-asset-phrase")
-        phrase = AssetSearchPhrase(
-            phrase="审核后进入高优先级",
-            origin="ai",
-            review_status="pending",
-        )
-        image.asset_group.search_phrases.append(phrase)
-        db.commit()
-        search_index = RecordingSearchIndex()
-        embedding_index = RecordingEmbeddingIndex()
-        service = AssetRelationService(
-            db,
-            search_index=search_index,
-            embedding_index=embedding_index,
-        )
-
-        service.review_phrase(
-            image.asset_group.id,
-            phrase.id,
-            AssetSearchPhraseReview(review_status="accepted"),
-        )
-
-    assert search_index.image_ids == [image.id]
-    assert embedding_index.image_ids == [image.id]
-
-
-def test_removing_accepted_asset_phrase_soft_deletes_and_can_restore(db_factory):
-    class RecordingSearchIndex:
-        def __init__(self):
-            self.image_ids: list[str] = []
-
-        def upsert_image(self, image):
-            self.image_ids.append(image.id)
-
-    class RecordingEmbeddingIndex:
-        def __init__(self):
-            self.image_ids: list[str] = []
-
-        def upsert_image(self, _repo, image):
-            self.image_ids.append(image.id)
-
-    with db_factory() as db:
-        image = create_concept_image(db, code="removable-asset-phrase")
-        phrase = AssetSearchPhrase(
-            phrase="手机课程章节对应课本目录",
-            origin="manual",
-            review_status="accepted",
-        )
-        image.asset_group.search_phrases.append(phrase)
-        db.commit()
-        search_index = RecordingSearchIndex()
-        embedding_index = RecordingEmbeddingIndex()
-        service = AssetRelationService(
-            db,
-            search_index=search_index,
-            embedding_index=embedding_index,
-        )
-
-        removed = service.remove_phrase(image.asset_group.id, phrase.id)
-        removed_phrase = next(item for item in removed.search_phrases if item.id == phrase.id)
-        recalled_after_removal = ImageRepository(db).search(phrase.phrase, 12)
-
-        restored = service.add_phrase(
-            image.asset_group.id,
-            AssetSearchPhraseCreate(phrase=phrase.phrase, weight=1),
-        )
-        restored_phrase = next(item for item in restored.search_phrases if item.id == phrase.id)
-
-    assert removed_phrase.review_status == "rejected"
-    assert image.id not in {item.id for item in recalled_after_removal}
-    assert restored_phrase.review_status == "accepted"
-    assert search_index.image_ids == [image.id, image.id]
-    assert embedding_index.image_ids == [image.id, image.id]
 
 
 def test_confirmed_business_language_ignores_legacy_objective_content_tags(db_factory):

@@ -12,30 +12,6 @@ export function useBusinessConceptActions() {
     ));
   };
 
-  const addPhrase = useMutation({
-    mutationFn: ({
-      conceptId,
-      input,
-    }: {
-      conceptId: string;
-      input: conceptApi.CreateConceptPhraseInput;
-    }) => conceptApi.addConceptPhrase(conceptId, input),
-    onSuccess: update,
-  });
-
-  const updatePhrase = useMutation({
-    mutationFn: ({
-      conceptId,
-      phraseId,
-      input,
-    }: {
-      conceptId: string;
-      phraseId: string;
-      input: conceptApi.UpdateConceptPhraseInput;
-    }) => conceptApi.updateConceptPhrase(conceptId, phraseId, input),
-    onSuccess: update,
-  });
-
   const updateConcept = useMutation({
     mutationFn: ({
       conceptId,
@@ -47,5 +23,5 @@ export function useBusinessConceptActions() {
     onSuccess: update,
   });
 
-  return { addPhrase, updatePhrase, updateConcept };
+  return { updateConcept };
 }

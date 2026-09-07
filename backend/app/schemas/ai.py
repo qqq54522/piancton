@@ -102,10 +102,6 @@ class ImageAnalysisResult(ApiModel):
     concept_suggestions: List[ConceptSuggestion] = Field(default_factory=list)
 
 
-class AssetSearchPhraseSuggestion(ApiModel):
-    phrases: List[str] = Field(min_length=2, max_length=5)
-
-
 class SearchIntentRequest(ApiModel):
     keyword: str = Field(min_length=1, max_length=200)
 
@@ -181,6 +177,11 @@ class SearchResultRecommendationReason(ApiModel):
 
 class SearchResultRecommendationReasonResult(ApiModel):
     reasons: List[SearchResultRecommendationReason] = Field(default_factory=list)
+    generation_strategy: str = ""
+
+
+class SearchRouteExplanationResult(ApiModel):
+    explanation: str = Field(default="", max_length=500)
     generation_strategy: str = ""
 
 

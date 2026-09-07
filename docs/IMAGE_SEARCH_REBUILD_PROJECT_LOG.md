@@ -1,10 +1,209 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-09-01
-当前范围：Phase 0～Phase 6；九个正式 Skill 与九类运行时模型任务完成收口；组合语义校准与素材证明点筛选继续按真实业务话术推进
-当前状态：Phase 0～6 工程改造完成；当前打开的本地项目作为唯一基准；本地库已升级到 `20260829_0031`，包含 40 个素材组、40 张图片、16 个业务概念和 55 条人工 accepted 关系；API 中心已收口为运行时唯一入口，管理员启停与运行健康已经分离，所有未停用 API 都可人工指定，API 级自动候选资格与任务级运行方式分别控制自动选择；单 backend 调度已具备请求级快照、短 TTL 指标缓存、真实任务预算保护和并行接力；API 管理页新增中转站聚合概览与管理员一键停用整站；API 库存已增加 Key 指纹判重和凭据生命周期审计；素材库 Agent 已改为按用户在 Asia/Shanghai 每天 00:00 自然日重置，清空后只保留一个空白新对话
+更新时间：2026-09-03
+当前范围：Phase 0～Phase 6；火山 VikingDB 干净知识路由、渠道/版位筛选、搜索顶部命中解释和 API 调用边界收口继续按真实业务边界推进
+当前状态：Phase 0～6 工程改造完成；当前打开的本地项目作为唯一基准；火山 VikingDB 当前只保留六大体系和 16 个卖点的干净知识文档；搜索主链路由火山先命中卖点，再回本地数据库按人工 accepted 关系取图库；API 中心当前正式自动调度只保留搜索结果顶部“命中卖点解释”和素材库 Agent 两类调用；搜索顶部解释由后端与前端双层清理过程文案；上传图片语义分析、上传前素材话术生成和兼容文案卖点匹配不再作为当前主流程任务。
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+---
+
+## 2026-09-03：搜索顶部过程文案硬清理（D270）
+
+### 用户目标
+
+- 黑色命中说明框继续只保留业务判断。
+- 彻底去掉“未指定渠道”“当前返回”“卡片下方只保留搜索卖点”等过程说明。
+
+### 完成内容
+
+- 后端 `SearchResultRecommendationService.explain_route()` 对模型解释做硬清理，遇到默认渠道、返回数量、已审核素材、卡片展示、渠道筛选或收窄版位等过程标记直接截断。
+- 前端 `cleanRouteExplanation()` 同步增加同类截断，防止旧缓存或异常响应露出过程句。
+- 新增回归测试覆盖模型返回“业务判断 + 未指定渠道 + 当前返回 + 卡片下方”时，最终解释只保留业务判断。
+
+### 验证
+
+- 后端 Ruff：通过。
+- Docker 后端专项：`tests/test_search_result_recommendation_reason.py tests/test_taxonomy_catalog.py`，17 passed。
+- 前端 `npm run typecheck`：通过。
+- 前端 `npm run lint`：通过。
+- 前端 `npm run build -- --logLevel error`：通过。
+- `git diff --check`：通过。
+- Docker backend/web 重建成功，backend、web、postgres 均 healthy。
+
+### 本轮边界
+
+- 不改火山 VikingDB 知识库。
+- 不改卖点命中、渠道筛选、排序、返回数量或素材卡片展示。
+
+---
+
+## 2026-09-03：搜索顶部专业命中分析（D269）
+
+### 用户目标
+
+- 搜索结果顶部黑色说明框不要再解释系统过程。
+- 不再展示“未指定渠道默认保留什么”“当前返回多少组”“卡片下方只保留什么”。
+- 说明要更精细、更有业务判断感，让人一眼觉得命中卖点是有依据的。
+
+### 完成内容
+
+- `search_result_recommendation_reason` Prompt 改为专业命中分析，只解释用户原话与已命中卖点之间的业务关系。
+- Prompt 明确禁止输出内部实现、返回数量、渠道默认规则、卡片展示规则、模型分数、VikingDB、索引、算法和 Provider。
+- 后端传给解释模型的卖点信息从纯卖点名升级为卖点名、关系和命中理由，便于模型写出更有依据的判断。
+- 前端黑色框 fallback 改为“整句话有效信号 → 卖点核心能力”的业务说明。
+- 前端清理旧解释中可能残留的“未指定渠道/当前返回/卡片下方”过程句。
+
+### 本轮边界
+
+- 不改火山召回、卖点判断、排序、渠道/版位筛选或候选准入。
+- 不恢复逐图动态推荐理由。
+- 不修改火山数据集或本地素材关系。
+
+---
+
+## 2026-09-03：API 中心模型位置收敛（D268）
+
+### 完成内容
+
+- API 中心页面导航从“调度配置”改为“模型位置”，页面描述明确当前搜索主判断由火山向量检索负责。
+- 模型位置配置只围绕两处当前 API 调用解释：`search_result_recommendation_reason` 用于搜索结果顶部命中卖点解释，`asset_agent_chat` 用于素材库 Agent。
+- 新增 API 表单内的 temperature 兼容探针默认任务从退役的 `search_system_routing` 改为 `search_result_recommendation_reason`。
+- 健康度监测的单 API 测试默认任务也改为 `search_result_recommendation_reason`。
+- 调用链路日志仍保留退役任务筛选，用于历史追溯，但项目 `skills/INDEX.md` 运行时映射只列当前两个模型位置。
+
+### 本轮边界
+
+- 不读取、不输出完整 API Key。
+- 不修改火山 VikingDB 数据集内容。
+- 不改变搜索召回、排序、渠道收窄、素材关系或 Agent 会话逻辑。
+
+---
+
+## 2026-09-03：API 路由槽位与任务范围硬收口（D267）
+
+### 完成内容
+
+- API 中心启动初始化会删除退役任务槽位，真实运行态只保留 `search_result_recommendation_reason` 和 `asset_agent_chat`。
+- 自动调度和人工主/备槽位都按 Key 的任务范围过滤；明确范围不匹配的 Key 不再被拿去跑当前任务，空范围仅作为历史通用 Key 兼容。
+- 健康检查、温度探测默认任务改为当前搜索解释任务；直接调度退役任务会返回 `model_task_retired`。
+- 重建后端容器后，真实搜索 `拍` 返回 20 张并命中 `同步自学体系 > AI拍题精学`，顶部命中解释可由 API 生成。
+
+### 验证
+
+- `backend/.venv/bin/ruff check backend/app/services/api_center_service.py backend/app/repositories/api_center_repository.py backend/app/schemas/api_center.py backend/tests/test_api_center.py`
+- `PYTHONPYCACHEPREFIX=/tmp/piancton-pycache python3 -m compileall backend/app backend/tests`
+- Docker backend 重建并 healthy。
+- Docker 后端专项：`tests/test_api_center.py tests/test_search_result_recommendation_reason.py`，70 passed。
+
+---
+
+## 2026-09-03：API 调用边界收口，保留搜索级命中解释（D266）
+
+### 用户目标
+
+- 上传不再做图片语义分析。
+- 文案卖点匹配不再作为单独能力保留。
+- 搜索结果仍需要一段动态解释，但解释对象从“每张图为什么合适”改为“用户输入为什么命中这些卖点”。
+- 素材库 Agent 继续保留 API 调用。
+
+### 完成内容
+
+- API Center 默认调度槽位收敛为 `search_result_recommendation_reason` 和 `asset_agent_chat`。
+- `search_result_recommendation_reason` 改为搜索结果顶部命中解释，只消费用户原话、已命中卖点和结果数量，不参与召回、排序或候选准入。
+- 上传图片语义分析接口和兼容文案卖点匹配接口改为退役响应；前端详情页移除重新分析入口，仅保留历史画面信息只读展示。
+- 运行时 Skill 映射移除图片分析和文案卖点匹配，历史 Skill 目录继续保留作资料。
+
+### 本轮边界
+
+- 不改变火山 22 条体系/卖点知识库。
+- 不写入图片标题、主图、新版主图、竖版延展等污染数据。
+- 不删除历史数据库表，旧素材话术和旧语义字段仍可作为审计/回滚兼容读取。
+
+---
+
+## 2026-09-01：第三轮卖点优化，背后意思与边界（D255）
+
+### 用户目标
+
+- 真正优化“卖点背后的意思与边界”，而不是继续堆更多话术。
+- 让模型先理解每个卖点在业务上解决什么问题，再判断它和相邻卖点的差异。
+
+### 完成内容
+
+- 16 个卖点判断卡片新增 `meaningBehind`。
+- 16 个卖点判断卡片新增 `boundaryLogic`。
+- 第二层 Prompt 渲染新增“背后意思”和“边界逻辑”。
+- 判断顺序调整为 `oneSentenceDecision → meaningBehind → boundaryLogic → definition → object → action → purpose → positiveSignals → boundaries → confusesWith`。
+
+### 验证结果
+
+- 16 张卡片均包含 `oneSentenceDecision/meaningBehind/boundaryLogic`。
+- 16 个卖点 code 无重复。
+- 相关 Skill/查询状态回归通过。
+
+### 本轮边界
+
+- 不修改数据库。
+- 不新增或删除公共话术。
+- 不改变召回、排序、证明点、人工素材关系或素材事实源。
+
+---
+
+## 2026-09-01：卖点判断卡片第一轮精修（D254）
+
+### 用户目标
+
+- 判断 16 个卖点解释是否足够清晰。
+- 不继续堆公共话术，而是让每个卖点有一条更硬、更容易迁移到不同模型的判断标准。
+
+### 完成内容
+
+- 16 个核心卖点统一新增 `oneSentenceDecision`。
+- 运行时 Prompt 渲染把“一句话判定”放到每张卡片最前。
+- 判断顺序调整为 `oneSentenceDecision → definition → object → action → purpose → positiveSignals → boundaries → confusesWith`。
+- 收紧易混边界：同步校内/极速预习复习、AI私教答疑/AI拍题精学、专家规划/AI定制学习方案/真人老师督学、动画精讲的概念探索、万能解法/举一反三。
+
+### 验证结果
+
+- 16 张卡片均包含一句话判定。
+- 16 个卖点 code 无重复。
+- 相关 Skill/查询状态回归通过。
+
+### 本轮边界
+
+- 不修改数据库、公共话术、召回、排序、证明点或人工素材关系。
+- 不改变卡片层开关；仍可通过 `search_selling_point_decision_cards_enabled=false` 关闭。
+
+---
+
+## 2026-09-01：卖点判断卡片层（D253）
+
+### 用户目标
+
+- 不希望继续靠大量公共话术硬堆准确率，避免话术越补越死。
+- 希望换 Keyme、DeepSeek Pro 或其他模型时，卖点理解仍主要依靠稳定业务定义和边界，而不是只依赖某个模型对短句的理解。
+- 这次先加一层替代当前话术 Skill 的主要判断位置；如果不好，可以直接关掉这一层。
+
+### 完成内容
+
+- 新增 `selling-point-decision-cards.json`，为 16 个核心卖点分别写入判断卡片。
+- 每张卡片包含本体定义、核心对象、主动作、用户目的、正向信号、排除边界、易混卖点和判定规则。
+- 第二层卖点 Prompt 会先加载第一层候选体系内的卡片，再加载候选体系运行时摘要和目录。
+- `SELLING_POINT_ROUTER_RULES.md` 明确：有卡片时先按卡片本体和边界判断，公共话术只能辅助解释，不能覆盖卡片边界。
+- 新增 `search_selling_point_decision_cards_enabled` 配置开关；关闭后可回到旧 Prompt 结构。
+
+### 验证结果
+
+- 卡片 JSON 格式校验通过。
+- `skill_loader.py` 和配置文件 Python 编译通过。
+- `tests/test_taxonomy_catalog.py`：`9 passed`。
+
+### 本轮边界
+
+- 不删除旧公共话术。
+- 不修改数据库 schema、素材事实源、人工 accepted 关系、召回、排序或第三层证明点。
+- 不把 16 个卖点一次性全塞给模型；运行时仍只加载第一层路由后的候选体系卡片。
 
 ---
 
@@ -6784,6 +6983,300 @@ Model：数据结构和关系
 
 ## 后续日志模板
 
+## 2026-09-01：火山 VikingDB 旁路同步接入第一步
+
+### 本轮目标
+
+将火山 VikingDB 作为图片搜索的旁路向量索引接入项目，先支持从当前数据库派生素材搜索文档并批量写入火山测试数据集，不替换现有搜索主链路。
+
+### 完成内容
+
+- 新增 VikingDB REST 客户端，按官方 `data/upsert` 形态提交 `collection_name`、`async` 和 `data`。
+- 新增 `image_asset` 向量文档映射：从当前图片、素材组、人工 accepted 卖点关系、公共话术、素材独有话术和图片语义摘要生成 `search_text`。
+- 新增旁路同步服务，支持 dry-run 预览、100 条以内分批提交、未配置时自动跳过。
+- 上传、替换主图、延展图、回收站恢复、AI 分析完成、素材人工卖点关系和素材独有话术变更后，会在原有索引刷新点上 best-effort 同步火山；默认关闭，不影响现有搜索主链路。
+- 新增重建脚本 `backend/scripts/rebuild_vikingdb_index.py`，用于后续把现有素材批量同步到火山。
+- 新增环境变量样例，默认 `VIKINGDB_ENABLED=false`，保持不影响现有搜索结果。
+
+### 修改文件
+
+- `backend/app/core/config.py`
+- `backend/app/services/vikingdb_client.py`
+- `backend/app/services/vikingdb_vector_index.py`
+- `backend/scripts/rebuild_vikingdb_index.py`
+- `backend/tests/test_search_index.py`
+- `backend/.env.example`
+- `.env.docker.example`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 火山 VikingDB 当前作为可重建派生索引，不作为业务事实源。
+
+### 测试结果
+
+- `PYTHONPYCACHEPREFIX=/tmp/piancton-pycache backend/.venv/bin/python -m py_compile ...` 通过。
+- `backend/.venv/bin/ruff check ...` 通过。
+- `git diff --check` 通过。
+- 轻量导入检查通过：VikingDB 客户端配置判断、默认数据集名和 disabled sync 均符合预期。
+- 当前会话 Docker 权限/用量限制导致容器内 pytest 暂未跑成；本地 pytest 入口会先加载既有 `api_center.py`，在当前 Python 解释器下触发已有类型注解兼容问题，未能用于本轮完整回归。
+
+### 遗留问题
+
+- 当前只同步 `doc_type=image_asset`。卖点卡片、公共话术、证明点作为独立向量文档的同步留到第二步。
+- 当前只接入写入同步；搜索主链路仍未读取火山结果，后续应先做后台旁路检索诊断，再决定是否进入正式召回。
+
+### 下一步
+
+1. 配置火山 API Key 后执行 dry-run 和真实小批量 upsert。
+2. 增加旁路检索诊断接口，用真实查询对比现有搜索与火山召回。
+3. 稳定后再评估是否把火山召回作为主搜索候选之一。
+
+---
+
+## 2026-09-02：火山体系/卖点知识旁路
+
+### 本轮目标
+
+按用户确认的新方向，把火山向量库第一阶段收敛为“体系 + 卖点”两层高质量知识索引。先让向量检索帮助判断用户话术命中哪个体系、哪个卖点；命中后仍回本地数据库按人工 accepted 关系返回素材图。公共话术不自动全量灌入，后续按体系逐轮精修后再补充。
+
+### 完成内容
+
+- 新增 `system` 知识文档生成：每个体系一条，用于第一层体系路由，包含体系名、code、包含卖点和体系边界。
+- 新增 `selling_point` 知识文档生成：每个核心卖点一条，用于第二层卖点识别，包含一句话判定、背后意思、边界逻辑、本体定义、对象、动作、目的、正向信号、排除边界、易混卖点和判定规则。
+- 新增 `upsert_knowledge_documents` 同步入口，和图片同步入口分离，避免把图片文档、证明点或公共话术一起写入。
+- 新增 `backend/scripts/rebuild_vikingdb_knowledge_index.py`，专门重建体系/卖点知识索引。
+- 测试约束知识文档固定为 6 条体系 + 16 条卖点，且 `doc_type` 只能是 `system` 和 `selling_point`。
+
+### 修改文件
+
+- `backend/app/services/vikingdb_vector_index.py`
+- `backend/scripts/rebuild_vikingdb_knowledge_index.py`
+- `backend/tests/test_search_index.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 火山仍是可重建派生索引，不作为业务事实源。
+- 本轮不写入公共话术、不写入证明点、不替换现有搜索主链路。
+
+### 测试结果
+
+- `PYTHONPYCACHEPREFIX=/tmp/piancton-pycache backend/.venv/bin/python -m py_compile ...` 通过。
+- `backend/.venv/bin/ruff check ...` 通过。
+- `git diff --check` 通过。
+- 轻量导入和计数检查通过：生成 22 条知识文档，类型为 `system` 与 `selling_point`。
+- 本地 pytest 入口仍受当前解释器不支持既有 `task: str | None = Query(...)` 注解影响，未完成执行。
+- 当前 Docker backend 容器不是最新代码镜像，容器内无法导入新增 `app.services.vikingdb_vector_index`，因此未把容器 pytest 计入本轮回归结论。
+
+### 遗留问题
+
+- 还没有把火山检索结果接入正式搜索，只完成知识文档写入准备。
+- 公共话术需要按体系逐轮精修后再入库，不能从现有数据库全量自动灌入。
+- 后续需要增加火山旁路查询诊断接口，用同一批搜索句对比体系/卖点命中结果。
+
+### 下一步
+
+1. 先执行知识文档 dry-run，确认 22 条内容是否符合业务表达。
+2. 用户确认后小批量写入火山。
+3. 再做只读旁路检索诊断，不影响现有业务端搜索结果。
+
+---
+
+## 2026-09-02：火山知识路由可开关接入
+
+### 本轮目标
+
+在已写入 6 条体系 + 16 条卖点知识文档的基础上，把火山 VikingDB 从“只读旁路诊断”推进为可开关的搜索路由层：开启后优先用火山判断用户话术命中哪个卖点，再回本地数据库按人工 accepted 关系返回素材；旧 Skill/模型链路保留为可关闭备份。
+
+### 完成内容
+
+- 将 VikingDB 检索接口修正为官方 `search/multi_modal` 形态，使用 `text` 触发服务端向量化，携带 `instruction.auto_fill`、`output_fields` 和结构化 `filter`。
+- 新增 `VikingDBKnowledgeRouter`，只接受 `doc_type=selling_point` 的知识命中，并把 `concept_code` 映射回本地运行时启用概念。
+- 新增 `VIKINGDB_KNOWLEDGE_ROUTER_ENABLED` 实验开关，默认关闭；开启后搜索服务优先尝试火山知识路由。
+- 新增 `VIKINGDB_SKILL_BACKUP_ENABLED` 备份开关，默认开启；火山未命中或异常时继续走旧 Skill/模型链路，也可以关闭以观察纯火山效果。
+- 火山候选召回默认从 8 个收敛为 5 个；项目最终最多接受 3 个卖点，常规查询应收敛到 1～2 个卖点。
+- 多卖点输出增加保守规则：只有向量分数足够接近，且用户原话存在并列、递进或追加表达时，才从单卖点扩成多卖点。
+- 新增轻量业务校准：`考前/临考/考试 + 复习/冲刺/抓重点` 优先归 `专项培优`，避免被 `极速预习复习` 的普通复习语义抢走。
+- 生成真实探针报告 `docs/VIKINGDB_KNOWLEDGE_SEARCH_PROBE_2026-09-02.md`，用于记录火山检索延迟和命中结果。
+
+### 修改文件
+
+- `backend/app/core/config.py`
+- `backend/app/api/dependencies.py`
+- `backend/app/services/vikingdb_client.py`
+- `backend/app/services/vikingdb_knowledge_router.py`
+- `backend/app/services/search_external_branches.py`
+- `backend/app/services/search_service.py`
+- `backend/app/services/search_service_components.py`
+- `backend/scripts/probe_vikingdb_knowledge_search.py`
+- `backend/tests/test_search_index.py`
+- `backend/.env.example`
+- `.env.docker.example`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 火山仍是可重建派生索引，不保存完整 API Key，不作为素材事实源。
+- 本轮不批量写入公共话术、不写入证明点、不改变 6 大体系、16 个卖点、人工 accepted 关系或图片发布事实。
+
+### 测试结果
+
+- `PYTHONPYCACHEPREFIX=/tmp/piancton-pycache PYTHONPATH=. ./.venv/bin/python -m py_compile ...` 通过。
+- `PYTHONPATH=. ./.venv/bin/python -m ruff check ...` 通过。
+- 真实火山知识检索探针 8/8 无错误；常见卖点 Top1 正确，延迟约 160～514ms。
+- 真实 SearchService 冒烟：
+  - `拍题精学之后还能从一道题带到一类题，不只是告诉答案` 返回 `AI拍题精学 + 举一反三`，结果数 2。
+  - `动画课程` 返回 `动画精讲`，结果数 1。
+- 新增路由单测覆盖最终最多 3 个卖点，以及 `考前复习` 优先归 `专项培优`。
+- 本地 pytest 入口仍受当前 `.venv` Python 3.9 与既有 `str | None` 注解不兼容影响，未完成完整执行。
+- 当前 Docker backend 容器不是最新源码镜像，未将容器 pytest 作为本轮有效回归结论。
+
+### 遗留问题
+
+- `VIKINGDB_KNOWLEDGE_ROUTER_ENABLED` 默认仍为关闭，正式打开前需要用户确认和一轮业务端真实搜索观察。
+- 当前火山知识路由只负责卖点识别；证明点、公共话术向量补充和图片级向量召回仍保留为后续阶段。
+- 多卖点排序目前按火山向量分数和本地 accepted 结果共同约束，后续可增加更完整的人工评测集。
+
+### 下一步
+
+1. 在本地 `.env` 或部署环境中打开 `VIKINGDB_KNOWLEDGE_ROUTER_ENABLED=true` 做真实业务端试用。
+2. 保持 `VIKINGDB_SKILL_BACKUP_ENABLED=true` 观察一段时间；如果想测试纯火山路径，再临时关闭旧 Skill 备份。
+3. 基于真实搜索失败样例，按体系逐批精修公共话术，再决定是否把公共话术作为补充文档写入火山。
+
+---
+
+## 2026-09-02：项目火山向量检索测试模式
+
+### 本轮目标
+
+将项目真实搜索入口切到火山 VikingDB 知识路由测试模式，不再只在火山控制台里测向量召回。目标是：用户输入话术后，项目先用火山判断命中的卖点，再回本地数据库按人工 accepted 关系返回该卖点下的图库。
+
+### 完成内容
+
+- 本地/compose 运行配置开启 `VIKINGDB_KNOWLEDGE_ROUTER_ENABLED=true`。
+- 本轮测试关闭 `VIKINGDB_SKILL_BACKUP_ENABLED=false`，避免旧 Skill/模型链路兜底影响测试判断。
+- 保持火山候选召回 5 个、项目最终最多保留 3 个卖点。
+- 后端搜索候选上限提升到 150，前端搜索请求默认提升到 50 条，方便观察命中卖点下的图库覆盖。
+- VikingDB 路由成功时跳过第四层候选图片复核和第五层动态推荐理由，直接返回本地 accepted 素材，避免模型后处理拖慢或污染向量路由测试。
+- 重建并重启 Docker backend/web，使配置和前端搜索条数生效。
+
+### 修改文件
+
+- `backend/app/services/search_orchestrator.py`
+- `backend/app/services/search_orchestrator_helpers.py`
+- `client/src/features/images/hooks/useGlobalImageSearch.ts`
+- `backend/.env.vikingdb.local`
+- `.env`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 未改动火山数据集结构。
+- 未写入公共话术或证明点。
+- 本地数据库仍是图片、素材状态、人工 accepted 关系和权限的事实源。
+
+### 测试结果
+
+- 后端 `py_compile` 通过。
+- 后端 Ruff 通过。
+- 前端 `npm run typecheck` 通过。
+- 前端 `npm run lint` 通过。
+- `git diff --check` 通过。
+- Docker backend/web 重建成功，后端 ready。
+- 容器内项目 SearchService 真实搜索：
+  - `考前复习`：约 2.1s，命中 `专项培优`，返回 28 张。
+  - `口前复习`：约 1.6s，命中 `专项培优`，返回 27 张。
+  - `洋葱拍题精学可以让孩子解决一道题到一类问题`：约 2.6s，命中 `AI拍题精学 + 举一反三`，返回 23 张。
+  - `动画课程`：约 1.6s，命中 `动画精讲`，返回 1 张。
+
+### 遗留问题
+
+- 这是测试模式，不代表生产默认关闭旧 Skill 备份。
+- 当前页面最多请求 50 条；如果某个卖点 accepted 图库超过 50，仍需分页或后续扩展接口才能看全量。
+- 若后续测试发现火山把相邻卖点混淆，应优先补知识文档边界或轻量业务校准，再考虑补大量公共话术。
+
+### 下一步
+
+1. 用户在项目真实页面用同事/业务话术继续测试。
+2. 收集错误样例：搜了什么、期望卖点、实际卖点、返回图片是否缺。
+3. 对错误样例按体系精修火山知识文档，再小批量重建火山知识索引。
+
+---
+
+## 2026-09-02：火山主链路与上传话术退休
+
+### 本轮目标
+
+按用户最新决策，把当前项目测试口径从旧四层/五层 Skill 路由收口到火山 VikingDB 卖点向量路由：自由搜索先由火山判断卖点，再返回该卖点下本地 accepted 图库。上传流程不再生成或提交素材话术，只维护图片所属主要卖点。
+
+### 完成内容
+
+- 纯火山测试模式下，搜索自由输入不再使用本地公共话术召回作为候选来源。
+- 纯火山测试模式下，旧 Meilisearch 全文召回和旧 Embedding 旁路会跳过，避免混入非卖点路由结果。
+- 火山未产出可信卖点且 Skill 备份关闭时，不再回落到本地弱理解或旧公共话术。
+- 搜索服务在纯火山模式下不初始化 API Center 调度模型，减少 API 链路干扰。
+- 上传弹窗改为只选择主要表达卖点，隐藏证明点和证据表达点。
+- 上传弹窗移除上传前素材话术生成、继承公共话术展示和手动话术输入区。
+- 前端上传不再提交 `expectedSearchWords`，并显式关闭 `autoAnalyze`。
+- 后端上传接口忽略旧 `expectedSearchWords` 字段，不再自动排队图片分析。
+- AI 图片分析保存时不再写入 pending 的 AI 素材搜索话术；手动图片分析接口仍保留。
+
+### 修改文件
+
+- `backend/app/api/dependencies.py`
+- `backend/app/api/v1/images.py`
+- `backend/app/services/asset_relation_service.py`
+- `backend/app/services/search_external_branches.py`
+- `backend/app/services/search_orchestrator.py`
+- `backend/app/services/search_query_context_resolver.py`
+- `client/src/api/image.ts`
+- `client/src/features/assets/BusinessClassificationFields.tsx`
+- `client/src/pages/ImageHome/UploadDialog.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 未物理删除历史公共话术或素材话术数据，避免测试阶段不可逆丢失。
+- 当前运行口径只让火山卖点路由和本地人工 accepted 关系决定图库召回。
+
+### 测试结果
+
+- 后端 `py_compile` 通过。
+- 后端 Ruff 通过。
+- 前端 `npm run typecheck` 通过。
+- 前端 `npm run lint` 通过。
+- `git diff --check` 通过。
+- Docker backend/web 重建成功，后端 ready。
+- Docker 后端专项测试 `tests/test_search_index.py tests/test_asset_relation_service.py tests/test_phase5_endpoints.py`：`30 passed`。
+- 容器内项目 SearchService 真实搜索确认自由输入链路只走火山知识路由，`local_concepts`、`database`、`meilisearch`、`embedding`、`candidate_review` 和 `result_recommendation_reason` 均为 skipped：
+  - `考前复习`：命中 `同步考点体系 > 专项培优`，返回 28 张。
+  - `口前复习`：命中 `同步考点体系 > 专项培优`，返回 27 张。
+  - `洋葱拍题精学可以让孩子解决一道题到一类问题`：命中 `同步自学体系 > AI拍题精学` 和 `同步考点体系 > 举一反三`，返回 23 张。
+  - `动画课程`：命中 `同步校内体系 > 动画精讲`，返回 1 张。
+
+### 遗留问题
+
+- 旧话术管理页面和接口仍作为历史管理能力存在，但不参与当前上传主流程和纯火山自由搜索链路。
+- 如果后续确认彻底退休素材话术，需要单独做数据迁移、接口下线和页面删除，不应和本轮测试收口混在一起。
+
+### 下一步
+
+1. 重建并验证本地服务。
+2. 用项目页面搜索多条业务话术，确认诊断里只有火山卖点路由参与。
+3. 继续收集火山误判样例，优先优化业务知识文档而不是堆公共话术。
+
+---
+
 后续每次改造在本文末尾追加以下内容：
 
 ```markdown
@@ -6803,3 +7296,264 @@ Model：数据结构和关系
 
 ### 下一步
 ```
+
+## 2026-09-03：旧话术管理链路退役
+
+### 本轮目标
+
+- 按用户确认，把旧四层/五层 Skill 检索和公共/素材话术管理入口从当前产品形态中移除。
+- 保留业务卖点作为图片归属标签和火山向量路由落点。
+- 保留历史话术数据表和只读响应，避免为测试收口引入删库迁移风险。
+
+### 完成内容
+
+- API Center 移除 `asset_search_phrase_generation` 默认任务槽、任务枚举、健康检查标签和 Skill 映射。
+- 删除上传前素材话术生成服务、Skill 目录、前端生成组件和 `/api/ai/asset-search-phrases` 路由。
+- 删除业务概念公共话术新增/编辑接口和前端公共话术管理页面。
+- 删除素材组话术新增、审核、删除接口和素材详情话术审核面板。
+- 上传服务不再把 `expectedSearchWords` 转成素材组搜索话术；上传弹窗只保留图片、渠道、风格/场景和主要表达卖点。
+- 图片分析保存仍可生成业务概念建议，但不再把 AI 素材话术写入 pending 列表。
+- OpenAPI 前端类型已用重建后的 backend 容器重新生成。
+
+### 修改文件
+
+- `backend/app/ai/contracts.py`
+- `backend/app/ai/normalizer.py`
+- `backend/app/ai/skill_loader.py`
+- `backend/app/api/dependencies.py`
+- `backend/app/api/v1/ai.py`
+- `backend/app/api/v1/assets.py`
+- `backend/app/api/v1/business_concepts.py`
+- `backend/app/repositories/asset_repository.py`
+- `backend/app/schemas/ai.py`
+- `backend/app/schemas/api_center.py`
+- `backend/app/schemas/asset.py`
+- `backend/app/services/ai_service.py`
+- `backend/app/services/api_center_service.py`
+- `backend/app/services/asset_relation_service.py`
+- `backend/app/services/business_concept_service.py`
+- `backend/app/services/image_service.py`
+- `client/src/api/asset.ts`
+- `client/src/api/businessConcept.ts`
+- `client/src/api/image.ts`
+- `client/src/features/assets/useAssetActions.ts`
+- `client/src/features/assets/useBusinessConceptActions.ts`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `client/src/pages/AdminConcepts/AdminConcepts.tsx`
+- `client/src/pages/AdminConcepts/ConceptList.tsx`
+- `client/src/pages/ImageDetail/asset/AssetWorkspacePanel.tsx`
+- `client/src/pages/ImageHome/UploadDialog.tsx`
+- `client/src/types/api.generated.ts`
+- `client/src/types/api.ts`
+- `client/src/types/openapi.d.ts`
+- `skills/INDEX.md`
+- `skills/operate-model-providers/RULES.md`
+
+### 数据迁移
+
+- 无数据库 schema 迁移。
+- 未物理删除 `concept_search_phrases` 或 `asset_search_phrases` 历史表。
+- 当前新写入路径不再新增公共话术、素材话术或上传前 AI 话术。
+
+### 测试结果
+
+- Docker backend/web 重建成功。
+- 前端 `npm run typecheck` 通过。
+- 前端 `npm run lint` 通过。
+- 后端 py_compile 通过。
+- 后端 Ruff 通过。
+- 后端重点测试：`119 passed, 4 skipped`。
+
+### 遗留问题
+
+- 历史话术只读字段、旧索引兼容读取和运营统计中的“缺搜索话术”指标仍保留；后续若确认彻底删除历史表，需要单独做迁移和统计口径调整。
+- 当前项目搜索仍处于火山向量主链路测试模式，生产默认策略需在更多真实样例后再确认。
+
+### 下一步
+
+1. 在页面上继续用真实同事话术测试火山卖点命中。
+2. 收集错例后优先优化火山知识文档，而不是恢复旧公共话术堆叠。
+3. 如果新链路稳定，再单独整理搜索运营页中与“话术缺失”相关的历史指标。
+
+## 2026-09-03：结果说明收口
+
+### 本轮目标
+
+- 搜索结果不再为每张图片展示动态推荐理由，避免一个卖点下十几二十张图时页面过重、解释重复、速度被旧链路拖慢。
+- 保留“为什么命中这个卖点/渠道”的统一说明，让操作工先理解本次搜索的卖点判断，再从该卖点图库里选图。
+
+### 完成内容
+
+- 搜索结果顶部新增统一说明：命中卖点、渠道/版位收窄、当前返回组数。
+- 搜索结果卡片底部从 `推荐点 + 推荐这张...` 改为只显示 `卖点：xxx`。
+- 保持 VikingDB clean 数据集不变，仍只保留 22 条体系/卖点知识文档，不写入图片标题、主图、竖版延展等污染数据。
+- 保持 VikingDB 路由成功后跳过候选复核和动态推荐理由。
+- 已重建 Docker web，让浏览器页面使用最新前端产物。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/SemanticSearchResult/index.tsx`
+- `client/src/pages/ImageHome/SemanticSearchResult/ScoredImageCard.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 测试结果
+
+- `npm test -- channelIntent searchResultFilters searchConceptPresentation --run`：3 files / 30 tests passed。
+- `npm run typecheck`：通过。
+- `npm run build -- --logLevel error`：通过。
+- `git diff --check`：通过。
+- Docker web 重建成功。
+- 浏览器实测：
+  - `运营长图里用的拍题精学`：命中 `AI拍题精学`，按 `手机端` 收窄，10 组。
+  - `运营长图大模块里用的拍题精学`：命中 `AI拍题精学`，按 `手机端大图` 收窄，6 组。
+  - `运营长图小模块里用的拍题精学`：命中 `AI拍题精学`，按 `手机端小图` 收窄，6 组。
+  - `拍题精学功能图`：命中 `AI拍题精学`，按手机端和非场景功能图收窄，3 组。
+  - 上述页面均未出现 `推荐这张...` 逐图理由。
+
+### 下一步
+
+- 继续用真实话术看“渠道/场景/卖点”三层是否够用；如真实素材的渠道名不统一，再做渠道别名迁移或映射。
+
+## 2026-09-03：渠道与版位默认收窄
+
+### 本轮目标
+
+- 让搜索在卖点之外继续理解“用在哪个渠道/版位”。
+- 支持用户说 `PPT 用的拍题精学`、`手机端小图用的拍题精学`、`运营长图里用的图`。
+- 未提及渠道时默认只返手机端大图/小图，避免业务端被 PPT、官网、品牌手册素材冲散。
+
+### 完成内容
+
+- 渠道意图仍与火山卖点路由并行，不写入 VikingDB，不污染 22 条体系/卖点知识文档。
+- `运营长图`、`活动长图`、`长图` 归为手机端使用语境。
+- `大模块`、`主模块`、`重点模块` 偏 `手机端大图`。
+- `小模块`、`次级模块`、`辅助模块` 偏 `手机端小图`。
+- 只说运营长图但没说模块大小时，同时保留 `手机端大图`、`手机端小图`。
+- 用户没有提及渠道时，前端结果默认只保留 `手机端大图`、`手机端小图`。
+- `场景图`、`真实使用`、`使用场景` 会在默认手机渠道内自动收窄到场景图。
+- `功能图`、`功能截图`、`功能卡片`、`界面截图` 会在默认手机渠道内自动收窄到非场景功能图。
+- 用户手动选择场景筛选时，以手动选择覆盖自动识别。
+- 场景图/功能图继续是图片功能维度，不进入火山卖点路由。
+- 已重建 Docker web，让浏览器页面使用最新前端产物。
+
+### 修改文件
+
+- `client/src/pages/ImageHome/channelIntent.ts`
+- `client/src/pages/ImageHome/searchResultFilters.ts`
+- `client/src/pages/ImageHome/channelIntent.test.ts`
+- `client/src/pages/ImageHome/searchResultFilters.test.ts`
+- `skills/understand-image-channel-intent/SKILL.md`
+- `skills/understand-image-channel-intent/references/channel-taxonomy.md`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 测试结果
+
+- `npm test -- channelIntent searchResultFilters --run`：2 files / 19 tests passed。
+- `npm run typecheck`：通过。
+- `npm run build`：通过。
+
+### 下一步
+
+- 页面上重点测试三类话术：明确渠道、运营长图模块、完全不提渠道。
+- 如果真实素材存在旧渠道名，需要再决定是否做一次渠道名迁移或兼容别名。
+
+## 2026-09-03：火山短词入口校准
+
+### 本轮目标
+
+- 解释并修复页面搜索单字 `拍` 返回 0，但火山控制台可命中 `AI拍题精学` 的差异。
+- 保持火山 clean 数据集不受泛词污染。
+
+### 完成内容
+
+- 确认当前容器已成功切到 `piancton_search_knowledge_clean` / `piancton_search_knowledge_idx`，并且 `VIKINGDB_KNOWLEDGE_ROUTER_ENABLED=true`、`VIKINGDB_SKILL_BACKUP_ENABLED=false`。
+- 真实火山探针显示 `拍` Top1 为 `selling_point:photo_guided_learning`，但分数约 `0.256`，低于项目可信阈值 `0.34`。
+- 保持全局阈值不变，新增精确短业务入口白名单：完整输入 `拍` 直接映射到 `photo_guided_learning`。
+- 未放开 `图`、`素材`、`标题` 等泛词，避免低分随机卖点进入项目搜索。
+- 已重建 Docker backend/web，让页面使用最新代码。
+
+### 修改文件
+
+- `backend/app/services/vikingdb_knowledge_router.py`
+- `backend/tests/test_search_index.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 测试结果
+
+- 容器内 `python -m compileall app/services/vikingdb_knowledge_router.py` 通过。
+- 容器内 `python -m pytest tests/test_search_index.py -q`：`18 passed`。
+- 真实项目 SearchService：
+  - `拍`：返回 26 张，理解为 `AI拍题精学`。
+  - `拍题`：返回 26 张，理解为 `AI拍题精学`。
+  - `复习`：返回 26 张，理解为 `极速预习复习`。
+  - `图`、`素材`、`标题`：仍返回 0。
+
+### 下一步
+
+- 页面刷新后继续用真实短词和口语词测试火山卖点命中。
+- 后续每发现一个短入口错例，优先判断是否是明确业务入口；只有稳定、唯一、不会泛化污染的短词才进白名单。
+
+## 2026-09-03：火山数据集去污染
+
+### 本轮目标
+
+- 修正火山数据集里出现图片标题、主图/新版主图、竖版延展等派生表达的问题。
+- 让 VikingDB 当前只保存六大体系和 16 个卖点知识文档。
+- 保持本地图片、素材组、渠道和人工 accepted 卖点关系不变。
+
+### 完成内容
+
+- `VikingDBVectorIndexSync.upsert_images` 改为退休兼容空操作，不再生成或写入图片文档。
+- `VikingDBVectorIndexSync.best_effort_upsert_image` 保留调用兼容，但只记录 debug，不再上传图片语义。
+- 删除 `image_to_vikingdb_document`，源头移除图片向量文档生成器。
+- 删除旧的 `backend/scripts/rebuild_vikingdb_index.py`，避免再次批量写入图片文档。
+- 新增 `backend/scripts/reset_vikingdb_knowledge_index.py`，用于清空 VikingDB collection 后只写回 22 条 `system`/`selling_point` 知识文档。
+- `VikingDBClient` 新增 `delete_all_documents()`，仅用于可重建的派生向量数据集维护。
+- `VikingDBKnowledgeRouter` 和探针脚本请求层改为只过滤 `doc_type=selling_point`，旧图片文档即使暂留 collection 也不会进入当前项目搜索候选。
+- 已重新提交 22 条知识文档到当前 VikingDB collection。
+- 项目运行配置已切到新建 clean 数据集 `piancton_search_knowledge_clean` 和索引 `piancton_search_knowledge_idx`。
+- `backend/app/core/config.py`、`backend/.env.example`、`.env.docker.example` 默认值改为 clean collection/index。
+- `backend/.env.vikingdb.local` 加入 `.gitignore`，避免真实 VikingDB Key 被误提交。
+
+### 修改文件
+
+- `backend/app/services/vikingdb_client.py`
+- `backend/app/services/vikingdb_vector_index.py`
+- `backend/scripts/reset_vikingdb_knowledge_index.py`
+- `backend/scripts/rebuild_vikingdb_index.py`
+- `backend/tests/test_search_index.py`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+### 数据迁移
+
+- 无本地数据库 schema 迁移。
+- 本地素材、图片、渠道、素材组、业务概念和人工 accepted 关系不变。
+- 当前火山 VikingDB collection 需要执行一次重置：删除旧派生文档后只重建 22 条体系/卖点知识文档。
+
+### 测试结果
+
+- Docker backend 重建成功。
+- 容器内 Python 编译通过。
+- 本机 Ruff 通过。
+- 容器内 `tests/test_search_index.py`：`18 passed`。
+- 真实 VikingDB 探针 4 条均无错误，Top 命中均为 `selling_point:*`，无 `image:*`：`拍题精学之后还能从一道题带到一类题`、`题型突破`、`口前复习`、`动画课程`。
+- 真实项目 Router 验证：`拍题精学之后还能从一道题带到一类题` 返回 `AI拍题精学 + 举一反三`，`题型突破` 返回 `专项培优`，`口前复习` 返回 `专项培优`，`动画课程` 返回 `动画精讲`。
+
+### 遗留问题
+
+- D256 的图片文档设计保留为历史决策记录，不再代表当前实现。
+- 如果未来要做“图片级向量检索”，必须新建独立 collection，不能混入当前卖点知识路由 collection。
+- 旧 `piancton_search_assets_test` 数据集内的脏数据尚未在火山后台物理清空，但当前项目已切到 clean 数据集，不再使用旧数据集。
+
+### 下一步
+
+1. 重建 backend 容器。
+2. 执行火山 collection 重置脚本。
+3. 用探针确认当前检索只返回 `system`/`selling_point` 文档。
+# 2026-09-07 D275 公司服务器部署准备
+
+按用户确认采用空库部署：不带图片、旧账号和 API 配置，初始化 6 个体系和 16 个卖点，管理员单独创建；复用现有 VikingDB。补齐 Compose 环境变量和重启策略，Docker 排除本地 `.env.*`。镜像构建、空库迁移和种子幂等通过；前端 54 测试及构建通过，后端 364 passed / 21 failed / 4 skipped，Ruff 与 Pyright 遗留问题未清零。无新增迁移，无本地业务数据写入。服务器尚待拉取、启动、创建管理员及生产验收，详见 `COMPANY_SERVER_DEPLOYMENT_2026-09-07.md`。

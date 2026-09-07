@@ -11,7 +11,11 @@ from app.services.query_expansion_service import QueryExpansionService
 from app.services.query_understanding_service import QueryUnderstandingService
 from app.services.search_concept_context import merge_concept_matches
 from app.services.search_diagnostics_service import SearchDiagnosticsService
-from app.services.search_models import SearchBranchDiagnostic, SearchDeadline, SearchHit
+from app.services.search_models import (
+    SearchBranchDiagnostic,
+    SearchDeadline,
+    SearchHit,
+)
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_result_recommendation_service import (
     SearchResultRecommendationService,
@@ -182,16 +186,15 @@ async def finalize_search_response(
         search_understanding=understanding,
         query_concept_matches=active_concept_matches,
     )
-    recommendation_result = await result_recommendation.enrich(
+    route_explanation = await result_recommendation.explain_route(
         keyword=keyword,
         understanding=understanding,
-        hits=ranking.collapse_asset_groups(hits[:limit]),
-        results=response.results,
+        result_count=len(response.results),
         deadline=deadline,
     )
-    branch_diagnostics.append(recommendation_result.diagnostic)
-    if recommendation_result.value is not None:
-        response.results = recommendation_result.value
+    branch_diagnostics.append(route_explanation.diagnostic)
+    if route_explanation.value:
+        response.route_explanation = route_explanation.value
 
     search_diagnostics = diagnostics.build(
         total_duration_ms=elapsed_ms(started),

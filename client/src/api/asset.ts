@@ -114,33 +114,6 @@ export async function reviewAssetConcepts(
   })).data;
 }
 
-export async function addAssetSearchPhrase(
-  groupId: string,
-  phrase: string,
-): Promise<AssetGroup> {
-  return (await api.post(`/api/asset-groups/${groupId}/search-phrases`, {
-    phrase,
-    weight: 1,
-  })).data;
-}
-
-export async function reviewAssetSearchPhrase(
-  groupId: string,
-  phraseId: string,
-  reviewStatus: 'accepted' | 'rejected',
-): Promise<AssetGroup> {
-  return (await api.patch(`/api/asset-groups/${groupId}/search-phrases/${phraseId}`, {
-    reviewStatus,
-  })).data;
-}
-
-export async function removeAssetSearchPhrase(
-  groupId: string,
-  phraseId: string,
-): Promise<AssetGroup> {
-  return (await api.delete(`/api/asset-groups/${groupId}/search-phrases/${phraseId}`)).data;
-}
-
 export async function addAssetSourceLink(
   groupId: string,
   input: {

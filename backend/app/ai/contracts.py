@@ -72,7 +72,6 @@ class CancellationSignal:
 
 ModelTask = Literal[
     "image_content_analysis",
-    "asset_search_phrase_generation",
     "search_system_routing",
     "search_intent_understanding",
     "search_proof_point_understanding",

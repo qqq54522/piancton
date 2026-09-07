@@ -12,8 +12,6 @@ from app.schemas.business_concept import (
     BusinessConceptUpdate,
     ConceptRelationCreate,
     ConceptRelationRead,
-    ConceptSearchPhraseCreate,
-    ConceptSearchPhraseUpdate,
 )
 from app.services.business_concept_service import BusinessConceptService
 
@@ -55,30 +53,6 @@ def update_business_concept(
     service: BusinessConceptService = Depends(get_business_concept_service),
 ):
     return service.update(concept_id, payload)
-
-
-@router.post("/{concept_id}/search-phrases", response_model=BusinessConceptRead)
-def add_concept_search_phrase(
-    concept_id: str,
-    payload: ConceptSearchPhraseCreate,
-    _: User = Depends(require_admin),
-    service: BusinessConceptService = Depends(get_business_concept_service),
-):
-    return service.add_phrase(concept_id, payload)
-
-
-@router.patch(
-    "/{concept_id}/search-phrases/{phrase_id}",
-    response_model=BusinessConceptRead,
-)
-def update_concept_search_phrase(
-    concept_id: str,
-    phrase_id: str,
-    payload: ConceptSearchPhraseUpdate,
-    _: User = Depends(require_admin),
-    service: BusinessConceptService = Depends(get_business_concept_service),
-):
-    return service.update_phrase(concept_id, phrase_id, payload)
 
 
 @router.post(

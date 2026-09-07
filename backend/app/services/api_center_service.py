@@ -38,9 +38,9 @@ from app.repositories.api_center_repository import ApiCenterRepository
 from app.schemas.api_center import (
     ApiCallTraceListResponse,
     ApiCallTraceRead,
-    ApiCenterOverview,
     ApiCenterMaintenanceRead,
     ApiCenterMaintenanceRunResult,
+    ApiCenterOverview,
     ApiCenterSummary,
     ApiCredentialCapabilityRead,
     ApiCredentialCreate,
@@ -70,22 +70,10 @@ from app.services.api_center_runtime_policy import (
 from app.services.unit_of_work import UnitOfWork
 
 DEFAULT_ROUTING_SLOTS: tuple[tuple[str, str, float, int], ...] = (
-    ("search_system_routing", "第一层：体系路由", 45.0, 2500),
-    ("search_intent_understanding", "第二层：卖点识别", 60.0, 3500),
-    ("search_proof_point_understanding", "第三层：证明点识别", 45.0, 3500),
-    ("search_candidate_review", "第四层：候选图片复核", 45.0, 3500),
-    ("search_result_recommendation_reason", "搜索结果：动态推荐理由", 45.0, 3000),
-    ("image_content_analysis", "上传主图：图片语义分析", 120.0, 6000),
-    ("asset_search_phrase_generation", "上传前：素材话术生成", 120.0, 6000),
-    ("copy_selling_point_matching", "兼容接口：文案卖点匹配", 20.0, 3000),
+    ("search_result_recommendation_reason", "搜索结果：命中卖点解释", 30.0, 2500),
     ("asset_agent_chat", "素材库 Agent：业务解释", 30.0, 3500),
 )
-SEARCH_TASKS = (
-    "search_system_routing",
-    "search_intent_understanding",
-    "search_proof_point_understanding",
-    "search_candidate_review",
-)
+SEARCH_TASKS = ("search_result_recommendation_reason",)
 
 TASK_LAYER_LABELS = {
     task: label for task, label, _, _ in DEFAULT_ROUTING_SLOTS
@@ -103,15 +91,9 @@ MIN_SCHEDULER_ATTEMPT_SECONDS = 8.0
 MIN_FALLBACK_RELAY_SECONDS = 8.0
 SCHEDULER_IDLE_WAIT_SECONDS = 0.1
 SCHEDULER_METRICS_CACHE_TTL_SECONDS = 15.0
-UPLOAD_TASK_MIN_SLOT_TIMEOUT_SECONDS = {
-    "image_content_analysis": 120.0,
-    "asset_search_phrase_generation": 120.0,
-}
+UPLOAD_TASK_MIN_SLOT_TIMEOUT_SECONDS = {}
 UPLOAD_TASK_MIN_PARALLEL = 3
-TASK_MIN_ATTEMPT_TIMEOUT_SECONDS = {
-    "image_content_analysis": 55.0,
-    "asset_search_phrase_generation": 55.0,
-}
+TASK_MIN_ATTEMPT_TIMEOUT_SECONDS = {}
 TRANSIENT_HEALTH_ERROR_CODES = {
     "connection_failed",
     "connection_timeout",
@@ -126,9 +108,7 @@ MODEL_CAPABILITY_LABELS = {
     "vision_json": "图片输入 JSON",
 }
 CapabilityStatus = Literal["ok", "failed", "unknown"]
-TASK_CAPABILITY_REQUIREMENTS = {
-    "image_content_analysis": "vision_json",
-}
+TASK_CAPABILITY_REQUIREMENTS = {}
 CAPABILITY_FAILURE_ERROR_CODES = {
     "task_capability_unsupported",
     "invalid_json_response",
@@ -163,23 +143,13 @@ ENV_CREDENTIAL_SPECS: tuple[dict[str, Any], ...] = (
         "tasks": SEARCH_TASKS,
     },
     {
-        "label": "环境导入 · 主图分析 Key",
-        "api_key": "image_analysis_api_key",
-        "base_url": "image_analysis_base_url",
-        "model_name": "image_analysis_model_name",
-        "temperature": "image_analysis_temperature",
-        "priority": 30,
-        "tasks": ("image_content_analysis",),
-    },
-    {
-        "label": "环境导入 · 话术生成 Key",
+        "label": "环境导入 · 素材库 Agent Key",
         "api_key": "asset_phrase_api_key",
         "base_url": "asset_phrase_base_url",
         "model_name": "asset_phrase_model_name",
         "temperature": "asset_phrase_temperature",
         "priority": 40,
         "tasks": (
-            "asset_search_phrase_generation",
             "asset_agent_chat",
             "search_result_recommendation_reason",
         ),
@@ -284,7 +254,11 @@ class ApiCenterService:
 
     def summary(self) -> ApiCenterSummary:
         credentials = self.repo.list_credentials()
-        slots = self.repo.list_slots()
+        slots = [
+            slot
+            for slot in self.repo.list_slots()
+            if slot.task in TASK_LAYER_LABELS
+        ]
         recent_traces = self.repo.list_recent_call_traces(limit=100)
         search_context = self.repo.search_context_by_ids(
             {
@@ -467,6 +441,11 @@ class ApiCenterService:
                     if credential.status == "active"
                 ][:max_credentials]
             )
+            due_credentials = [
+                credential
+                for credential in due_credentials
+                if _credential_scope_intersects_current_tasks(credential)
+            ]
             checks: list[ApiHealthCheckRead] = []
             for credential in due_credentials:
                 checks.append(
@@ -575,6 +554,7 @@ class ApiCenterService:
 
     def initialize_runtime(self) -> None:
         """Create defaults and migrate legacy environment credentials once."""
+        self.prune_retired_slots()
         self.ensure_default_slots()
         self.import_environment_credentials_once()
         self.normalize_legacy_credential_statuses()
@@ -600,6 +580,16 @@ class ApiCenterService:
                 credential.api_key_secret,
             )
             credential.updated_at = datetime.now(timezone.utc)
+            changed = True
+        if changed:
+            self.uow.commit()
+
+    def prune_retired_slots(self) -> None:
+        changed = False
+        for slot in self.repo.list_slots():
+            if slot.task in TASK_LAYER_LABELS:
+                continue
+            self.repo.delete_slot(slot)
             changed = True
         if changed:
             self.uow.commit()
@@ -771,6 +761,8 @@ class ApiCenterService:
         *,
         snapshot: _SchedulerSelectionSnapshot | None = None,
     ) -> tuple[ModelRoutingSlot | None, list[ModelApiCredential]]:
+        if task not in TASK_LAYER_LABELS:
+            return None, []
         snapshot = snapshot or self.scheduler_selection_snapshot()
         slot = snapshot.slots_by_task.get(task)
         credentials = snapshot.credentials
@@ -985,6 +977,7 @@ class ApiCenterService:
         )
         selected_temperature = payload.temperature
         selected_temperature_enabled = payload.temperature_enabled
+        task_scope = _current_task_scope_or_default(payload.task_scope)
         capability_profile_json = "{}"
         last_status: str | None = None
         last_latency_ms: int | None = None
@@ -999,7 +992,7 @@ class ApiCenterService:
                 api_key=api_key,
                 temperature=payload.temperature,
                 temperature_enabled=payload.temperature_enabled,
-                task=_representative_task_for_scope(payload.task_scope),
+                task=_representative_task_for_scope(task_scope),
             )
             selected_temperature = (
                 probe.temperature
@@ -1010,7 +1003,7 @@ class ApiCenterService:
             probe_checked_at = datetime.now(timezone.utc)
             capability_profile_json = _capability_profile_with_result(
                 "{}",
-                task=_representative_task_for_scope(payload.task_scope),
+                task=_representative_task_for_scope(task_scope),
                 status=probe.status,
                 duration_ms=probe.duration_ms,
                 error_summary=None,
@@ -1028,7 +1021,7 @@ class ApiCenterService:
                 api_key_secret=api_key,
                 api_key_fingerprint=api_key_fingerprint,
                 api_key_preview=_api_key_preview(api_key),
-                task_scope_json=json.dumps(payload.task_scope, ensure_ascii=False),
+                task_scope_json=json.dumps(task_scope, ensure_ascii=False),
                 status=payload.status,
                 priority=payload.priority,
                 timeout_seconds=max(0.5, payload.timeout_seconds),
@@ -1176,6 +1169,11 @@ class ApiCenterService:
             if payload.temperature_enabled is not None
             else credential.temperature_enabled
         )
+        next_task_scope = (
+            _current_task_scope_or_default(payload.task_scope)
+            if payload.task_scope is not None
+            else _loads_list(credential.task_scope_json)
+        )
         critical_changed = any(
             (
                 payload.provider_type is not None
@@ -1202,11 +1200,7 @@ class ApiCenterService:
                 api_key=next_api_key,
                 temperature=next_temperature,
                 temperature_enabled=next_temperature_enabled,
-                task=_representative_task_for_scope(
-                    payload.task_scope
-                    if payload.task_scope is not None
-                    else _loads_list(credential.task_scope_json)
-                ),
+                task=_representative_task_for_scope(next_task_scope),
             )
             next_temperature = (
                 probe.temperature
@@ -1227,7 +1221,7 @@ class ApiCenterService:
             credential.api_key_fingerprint = next_api_key_fingerprint
             credential.api_key_preview = _api_key_preview(next_api_key)
         if payload.task_scope is not None:
-            credential.task_scope_json = json.dumps(payload.task_scope, ensure_ascii=False)
+            credential.task_scope_json = json.dumps(next_task_scope, ensure_ascii=False)
         if payload.status is not None:
             credential.status = next_status
         if payload.priority is not None:
@@ -1247,11 +1241,7 @@ class ApiCenterService:
                 probe_checked_at = datetime.now(timezone.utc)
                 credential.capability_profile_json = _capability_profile_with_result(
                     "{}",
-                    task=_representative_task_for_scope(
-                        payload.task_scope
-                        if payload.task_scope is not None
-                        else _loads_list(credential.task_scope_json)
-                    ),
+                    task=_representative_task_for_scope(next_task_scope),
                     status=probe.status,
                     duration_ms=probe.duration_ms,
                     error_summary=None,
@@ -1397,6 +1387,7 @@ class ApiCenterService:
                 _ensure_credential_can_be_assigned(
                     credentials[payload.primary_credential_id],
                     "主 API",
+                    task=slot.task,
                 )
             slot.primary_credential_id = payload.primary_credential_id or None
         if payload.backup_credential_ids is not None:
@@ -1407,6 +1398,7 @@ class ApiCenterService:
                 _ensure_credential_can_be_assigned(
                     credentials[credential_id],
                     "备用 API",
+                    task=slot.task,
                 )
                 if credential_id not in backup_ids:
                     backup_ids.append(credential_id)
@@ -1441,9 +1433,15 @@ class ApiCenterService:
         credential_id: str,
         payload: ApiHealthCheckCreate,
     ) -> ApiHealthCheckRead:
+        _ensure_current_task(payload.task)
         credential = self.repo.get_credential(credential_id)
         if not credential:
             raise NotFoundError("api_credential_not_found", "API key 不存在")
+        if not _credential_scope_allows_task(credential, payload.task):
+            raise AppError(
+                "credential_task_scope_mismatch",
+                "该 API key 的任务范围不包含当前健康检查任务",
+            )
         total_duration_ms = 0
         successful_duration_ms = 0
         provider_attempts: tuple[dict[str, Any], ...] = ()
@@ -1501,6 +1499,7 @@ class ApiCenterService:
         if not credential:
             raise NotFoundError("api_credential_not_found", "API key 不存在")
         task = payload.task or _representative_task(credential)
+        _ensure_current_task(task)
         timeout_seconds = max(
             0.5,
             min(payload.timeout_seconds or credential.timeout_seconds, 30.0),
@@ -1577,6 +1576,7 @@ class ApiCenterService:
         self,
         payload: ApiTemperatureProbeRequest,
     ) -> ApiTemperatureTuneResult:
+        _ensure_current_task(payload.task)
         api_key = payload.api_key.strip()
         if not api_key:
             raise AppError("api_key_required", "API key 不能为空")
@@ -1763,14 +1763,22 @@ class ApiCenterService:
             for credential in self.repo.list_credentials()
             if payload.include_disabled or credential.status != "disabled"
         ]
-        probe_targets: list[_HealthProbeTarget] = [
-            _HealthProbeTarget(
-                credential_id=credential.id,
-                task=payload.task or _representative_task(credential),
-                provider_group=_provider_host_label(credential.base_url),
+        probe_targets: list[_HealthProbeTarget] = []
+        for credential in credentials:
+            task = payload.task or _representative_task_for_scope(
+                _loads_list(credential.task_scope_json)
             )
-            for credential in credentials
-        ]
+            if not _credential_scope_intersects_current_tasks(credential):
+                continue
+            if not _credential_scope_allows_task(credential, task):
+                continue
+            probe_targets.append(
+                _HealthProbeTarget(
+                    credential_id=credential.id,
+                    task=task,
+                    provider_group=_provider_host_label(credential.base_url),
+                )
+            )
         bind = self.db.get_bind()
         can_run_in_parallel = (
             self.trace_session_factory is not None
@@ -2451,13 +2459,42 @@ def _validate_model_name(value: str) -> str:
 def _ensure_credential_can_be_assigned(
     credential: ModelApiCredential,
     role: str,
+    *,
+    task: str,
 ) -> None:
-    if credential_is_available(credential, require_auto_assign=False):
+    if not credential_is_available(credential, require_auto_assign=False):
+        raise AppError(
+            "credential_not_active",
+            f"{role}「{credential.label}」未启用，不能指定到当前任务",
+        )
+    task_scope = _loads_list(credential.task_scope_json)
+    if task_scope and task not in task_scope:
+        raise AppError(
+            "credential_task_scope_mismatch",
+            f"{role}「{credential.label}」没有包含当前任务，不能指定到当前槽位",
+        )
+
+
+def _ensure_current_task(task: str) -> None:
+    if task in TASK_LAYER_LABELS:
         return
     raise AppError(
-        "credential_not_active",
-        f"{role}「{credential.label}」未启用，不能指定到当前任务",
+        "model_task_retired",
+        "该模型任务已退役，不再通过 API 中心调度",
     )
+
+
+def _current_task_scope_or_default(
+    task_scope: list[ModelTaskName] | list[str],
+) -> list[str]:
+    if not task_scope:
+        return list(TASK_LAYER_LABELS)
+    current_scope: list[str] = []
+    for task in task_scope:
+        _ensure_current_task(str(task))
+        if str(task) not in current_scope:
+            current_scope.append(str(task))
+    return current_scope
 
 
 def _safe_error(exc: Exception) -> str:
@@ -2664,6 +2701,8 @@ def _credential_can_auto_run_task(
     credential: ModelApiCredential,
     task: str,
 ) -> bool:
+    if not _credential_scope_allows_task(credential, task):
+        return False
     capability = _required_capability_for_task(task)
     capability_status = _read_capability_profile(
         credential.capability_profile_json
@@ -2673,6 +2712,21 @@ def _credential_can_auto_run_task(
     if capability == "vision_json":
         return capability_status == "ok"
     return True
+
+
+def _credential_scope_allows_task(
+    credential: ModelApiCredential,
+    task: str,
+) -> bool:
+    task_scope = _loads_list(credential.task_scope_json)
+    return not task_scope or task in task_scope
+
+
+def _credential_scope_intersects_current_tasks(
+    credential: ModelApiCredential,
+) -> bool:
+    task_scope = _loads_list(credential.task_scope_json)
+    return not task_scope or any(task in TASK_LAYER_LABELS for task in task_scope)
 
 
 def _capability_status(value: object) -> CapabilityStatus:
@@ -2999,7 +3053,7 @@ def _add_metric(
 
 def _representative_task(credential: ModelApiCredential) -> ModelTaskName:
     del credential
-    return "search_system_routing"
+    return "search_result_recommendation_reason"
 
 
 def _representative_task_for_scope(
@@ -3008,7 +3062,7 @@ def _representative_task_for_scope(
     for task in task_scope:
         if task in TASK_LAYER_LABELS:
             return cast(ModelTaskName, task)
-    return "search_system_routing"
+    return "search_result_recommendation_reason"
 
 
 def _group_health_probe_targets_by_provider(

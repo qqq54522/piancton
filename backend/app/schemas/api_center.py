@@ -7,7 +7,6 @@ from app.schemas.base import ApiModel
 
 ModelTaskName = Literal[
     "image_content_analysis",
-    "asset_search_phrase_generation",
     "search_system_routing",
     "search_intent_understanding",
     "search_proof_point_understanding",
@@ -134,7 +133,7 @@ class RoutingSlotRead(ApiModel):
 
 
 class ApiHealthCheckCreate(ApiModel):
-    task: ModelTaskName = "search_system_routing"
+    task: ModelTaskName = "search_result_recommendation_reason"
     timeout_seconds: Optional[float] = None
 
 
@@ -194,7 +193,7 @@ class ApiTemperatureProbeRequest(ApiModel):
     base_url: str
     model_name: str
     api_key: str
-    task: ModelTaskName = "search_system_routing"
+    task: ModelTaskName = "search_result_recommendation_reason"
     temperature: float = 0.2
     candidate_temperatures: Optional[list[float]] = None
     timeout_seconds: Optional[float] = None

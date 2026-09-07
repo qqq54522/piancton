@@ -105,15 +105,6 @@ class AssetConceptBatchReview(ApiModel):
     review_status: Literal["accepted", "rejected"]
 
 
-class AssetSearchPhraseCreate(ApiModel):
-    phrase: str = Field(min_length=1, max_length=300)
-    weight: float = Field(default=1.0, ge=0, le=2)
-
-
-class AssetSearchPhraseReview(ApiModel):
-    review_status: Literal["accepted", "rejected"]
-
-
 class AssetSourceLinkCreate(ApiModel):
     label: str = Field(min_length=1, max_length=120)
     url: str = Field(min_length=1, max_length=2048)

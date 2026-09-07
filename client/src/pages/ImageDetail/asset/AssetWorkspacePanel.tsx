@@ -7,7 +7,6 @@ import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConc
 import { useBusinessFacets } from '@client/src/features/assets/useBusinessFacets';
 import AssetBusinessClassificationPanel from './AssetBusinessClassificationPanel';
 import AssetConceptReviewPanel from './AssetConceptReviewPanel';
-import AssetPhraseReviewPanel from './AssetPhraseReviewPanel';
 import AssetSourceLinksPanel from './AssetSourceLinksPanel';
 import AssetVersionsPanel from './AssetVersionsPanel';
 
@@ -38,7 +37,7 @@ function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorks
         <div>
           <p className="section-kicker">Asset Workspace</p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight">素材工作台</h2>
-          <p className="mt-1 text-sm text-muted-foreground">在这里持续维护版本、业务卖点和后续收集到的搜索话术。</p>
+          <p className="mt-1 text-sm text-muted-foreground">在这里持续维护版本、来源和业务卖点归属。</p>
         </div>
         {editable && (
           <Button variant="outline" size="sm" asChild>
@@ -64,11 +63,6 @@ function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorks
             actions={actions}
           />
           <AssetConceptReviewPanel
-            group={group.data}
-            concepts={concepts.data ?? []}
-            actions={actions}
-          />
-          <AssetPhraseReviewPanel
             group={group.data}
             concepts={concepts.data ?? []}
             actions={actions}

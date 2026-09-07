@@ -10,13 +10,13 @@ from app.core.config import get_settings
 from app.core.errors import ForbiddenError
 from app.db.session import SessionLocal, get_db
 from app.models.user import User, UserSession
+from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
 from app.services.api_center_service import ApiCenterService
 from app.services.asset_agent_service import AssetAgentService
 from app.services.asset_identity_admin_service import AssetIdentityAdminService
 from app.services.asset_identity_service import AssetIdentityService
-from app.services.asset_phrase_suggestion_service import AssetPhraseSuggestionService
 from app.services.asset_relation_service import AssetRelationService
 from app.services.asset_service import AssetService
 from app.services.audit_service import AuditService
@@ -26,6 +26,7 @@ from app.services.embedding_index import EmbeddingIndexSync
 from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
+from app.services.intent_catalog_service import IntentCatalogService
 from app.services.search_cache import shared_search_caches
 from app.services.search_index_sync import SearchIndexSync
 from app.services.search_log_service import SearchLogService
@@ -36,6 +37,9 @@ from app.services.storage_service import LocalStorageProvider
 from app.services.tag_service import TagService
 from app.services.usage_analytics_service import UsageAnalyticsService
 from app.services.user_service import UserService
+from app.services.vikingdb_client import VikingDBClient
+from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
+from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 
 settings = get_settings()
 
@@ -62,6 +66,31 @@ def _build_scheduled_provider(
     return api_center.build_scheduled_provider(default_request_id=request_id)
 
 
+def _build_vikingdb_knowledge_router(db: Session) -> VikingDBKnowledgeRouter | None:
+    if not settings.vikingdb_knowledge_router_enabled:
+        return None
+    return VikingDBKnowledgeRouter(
+        client=VikingDBClient(
+            base_url=settings.vikingdb_base_url,
+            api_key=settings.vikingdb_api_key,
+            collection_name=settings.vikingdb_collection_name,
+            upsert_path=settings.vikingdb_upsert_path,
+            search_path=settings.vikingdb_search_path,
+            timeout_seconds=settings.vikingdb_timeout_seconds,
+        ),
+        index_name=settings.vikingdb_index_name,
+        runtime_catalog=IntentCatalogService(
+            BusinessConceptRepository(db)
+        ).runtime_catalog(),
+        enabled=settings.vikingdb_knowledge_router_enabled,
+        limit=settings.vikingdb_search_limit,
+        min_score=settings.vikingdb_knowledge_min_score,
+        multi_score_ratio=settings.vikingdb_knowledge_multi_score_ratio,
+        multi_score_gap=settings.vikingdb_knowledge_multi_score_gap,
+        max_matches=settings.vikingdb_knowledge_max_matches,
+    )
+
+
 def get_db_session_factory():
     return SessionLocal
 
@@ -84,6 +113,7 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
         settings.max_image_pixels,
         settings.thumbnail_max_size,
         embedding_index=EmbeddingIndexSync.from_settings(),
+        vector_index=VikingDBVectorIndexSync.from_settings(),
     )
 
 
@@ -94,6 +124,7 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
         settings.max_upload_bytes,
         settings.max_image_pixels,
         settings.thumbnail_max_size,
+        vector_index=VikingDBVectorIndexSync.from_settings(),
     )
 
 
@@ -112,6 +143,7 @@ def get_asset_relation_service(db: Session = Depends(get_db)) -> AssetRelationSe
         db,
         search_index=SearchIndexSync.from_settings(),
         embedding_index=EmbeddingIndexSync.from_settings(),
+        vector_index=VikingDBVectorIndexSync.from_settings(),
     )
 
 
@@ -122,11 +154,19 @@ def get_business_concept_service(
 
 
 def get_image_lifecycle_service(db: Session = Depends(get_db)) -> ImageLifecycleService:
-    return ImageLifecycleService(db, LocalStorageProvider(settings.storage_dir))
+    return ImageLifecycleService(
+        db,
+        LocalStorageProvider(settings.storage_dir),
+        vector_index=VikingDBVectorIndexSync.from_settings(),
+    )
 
 
 def get_image_analysis_service(db: Session = Depends(get_db)) -> ImageAnalysisService:
-    return ImageAnalysisService(db, embedding_index=EmbeddingIndexSync.from_settings())
+    return ImageAnalysisService(
+        db,
+        embedding_index=EmbeddingIndexSync.from_settings(),
+        vector_index=VikingDBVectorIndexSync.from_settings(),
+    )
 
 
 def get_tag_service(db: Session = Depends(get_db)) -> TagService:
@@ -137,11 +177,19 @@ def get_search_service(
     request: Request,
     db: Session = Depends(get_db),
 ) -> SearchService:
+    pure_vikingdb_search = (
+        settings.vikingdb_knowledge_router_enabled
+        and not settings.vikingdb_skill_backup_enabled
+    )
     search_ai_service = get_search_ai_service(
         db,
         request_id=request.state.request_id,
     )
-    provider_attempts = _provider_attempt_count(search_ai_service.provider)
+    provider_attempts = (
+        1
+        if pure_vikingdb_search
+        else _provider_attempt_count(search_ai_service.provider)
+    )
     return SearchService(
         db,
         search_backend=settings.search_backend,
@@ -207,6 +255,8 @@ def get_search_service(
             settings.search_cache_ttl_seconds,
             settings.search_cache_max_entries,
         ),
+        vikingdb_knowledge_router=_build_vikingdb_knowledge_router(db),
+        vikingdb_skill_backup_enabled=settings.vikingdb_skill_backup_enabled,
     )
 
 
@@ -232,16 +282,6 @@ def get_ai_service(
     )
 
 
-def get_asset_phrase_ai_service(
-    request: Request,
-    db: Session = Depends(get_db),
-) -> AiService:
-    return AiService(
-        _build_scheduled_provider(db, request_id=request.state.request_id),
-        knowledge=AiKnowledgeService(db).knowledge(),
-    )
-
-
 def get_asset_agent_service(
     request: Request,
     db: Session = Depends(get_db),
@@ -249,18 +289,6 @@ def get_asset_agent_service(
     return AssetAgentService(
         db,
         _build_scheduled_provider(db, request_id=request.state.request_id),
-    )
-
-
-def get_asset_phrase_suggestion_service(
-    ai: AiService = Depends(get_asset_phrase_ai_service),
-) -> AssetPhraseSuggestionService:
-    return AssetPhraseSuggestionService(
-        ai,
-        LocalStorageProvider(settings.storage_dir),
-        max_upload_bytes=settings.max_upload_bytes,
-        max_image_pixels=settings.max_image_pixels,
-        thumbnail_max_size=settings.thumbnail_max_size,
     )
 
 

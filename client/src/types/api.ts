@@ -1,7 +1,6 @@
 export type {
   ApiErrorBody,
   AnalysisRun,
-  AssetSearchPhraseSuggestion,
   AuditLog,
   ImageSemanticProfile,
   ImageDetail,
@@ -312,6 +311,7 @@ export interface SemanticSearchResponse {
   searchLogId?: string | null;
   searchUnderstanding?: SearchUnderstanding;
   matchSummary?: string;
+  routeExplanation?: string | null;
   searchMode?: 'fuzzy' | 'meilisearch';
   fallback?: boolean;
   fallbackReason?: string;
@@ -585,7 +585,6 @@ export interface UsageAnalyticsSummary {
 
 export type ModelTaskName =
   | 'image_content_analysis'
-  | 'asset_search_phrase_generation'
   | 'search_system_routing'
   | 'search_intent_understanding'
   | 'search_proof_point_understanding'

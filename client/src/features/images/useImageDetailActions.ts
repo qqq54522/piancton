@@ -51,12 +51,6 @@ export function useImageDetailActions(detail: ImageDetail | null) {
     onError: (error) => toast.error(getApiError(error).message),
     onSettled: () => setShowDeleteDialog(false),
   });
-  const analyzeMutation = useMutation({
-    mutationFn: () => imageApi.analyzeContentTags(detail!.id),
-    onSuccess: async () => { await refresh(); toast.success('分析完成'); },
-    onError: (error) => toast.error(getApiError(error).message),
-  });
-
   const beginTitleEditing = () => {
     setEditTitle(detail?.title ?? '');
     setEditingTitle(true);
@@ -128,8 +122,6 @@ export function useImageDetailActions(detail: ImageDetail | null) {
   };
 
   return {
-    analyze: analyzeMutation.mutate,
-    analyzing: analyzeMutation.isPending,
     beginTitleEditing,
     deleting: deleteMutation.isPending,
     download,

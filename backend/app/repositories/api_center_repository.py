@@ -134,6 +134,10 @@ class ApiCenterRepository:
             ).all()
         )
 
+    def delete_slot(self, slot: ModelRoutingSlot) -> None:
+        self.db.delete(slot)
+        self.db.flush()
+
     def add_health_check(self, check: ModelApiHealthCheck) -> ModelApiHealthCheck:
         self.db.add(check)
         self.db.flush()

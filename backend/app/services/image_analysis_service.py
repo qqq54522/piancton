@@ -17,6 +17,7 @@ from app.services.related_image_service import RelatedImageService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail
 from app.services.unit_of_work import UnitOfWork
+from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 
 
 class ImageAnalysisService:
@@ -27,11 +28,13 @@ class ImageAnalysisService:
         db,
         search_index: SearchIndexSync | None = None,
         embedding_index: EmbeddingIndexSync | None = None,
+        vector_index: VikingDBVectorIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
+        self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.semantic_profile = ImageSemanticProfileService()
         self.asset_relations = AssetRelationService(db)
         self.related_images = RelatedImageService(self.images)
@@ -148,6 +151,7 @@ class ImageAnalysisService:
         image = self.images.get(image_id)
         if image:
             self.search_index.upsert_image(image)
+            self.vector_index.best_effort_upsert_image(image)
 
     def _get(self, image_id: str) -> Image:
         image = self.images.get(image_id)

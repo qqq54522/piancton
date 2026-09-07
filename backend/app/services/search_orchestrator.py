@@ -14,7 +14,11 @@ from app.services.search_concept_context import (
 )
 from app.services.search_diagnostics_service import SearchDiagnosticsService
 from app.services.search_external_branches import SearchExternalBranches
-from app.services.search_models import SearchBranchDiagnostic, SearchDeadline
+from app.services.search_models import (
+    SearchBranchDiagnostic,
+    SearchBranchResult,
+    SearchDeadline,
+)
 from app.services.search_orchestrator_helpers import (
     concept_hits as recall_concept_hits,
 )
@@ -102,6 +106,11 @@ class AsyncSearchOrchestrator:
         )
         local_expansions = self.expansion.queries_from_understanding(local_understanding)
         external_query = self.expansion.external_keyword(keyword, local_expansions)
+        pure_vikingdb_route = (
+            self.external_branches.pure_vikingdb_knowledge_mode
+            and not explicit_filter
+            and not system_code
+        )
 
         meili_task, embedding_branch, understanding_branch = start_external_branches(
             self.external_branches,
@@ -119,32 +128,45 @@ class AsyncSearchOrchestrator:
             local_understanding,
             self.concept_recall,
         )
-        concept_matches = (
-            understanding_matches
-            if explicit_filter
-            else merge_concept_matches(
-                self.concept_recall.match(keyword),
-                understanding_matches,
+        if pure_vikingdb_route:
+            concept_matches = []
+            concept_hits = []
+        else:
+            concept_matches = (
+                understanding_matches
+                if explicit_filter
+                else merge_concept_matches(
+                    self.concept_recall.match(keyword),
+                    understanding_matches,
+                )
             )
-        )
-        concept_hits = recall_concept_hits(
-            self.concept_recall, concept_matches, limit, self.candidate_limit
-        )
+            concept_hits = recall_concept_hits(
+                self.concept_recall, concept_matches, limit, self.candidate_limit
+            )
         concept_diagnostic = SearchBranchDiagnostic(
             source="local_concepts",
-            status="ok",
+            status="skipped" if pure_vikingdb_route else "ok",
             duration_ms=elapsed_ms(concept_started),
             result_count=len(concept_hits),
+            detail=(
+                "火山知识路由测试模式下关闭本地公共话术召回"
+                if pure_vikingdb_route
+                else None
+            ),
         )
 
         database_started = time.monotonic()
-        database_hits = recall_database_hits(
-            self.database_recall,
-            self.expansion,
-            keyword,
-            limit,
-            self.candidate_limit,
-            [*local_expansions, *concept_queries(concept_matches)],
+        database_hits = (
+            []
+            if pure_vikingdb_route
+            else recall_database_hits(
+                self.database_recall,
+                self.expansion,
+                keyword,
+                limit,
+                self.candidate_limit,
+                [*local_expansions, *concept_queries(concept_matches)],
+            )
         )
 
         meili_result = await meili_task
@@ -164,6 +186,7 @@ class AsyncSearchOrchestrator:
             concept_hits_value=concept_hits,
             database_hits_value=database_hits,
             limit=limit,
+            pure_vikingdb_required=pure_vikingdb_route,
         )
         understanding = context.understanding
         concept_matches = context.concept_matches
@@ -173,9 +196,14 @@ class AsyncSearchOrchestrator:
 
         database_diagnostic = SearchBranchDiagnostic(
             source="database",
-            status="ok",
+            status="skipped" if pure_vikingdb_route else "ok",
             duration_ms=elapsed_ms(database_started),
             result_count=len(database_hits),
+            detail=(
+                "火山知识路由测试模式下等待卖点命中后再取图库"
+                if pure_vikingdb_route
+                else None
+            ),
         )
         meili_hits = self.external_branches.hydrate_meilisearch(meili_result)
         meili_result = self.external_branches.with_result_count(
@@ -231,13 +259,28 @@ class AsyncSearchOrchestrator:
         )
         branch_diagnostics.append(reranker_diagnostic)
 
-        candidate_review_result = await self.external_branches.review_candidates(
-            keyword=keyword,
-            understanding=understanding,
-            hits=hits[: max(limit, self.candidate_limit)],
-            limit=limit,
-            deadline=deadline,
-        )
+        vikingdb_route = _is_vikingdb_knowledge_result(
+            understanding_result
+        ) or _is_vikingdb_knowledge_route(understanding)
+        if vikingdb_route:
+            candidate_review_result = SearchBranchResult(
+                value=hits,
+                diagnostic=SearchBranchDiagnostic(
+                    source="candidate_review",
+                    status="skipped",
+                    duration_ms=0,
+                    result_count=len(hits),
+                    detail="VikingDB 已完成卖点路由，直接返回本地 accepted 素材",
+                ),
+            )
+        else:
+            candidate_review_result = await self.external_branches.review_candidates(
+                keyword=keyword,
+                understanding=understanding,
+                hits=hits[: max(limit, self.candidate_limit)],
+                limit=limit,
+                deadline=deadline,
+            )
         if candidate_review_result.value is not None:
             hits = candidate_review_result.value
             hits, active_concept_matches = confirmed_route(
@@ -260,3 +303,17 @@ class AsyncSearchOrchestrator:
             started=started,
             deadline=deadline,
         )
+
+
+def _is_vikingdb_knowledge_route(understanding) -> bool:
+    return bool(
+        understanding
+        and "VikingDB" in (understanding.search_strategy or "")
+    )
+
+
+def _is_vikingdb_knowledge_result(result: SearchBranchResult) -> bool:
+    return (
+        result.diagnostic.source == "vikingdb_knowledge_router"
+        and result.diagnostic.status == "ok"
+    )

@@ -4,7 +4,6 @@ from app.core.errors import AppError, ConflictError, NotFoundError
 from app.models.business_concept import (
     BusinessConcept,
     ConceptRelation,
-    ConceptSearchPhrase,
     ConceptSystemLink,
 )
 from app.repositories.business_concept_repository import BusinessConceptRepository
@@ -15,8 +14,6 @@ from app.schemas.business_concept import (
     BusinessConceptUpdate,
     ConceptRelationCreate,
     ConceptRelationRead,
-    ConceptSearchPhraseCreate,
-    ConceptSearchPhraseUpdate,
 )
 from app.services.business_concept_serializers import concept_to_read, relation_to_read
 from app.services.unit_of_work import UnitOfWork
@@ -84,75 +81,6 @@ class BusinessConceptService:
         if payload.system_links is not None:
             concept.system_links[:] = self._system_links(payload.system_links)
         concept.version += 1
-        self.concepts.save(concept)
-        self.uow.commit()
-        return concept_to_read(self._get(concept.id))
-
-    def add_phrase(
-        self, concept_id: str, payload: ConceptSearchPhraseCreate
-    ) -> BusinessConceptRead:
-        concept = self._get(concept_id)
-        normalized = payload.phrase.strip()
-        if any(
-            item.phrase == normalized
-            for item in concept.search_phrases
-        ):
-            raise ConflictError("concept_phrase_exists", "该概念搜索表达已存在")
-        concept.search_phrases.append(
-            ConceptSearchPhrase(
-                phrase=normalized,
-                phrase_type=payload.phrase_type,
-                origin=payload.origin,
-                review_status=payload.review_status,
-                weight=payload.weight,
-                source_ref=payload.source_ref,
-            )
-        )
-        concept.version += 1
-        self.concepts.save(concept)
-        self.uow.commit()
-        return concept_to_read(self._get(concept.id))
-
-    def update_phrase(
-        self,
-        concept_id: str,
-        phrase_id: str,
-        payload: ConceptSearchPhraseUpdate,
-    ) -> BusinessConceptRead:
-        concept = self._get(concept_id)
-        phrase = self.concepts.get_phrase(concept_id, phrase_id)
-        if not phrase:
-            raise NotFoundError("concept_phrase_not_found", "概念搜索表达不存在")
-        values = payload.model_dump(exclude_unset=True)
-        if "phrase" in values:
-            if phrase.origin in {"source_document", "migrated"}:
-                raise AppError(
-                    "seed_phrase_immutable",
-                    "初始词库话术不能改名；可以停用后新增人工公共话术",
-                )
-            normalized = (values["phrase"] or "").strip()
-            if not normalized:
-                raise AppError("concept_phrase_empty", "概念搜索表达不能为空")
-            if any(
-                item.id != phrase.id
-                and item.phrase == normalized
-                for item in concept.search_phrases
-            ):
-                raise ConflictError("concept_phrase_exists", "该概念搜索表达已存在")
-            phrase.phrase = normalized
-        for field in ("phrase_type", "weight", "source_ref"):
-            if field in values:
-                value = values[field]
-                if field == "source_ref" and isinstance(value, str):
-                    value = value.strip() or None
-                setattr(phrase, field, value)
-        if "review_status" in values:
-            for matching_phrase in concept.search_phrases:
-                if matching_phrase.phrase == phrase.phrase:
-                    matching_phrase.review_status = values["review_status"]
-                    self.concepts.save(matching_phrase)
-        concept.version += 1
-        self.concepts.save(phrase)
         self.concepts.save(concept)
         self.uow.commit()
         return concept_to_read(self._get(concept.id))

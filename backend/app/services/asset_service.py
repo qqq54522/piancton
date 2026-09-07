@@ -20,6 +20,7 @@ from app.services.image_title_service import ImageTitleService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
+from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 
 ASSET_ROLES = {"derivative", "alternative", "revision"}
 
@@ -35,6 +36,7 @@ class AssetService:
         max_image_pixels: int,
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
+        vector_index: VikingDBVectorIndexSync | None = None,
     ):
         self.assets = AssetRepository(db)
         self.images = ImageRepository(db)
@@ -43,6 +45,7 @@ class AssetService:
         self.max_image_pixels = max_image_pixels
         self.thumbnail_max_size = thumbnail_max_size
         self.search_index = search_index or SearchIndexSync.from_settings()
+        self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.uow = UnitOfWork(db)
         self.image_titles = ImageTitleService(db)
         self.identities = AssetIdentityService(db)
@@ -107,6 +110,7 @@ class AssetService:
             self.storage.discard(staged)
             raise
         self.search_index.upsert_image(image)
+        self.vector_index.best_effort_upsert_image(image)
         # Group-level relations and accepted phrases are inherited by reference.
         return asset_group_to_read(self._get(group_id))
 
@@ -169,7 +173,9 @@ class AssetService:
             raise
         if previous_primary:
             self.search_index.delete_image(previous_primary.id)
+            self.vector_index.best_effort_upsert_image(previous_primary)
         self.search_index.upsert_image(image)
+        self.vector_index.best_effort_upsert_image(image)
         return asset_group_to_read(self._get(group_id))
 
     def delete_variant(self, group_id: str, image_id: str) -> AssetGroupRead:
@@ -194,6 +200,7 @@ class AssetService:
         self.images.save(image)
         self.uow.commit()
         self.search_index.delete_image(image.id)
+        self.vector_index.best_effort_upsert_image(image)
         return asset_group_to_read(self._get(group_id))
 
     def add_source_link(

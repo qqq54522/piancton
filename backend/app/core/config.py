@@ -62,6 +62,23 @@ class Settings(BaseSettings):
     embedding_model_name: str = ""
     embedding_timeout_seconds: float = 10.0
     embedding_top_n: int = 100
+    vikingdb_enabled: bool = False
+    vikingdb_shadow_mode: bool = True
+    vikingdb_base_url: str = "https://api-vikingdb.vikingdb.cn-beijing.volces.com"
+    vikingdb_api_key: str = ""
+    vikingdb_collection_name: str = "piancton_search_knowledge_clean"
+    vikingdb_index_name: str = "piancton_search_knowledge_idx"
+    vikingdb_timeout_seconds: float = 30.0
+    vikingdb_batch_size: int = 100
+    vikingdb_upsert_path: str = "/api/vikingdb/data/upsert"
+    vikingdb_search_path: str = "/api/vikingdb/data/search/multi_modal"
+    vikingdb_search_limit: int = 5
+    vikingdb_knowledge_router_enabled: bool = False
+    vikingdb_skill_backup_enabled: bool = True
+    vikingdb_knowledge_min_score: float = 0.34
+    vikingdb_knowledge_multi_score_ratio: float = 0.9
+    vikingdb_knowledge_multi_score_gap: float = 0.08
+    vikingdb_knowledge_max_matches: int = 3
     reranker_base_url: str = ""
     reranker_api_key: str = ""
     reranker_model_name: str = ""
@@ -81,6 +98,7 @@ class Settings(BaseSettings):
     search_understanding_grace_seconds: float = 5.0
     search_understanding_retry_attempts: int = 1
     search_understanding_retry_backoff_seconds: float = 1.0
+    search_selling_point_decision_cards_enabled: bool = True
     search_reranker_timeout_seconds: float = 2.0
     search_candidate_limit: int = 20
     search_cache_ttl_seconds: float = 300.0
@@ -93,7 +111,10 @@ class Settings(BaseSettings):
     api_center_health_check_retention_days: int = 90
 
     model_config = SettingsConfigDict(
-        env_file=BACKEND_DIR / ".env",
+        env_file=(
+            BACKEND_DIR / ".env",
+            BACKEND_DIR / ".env.vikingdb.local",
+        ),
         env_file_encoding="utf-8",
         extra="ignore",
     )

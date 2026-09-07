@@ -12,7 +12,7 @@ import { rememberImageHomeScroll } from '@client/src/features/images/searchNavig
 import type { AssetImage, ScoredImageMatch } from '@client/src/types/api';
 import { itemVariants } from './constants';
 import RadialActionMenu from '../RadialActionMenu';
-import { resultRecommendationCopy, resultRecommendedPoint } from './searchConceptPresentation';
+import { resultRecommendedPoint } from './searchConceptPresentation';
 
 interface ScoredImageCardProps {
   scored: ScoredImageMatch;
@@ -38,7 +38,6 @@ function ScoredImageCard({
     : [fallbackVariant(scored)];
   const [selectedId, setSelectedId] = useState(variants[0].id);
   const selected = variants.find((item) => item.id === selectedId) ?? variants[0];
-  const recommendation = resultRecommendationCopy(scored);
   const canSaveToProjectBasket = Boolean(scored.assetGroupId && onToggleProjectBasket);
   const identityCode = selected.versionCode || selected.assetCode || scored.image.versionCode || scored.image.assetCode;
   const copyIdentity = async () => {
@@ -108,18 +107,8 @@ function ScoredImageCard({
       {showSearchContext && (
         <div className="border-t border-border/70 bg-white px-3.5 py-3">
           <p className="break-words text-[11px] font-semibold leading-5 text-muted-foreground">
-            推荐点：{resultRecommendedPoint(scored)}
+            卖点：{resultRecommendedPoint(scored)}
           </p>
-          <p className="mt-1 break-words text-xs font-medium leading-5 text-foreground/86">
-            {recommendation.primary}
-          </p>
-          {recommendation.secondary.length > 0 && (
-            <div className="mt-2 border-l-2 border-border pl-2">
-              <p className="break-words whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
-                {recommendation.secondary.join(' ')}
-              </p>
-            </div>
-          )}
         </div>
       )}
 

@@ -11,6 +11,7 @@ from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_read
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
+from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 
 
 class ImageLifecycleService:
@@ -19,11 +20,13 @@ class ImageLifecycleService:
         db,
         storage: StorageProvider,
         search_index: SearchIndexSync | None = None,
+        vector_index: VikingDBVectorIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
         self.storage = storage
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
+        self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.identities = AssetIdentityService(db)
 
     def delete(self, image_id: str) -> None:
@@ -32,6 +35,7 @@ class ImageLifecycleService:
         self.images.save(image)
         self.uow.commit()
         self.search_index.delete_image(image_id)
+        self.vector_index.best_effort_upsert_image(image)
 
     def list_deleted(self) -> list[ImageRead]:
         return [image_to_read(image) for image in self.images.list_deleted()]
@@ -50,6 +54,7 @@ class ImageLifecycleService:
         self.images.delete(image)
         self.uow.commit()
         self.search_index.delete_image(image_id)
+        self.vector_index.best_effort_upsert_image(image)
         self.storage.delete_key(image.storage_key)
         if image.thumbnail_storage_key:
             self.storage.delete_key(image.thumbnail_storage_key, thumbnail=True)
@@ -58,6 +63,7 @@ class ImageLifecycleService:
         image = self.images.get(image_id)
         if image:
             self.search_index.upsert_image(image)
+            self.vector_index.best_effort_upsert_image(image)
 
     def _get(self, image_id: str) -> Image:
         image = self.images.get(image_id)

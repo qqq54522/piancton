@@ -162,6 +162,9 @@ API 中心修改，不要继续同时修改环境文件。
 
 ## Docker 部署
 
+2026-09-07 公司服务器空库部署范围、验证结果和待办见
+[公司服务器部署准备](docs/COMPANY_SERVER_DEPLOYMENT_2026-09-07.md)。
+
 推荐的服务器方案是只安装 Docker Engine 和 Docker Compose。PostgreSQL 由
 `docker-compose.yml` 自动启动，不需要在服务器宿主机额外安装 PostgreSQL；
 Podman 是 Docker 的替代方案，本项目默认不使用。

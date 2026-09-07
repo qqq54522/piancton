@@ -161,53 +161,6 @@ def test_image_analysis_allows_short_asset_specific_search_phrases():
     assert result.semantic_profile.asset_search_phrases[-1] == "课堂"
 
 
-def test_pre_upload_phrase_generation_returns_exact_requested_count():
-    provider = StaticProvider(
-        {
-            "phrases": [
-                "找一张能体现和学校教材进度一致的图",
-                "找一张学校学到哪课程就讲到哪的图",
-                "想找一张教材目录和课程目录能对应上的素材",
-            ]
-        }
-    )
-
-    result = AiService(provider).generate_asset_search_phrases(
-        Path("unused.upload"),
-        count=3,
-        title="课程同步",
-        concept_code="school_sync",
-        image_media_type="image/png",
-    ).value
-
-    assert result.phrases == [
-        "找一张能体现和学校教材进度一致的图",
-        "找一张学校学到哪课程就讲到哪的图",
-        "想找一张教材目录和课程目录能对应上的素材",
-    ]
-    assert provider.last_request is not None
-    assert "业务小白" in provider.last_request.input_text
-    assert "课程版本、章节和学校课堂进度保持一致" in (
-        provider.last_request.input_text
-    )
-    assert "图片用于让话术确实能找到这张素材" in provider.last_request.prompt
-    assert "找一张能体现和学校教材进度一致的图" in (
-        provider.last_request.prompt
-    )
-
-
-def test_pre_upload_phrase_generation_rejects_wrong_model_count():
-    provider = StaticProvider({"phrases": ["只有一条", "只有两条"]})
-    with pytest.raises(AppError) as exc_info:
-        AiService(provider).generate_asset_search_phrases(
-            Path("unused.png"),
-            count=3,
-        )
-
-    assert exc_info.value.code == "model_response_invalid"
-    assert exc_info.value.details == {"expected": 3, "actual": 2}
-
-
 def test_image_analysis_rejects_too_many_asset_specific_search_phrases():
     invalid = payload()
     invalid["semantic_profile"]["asset_search_phrases"] = [

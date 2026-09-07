@@ -85,22 +85,14 @@ def test_master_and_project_log_publish_the_same_current_phase():
     search_result = _read("client/src/pages/ImageHome/SemanticSearchResult/index.tsx")
     search_card = _read("client/src/pages/ImageHome/SemanticSearchResult/ScoredImageCard.tsx")
     search_constants = _read("client/src/pages/ImageHome/SemanticSearchResult/constants.ts")
-    upload_phrases = _read("client/src/pages/ImageHome/UploadSearchPhraseFields.tsx")
     upload_dialog = _read("client/src/pages/ImageHome/UploadDialog.tsx")
-    inheritance = _read("client/src/pages/ImageHome/ConceptPhraseInheritancePanel.tsx")
     concept_page = _read("client/src/pages/AdminConcepts/AdminConcepts.tsx")
-    asset_phrase_panel = _read(
-        "client/src/pages/ImageDetail/asset/AssetPhraseReviewPanel.tsx"
-    )
     image_ai_panel = _read("client/src/pages/ImageDetail/ImageAiAnalysisPanel.tsx")
     semantic_profile_presentation = _read(
         "client/src/pages/ImageDetail/semanticProfilePresentation.ts"
     )
     concept_phrase_presentation = _read(
         "client/src/features/assets/conceptPhrasePresentation.ts"
-    )
-    asset_phrase_presentation = _read(
-        "client/src/features/assets/assetPhrasePresentation.ts"
     )
     asset_concept_panel = _read(
         "client/src/pages/ImageDetail/asset/AssetConceptReviewPanel.tsx"
@@ -159,8 +151,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "D049" in master
     assert "D050" in master
     assert "文档一致性自动测试" in master
-    assert "首次上传最多录入 5 条" in master
-    assert "不是素材搜索话术的永久总上限" in master
+    assert "VikingDB" in master
     assert "系统正式产品名称统一为“卖点智库”" in master
     assert "# 卖点智库 UX/UI 设计规范" in ux_rules
     assert readme.startswith("# 卖点智库\n")
@@ -191,32 +182,18 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "没有合适素材提交需求" in search_constants
     assert "label: '提交素材需求'" not in search_constants
     assert "@client/src/components/ui/select" in search_card
-    assert "当前素材独有话术" in upload_phrases
     assert "业务筛选信息" in upload_dialog
     assert "不触发 AI 分析" in upload_dialog
     assert "files.length <= 1" in upload_dialog
     assert "单张上传可以在这里修改名称" in upload_dialog
     assert "styleLabel" in upload_dialog
     assert "isSceneImage" in upload_dialog
-    assert "公共话术只在卖点层维护一次" in inheritance
-    assert "辅助关键词" in inheritance
-    assert 'title="卖点与公共话术"' in concept_page
+    assert 'title="业务卖点管理"' in concept_page
+    assert "作为火山向量路由命中后的本地素材归属标签" in concept_page
     assert "卖点管理" in layout
     assert "AI培训" not in concept_page
-    assert "素材独有话术列表" in asset_phrase_panel
-    assert "selectInheritedConcepts" in asset_phrase_panel
     assert "new Set" in concept_phrase_presentation
     assert "link.origin === 'manual'" in concept_phrase_presentation
-    assert "AI 待确认候选" in asset_phrase_panel
-    assert "overflow-y-auto" in asset_phrase_panel
-    assert "splitAssetSearchPhrases" in asset_phrase_panel
-    assert 'data-testid="accepted-asset-phrase-row"' in asset_phrase_panel
-    assert 'data-testid="delete-asset-phrase"' in asset_phrase_panel
-    assert 'title="删除话术"' in asset_phrase_panel
-    assert "snap-y" in asset_phrase_panel
-    assert "item.reviewStatus !== 'accepted'" in asset_phrase_presentation
-    assert "item.origin === 'ai'" in asset_phrase_presentation
-    assert "acceptedKeys" in asset_phrase_presentation
     assert "visibleSemanticProfileGroups" in image_ai_panel
     assert "页面只展示画面事实、场景和素材独有搜索表达" in image_ai_panel
     assert "title: '画面事实'" in semantic_profile_presentation
@@ -243,10 +220,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "移入回收站" in asset_variant_delete_dialog
     assert "只会移除这个版本" in asset_variant_delete_dialog
     assert "queryKey: ['image-detail']" in asset_actions
-    assert "removePhrase" in asset_actions
     assert "candidate.asset_group_id != image.asset_group_id" in related_image_service
     assert 'if asset_role != "derivative"' in asset_api
-    assert '@router.delete("/{group_id}/search-phrases/{phrase_id}"' in asset_api
+    assert 'search-phrases' not in asset_api
     assert "derivative_analysis_not_required" in ai_api
     assert "group.primary_image_id == image.id" in image_analysis_service
     assert 'if phrase.review_status == "accepted"' in search_index

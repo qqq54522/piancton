@@ -15,11 +15,8 @@ from fastapi import (
 from fastapi.responses import FileResponse
 
 from app.api.dependencies import (
-    get_ai_service,
     get_audit_service,
     get_current_user,
-    get_db_session_factory,
-    get_image_analysis_service,
     get_image_lifecycle_service,
     get_image_service,
     get_search_log_service,
@@ -38,10 +35,7 @@ from app.schemas.image import (
     SearchRequest,
     SearchResponse,
 )
-from app.services.ai_service import AiService
-from app.services.analysis_tasks import run_image_analysis_task
 from app.services.audit_service import AuditService
-from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
 from app.services.search_log_service import SearchLogService
@@ -108,7 +102,6 @@ async def semantic_search(
 @router.post("/upload", response_model=ImageRead, status_code=status.HTTP_201_CREATED)
 def upload_image(
     request: Request,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = Form(default=None),
     expected_search_words: str = Form(default="", alias="expectedSearchWords"),
@@ -118,10 +111,7 @@ def upload_image(
     auto_analyze: bool = Form(default=True, alias="autoAnalyze"),
     user: User = Depends(require_write_role),
     service: ImageService = Depends(get_image_service),
-    analysis: ImageAnalysisService = Depends(get_image_analysis_service),
-    ai: AiService = Depends(get_ai_service),
     audit: AuditService = Depends(get_audit_service),
-    session_factory=Depends(get_db_session_factory),
 ):
     original_name = file.filename or "image"
     image = service.upload(
@@ -129,7 +119,7 @@ def upload_image(
         original_name,
         title or original_name.rsplit(".", 1)[0],
         user.username,
-        [item for item in expected_search_words.split("\n") if item.strip()],
+        [],
         _required_channel(channel),
         style_label,
         is_scene_image,
@@ -145,19 +135,11 @@ def upload_image(
             "channel": image.channel,
             "styleLabel": image.style_label,
             "isSceneImage": image.is_scene_image,
+            "autoAnalyzeRequested": bool(auto_analyze),
+            "expectedSearchWordsIgnored": bool(expected_search_words.strip()),
         },
         request_id=request.state.request_id,
     )
-    provider = getattr(ai, "provider", None)
-    if auto_analyze and provider is not None and provider.configured:
-        analysis_run = analysis.create_analysis_run(image.id)
-        background_tasks.add_task(
-            run_image_analysis_task,
-            image.id,
-            analysis_run.id,
-            provider,
-            session_factory,
-        )
     return image
 
 

@@ -31,8 +31,6 @@ from app.schemas.asset import (
     AssetConceptReview,
     AssetGroupBundleExportRequest,
     AssetGroupRead,
-    AssetSearchPhraseCreate,
-    AssetSearchPhraseReview,
     AssetSourceLinkCreate,
     AssetSourceLinkUpdate,
 )
@@ -250,37 +248,6 @@ def review_asset_concept_suggestions(
     service: AssetRelationService = Depends(get_asset_relation_service),
 ):
     return service.review_suggestions(group_id, payload)
-
-
-@router.post("/{group_id}/search-phrases", response_model=AssetGroupRead)
-def add_asset_search_phrase(
-    group_id: str,
-    payload: AssetSearchPhraseCreate,
-    _: User = Depends(require_write_role),
-    service: AssetRelationService = Depends(get_asset_relation_service),
-):
-    return service.add_phrase(group_id, payload)
-
-
-@router.patch("/{group_id}/search-phrases/{phrase_id}", response_model=AssetGroupRead)
-def review_asset_search_phrase(
-    group_id: str,
-    phrase_id: str,
-    payload: AssetSearchPhraseReview,
-    _: User = Depends(require_write_role),
-    service: AssetRelationService = Depends(get_asset_relation_service),
-):
-    return service.review_phrase(group_id, phrase_id, payload)
-
-
-@router.delete("/{group_id}/search-phrases/{phrase_id}", response_model=AssetGroupRead)
-def remove_asset_search_phrase(
-    group_id: str,
-    phrase_id: str,
-    _: User = Depends(require_write_role),
-    service: AssetRelationService = Depends(get_asset_relation_service),
-):
-    return service.remove_phrase(group_id, phrase_id)
 
 
 @router.post("/{group_id}/source-links", response_model=AssetGroupRead)

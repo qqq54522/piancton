@@ -26,6 +26,7 @@ from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail, image_to_read
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
+from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 
 
 def encode_cursor(sort_by: str, value: str | int, image_id: str) -> str:
@@ -59,6 +60,7 @@ class ImageService:
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
         embedding_index: EmbeddingIndexSync | None = None,
+        vector_index: VikingDBVectorIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
         self.storage = storage
@@ -68,6 +70,7 @@ class ImageService:
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
+        self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.asset_relations = AssetRelationService(db)
         self.identities = AssetIdentityService(db)
         self.related_images = RelatedImageService(self.images)
@@ -130,7 +133,6 @@ class ImageService:
             style_label=(style_label or "").strip() or None,
             is_scene_image=is_scene_image,
             created_by=uploader,
-            search_phrases=self.asset_relations.manual_phrases(expected_search_words or []),
         )
         image = Image(
             version_code=self.identities.allocate_version_code(group.asset_code, 1),
@@ -221,6 +223,7 @@ class ImageService:
         image = self.images.get(image_id)
         if image:
             self.search_index.upsert_image(image)
+            self.vector_index.best_effort_upsert_image(image)
 
     def _get(self, image_id: str) -> Image:
         image = self.images.get(image_id)

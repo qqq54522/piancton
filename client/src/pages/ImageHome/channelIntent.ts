@@ -41,13 +41,13 @@ export const DEFAULT_CHANNEL_INTENT_ENTRIES: ChannelIntentEntry[] = [
     value: '手机端大图',
     family: 'mobile',
     size: 'large',
-    phrases: ['手机端大图', '移动端首屏', 'App 首屏', '小程序首屏', '手机 banner', '手机端主视觉', '手机宣传图', '手机活动页'],
+    phrases: ['手机端大图', '移动端首屏', 'App 首屏', '小程序首屏', '手机 banner', '手机端主视觉', '手机宣传图', '手机活动页', '运营长图大模块', '长图大模块'],
   },
   {
     value: '手机端小图',
     family: 'mobile',
     size: 'small',
-    phrases: ['手机端小图', '移动端入口', 'App 列表图', '小程序入口图', '手机缩略图', '手机小卡片', '小屏图', '信息流小图'],
+    phrases: ['手机端小图', '移动端入口', 'App 列表图', '小程序入口图', '手机缩略图', '手机小卡片', '小屏图', '信息流小图', '运营长图小模块', '长图小模块'],
   },
   {
     value: '官网大图',
@@ -89,7 +89,7 @@ const FAMILY_PATTERNS: Array<{ family: Exclude<ChannelFamily, 'unknown'>; patter
   },
   {
     family: 'mobile',
-    patterns: [/手机端/, /移动端/, /\bapp\b/i, /小程序/, /\bh5\b/i, /手机里/, /手机上/, /移动页面/, /朋友圈/, /微信朋友圈/, /社媒/, /社交平台/],
+    patterns: [/手机端/, /移动端/, /\bapp\b/i, /小程序/, /\bh5\b/i, /手机里/, /手机上/, /移动页面/, /运营长图/, /活动长图/, /长图/, /朋友圈/, /微信朋友圈/, /社媒/, /社交平台/],
   },
   {
     family: 'website',
@@ -108,6 +108,9 @@ const LARGE_PATTERNS = [
   /宣传图/,
   /海报/,
   /顶部/,
+  /大模块/,
+  /主模块/,
+  /重点模块/,
   /朋友圈(?!.*(?:九宫格|小图|小屏|列表|入口|缩略图|小卡片|信息流|推荐位|图标位|宫格))/,
   /微信朋友圈(?!.*(?:九宫格|小图|小屏|列表|入口|缩略图|小卡片|信息流|推荐位|图标位|宫格))/,
 ];
@@ -123,6 +126,9 @@ const SMALL_PATTERNS = [
   /推荐位/,
   /图标位/,
   /宫格/,
+  /小模块/,
+  /次级模块/,
+  /辅助模块/,
 ];
 
 const SCENE_PATTERNS = [
@@ -141,9 +147,17 @@ const SCENE_PATTERNS = [
   /家里/,
 ];
 
+const EXPLICIT_SCENE_ONLY_PATTERNS = [
+  /真实使用/,
+  /使用场景/,
+  /场景图/,
+];
+
 const NON_SCENE_PATTERNS = [
   /图标/,
   /界面截图/,
+  /功能图/,
+  /功能截图/,
   /功能卡片/,
   /流程图/,
   /纯排版/,
@@ -167,18 +181,20 @@ export function understandImageChannelIntent(
     }))
     .find((candidate) => candidate.evidence.length > 0);
 
-  if (!entryMatch && !familyMatch) return null;
-
   const largeEvidence = collectEvidence(normalized, LARGE_PATTERNS);
   const smallEvidence = collectEvidence(normalized, SMALL_PATTERNS);
-  const family = entryMatch?.entry.family ?? familyMatch?.family;
+  const sceneEvidence = collectEvidence(normalized, SCENE_PATTERNS);
+  const nonSceneEvidence = collectEvidence(normalized, NON_SCENE_PATTERNS);
+  const explicitSceneOnlyEvidence = collectEvidence(normalized, EXPLICIT_SCENE_ONLY_PATTERNS);
+  if (!entryMatch && !familyMatch && explicitSceneOnlyEvidence.length === 0 && nonSceneEvidence.length === 0) {
+    return null;
+  }
+  const family = entryMatch?.entry.family ?? familyMatch?.family ?? 'mobile';
   if (!family) return null;
   const channelSize = sizeFromEvidence(
     entryMatch?.entry.size === 'large' ? [...largeEvidence, ...entryMatch.evidence] : largeEvidence,
     entryMatch?.entry.size === 'small' ? [...smallEvidence, ...entryMatch.evidence] : smallEvidence,
   );
-  const sceneEvidence = collectEvidence(normalized, SCENE_PATTERNS);
-  const nonSceneEvidence = collectEvidence(normalized, NON_SCENE_PATTERNS);
   const scenePreference = sceneFromEvidence(sceneEvidence, nonSceneEvidence);
   const candidateChannels = entryMatch
     ? [entryMatch.entry.value]

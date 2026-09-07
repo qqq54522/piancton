@@ -89,7 +89,7 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     } & SearchBusinessFilters): Promise<SearchResult> => {
       const semantic = await imageApi.semanticSearch({
         keyword: payload.keyword,
-        limit: 12,
+        limit: 150,
         systemCode: payload.systemCode,
         conceptCode: payload.conceptCode,
         proofPointCode: payload.proofPointCode,
@@ -140,23 +140,17 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
   ) => {
     const nextKeyword = (value ?? globalSearchInput).trim();
     if (!nextKeyword) return;
-    const startsNewQuery = filters === undefined && nextKeyword !== globalSearchKeyword;
+    const manualFilteredSearch = filters !== undefined;
     const nextFilters: SearchBusinessFilters = {
-      systemCode: filters?.systemCode === undefined
-        ? startsNewQuery ? null : selectedSystemCode
-        : filters.systemCode,
-      conceptCode: filters?.conceptCode === undefined
-        ? startsNewQuery ? null : selectedConceptCode
-        : filters.conceptCode,
-      proofPointCode: filters?.proofPointCode === undefined
-        ? startsNewQuery ? null : selectedProofPointCode
-        : filters.proofPointCode,
+      systemCode: manualFilteredSearch ? filters.systemCode ?? selectedSystemCode : null,
+      conceptCode: manualFilteredSearch ? filters.conceptCode ?? selectedConceptCode : null,
+      proofPointCode: manualFilteredSearch ? filters.proofPointCode ?? selectedProofPointCode : null,
       evidencePointCode: null,
     };
     setGlobalSearchInput(nextKeyword);
     setGlobalSearchKeyword(nextKeyword);
     setSearchResult(null);
-    if (startsNewQuery) {
+    if (!manualFilteredSearch) {
       setSelectedSystemCode(null);
       setSelectedConceptCode(null);
       setSelectedProofPointCode(null);
@@ -167,12 +161,11 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     semanticSearch.mutate({
       keyword: nextKeyword,
       ...nextFilters,
-      preserveSelectedFilters: filters !== undefined || !startsNewQuery,
+      preserveSelectedFilters: manualFilteredSearch,
       source: 'typed',
     });
   }, [
     globalSearchInput,
-    globalSearchKeyword,
     channelIntentEntries,
     resetRefinements,
     selectedConceptCode,

@@ -51,37 +51,39 @@ import type {
 const tabs = [
   { id: 'health', label: '健康度监测', icon: Activity },
   { id: 'keys', label: 'API 管理', icon: KeyRound },
-  { id: 'routing', label: '调度配置', icon: Route },
+  { id: 'routing', label: '模型位置', icon: Route },
   { id: 'traces', label: '调用链路日志', icon: ListTree },
 ] as const;
 
 type TabId = (typeof tabs)[number]['id'];
 
-const taskLabels: Record<string, string> = {
-  search_system_routing: '第一层：体系路由',
-  search_intent_understanding: '第二层：卖点识别',
-  search_proof_point_understanding: '第三层：证明点识别',
-  search_candidate_review: '第四层：候选图片复核',
-  search_result_recommendation_reason: '搜索结果：动态推荐理由',
-  search_embedding_recall: '搜索增强：Embedding 召回',
-  search_reranker: '搜索增强：Reranker 重排',
-  search_index: '搜索索引：Meilisearch',
-  image_content_analysis: '上传主图：图片语义分析',
-  asset_search_phrase_generation: '上传前：素材话术生成',
-  copy_selling_point_matching: '兼容接口：文案卖点匹配',
+const currentTaskLabels: Record<string, string> = {
+  search_result_recommendation_reason: '搜索结果：命中卖点解释',
   asset_agent_chat: '素材库 Agent：业务解释',
 };
 
-const healthCheckTaskLabels: Record<string, string> = {
-  search_system_routing: taskLabels.search_system_routing,
-  search_intent_understanding: taskLabels.search_intent_understanding,
-  search_proof_point_understanding: taskLabels.search_proof_point_understanding,
-  search_candidate_review: taskLabels.search_candidate_review,
-  search_result_recommendation_reason: taskLabels.search_result_recommendation_reason,
-  image_content_analysis: taskLabels.image_content_analysis,
-  asset_search_phrase_generation: taskLabels.asset_search_phrase_generation,
-  copy_selling_point_matching: taskLabels.copy_selling_point_matching,
-  asset_agent_chat: taskLabels.asset_agent_chat,
+const retiredTaskLabels: Record<string, string> = {
+  search_system_routing: '已退役：旧体系路由',
+  search_intent_understanding: '已退役：旧卖点识别',
+  search_proof_point_understanding: '已退役：旧证明点识别',
+  search_candidate_review: '已退役：旧候选图片复核',
+  search_embedding_recall: '搜索增强：Embedding 召回',
+  search_reranker: '搜索增强：Reranker 重排',
+  search_index: '搜索索引：Meilisearch',
+  image_content_analysis: '已退役：上传主图语义分析',
+  copy_selling_point_matching: '已退役：文案卖点匹配',
+};
+
+const taskLabels: Record<string, string> = {
+  ...currentTaskLabels,
+  ...retiredTaskLabels,
+};
+
+const routingSlotDescriptions: Record<string, string> = {
+  search_result_recommendation_reason:
+    '搜索结果顶部的黑色说明，只解释用户原话为什么命中这些卖点；不参与火山召回、排序或候选准入。',
+  asset_agent_chat:
+    '素材库右下角 Agent 的业务解释位置，可人工固定 DeepSeek 视觉模型主备；不写入业务事实。',
 };
 
 const statusClass: Record<string, string> = {
@@ -148,6 +150,7 @@ const initialCredentialForm: ApiCredentialCreate = {
   timeoutSeconds: 20,
   temperature: 0.2,
   temperatureEnabled: true,
+  taskScope: ['search_result_recommendation_reason', 'asset_agent_chat'],
   autoAssignEnabled: true,
 };
 
@@ -174,7 +177,7 @@ export default function AdminApiCenter() {
       <PageHeader
         eyebrow="API Center"
         title="API 中心"
-        description="统一维护 API 库存、健康检测、任务选择和真实调用链路。"
+        description="当前只维护命中卖点解释和素材库 Agent 两个模型位置；搜索主判断由火山向量检索负责。"
       />
 
       <div className="mt-7 flex flex-wrap gap-1 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
@@ -228,7 +231,7 @@ function Overview({ data }: { data: ApiCenterSummary }) {
     ['健康 API', data.overview.healthyCredentialCount],
     ['异常 API', data.overview.degradedCredentialCount],
     ['当前占用', `${currentConcurrency}/${maxConcurrency}`],
-    ['已配槽位', data.overview.configuredSlotCount],
+    ['已配位置', data.overview.configuredSlotCount],
     ['24h 调用', data.overview.recentCallCount],
     ['24h 失败', data.overview.recentFailureCount],
     ['P95(ms)', data.overview.p95LatencyMs],
@@ -272,7 +275,7 @@ function ApiKeys({ data }: { data: ApiCenterSummary }) {
       baseUrl: form.baseUrl,
       modelName: form.modelName,
       apiKey: form.apiKey,
-      task: 'search_system_routing',
+      task: 'search_result_recommendation_reason',
       temperature: form.temperature ?? 0.2,
       timeoutSeconds: NEW_API_PROBE_LIMIT_SECONDS,
     }),
@@ -642,12 +645,12 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
   return (
     <section className="surface-card overflow-hidden">
       <SectionHeader
-        title="智能调度配置"
-        description="这里决定每个项目任务是自动选择 API，还是严格使用人工主备；API 管理中的开关只决定模型能否进入自动候选池。"
+        title="模型位置配置"
+        description="搜索链路只把 API 放在解释和 Agent 两个位置；火山命中卖点、本地取图库不经过这里。"
       />
       <div className="border-b border-border bg-secondary/55 px-4 py-3 text-sm text-muted-foreground">
-        任务总等待上限是这个任务从开始到结束的总时间，包含主 API、备用 API、容量等待和重试。
-        一般保留系统默认值即可；它不是某个 API 的单次调用上限。
+        命中卖点解释建议自动选择；素材库 Agent 当前可人工固定 DeepSeek 视觉模型主备。
+        等待上限是该位置从开始到结束的总时间，包含主 API、备用 API、容量等待和重试。
       </div>
       <div className="divide-y divide-border">
         {data.routingSlots.map((slot) => {
@@ -659,6 +662,9 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
               <div className="api-routing-copy min-w-0">
                 <div className="font-medium text-foreground">{slot.label}</div>
                 <div className="mt-1 text-xs text-muted-foreground">{slot.task}</div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {routingSlotDescriptions[slot.task] ?? '当前模型位置。'}
+                </div>
               </div>
               <div className="api-routing-panel">
                 <button
@@ -669,23 +675,23 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
                   aria-pressed={autoEnabled}
                 >
                   <span className="pc-switch-track" />
-                  <span>{autoEnabled ? '当前任务自动选择' : '当前任务人工指定'}</span>
+                  <span>{autoEnabled ? '当前位置自动选择' : '当前位置人工指定'}</span>
                 </button>
                 <div className="api-routing-field">
-                  <span className="api-routing-field-label">主 API</span>
+                  <span className="api-routing-field-label">固定主 API</span>
                   <Select
                     value={draft.primaryCredentialId ?? ''}
                     onChange={(event) => setDraft(slot.task, { primaryCredentialId: event.target.value })}
                     disabled={autoEnabled}
                     className="bg-white/80"
                   >
-                    <option value="">自动选择，不固定 API</option>
+                    <option value="">不固定 API</option>
                     {assignableCredentials.map((item) => (
                       <option key={item.id} value={item.id}>{displayCredentialLabel(item)}</option>
                     ))}
                   </Select>
                   <span className="text-[11px] leading-4 text-muted-foreground">
-                    所有未停用 API 都可人工指定；运行失败不会让已指定 API 从这里消失。
+                    人工指定只对当前位置生效；运行失败不会移除已指定 API。
                   </span>
                 </div>
                 <BackupPicker
@@ -713,7 +719,7 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
                       onChange={(event) => setDraft(slot.task, { timeoutSeconds: Number(event.target.value) })}
                     />
                     <span className="text-[11px] leading-4 text-muted-foreground">
-                      主 API 和备用 API 的全部尝试合计，通常无需修改。
+                      当前位置全部尝试合计，通常无需修改。
                     </span>
                   </label>
                   <label className="api-routing-field">
@@ -779,7 +785,7 @@ function BackupPicker({
     return `${item.label} ${item.modelName}`.toLowerCase().includes(keyword);
   });
   const summary = disabled
-    ? '当前任务自动选择时由系统决定'
+    ? '当前位置自动选择时由系统决定'
     : selectedCredentials.length
       ? `已选 ${selectedCredentials.length} 个备用 API`
       : '未选择备用 API';
@@ -795,7 +801,7 @@ function BackupPicker({
   return (
     <div className={`api-routing-field api-backup-picker ${disabled ? 'is-disabled' : ''}`}>
       <div className="api-routing-field-label">
-        备用池{disabled ? '（当前任务自动选择时由系统决定）' : ''}
+        备用池{disabled ? '（当前位置自动选择时由系统决定）' : ''}
       </div>
       <Popover>
         <PopoverTrigger asChild>
@@ -929,7 +935,7 @@ function HealthChecks({
 }) {
   const queryClient = useQueryClient();
   const [credentialId, setCredentialId] = useState(data.credentials[0]?.id ?? '');
-  const [task, setTask] = useState<ModelTaskName>('search_system_routing');
+  const [task, setTask] = useState<ModelTaskName>('search_result_recommendation_reason');
   const activeCredentials = data.credentials.filter((item) => item.status !== 'disabled');
   const runAllMutation = useMutation({
     mutationFn: () => runApiHealthChecks(
@@ -1021,7 +1027,7 @@ function HealthChecks({
                 value={task}
                 onChange={(event) => setTask(event.target.value as ModelTaskName)}
               >
-                {Object.entries(healthCheckTaskLabels).map(([value, label]) => (
+                {Object.entries(currentTaskLabels).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </Select>
@@ -1157,7 +1163,7 @@ function CallTraces({ data }: { data: ApiCenterSummary }) {
     <section className="surface-card overflow-hidden">
       <SectionHeader
         title="全项目 API 调用链路"
-        description="这里统一显示上传分析、话术生成、搜索、素材库 Agent、文案匹配和健康检查等模型/API 调用结果；不包含完整密钥、Prompt、图片或聊天正文。"
+        description="这里显示当前两个模型位置和历史退役任务的调用记录；不包含完整密钥、Prompt、图片或聊天正文。"
       />
       <form
         className="grid gap-3 border-b border-border bg-muted/20 px-4 py-3 md:grid-cols-[1.2fr_1fr_1fr_1fr] xl:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto]"
@@ -1187,9 +1193,16 @@ function CallTraces({ data }: { data: ApiCenterSummary }) {
           }))}
         >
           <option value="">全部任务</option>
-          {Object.entries(taskLabels).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
+          <optgroup label="当前模型位置">
+            {Object.entries(currentTaskLabels).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="历史退役任务">
+            {Object.entries(retiredTaskLabels).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </optgroup>
         </Select>
         <Select
           value={filters.status}
@@ -1250,7 +1263,7 @@ function CallTraces({ data }: { data: ApiCenterSummary }) {
             <tr>
               <th className="px-4 py-3 font-medium">时间</th>
               <th className="px-4 py-3 font-medium">所属请求</th>
-              <th className="px-4 py-3 font-medium">层级</th>
+              <th className="px-4 py-3 font-medium">位置</th>
               <th className="px-4 py-3 font-medium">Provider / 模型</th>
               <th className="px-4 py-3 font-medium">API</th>
               <th className="px-4 py-3 font-medium">状态</th>

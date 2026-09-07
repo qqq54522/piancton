@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ImagePlus, Info, Loader2, Plus, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ImagePlus, Info, Loader2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as assetApi from '@client/src/api/asset';
@@ -15,19 +15,12 @@ import {
   DialogTitle,
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
-import { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
-import { useAssetPhraseSuggestions } from '@client/src/features/ai/useAssetPhraseSuggestions';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
-import { useBusinessFacets } from '@client/src/features/assets/useBusinessFacets';
 import { BusinessClassificationFields } from '@client/src/features/assets/BusinessClassificationFields';
 import { useImageTitleResolution } from '@client/src/features/images/useImageTitleResolution';
 import UploadAssetPicker from './UploadAssetPicker';
-import UploadAssetPhraseGenerator from './UploadAssetPhraseGenerator';
-import ConceptPhraseInheritancePanel from './ConceptPhraseInheritancePanel';
-import UploadSearchPhraseFields from './UploadSearchPhraseFields';
 import { addCustomChannel, useChannelOptions } from './channelOptions';
 import { joinChannelValues } from './channelValue';
-import { normalizeExpectedSearchWords } from './uploadSearchPhrases';
 
 interface UploadDialogProps {
   open: boolean;
@@ -44,18 +37,10 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [styleLabel, setStyleLabel] = useState('');
   const [isSceneImage, setIsSceneImage] = useState(false);
   const [conceptId, setConceptId] = useState('');
-  const [proofPointCode, setProofPointCode] = useState('');
-  const [evidencePointCode, setEvidencePointCode] = useState('');
-  const [expectedSearchWords, setExpectedSearchWords] = useState(['']);
-  const [aiPhraseCount, setAiPhraseCount] = useState(5);
   const [debouncedTitle, setDebouncedTitle] = useState('');
   const [uploading, setUploading] = useState(false);
-  const phraseSuggestions = useAssetPhraseSuggestions();
-  const provider = useProviderStatus(open);
   const concepts = useBusinessConcepts(open);
-  const facets = useBusinessFacets(open);
   const channelOptions = useChannelOptions();
-  const selectedConcept = concepts.data?.find((concept) => concept.id === conceptId);
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
@@ -91,32 +76,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     setStyleLabel('');
     setIsSceneImage(false);
     setConceptId('');
-    setProofPointCode('');
-    setEvidencePointCode('');
-    setExpectedSearchWords(['']);
-    setAiPhraseCount(5);
     setDebouncedTitle('');
-    phraseSuggestions.reset();
-  };
-
-  const generatePhrases = async () => {
-    if (files.length !== 1) {
-      toast.error(files.length ? '批量上传时请分别为每张图片生成话术' : '请先选择一张图片');
-      return;
-    }
-    try {
-      const file = files[0];
-      const result = await phraseSuggestions.mutateAsync({
-        file,
-        count: aiPhraseCount,
-        title: title.trim() || file.name.replace(/\.[^.]+$/, ''),
-        conceptCode: selectedConcept?.code,
-      });
-      setExpectedSearchWords(result.phrases);
-      toast.success(`AI 已生成 ${result.phrases.length} 条素材独有话术，可继续修改`);
-    } catch (error) {
-      toast.error(getApiError(error).message);
-    }
   };
   const close = () => {
     reset();
@@ -147,24 +107,21 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
           channel: joinChannelValues(selectedChannels),
           styleLabel: styleLabel.trim() || undefined,
           isSceneImage,
-          expectedSearchWords: normalizeExpectedSearchWords(expectedSearchWords),
-          autoAnalyze: true,
+          autoAnalyze: false,
         });
         if (image.title !== fileTitle.trim().slice(0, 255)) {
           automaticRenames.push(image.title);
         }
         if (image.assetCode) assetCodes.push(image.assetCode);
-        if ((conceptId || proofPointCode || evidencePointCode) && image.assetGroupId) {
+        if (conceptId && image.assetGroupId) {
           await assetApi.updateAssetBusinessClassification(image.assetGroupId, {
             conceptId: conceptId || null,
-            proofPointCode: proofPointCode || null,
-            evidencePointCode: evidencePointCode || null,
+            proofPointCode: null,
+            evidencePointCode: null,
           });
         }
       }
-      const baseMessage = provider.data?.configured
-        ? `已上传 ${files.length} 张主图，AI 正在后台分析`
-        : `已上传 ${files.length} 张主图`;
+      const baseMessage = `已上传 ${files.length} 张主图`;
       const renameMessage = automaticRenames.length
         ? `；重名素材已自动保存为 ${automaticRenames.slice(0, 3).join('、')}${automaticRenames.length > 3 ? ` 等 ${automaticRenames.length} 个名称` : ''}`
         : '';
@@ -195,7 +152,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
             <div>
               <DialogTitle className="text-xl tracking-tight">上传主图</DialogTitle>
               <DialogDescription className="mt-1.5 leading-5">
-                先把已审核图片放进素材库。卖点、话术和延展版本都可以发布后继续完善。
+                先把已审核图片放进素材库。上传时只需要确认渠道和主要表达卖点。
               </DialogDescription>
             </div>
           </div>
@@ -219,7 +176,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
             {files.length > 1 && (
               <div className="mt-3 flex gap-2 rounded-xl border border-border/80 bg-[#f7f7f5] px-3 py-2.5 text-xs leading-5 text-foreground/70">
                 <Info className="mt-0.5 size-3.5 shrink-0" />
-                右侧渠道、场景图、卖点和话术会应用到本次选中的全部图片；图片名称默认使用各自文件名。
+                右侧渠道、场景图和卖点会应用到本次选中的全部图片；图片名称默认使用各自文件名。
               </div>
             )}
             {fileRiskHints.length > 0 && (
@@ -242,7 +199,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
               <span className="flex size-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">2</span>
               <div>
                 <h2 className="text-sm font-semibold">补充素材信息</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">使用渠道必填，卖点和话术可发布后继续完善</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">使用渠道必填，卖点用于后续搜索归属</p>
               </div>
             </div>
 
@@ -386,72 +343,27 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                 <div className="mb-3">
                   <p className="text-sm font-semibold">业务表达层级</p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    选择素材主要表达的卖点和证明点；六大体系会自动带出。
+                    只选择这张素材主要表达的卖点；六大体系会自动带出。
                   </p>
                 </div>
                 <BusinessClassificationFields
                   concepts={concepts.data ?? []}
-                  facets={facets.data ?? { proofPoints: [], evidencePoints: [] }}
+                  facets={{ proofPoints: [], evidencePoints: [] }}
                   conceptId={conceptId}
-                  proofPointCode={proofPointCode}
-                  evidencePointCode={evidencePointCode}
+                  proofPointCode=""
+                  evidencePointCode=""
+                  scope="concept"
                   disabled={uploading}
-                  onConceptChange={(value) => {
-                    setConceptId(value);
-                    setProofPointCode('');
-                    setEvidencePointCode('');
-                  }}
-                  onProofPointChange={(value) => {
-                    setProofPointCode(value);
-                    setEvidencePointCode('');
-                  }}
-                  onEvidencePointChange={setEvidencePointCode}
+                  onConceptChange={setConceptId}
+                  onProofPointChange={() => undefined}
+                  onEvidencePointChange={() => undefined}
                 />
               </div>
 
-              {selectedConcept && (
-                <ConceptPhraseInheritancePanel concept={selectedConcept} />
-              )}
-
-              <UploadSearchPhraseFields
-                values={expectedSearchWords}
-                onChange={setExpectedSearchWords}
-                generator={(
-                  <UploadAssetPhraseGenerator
-                    count={aiPhraseCount}
-                    onCountChange={setAiPhraseCount}
-                    onGenerate={generatePhrases}
-                    generating={phraseSuggestions.isPending}
-                    disabled={
-                      uploading
-                      || files.length !== 1
-                      || !provider.data?.configured
-                    }
-                    hint={
-                      !provider.data?.configured
-                        ? '当前未配置 AI，仍可手动填写'
-                        : files.length !== 1
-                          ? '请选择单张图片；批量上传不会共用一组 AI 话术'
-                          : '读取当前图片和已选卖点；生成后请检查，上传即视为确认'
-                    }
-                  />
-                )}
-              />
-
               <div className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-card px-3.5 py-3 text-xs leading-5 text-muted-foreground">
-                {provider.isLoading ? (
-                  <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-foreground" />
-                ) : provider.data?.configured ? (
-                  <Sparkles className="mt-0.5 size-4 shrink-0 text-foreground" />
-                ) : (
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
-                )}
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
                 <span>
-                  {provider.isLoading
-                    ? '正在检查智能分析服务…'
-                    : provider.data?.configured
-                      ? '发布后会在后台执行画面分析、卖点建议和搜索索引更新，不会阻塞当前上传。'
-                      : '当前未配置 AI，仍可正常上传和发布；之后可在详情页补做分析。'}
+                  发布后不会自动生成素材话术，也不会排队调用模型；如需画面分析，可之后在详情页手动执行。
                 </span>
               </div>
             </div>

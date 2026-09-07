@@ -46,7 +46,10 @@ ERROR_CLASSIFICATIONS: dict[str, ApiErrorClassification] = {
         category="configuration",
         severity="error",
         retryable=False,
-        operator_action="修正 API 地址，应填写 OpenAI-compatible 根地址或可规范化的 chat completions 地址。",
+        operator_action=(
+            "修正 API 地址，应填写 OpenAI-compatible 根地址或可规范化的 "
+            "chat completions 地址。"
+        ),
         system_action="保存前拒绝入库，不消耗后续调度。",
     ),
     "unsupported_provider_type": ApiErrorClassification(

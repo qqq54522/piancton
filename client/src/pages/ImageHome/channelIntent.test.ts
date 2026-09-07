@@ -24,6 +24,51 @@ describe('image channel intent understanding', () => {
     });
   });
 
+  it('recognizes operation long-image module language as mobile placements', () => {
+    expect(understandImageChannelIntent('运营长图里用的拍题精学')).toMatchObject({
+      channelFamily: 'mobile',
+      channelSize: 'unspecified',
+      exactChannel: null,
+      candidateChannels: ['手机端大图', '手机端小图'],
+    });
+    expect(understandImageChannelIntent('运营长图大模块里用的拍题精学')).toMatchObject({
+      channelFamily: 'mobile',
+      channelSize: 'large',
+      exactChannel: '手机端大图',
+      candidateChannels: ['手机端大图'],
+    });
+    expect(understandImageChannelIntent('运营长图小模块里用的拍题精学')).toMatchObject({
+      channelFamily: 'mobile',
+      channelSize: 'small',
+      exactChannel: '手机端小图',
+      candidateChannels: ['手机端小图'],
+    });
+  });
+
+  it('recognizes function image wording as non-scene preference', () => {
+    expect(understandImageChannelIntent('手机端用的拍题精学功能图')).toMatchObject({
+      channelFamily: 'mobile',
+      scenePreference: 'non_scene',
+    });
+  });
+
+  it('uses mobile defaults for explicit scene or function image requests without channel words', () => {
+    expect(understandImageChannelIntent('拍题精学场景图')).toMatchObject({
+      channelFamily: 'mobile',
+      channelSize: 'unspecified',
+      exactChannel: null,
+      candidateChannels: ['手机端大图', '手机端小图'],
+      scenePreference: 'scene',
+    });
+    expect(understandImageChannelIntent('拍题精学功能图')).toMatchObject({
+      channelFamily: 'mobile',
+      channelSize: 'unspecified',
+      exactChannel: null,
+      candidateChannels: ['手机端大图', '手机端小图'],
+      scenePreference: 'non_scene',
+    });
+  });
+
   it('recognizes website hero language as website large image', () => {
     expect(understandImageChannelIntent('官网首页首屏想放一张学习报告反馈主视觉')).toMatchObject({
       channelFamily: 'website',

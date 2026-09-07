@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.domain.query_negation import is_term_negated
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase
+from app.models.image import Image
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
 from app.services.query_expansion_service import unique
@@ -39,7 +40,7 @@ class ConceptSearchRecallService:
         if not matches:
             return []
         match_by_id = {item.concept_id: item for item in matches}
-        images = self.images.search_by_concept_ids(list(match_by_id), limit=limit)
+        images = self._recall_images_by_match(matches, limit=limit)
         hits: list[SearchHit] = []
         for image in images:
             group = image.asset_group
@@ -82,6 +83,21 @@ class ConceptSearchRecallService:
                 )
             )
         return hits
+
+    def _recall_images_by_match(
+        self,
+        matches: list[ConceptMatch],
+        *,
+        limit: int,
+    ) -> list[Image]:
+        images_by_id = {}
+        for match in matches:
+            for image in self.images.search_by_concept_ids(
+                [match.concept_id],
+                limit=limit,
+            ):
+                images_by_id.setdefault(image.id, image)
+        return list(images_by_id.values())
 
     def _match_concept(
         self,

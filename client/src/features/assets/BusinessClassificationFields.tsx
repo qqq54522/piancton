@@ -10,6 +10,7 @@ interface BusinessClassificationFieldsProps {
   conceptId: string;
   proofPointCode: string;
   evidencePointCode: string;
+  scope?: 'concept' | 'full';
   disabled?: boolean;
   onConceptChange: (value: string) => void;
   onProofPointChange: (value: string) => void;
@@ -22,6 +23,7 @@ export function BusinessClassificationFields({
   conceptId,
   proofPointCode,
   evidencePointCode,
+  scope = 'full',
   disabled = false,
   onConceptChange,
   onProofPointChange,
@@ -35,7 +37,7 @@ export function BusinessClassificationFields({
   ));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className={`grid gap-4 ${scope === 'full' ? 'lg:grid-cols-3' : ''}`}>
       <label className="block">
         <span className="field-label">主要表达卖点</span>
         <Select
@@ -49,32 +51,36 @@ export function BusinessClassificationFields({
           ))}
         </Select>
       </label>
-      <label className="block">
-        <span className="field-label">证明点</span>
-        <Select
-          value={proofPointCode}
-          disabled={disabled || !conceptId}
-          onChange={(event) => onProofPointChange(event.target.value)}
-        >
-          <option value="">暂不标注</option>
-          {proofs.map((point) => (
-            <option key={point.code} value={point.code}>{point.name}</option>
-          ))}
-        </Select>
-      </label>
-      <label className="block">
-        <span className="field-label">证据表达点</span>
-        <Select
-          value={evidencePointCode}
-          disabled={disabled || !conceptId || !proofPointCode}
-          onChange={(event) => onEvidencePointChange(event.target.value)}
-        >
-          <option value="">暂不标注</option>
-          {evidencePoints.map((point) => (
-            <option key={point.code} value={point.code}>{point.name}</option>
-          ))}
-        </Select>
-      </label>
+      {scope === 'concept' ? null : (
+        <>
+          <label className="block">
+            <span className="field-label">证明点</span>
+            <Select
+              value={proofPointCode}
+              disabled={disabled || !conceptId}
+              onChange={(event) => onProofPointChange(event.target.value)}
+            >
+              <option value="">暂不标注</option>
+              {proofs.map((point) => (
+                <option key={point.code} value={point.code}>{point.name}</option>
+              ))}
+            </Select>
+          </label>
+          <label className="block">
+            <span className="field-label">证据表达点</span>
+            <Select
+              value={evidencePointCode}
+              disabled={disabled || !conceptId || !proofPointCode}
+              onChange={(event) => onEvidencePointChange(event.target.value)}
+            >
+              <option value="">暂不标注</option>
+              {evidencePoints.map((point) => (
+                <option key={point.code} value={point.code}>{point.name}</option>
+              ))}
+            </Select>
+          </label>
+        </>
+      )}
     </div>
   );
 }

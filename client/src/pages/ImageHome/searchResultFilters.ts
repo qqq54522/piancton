@@ -16,6 +16,10 @@ export interface SearchRefinementOptions {
   hasKnownSceneType: boolean;
 }
 
+export interface SearchResultFilterOptions {
+  preserveConceptNames?: string[];
+}
+
 export const EMPTY_SEARCH_REFINEMENTS: SearchRefinements = {
   channel: '',
   channelIntent: null,
@@ -50,12 +54,16 @@ export function collectSearchRefinementOptions(
 export function filterResultsByRefinements(
   items: ScoredImageMatch[],
   refinements: SearchRefinements,
+  options: SearchResultFilterOptions = {},
 ): ScoredImageMatch[] {
   const intentChannels = refinements.channel
     ? []
     : refinements.channelIntent?.candidateChannels ?? [];
+  const intentScenePreference = refinements.scene === 'all'
+    ? refinements.channelIntent?.scenePreference
+    : 'unspecified';
 
-  return items.filter((item) => {
+  const filtered = items.filter((item) => {
     const variants = item.availableVariants.length > 0
       ? item.availableVariants
       : [{ channel: item.image.channel }];
@@ -66,8 +74,16 @@ export function filterResultsByRefinements(
     if (intentChannels.length > 0 && !matchHasAnyChannel(item, intentChannels)) return false;
     if (refinements.scene === 'scene' && item.image.isSceneImage !== true) return false;
     if (refinements.scene === 'nonScene' && item.image.isSceneImage !== false) return false;
+    if (intentScenePreference === 'scene' && item.image.isSceneImage !== true) return false;
+    if (intentScenePreference === 'non_scene' && item.image.isSceneImage !== false) return false;
     return true;
   });
+  if (!shouldPreserveConceptCoverage(refinements)) return filtered;
+  return preserveConceptCoverage(
+    items,
+    filtered,
+    options.preserveConceptNames ?? [],
+  );
 }
 
 export function activeRefinementCount(refinements: SearchRefinements): number {
@@ -83,4 +99,42 @@ function matchHasAnyChannel(item: ScoredImageMatch, channels: string[]): boolean
   return variants.some((variant) => {
     return channels.some((channel) => channelValueIncludes(variant.channel, channel));
   });
+}
+
+function shouldPreserveConceptCoverage(refinements: SearchRefinements): boolean {
+  return !refinements.channel
+    && refinements.channelIntent === null
+    && refinements.scene === 'all';
+}
+
+function preserveConceptCoverage(
+  allItems: ScoredImageMatch[],
+  filteredItems: ScoredImageMatch[],
+  conceptNames: string[],
+): ScoredImageMatch[] {
+  if (conceptNames.length === 0) return filteredItems;
+  const visibleConcepts = new Set(
+    filteredItems.flatMap((item) => conceptNamesForMatch(item)),
+  );
+  const missingConcepts = conceptNames.filter((name) => !visibleConcepts.has(name));
+  if (missingConcepts.length === 0) return filteredItems;
+
+  const includedIds = new Set(filteredItems.map((item) => item.image.id));
+  for (const conceptName of missingConcepts) {
+    const representative = allItems.find((item) => {
+      return !includedIds.has(item.image.id)
+        && conceptNamesForMatch(item).includes(conceptName);
+    });
+    if (representative) includedIds.add(representative.image.id);
+  }
+  return allItems.filter((item) => includedIds.has(item.image.id));
+}
+
+function conceptNamesForMatch(item: ScoredImageMatch): string[] {
+  return [
+    ...item.matchedQueryConcepts.map((concept) => concept.conceptName),
+    ...item.expressedConcepts,
+    ...item.supportedConcepts,
+    ...item.matchedBusinessConcepts,
+  ].filter(Boolean);
 }

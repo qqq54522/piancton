@@ -286,7 +286,7 @@ def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
     assert manual_analysis.json()["code"] == "derivative_analysis_not_required"
 
 
-def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
+def test_phase5_analysis_does_not_persist_ai_asset_search_phrases(client):
     result = {
         "value": ImageAnalysisResult(
             image_summary="主图画面",
@@ -351,10 +351,10 @@ def test_phase5_non_primary_analysis_cannot_replace_group_ai_phrases(client):
         for item in phrases
         if item["origin"] == "ai" and item["reviewStatus"] == "pending"
     }
-    assert ai_phrases == {"正确主图候选"}
+    assert ai_phrases == set()
 
 
-def test_phase5_designer_can_remove_and_restore_asset_search_phrase(
+def test_phase5_asset_search_phrase_mutation_routes_are_retired(
     client, monkeypatch
 ):
     monkeypatch.setattr(SearchIndexSync, "upsert_image", lambda _self, _image: None)
@@ -378,33 +378,20 @@ def test_phase5_designer_can_remove_and_restore_asset_search_phrase(
         headers=headers,
         json={"phrase": "手机课程章节对应课本目录", "weight": 1},
     )
-    assert added.status_code == 200
-    phrase = next(
-        item
-        for item in added.json()["searchPhrases"]
-        if item["phrase"] == "手机课程章节对应课本目录"
-    )
+    assert added.status_code == 404
 
     removed = client.delete(
-        f"/api/asset-groups/{group_id}/search-phrases/{phrase['id']}",
+        f"/api/asset-groups/{group_id}/search-phrases/legacy-phrase-id",
         headers=headers,
     )
-    assert removed.status_code == 200
-    removed_phrase = next(
-        item for item in removed.json()["searchPhrases"] if item["id"] == phrase["id"]
-    )
-    assert removed_phrase["reviewStatus"] == "rejected"
+    assert removed.status_code == 404
 
-    restored = client.post(
-        f"/api/asset-groups/{group_id}/search-phrases",
+    reviewed = client.patch(
+        f"/api/asset-groups/{group_id}/search-phrases/legacy-phrase-id",
         headers=headers,
-        json={"phrase": phrase["phrase"], "weight": 1},
+        json={"reviewStatus": "accepted"},
     )
-    assert restored.status_code == 200
-    restored_phrase = next(
-        item for item in restored.json()["searchPhrases"] if item["id"] == phrase["id"]
-    )
-    assert restored_phrase["reviewStatus"] == "accepted"
+    assert reviewed.status_code == 404
 
 
 def test_phase5_designer_can_trash_variant_but_not_primary(client, monkeypatch):

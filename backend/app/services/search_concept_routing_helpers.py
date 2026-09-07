@@ -56,7 +56,9 @@ def active_concept_matches(
         )
     ]
     active.sort(key=lambda match: _concept_understanding_order(match, trusted_order))
-    return tuple(active) if understanding.query_type in MULTI_ROUTE_QUERY_TYPES else tuple(active[:1])
+    if understanding.query_type in MULTI_ROUTE_QUERY_TYPES:
+        return tuple(active)
+    return tuple(active[:1])
 
 
 def is_excluded(links, matched_ids: set[str]) -> bool:

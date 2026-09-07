@@ -25,6 +25,7 @@ from app.services.search_result_recommendation_service import (
 )
 from app.services.search_system_filter import SearchSystemFilter
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
+from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 
 
 @dataclass
@@ -65,6 +66,8 @@ def build_search_components(
     cache_ttl_seconds: float,
     cache_max_entries: int,
     caches: SearchCaches | None,
+    vikingdb_knowledge_router: VikingDBKnowledgeRouter | None,
+    vikingdb_skill_backup_enabled: bool,
 ) -> SearchServiceComponents:
     images = ImageRepository(db)
     concepts = BusinessConceptRepository(db)
@@ -87,6 +90,8 @@ def build_search_components(
         ),
         embedding=EmbeddingRecallService(images, embedding_client),
         understanding=query_understanding,
+        vikingdb_knowledge_router=vikingdb_knowledge_router,
+        vikingdb_skill_backup_enabled=vikingdb_skill_backup_enabled,
         caches=caches
         or build_search_caches(
             ttl_seconds=cache_ttl_seconds,
