@@ -7,17 +7,37 @@ from app.api.dependencies import (
     get_auth_service,
     get_current_user,
     get_usage_analytics_service,
+    get_user_service,
     require_csrf,
 )
 from app.core.config import get_settings
 from app.models.user import User
-from app.schemas.auth import LoginRequest, LoginResponse, UserRead
+from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserRead
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.usage_analytics_service import UsageAnalyticsService
+from app.services.user_service import UserService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
+
+
+@router.post("/register", response_model=UserRead, status_code=201)
+def register(
+    payload: RegisterRequest,
+    request: Request,
+    service: UserService = Depends(get_user_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    user = service.register(payload)
+    audit.record(
+        actor_user_id=user.id,
+        action="auth.register",
+        target_type="user",
+        target_id=user.id,
+        request_id=request.state.request_id,
+    )
+    return user
 
 
 @router.post("/login", response_model=LoginResponse)

@@ -4,7 +4,7 @@ from app.core.errors import AppError, ConflictError, NotFoundError
 from app.core.security import hash_password
 from app.models.user import User
 from app.repositories.user_repository import SessionRepository, UserRepository
-from app.schemas.auth import UserCreate, UserRead, UserUpdate
+from app.schemas.auth import RegisterRequest, UserCreate, UserRead, UserUpdate
 from app.services.unit_of_work import UnitOfWork
 
 
@@ -16,6 +16,13 @@ class UserService:
 
     def list(self) -> list[UserRead]:
         return [UserRead.model_validate(user) for user in self.users.list()]
+
+    def register(self, payload: RegisterRequest) -> UserRead:
+        return self.create(UserCreate(
+            username=payload.username,
+            password=payload.password,
+            role="business",
+        ))
 
     def create(self, payload: UserCreate) -> UserRead:
         user = User(

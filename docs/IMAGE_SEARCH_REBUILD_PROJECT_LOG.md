@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-09-07：登录页自助注册（D277）
+
+- 用户确认服务器已部署，新增账号密码注册。登录页可切换注册，填写账号、密码和确认密码；注册成功清空密码、保留账号并返回登录。
+- 后端增加 `RegisterRequest` 与 `POST /api/auth/register`，由 `UserService.register()` 固定创建启用的普通业务用户。校验去首尾空格后的账号、密码长度、非纯空格密码及确认密码；拒绝角色、启停等额外字段；数据库唯一约束处理重复账号，保留原账户；写入 `auth.register` 审计。
+- 修改：`backend/app/api/v1/auth.py`、`backend/app/schemas/auth.py`、`backend/app/services/user_service.py`、`client/src/api/auth.ts`、`client/src/pages/Login/Login.tsx`、生成的 `client/src/types/openapi.d.ts`；新增前后端注册测试及 `docs/ACCOUNT_REGISTRATION_DEPLOYMENT.md`。
+- 无数据库迁移；不修改图片搜索规则。自助注册只获得普通业务权限；设计师/管理员仍由管理员分配。
+- 验证：Docker Python 3.12 隔离测试注册专项 11 passed；前端 57 passed，TypeScript、ESLint、生产构建通过；修改的 Python 文件 Ruff 通过。完整后端测试 378 passed / 22 failed，失败集中于已有退役图片分析、旧 Phase 4 预期、架构行数守卫，以及完整源码下额外运行的旧文档断言（仍要求已退役 `derivative_analysis_not_required`）；注册测试全部通过。没有宣称全量检查通过。
+- 服务器尚未应用本次变更。下一步按注册更新说明同步代码并重建 backend/web，验证新账号注册、登录、管理端可见和权限限制。
+
 ## 2026-09-03：搜索顶部过程文案硬清理（D270）
 
 ### 用户目标
