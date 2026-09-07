@@ -649,7 +649,7 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
         description="搜索链路只把 API 放在解释和 Agent 两个位置；火山命中卖点、本地取图库不经过这里。"
       />
       <div className="border-b border-border bg-secondary/55 px-4 py-3 text-sm text-muted-foreground">
-        命中卖点解释建议自动选择；素材库 Agent 当前可人工固定 DeepSeek 视觉模型主备。
+        人工指定可设置一个主 API 和多个备用 API；自动选择会从允许自动使用的兼容 API 中分配请求。
         等待上限是该位置从开始到结束的总时间，包含主 API、备用 API、容量等待和重试。
       </div>
       <div className="divide-y divide-border">
@@ -691,7 +691,7 @@ function RoutingSlots({ data }: { data: ApiCenterSummary }) {
                     ))}
                   </Select>
                   <span className="text-[11px] leading-4 text-muted-foreground">
-                    人工指定只对当前位置生效；运行失败不会移除已指定 API。
+                    优先使用主 API，其他 API 可在备用池中多选；保存后生效。
                   </span>
                 </div>
                 <BackupPicker
@@ -801,7 +801,7 @@ function BackupPicker({
   return (
     <div className={`api-routing-field api-backup-picker ${disabled ? 'is-disabled' : ''}`}>
       <div className="api-routing-field-label">
-        备用池{disabled ? '（当前位置自动选择时由系统决定）' : ''}
+        备用 API（可多选）
       </div>
       <Popover>
         <PopoverTrigger asChild>
@@ -814,7 +814,7 @@ function BackupPicker({
             <ChevronDown className="size-4 text-muted-foreground" />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[22rem] rounded-xl p-2">
+        <PopoverContent align="start" className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl p-2">
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -1195,11 +1195,6 @@ function CallTraces({ data }: { data: ApiCenterSummary }) {
           <option value="">全部任务</option>
           <optgroup label="当前模型位置">
             {Object.entries(currentTaskLabels).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </optgroup>
-          <optgroup label="历史退役任务">
-            {Object.entries(retiredTaskLabels).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </optgroup>
