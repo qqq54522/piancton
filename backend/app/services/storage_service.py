@@ -47,9 +47,13 @@ class StorageProvider(Protocol):
     def restore(self, storage_key: str, quarantined: Path) -> None: ...
     def purge(self, quarantined: Path | None) -> None: ...
     def delete_key(self, storage_key: str, *, thumbnail: bool = False) -> None: ...
+    def release(self, path: Path) -> None: ...
 
 
 class LocalStorageProvider:
+    def release(self, path: Path) -> None:
+        """Local persistent files do not need response cleanup."""
+
     def __init__(self, root: Path):
         self.root = root.resolve()
         self.staging = self.root / ".staging"
@@ -149,6 +153,7 @@ class LocalStorageProvider:
         self._safe_thumbnail_path(upload.thumbnail_storage_key).unlink(missing_ok=True)
 
     def path_for(self, storage_key: str) -> Path:
+        self._require_local_key(storage_key)
         path = self._safe_path(storage_key)
         if not path.is_file():
             raise NotFoundError("image_content_missing", "图片文件不存在")
@@ -163,6 +168,7 @@ class LocalStorageProvider:
         return path
 
     def thumbnail_path_for(self, storage_key: str) -> Path:
+        self._require_local_key(storage_key)
         path = self._safe_thumbnail_path(storage_key)
         if not path.is_file():
             raise NotFoundError("thumbnail_missing", "缩略图不存在")
@@ -194,9 +200,15 @@ class LocalStorageProvider:
             quarantined.unlink()
 
     def delete_key(self, storage_key: str, *, thumbnail: bool = False) -> None:
-        path = (
-            self._safe_thumbnail_path(storage_key)
-            if thumbnail
-            else self._safe_path(storage_key)
-        )
+        self._require_local_key(storage_key)
+        path = self._safe_thumbnail_path(storage_key) if thumbnail else self._safe_path(storage_key)
         path.unlink(missing_ok=True)
+
+    @staticmethod
+    def _require_local_key(storage_key: str) -> None:
+        if storage_key.startswith("tos-"):
+            raise AppError(
+                "object_storage_not_enabled",
+                "该图片存储在 TOS，请启用对象存储配置",
+                status_code=503,
+            )

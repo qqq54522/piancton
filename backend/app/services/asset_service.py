@@ -389,7 +389,11 @@ class AssetService:
                     "isCurrent": image.is_current,
                 }
             )
-            archive.write(self.storage.path_for(image.storage_key), archive_name)
+            path = self.storage.path_for(image.storage_key)
+            try:
+                archive.write(path, archive_name)
+            finally:
+                self.storage.release(path)
         archive.writestr(
             f"{folder_prefix}manifest.json",
             json.dumps(manifest, ensure_ascii=False, indent=2),

@@ -50,14 +50,14 @@ class ImageLifecycleService:
 
     def purge(self, image_id: str) -> None:
         image = self._get_deleted(image_id)
+        self.storage.delete_key(image.storage_key)
+        if image.thumbnail_storage_key:
+            self.storage.delete_key(image.thumbnail_storage_key, thumbnail=True)
         self.identities.retire_image(image.id)
         self.images.delete(image)
         self.uow.commit()
         self.search_index.delete_image(image_id)
         self.vector_index.best_effort_upsert_image(image)
-        self.storage.delete_key(image.storage_key)
-        if image.thumbnail_storage_key:
-            self.storage.delete_key(image.thumbnail_storage_key, thumbnail=True)
 
     def _sync_index(self, image_id: str) -> None:
         image = self.images.get(image_id)

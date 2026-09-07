@@ -33,7 +33,7 @@ from app.services.search_log_service import SearchLogService
 from app.services.search_ops_service import SearchOpsService
 from app.services.search_service import SearchService
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
-from app.services.storage_service import LocalStorageProvider
+from app.services.storage_factory import build_storage
 from app.services.tag_service import TagService
 from app.services.usage_analytics_service import UsageAnalyticsService
 from app.services.user_service import UserService
@@ -108,7 +108,7 @@ def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
 def get_image_service(db: Session = Depends(get_db)) -> ImageService:
     return ImageService(
         db,
-        LocalStorageProvider(settings.storage_dir),
+        build_storage(settings),
         settings.max_upload_bytes,
         settings.max_image_pixels,
         settings.thumbnail_max_size,
@@ -120,7 +120,7 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
 def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
     return AssetService(
         db,
-        LocalStorageProvider(settings.storage_dir),
+        build_storage(settings),
         settings.max_upload_bytes,
         settings.max_image_pixels,
         settings.thumbnail_max_size,
@@ -156,7 +156,7 @@ def get_business_concept_service(
 def get_image_lifecycle_service(db: Session = Depends(get_db)) -> ImageLifecycleService:
     return ImageLifecycleService(
         db,
-        LocalStorageProvider(settings.storage_dir),
+        build_storage(settings),
         vector_index=VikingDBVectorIndexSync.from_settings(),
     )
 

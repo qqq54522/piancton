@@ -12,7 +12,6 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse
 
 from app.api.dependencies import (
     get_audit_service,
@@ -25,6 +24,7 @@ from app.api.dependencies import (
     require_roles,
     require_write_role,
 )
+from app.api.storage_response import StorageFileResponse
 from app.models.user import User
 from app.schemas.image import (
     ImageDetailRead,
@@ -211,22 +211,36 @@ def purge_image(
 @router.get("/{image_id}/thumbnail")
 def get_image_thumbnail(
     image_id: str,
+    background_tasks: BackgroundTasks,
     _: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
 ):
     path, image = service.thumbnail(image_id)
     media_type = "image/jpeg" if image.thumbnail_storage_key else image.media_type
-    return FileResponse(path, media_type=media_type, content_disposition_type="inline")
+    return StorageFileResponse(
+        path,
+        release=service.storage.release,
+        media_type=media_type,
+        content_disposition_type="inline",
+        background=background_tasks,
+    )
 
 
 @router.get("/{image_id}/content")
 def get_image_content(
     image_id: str,
+    background_tasks: BackgroundTasks,
     _: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
 ):
     path, image = service.content(image_id)
-    return FileResponse(path, media_type=image.media_type, content_disposition_type="inline")
+    return StorageFileResponse(
+        path,
+        release=service.storage.release,
+        media_type=image.media_type,
+        content_disposition_type="inline",
+        background=background_tasks,
+    )
 
 
 @router.get("/{image_id}/download")
@@ -246,8 +260,9 @@ def download_image(
         image_id=image_id,
         request_id=request.state.request_id,
     )
-    return FileResponse(
+    return StorageFileResponse(
         path,
+        release=service.storage.release,
         filename=image.file_name,
         media_type=image.media_type,
         background=background_tasks,

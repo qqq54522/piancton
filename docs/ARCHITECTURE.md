@@ -100,7 +100,7 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 
 - 部署数据库：PostgreSQL。
 - 本地开发：SQLite 兼容模式。
-- 图片：服务器持久化卷；未来通过 `StorageProvider` 接入对象存储。
+- 图片：默认服务器持久化卷；可通过 `StorageProvider` 启用火山 TOS。新远端 key 以 `tos-` 标识，旧本地 key 兼容读取；鉴权后由后端临时读取远端文件并在响应完成后清理。配置、迁移和服务器验证见 `TOS_STORAGE_DEPLOYMENT.md`。
 - Docker Compose 包含 Nginx、FastAPI、PostgreSQL、可选 Meilisearch profile 和持久化 volume。
 - Compose 内的 Nginx 只提供 HTTP，生产 HTTPS 由外层反向代理或负载均衡负责。
 - `/health/live` 检查进程存活，`/health/ready` 同时检查数据库。

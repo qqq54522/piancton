@@ -8,6 +8,15 @@
 
 ---
 
+## 2026-09-07：公司 TOS 图片存储接入（D278）
+
+- 接入公司上海桶 `ued-zhiku`，外网 HTTPS Endpoint `tos-cn-shanghai.volces.com`，对象限制在 `piancton/originals/` 和 `piancton/thumbnails/`。默认仍为 local，服务器配置后才启用 tos。
+- 新增 `storage_factory.py`、`tos_storage.py`、`storage_migration.py`；`StorageProvider.release()` 和 `StorageFileResponse` 负责响应或导出后的临时文件清理，包括响应发送失败。现有图片与版本服务继续负责业务规则，图片字节只由存储层处理。
+- 修改图片服务依赖注入、预览/下载响应、素材 ZIP 导出和永久删除顺序。远端文件以 `tos-` key 标识，旧本地文件保持兼容；无数据库 schema 迁移。soft delete/restore 继续只改变数据库状态。上传失败尝试删除原图及缩略图，删除失败保留日志；永久删除失败保留回收站数据库记录供重试。
+- 新增 `configure_tos.py`（无回显输入凭据，只替换根 `.env` 对应字段并设为 600）、`check_tos_storage.py`（独立 UUID 小对象上传/读回/删除探针）、`migrate_images_to_tos.py`（默认数量预览，显式 `--apply` 执行逐图 SHA-256 校验迁移，保留本地源文件）。增加官方 `tos==2.9.0`，Compose 透传 TOS 环境变量。
+- 验证：Docker `piancton-tos-check` 镜像构建通过；最终存储/图片安全/注册专项 44 passed；修改范围 Ruff 通过，新增存储与脚本 Pyright 0 errors；全量后端 392 passed / 22 failed，失败集与注册版本一致，集中在旧图片分析、Phase 4、架构行数和文档旧断言。全量后新增的响应中断和配置脚本 2 个测试包含在最终 44 项专项中。不标记全量通过。
+- 真实公司 AK/SK、桶私有权限及线上网络待用户在服务器验证。当前为后端中转读取，仍占服务器带宽和临时磁盘；已有图片迁移不自动回收本地空间。不得把已有远端图片直接通过关闭 TOS 开关回退，也不得删除整个 `image_data`。进程被强制终止可能残留临时文件，需维护时检查。完整上线与迁移步骤见 `docs/TOS_STORAGE_DEPLOYMENT.md`。
+
 ## 2026-09-07：登录页自助注册（D277）
 
 - 用户确认服务器已部署，新增账号密码注册。登录页可切换注册，填写账号、密码和确认密码；注册成功清空密码、保留账号并返回登录。

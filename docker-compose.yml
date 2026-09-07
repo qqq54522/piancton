@@ -25,6 +25,13 @@ services:
       APP_ENV: production
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-piancton}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-piancton}
       STORAGE_DIR: /data/images
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      TOS_BUCKET: ${TOS_BUCKET:-}
+      TOS_REGION: ${TOS_REGION:-cn-shanghai}
+      TOS_ENDPOINT: ${TOS_ENDPOINT:-https://tos-cn-shanghai.volces.com}
+      TOS_PREFIX: ${TOS_PREFIX:-piancton}
+      TOS_ACCESS_KEY_ID: ${TOS_ACCESS_KEY_ID:-}
+      TOS_SECRET_ACCESS_KEY: ${TOS_SECRET_ACCESS_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
