@@ -4,20 +4,16 @@ import { toast } from 'sonner';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import { CanRole } from '@client/src/lib/auth';
-import type { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
 import type { useImageDetailActions } from '@client/src/features/images/useImageDetailActions';
 import type { AssetImage, ImageDetail } from '@client/src/types/api';
-import ImageAiAnalysisPanel from './ImageAiAnalysisPanel';
 import ImageDownloadMenu from './ImageDownloadMenu';
 
 type ImageDetailActions = ReturnType<typeof useImageDetailActions>;
-type ProviderStatusQuery = ReturnType<typeof useProviderStatus>;
 
 const ImageDetailInfoPanel = ({
   detail,
   embedded = false,
   isDesigner,
-  provider,
   actions,
   panelHeight,
   variants,
@@ -25,7 +21,6 @@ const ImageDetailInfoPanel = ({
   detail: ImageDetail;
   embedded?: boolean;
   isDesigner: boolean;
-  provider: ProviderStatusQuery;
   actions: ImageDetailActions;
   panelHeight: number | null;
   variants?: AssetImage[];
@@ -44,13 +39,6 @@ const ImageDetailInfoPanel = ({
           </h1>
           <IdentityCodePanel detail={detail} />
           <ImageDownloadMenu detail={detail} variants={variants} actions={actions} />
-        </div>
-
-        <div className="mt-6">
-          <span className="text-sm font-medium">语义总结</span>
-          <p className="mt-2 rounded-xl border border-border/80 bg-[#f7f7f5] px-4 py-3 text-sm leading-7 text-foreground/85">
-            {detail.imageSummary || '这张素材暂时还没有语义总结。'}
-          </p>
         </div>
       </div>
     );
@@ -143,7 +131,6 @@ const ImageDetailInfoPanel = ({
         )}
       </div>
 
-      <ImageAiAnalysisPanel detail={detail} provider={provider} actions={actions} />
     </div>
   );
 };

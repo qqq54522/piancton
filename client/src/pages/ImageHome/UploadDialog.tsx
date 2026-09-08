@@ -16,7 +16,7 @@ import {
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
-import { BusinessClassificationFields } from '@client/src/features/assets/BusinessClassificationFields';
+import { SellingPointRelationFields } from '@client/src/features/assets/SellingPointRelationFields';
 import { useImageTitleResolution } from '@client/src/features/images/useImageTitleResolution';
 import UploadAssetPicker from './UploadAssetPicker';
 import { addCustomChannel, useChannelOptions } from './channelOptions';
@@ -36,7 +36,8 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [draftChannel, setDraftChannel] = useState('');
   const [styleLabel, setStyleLabel] = useState('');
   const [isSceneImage, setIsSceneImage] = useState(false);
-  const [conceptId, setConceptId] = useState('');
+  const [primaryConceptId, setPrimaryConceptId] = useState('');
+  const [supportConceptIds, setSupportConceptIds] = useState<string[]>([]);
   const [debouncedTitle, setDebouncedTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const concepts = useBusinessConcepts(open);
@@ -75,7 +76,8 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     setDraftChannel('');
     setStyleLabel('');
     setIsSceneImage(false);
-    setConceptId('');
+    setPrimaryConceptId('');
+    setSupportConceptIds([]);
     setDebouncedTitle('');
   };
   const close = () => {
@@ -113,12 +115,16 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
           automaticRenames.push(image.title);
         }
         if (image.assetCode) assetCodes.push(image.assetCode);
-        if (conceptId && image.assetGroupId) {
-          await assetApi.updateAssetBusinessClassification(image.assetGroupId, {
-            conceptId: conceptId || null,
-            proofPointCode: null,
-            evidencePointCode: null,
-          });
+        if (image.assetGroupId && (primaryConceptId || supportConceptIds.length > 0)) {
+          await assetApi.replaceAssetConceptRelations(image.assetGroupId, [
+            ...(primaryConceptId
+              ? [{ conceptId: primaryConceptId, relationRole: 'expresses' as const }]
+              : []),
+            ...supportConceptIds.map((id) => ({
+              conceptId: id,
+              relationRole: 'supports' as const,
+            })),
+          ]);
         }
       }
       const baseMessage = `已上传 ${files.length} 张主图`;
@@ -152,7 +158,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
             <div>
               <DialogTitle className="text-xl tracking-tight">上传主图</DialogTitle>
               <DialogDescription className="mt-1.5 leading-5">
-                先把已审核图片放进素材库。上传时只需要确认渠道和主要表达卖点。
+                选择图片、渠道和卖点关系，一次完成发布。
               </DialogDescription>
             </div>
           </div>
@@ -199,7 +205,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
               <span className="flex size-7 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">2</span>
               <div>
                 <h2 className="text-sm font-semibold">补充素材信息</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">使用渠道必填，卖点用于后续搜索归属</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">使用渠道必填，卖点关系可一次多选</p>
               </div>
             </div>
 
@@ -341,30 +347,19 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
 
               <div className="rounded-2xl border border-border/80 bg-card p-4">
                 <div className="mb-3">
-                  <p className="text-sm font-semibold">业务表达层级</p>
+                  <p className="text-sm font-semibold">卖点关系</p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    只选择这张素材主要表达的卖点；六大体系会自动带出。
+                    选择一个主要表达卖点，也可以同时选择它还能支持的其他卖点。
                   </p>
                 </div>
-                <BusinessClassificationFields
+                <SellingPointRelationFields
                   concepts={concepts.data ?? []}
-                  facets={{ proofPoints: [], evidencePoints: [] }}
-                  conceptId={conceptId}
-                  proofPointCode=""
-                  evidencePointCode=""
-                  scope="concept"
+                  primaryConceptId={primaryConceptId}
+                  supportConceptIds={supportConceptIds}
                   disabled={uploading}
-                  onConceptChange={setConceptId}
-                  onProofPointChange={() => undefined}
-                  onEvidencePointChange={() => undefined}
+                  onPrimaryConceptChange={setPrimaryConceptId}
+                  onSupportConceptIdsChange={setSupportConceptIds}
                 />
-              </div>
-
-              <div className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-card px-3.5 py-3 text-xs leading-5 text-muted-foreground">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
-                <span>
-                  发布后不会自动生成素材话术，也不会排队调用模型；如需画面分析，可之后在详情页手动执行。
-                </span>
               </div>
             </div>
           </section>

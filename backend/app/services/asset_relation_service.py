@@ -16,6 +16,7 @@ from app.schemas.asset import (
     AssetConceptConfirmation,
     AssetConceptReview,
     AssetGroupRead,
+    AssetReplaceConceptRelations,
 )
 from app.services.asset_serializers import asset_group_to_read
 from app.services.embedding_index import EmbeddingIndexSync
@@ -94,6 +95,40 @@ class AssetRelationService:
             payload.evidence_reason,
         )
         self._reject_shadowed_ai_suggestions(group, {concept.id})
+        self.assets.save(group)
+        self.uow.commit()
+        self._sync_primary(group_id)
+        return asset_group_to_read(self._group(group_id))
+
+    def replace_manual_relations(
+        self,
+        group_id: str,
+        payload: AssetReplaceConceptRelations,
+    ) -> AssetGroupRead:
+        group = self._group(group_id)
+        concept_ids = [item.concept_id for item in payload.relations]
+        if len(concept_ids) != len(set(concept_ids)):
+            raise AppError("duplicate_asset_concept", "同一个卖点不能重复选择")
+        if sum(item.relation_role == "expresses" for item in payload.relations) > 1:
+            raise AppError("multiple_primary_concepts", "一张素材只能选择一个主要表达卖点")
+
+        concepts = self.concepts.get_many_by_ids(concept_ids)
+        concepts_by_id = {item.id: item for item in concepts}
+        if len(concepts_by_id) != len(concept_ids):
+            raise NotFoundError("business_concept_not_found", "部分业务卖点不存在或已停用")
+
+        selected_ids = set(concept_ids)
+        self.assets.remove_manual_links_except(group, selected_ids)
+        for relation in payload.relations:
+            self._upsert_manual_link(
+                group,
+                concepts_by_id[relation.concept_id],
+                relation.relation_role,
+                "设计师人工确认卖点关系",
+            )
+        self._reject_shadowed_ai_suggestions(group, selected_ids)
+        group.primary_proof_point_code = None
+        group.primary_evidence_point_code = None
         self.assets.save(group)
         self.uow.commit()
         self._sync_primary(group_id)

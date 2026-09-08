@@ -91,6 +91,16 @@ export async function confirmAssetConcept(
   })).data;
 }
 
+export async function replaceAssetConceptRelations(
+  groupId: string,
+  relations: Array<{
+    conceptId: string;
+    relationRole: 'expresses' | 'supports';
+  }>,
+): Promise<AssetGroup> {
+  return (await api.put(`/api/asset-groups/${groupId}/concept-links`, { relations })).data;
+}
+
 export async function reviewAssetConcept(
   groupId: string,
   linkId: string,

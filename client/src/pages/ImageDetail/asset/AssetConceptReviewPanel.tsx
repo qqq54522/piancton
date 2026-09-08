@@ -1,24 +1,14 @@
-import { useMemo, useState } from 'react';
-import { Check, Loader2, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { AssetRelationRole } from '@client/src/api/asset';
 import { getApiError } from '@client/src/api/client';
-import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
-import { Select } from '@client/src/components/ui/select';
-import type { AssetGroup, BusinessConcept } from '@client/src/types/api';
+import { SellingPointRelationFields } from '@client/src/features/assets/SellingPointRelationFields';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
-import { selectPendingConceptSuggestions } from '@client/src/features/assets/conceptPhrasePresentation';
+import type { AssetGroup, BusinessConcept } from '@client/src/types/api';
 
 type AssetActions = ReturnType<typeof useAssetActions>;
-
-const ROLE_LABELS: Record<AssetRelationRole, string> = {
-  expresses: '主要表达',
-  supports: '可以支持',
-  visual_related: '画面相关',
-  excludes: '不适用 / 排除',
-};
 
 interface AssetConceptReviewPanelProps {
   group: AssetGroup;
@@ -27,43 +17,36 @@ interface AssetConceptReviewPanelProps {
 }
 
 function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptReviewPanelProps) {
-  const [conceptId, setConceptId] = useState('');
-  const [relationRole, setRelationRole] = useState<AssetRelationRole>('supports');
-  const [isManualOpen, setIsManualOpen] = useState(false);
-  const pending = selectPendingConceptSuggestions(group.conceptLinks);
-  const confirmed = group.conceptLinks.filter(
+  const confirmed = useMemo(() => group.conceptLinks.filter(
     (item) => item.origin === 'manual' && item.reviewStatus === 'accepted',
+  ), [group.conceptLinks]);
+  const initialPrimary = confirmed.find((item) => item.relationRole === 'expresses')?.conceptId ?? '';
+  const supportKey = confirmed
+    .filter((item) => item.relationRole === 'supports')
+    .map((item) => item.conceptId)
+    .join('|');
+  const [primaryConceptId, setPrimaryConceptId] = useState(initialPrimary);
+  const [supportConceptIds, setSupportConceptIds] = useState(
+    supportKey ? supportKey.split('|') : [],
   );
-  const availableConcepts = useMemo(() => {
-    const confirmedIds = new Set(confirmed.map((item) => item.conceptId));
-    return concepts.filter((concept) => !confirmedIds.has(concept.id));
-  }, [concepts, confirmed]);
 
-  const confirmManual = async () => {
-    if (!conceptId) return;
+  useEffect(() => {
+    setPrimaryConceptId(initialPrimary);
+    setSupportConceptIds(supportKey ? supportKey.split('|') : []);
+  }, [initialPrimary, supportKey]);
+
+  const save = async () => {
     try {
-      await actions.confirmConcept.mutateAsync({ conceptId, relationRole });
-      setConceptId('');
-      toast.success('业务概念关系已确认');
-    } catch (error) {
-      toast.error(getApiError(error).message);
-    }
-  };
-  const reviewOne = async (linkId: string, status: 'accepted' | 'rejected') => {
-    try {
-      await actions.reviewConcept.mutateAsync({ linkId, reviewStatus: status });
-      toast.success(status === 'accepted' ? '已接受概念建议' : '已标记为不适用');
-    } catch (error) {
-      toast.error(getApiError(error).message);
-    }
-  };
-  const acceptAll = async () => {
-    try {
-      await actions.reviewConcepts.mutateAsync({
-        linkIds: pending.map((item) => item.id),
-        reviewStatus: 'accepted',
-      });
-      toast.success(`已批量接受 ${pending.length} 条概念建议`);
+      await actions.replaceConceptRelations.mutateAsync([
+        ...(primaryConceptId
+          ? [{ conceptId: primaryConceptId, relationRole: 'expresses' as const }]
+          : []),
+        ...supportConceptIds.map((conceptId) => ({
+          conceptId,
+          relationRole: 'supports' as const,
+        })),
+      ]);
+      toast.success('卖点关系已保存');
     } catch (error) {
       toast.error(getApiError(error).message);
     }
@@ -71,119 +54,33 @@ function AssetConceptReviewPanel({ group, concepts, actions }: AssetConceptRevie
 
   return (
     <section className="surface-card p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">业务卖点关系</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            确认这张素材主要表达什么、还能支持什么；这不是图片质量评分。
+          <h2 className="font-semibold">卖点关系</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            一次确认这张素材主要表达什么、还能支持什么；这不是图片质量评分。
           </p>
         </div>
-        {pending.length > 1 && (
-          <Button size="sm" variant="outline" onClick={acceptAll} disabled={actions.reviewConcepts.isPending}>
-            {actions.reviewConcepts.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-            全部接受
-          </Button>
-        )}
+        <Button
+          size="sm"
+          onClick={save}
+          disabled={actions.replaceConceptRelations.isPending}
+        >
+          {actions.replaceConceptRelations.isPending
+            ? <Loader2 className="size-4 animate-spin" />
+            : <Save className="size-4" />}
+          保存卖点关系
+        </Button>
       </div>
 
-      <div className="mt-4">
-        <p className="text-xs font-medium text-muted-foreground">已确认关系</p>
-        <div className="mt-2 flex min-h-8 flex-wrap gap-2">
-          {confirmed.length > 0 ? confirmed.map((item) => (
-            <Badge key={item.id} variant={item.relationRole === 'expresses' ? 'default' : 'outline'}>
-              {item.conceptName} · {ROLE_LABELS[item.relationRole]}
-            </Badge>
-          )) : <span className="text-xs text-muted-foreground">尚未确认，可先发布并稍后补充。</span>}
-        </div>
-      </div>
-
-      {pending.length > 0 && (
-        <div className="mt-5 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">AI 待确认建议</p>
-          {pending.map((item) => (
-            <div key={item.id} className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{item.conceptName}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  建议关系：{ROLE_LABELS[item.relationRole]}
-                  {item.evidenceReason ? ` · ${item.evidenceReason}` : ''}
-                </p>
-              </div>
-              <div className="flex gap-1">
-                <Button size="sm" onClick={() => reviewOne(item.id, 'accepted')} disabled={actions.reviewConcept.isPending}>
-                  <Check className="mr-1 size-3.5" />接受
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => reviewOne(item.id, 'rejected')} disabled={actions.reviewConcept.isPending}>
-                  <X className="mr-1 size-3.5" />不适用
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-5 border-t border-border pt-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">手动补充确认关系</p>
-            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-              需要为这张素材补充其他卖点关系时再开启。
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="text-[11px] text-muted-foreground">
-              {isManualOpen ? '已开启' : '需要时开启'}
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isManualOpen}
-              aria-controls="manual-concept-relation-form"
-              aria-label="手动补充确认关系"
-              onClick={() => setIsManualOpen((current) => !current)}
-              className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                isManualOpen
-                  ? 'border-foreground bg-foreground'
-                  : 'border-border bg-secondary'
-              }`}
-            >
-              <span
-                aria-hidden="true"
-                className={`absolute left-0 top-0.5 size-[18px] rounded-full bg-card shadow-sm transition-transform ${
-                  isManualOpen ? 'translate-x-[20px]' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-        {isManualOpen && (
-          <div
-            id="manual-concept-relation-form"
-            className="mt-3 grid animate-in gap-2 fade-in slide-in-from-top-1 sm:grid-cols-[1fr_150px_auto]"
-          >
-            <Select
-              value={conceptId}
-              onChange={(event) => setConceptId(event.target.value)}
-            >
-              <option value="">选择业务概念</option>
-              {availableConcepts.map((concept) => (
-                <option key={concept.id} value={concept.id}>{concept.name}</option>
-              ))}
-            </Select>
-            <Select
-              value={relationRole}
-              onChange={(event) => setRelationRole(event.target.value as AssetRelationRole)}
-            >
-              {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </Select>
-            <Button size="sm" onClick={confirmManual} disabled={!conceptId || actions.confirmConcept.isPending}>
-              确认关系
-            </Button>
-          </div>
-        )}
-      </div>
+      <SellingPointRelationFields
+        concepts={concepts}
+        primaryConceptId={primaryConceptId}
+        supportConceptIds={supportConceptIds}
+        disabled={actions.replaceConceptRelations.isPending}
+        onPrimaryConceptChange={setPrimaryConceptId}
+        onSupportConceptIdsChange={setSupportConceptIds}
+      />
     </section>
   );
 }

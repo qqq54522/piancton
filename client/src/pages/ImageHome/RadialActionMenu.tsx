@@ -73,7 +73,6 @@ function RadialActionMenu({
       onClick={(event) => event.stopPropagation()}
     >
       <span className="radial-action-menu__orbit" aria-hidden="true" />
-      <span className="radial-action-menu__core" aria-hidden="true" />
       {actions.map((action) => {
         const Icon = action.icon;
         const commonProps = {

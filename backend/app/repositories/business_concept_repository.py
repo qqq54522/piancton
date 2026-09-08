@@ -58,6 +58,22 @@ class BusinessConceptRepository:
         by_code = {row.code: row for row in rows}
         return [by_code[code] for code in codes if code in by_code]
 
+    def get_many_by_ids(self, concept_ids: list[str]) -> list[BusinessConcept]:
+        if not concept_ids:
+            return []
+        rows = list(
+            self.db.scalars(
+                select(BusinessConcept)
+                .where(
+                    BusinessConcept.id.in_(concept_ids),
+                    BusinessConcept.status == "active",
+                )
+                .options(*CONCEPT_LOAD_OPTIONS)
+            ).all()
+        )
+        by_id = {row.id: row for row in rows}
+        return [by_id[concept_id] for concept_id in concept_ids if concept_id in by_id]
+
     def get_phrase(self, concept_id: str, phrase_id: str) -> ConceptSearchPhrase | None:
         return self.db.scalar(
             select(ConceptSearchPhrase).where(

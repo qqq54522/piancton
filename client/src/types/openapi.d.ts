@@ -407,7 +407,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Replace Asset Concept Relations */
+        put: operations["replace_asset_concept_relations_api_asset_groups__group_id__concept_links_put"];
         /** Confirm Asset Concept */
         post: operations["confirm_asset_concept_api_asset_groups__group_id__concept_links_post"];
         delete?: never;
@@ -1931,6 +1932,16 @@ export interface components {
             /** Sourceref */
             sourceRef?: string | null;
         };
+        /** AssetConceptRelationInput */
+        AssetConceptRelationInput: {
+            /** Conceptid */
+            conceptId: string;
+            /**
+             * Relationrole
+             * @enum {string}
+             */
+            relationRole: "expresses" | "supports";
+        };
         /** AssetConceptReview */
         AssetConceptReview: {
             /**
@@ -2165,6 +2176,11 @@ export interface components {
              * Format: date-time
              */
             updatedAt: string;
+        };
+        /** AssetReplaceConceptRelations */
+        AssetReplaceConceptRelations: {
+            /** Relations */
+            relations?: components["schemas"]["AssetConceptRelationInput"][];
         };
         /** AssetSearchPhraseRead */
         AssetSearchPhraseRead: {
@@ -4413,6 +4429,46 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_asset_concept_relations_api_asset_groups__group_id__concept_links_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetReplaceConceptRelations"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

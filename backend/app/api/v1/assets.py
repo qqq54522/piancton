@@ -31,6 +31,7 @@ from app.schemas.asset import (
     AssetConceptReview,
     AssetGroupBundleExportRequest,
     AssetGroupRead,
+    AssetReplaceConceptRelations,
     AssetSourceLinkCreate,
     AssetSourceLinkUpdate,
 )
@@ -217,6 +218,16 @@ def confirm_asset_concept(
     service: AssetRelationService = Depends(get_asset_relation_service),
 ):
     return service.confirm(group_id, payload)
+
+
+@router.put("/{group_id}/concept-links", response_model=AssetGroupRead)
+def replace_asset_concept_relations(
+    group_id: str,
+    payload: AssetReplaceConceptRelations,
+    _: User = Depends(require_write_role),
+    service: AssetRelationService = Depends(get_asset_relation_service),
+):
+    return service.replace_manual_relations(group_id, payload)
 
 
 @router.patch("/{group_id}/business-classification", response_model=AssetGroupRead)

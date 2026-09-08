@@ -89,6 +89,15 @@ class AssetConceptConfirmation(ApiModel):
     evidence_reason: Optional[str] = Field(default=None, max_length=3000)
 
 
+class AssetConceptRelationInput(ApiModel):
+    concept_id: str
+    relation_role: Literal["expresses", "supports"]
+
+
+class AssetReplaceConceptRelations(ApiModel):
+    relations: List[AssetConceptRelationInput] = Field(default_factory=list, max_length=16)
+
+
 class AssetBusinessClassificationUpdate(ApiModel):
     concept_id: Optional[str] = None
     proof_point_code: Optional[str] = Field(default=None, max_length=120)

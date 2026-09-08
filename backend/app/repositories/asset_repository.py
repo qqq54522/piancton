@@ -90,6 +90,23 @@ class AssetRepository:
         )
         self.db.flush()
 
+    def remove_manual_links_except(
+        self,
+        group: AssetGroup,
+        concept_ids: set[str],
+    ) -> None:
+        removed = [
+            item
+            for item in group.concept_links
+            if item.origin == "manual"
+            and item.relation_role in {"expresses", "supports"}
+            and item.concept_id not in concept_ids
+        ]
+        group.concept_links[:] = [item for item in group.concept_links if item not in removed]
+        for item in removed:
+            self.db.delete(item)
+        self.db.flush()
+
     def replace_pending_ai_phrases(
         self, group: AssetGroup, phrases: list[AssetSearchPhrase]
     ) -> None:

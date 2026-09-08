@@ -713,3 +713,79 @@ def test_asset_business_classification_saves_proof_and_evidence_facets(client, d
         and item["reviewStatus"] == "accepted"
         for item in body["conceptLinks"]
     )
+
+
+def test_asset_relations_can_be_replaced_in_one_request(client, db_factory):
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    image = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("multi-selling-point.png", png_file(), "image/png")},
+        data={"title": "多卖点素材", "channel": "PPT", "autoAnalyze": "false"},
+    ).json()
+    with db_factory() as db:
+        primary = BusinessConcept(code="animation_explanation", name="动画精讲")
+        first_support = BusinessConcept(code="transfer_practice", name="举一反三")
+        second_support = BusinessConcept(code="study_companion", name="督学伴学")
+        db.add_all([primary, first_support, second_support])
+        db.commit()
+        concept_ids = {
+            "primary": primary.id,
+            "first": first_support.id,
+            "second": second_support.id,
+        }
+
+    group_url = f"/api/asset-groups/{image['assetGroupId']}/concept-links"
+    created = client.put(
+        group_url,
+        headers=headers,
+        json={
+            "relations": [
+                {"conceptId": concept_ids["primary"], "relationRole": "expresses"},
+                {"conceptId": concept_ids["first"], "relationRole": "supports"},
+            ]
+        },
+    )
+    assert created.status_code == 200
+    assert {
+        (item["conceptCode"], item["relationRole"])
+        for item in created.json()["conceptLinks"]
+        if item["origin"] == "manual"
+    } == {
+        ("animation_explanation", "expresses"),
+        ("transfer_practice", "supports"),
+    }
+
+    replaced = client.put(
+        group_url,
+        headers=headers,
+        json={
+            "relations": [
+                {"conceptId": concept_ids["first"], "relationRole": "expresses"},
+                {"conceptId": concept_ids["second"], "relationRole": "supports"},
+            ]
+        },
+    )
+    assert replaced.status_code == 200
+    assert {
+        (item["conceptCode"], item["relationRole"])
+        for item in replaced.json()["conceptLinks"]
+        if item["origin"] == "manual"
+    } == {
+        ("transfer_practice", "expresses"),
+        ("study_companion", "supports"),
+    }
+
+    multiple_primary = client.put(
+        group_url,
+        headers=headers,
+        json={
+            "relations": [
+                {"conceptId": concept_ids["primary"], "relationRole": "expresses"},
+                {"conceptId": concept_ids["first"], "relationRole": "expresses"},
+            ]
+        },
+    )
+    assert multiple_primary.status_code == 400
+    assert multiple_primary.json()["code"] == "multiple_primary_concepts"

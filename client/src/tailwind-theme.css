@@ -1052,7 +1052,6 @@
 
   .radial-action-menu,
   .radial-action-menu__orbit,
-  .radial-action-menu__core,
   .radial-action-menu__action {
     transition: none;
   }
@@ -1098,28 +1097,6 @@
 .group:focus-within .radial-action-menu__orbit,
 .radial-action-menu:focus-within .radial-action-menu__orbit {
   opacity: 1;
-}
-
-.radial-action-menu__core {
-  position: absolute;
-  top: 72px;
-  left: 102px;
-  width: 10px;
-  height: 10px;
-  border: 1px solid hsl(222 18% 28% / 0.24);
-  border-radius: 999px;
-  background: hsl(0 0% 100% / 0.72);
-  box-shadow: 0 0 0 5px hsl(0 0% 100% / 0.2);
-  opacity: 0;
-  transform: scale(0.5);
-  transition: opacity 180ms ease-out, transform 220ms ease-out;
-}
-
-.group:hover .radial-action-menu__core,
-.group:focus-within .radial-action-menu__core,
-.radial-action-menu:focus-within .radial-action-menu__core {
-  opacity: 1;
-  transform: scale(1);
 }
 
 .radial-action-menu__action {
@@ -1268,7 +1245,6 @@
   }
 
   .radial-action-menu__orbit,
-  .radial-action-menu__core,
   .radial-action-menu__action,
   .radial-action-menu__label,
   .radial-action-menu__variant {

@@ -4,7 +4,6 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 
 import { Button } from '@client/src/components/ui/button';
 import { ROLE_SUBJECT, useAuth } from '@client/src/lib/auth';
-import { useProviderStatus } from '@client/src/features/ai/useProviderStatus';
 import { useAssetGroup } from '@client/src/features/assets/useAssetGroup';
 import { useImageDetail } from '@client/src/features/images/useImageDetail';
 import { useImageDetailActions } from '@client/src/features/images/useImageDetailActions';
@@ -29,7 +28,6 @@ const ImageDetail = () => {
   const mainImageUrl = useImageUrl(detail?.contentUrl ?? '');
   const canDesign = useAuth();
   const isDesigner = !canDesign.isLoading && canDesign.ability.can('designer', ROLE_SUBJECT);
-  const provider = useProviderStatus(isDesigner);
   const actions = useImageDetailActions(detail);
   const imageFrameRef = useRef<HTMLDivElement | null>(null);
   const businessRelatedRef = useRef<HTMLDivElement | null>(null);
@@ -152,7 +150,6 @@ const ImageDetail = () => {
                   detail={detail}
                   embedded
                   isDesigner={false}
-                  provider={provider}
                   actions={actions}
                   panelHeight={null}
                   variants={assetGroupQuery.data?.images}
@@ -218,7 +215,6 @@ const ImageDetail = () => {
           <ImageDetailInfoPanel
             detail={detail}
             isDesigner={isDesigner}
-            provider={provider}
             actions={actions}
             panelHeight={isDesigner ? infoPanelHeight : null}
             variants={assetGroupQuery.data?.images}

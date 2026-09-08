@@ -37,6 +37,12 @@ export function useAssetActions(groupId: string) {
     }) => assetApi.confirmAssetConcept(groupId, input.conceptId, input.relationRole),
     onSuccess: update,
   });
+  const replaceConceptRelations = useMutation({
+    mutationFn: (relations: Parameters<typeof assetApi.replaceAssetConceptRelations>[1]) => (
+      assetApi.replaceAssetConceptRelations(groupId, relations)
+    ),
+    onSuccess: update,
+  });
   const updateBusinessClassification = useMutation({
     mutationFn: (input: Parameters<typeof assetApi.updateAssetBusinessClassification>[1]) => (
       assetApi.updateAssetBusinessClassification(groupId, input)
@@ -88,6 +94,7 @@ export function useAssetActions(groupId: string) {
     deleteSourceLink,
     deleteVariant,
     replacePrimary,
+    replaceConceptRelations,
     reviewConcept,
     reviewConcepts,
     updateSourceLink,
