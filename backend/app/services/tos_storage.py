@@ -8,7 +8,11 @@ from dataclasses import replace
 from pathlib import Path
 
 from app.core.errors import AppError, NotFoundError
-from app.services.storage_service import LocalStorageProvider, StagedUpload
+from app.services.storage_service import (
+    LocalStorageProvider,
+    StagedUpload,
+    _create_preview_thumbnail,
+)
 
 logger = logging.getLogger(__name__)
 REMOTE_PREFIX = "tos-"
@@ -102,6 +106,37 @@ class TosStorageProvider(LocalStorageProvider):
         if storage_key.startswith(REMOTE_PREFIX):
             return self._fetch(storage_key, thumbnail=True)
         return super().thumbnail_path_for(storage_key)
+
+    def regenerate_thumbnail(
+        self,
+        storage_key: str,
+        thumbnail_storage_key: str,
+        thumbnail_max_size: int,
+    ) -> Path:
+        if not storage_key.startswith(REMOTE_PREFIX):
+            return super().regenerate_thumbnail(
+                storage_key,
+                thumbnail_storage_key,
+                thumbnail_max_size,
+            )
+
+        source = self.path_for(storage_key)
+        with tempfile.NamedTemporaryFile(dir=self.downloads, delete=False) as output:
+            refreshed = Path(output.name)
+        try:
+            _create_preview_thumbnail(source, refreshed, thumbnail_max_size)
+            self.upload_file(
+                thumbnail_storage_key,
+                refreshed,
+                "image/jpeg",
+                thumbnail=True,
+            )
+            return refreshed
+        except Exception:
+            refreshed.unlink(missing_ok=True)
+            raise
+        finally:
+            self.release(source)
 
     def release(self, path: Path) -> None:
         if path.resolve().parent == self.downloads.resolve():

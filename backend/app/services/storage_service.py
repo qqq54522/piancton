@@ -50,6 +50,12 @@ class StorageProvider(Protocol):
     def discard(self, upload: StagedUpload) -> None: ...
     def path_for(self, storage_key: str) -> Path: ...
     def thumbnail_path_for(self, storage_key: str) -> Path: ...
+    def regenerate_thumbnail(
+        self,
+        storage_key: str,
+        thumbnail_storage_key: str,
+        thumbnail_max_size: int,
+    ) -> Path: ...
     def quarantine(self, storage_key: str) -> Path | None: ...
     def restore(self, storage_key: str, quarantined: Path) -> None: ...
     def purge(self, quarantined: Path | None) -> None: ...
@@ -115,30 +121,7 @@ class LocalStorageProvider:
                     status_code=415,
                 )
             media_type, extension = ALLOWED_FORMATS[image_format]
-            with PillowImage.open(temp_path) as image:
-                image.seek(0)
-                image.thumbnail(
-                    (
-                        thumbnail_max_size,
-                        thumbnail_max_size * THUMBNAIL_MAX_HEIGHT_MULTIPLIER,
-                    ),
-                    PillowImage.Resampling.LANCZOS,
-                    reducing_gap=3.0,
-                )
-                if image.mode not in {"RGB", "L"}:
-                    background = PillowImage.new("RGB", image.size, "white")
-                    if "A" in image.getbands():
-                        background.paste(image, mask=image.getchannel("A"))
-                    else:
-                        background.paste(image.convert("RGB"))
-                    image = background
-                image.convert("RGB").save(
-                    thumbnail_temp_path,
-                    format="JPEG",
-                    quality=90,
-                    subsampling=0,
-                    optimize=True,
-                )
+            _create_preview_thumbnail(temp_path, thumbnail_temp_path, thumbnail_max_size)
             return StagedUpload(
                 temp_path=temp_path,
                 storage_key=f"{uuid.uuid4()}{extension}",
@@ -189,6 +172,23 @@ class LocalStorageProvider:
             raise NotFoundError("thumbnail_missing", "缩略图不存在")
         return path
 
+    def regenerate_thumbnail(
+        self,
+        storage_key: str,
+        thumbnail_storage_key: str,
+        thumbnail_max_size: int,
+    ) -> Path:
+        source = self.path_for(storage_key)
+        temp_path = self.staging / f"{uuid.uuid4()}.thumbnail-refresh"
+        try:
+            _create_preview_thumbnail(source, temp_path, thumbnail_max_size)
+            target = self._safe_thumbnail_path(thumbnail_storage_key)
+            os.replace(temp_path, target)
+            return target
+        finally:
+            temp_path.unlink(missing_ok=True)
+            self.release(source)
+
     def _safe_thumbnail_path(self, storage_key: str) -> Path:
         if not storage_key or Path(storage_key).name != storage_key:
             raise AppError("invalid_storage_key", "非法存储标识")
@@ -227,3 +227,30 @@ class LocalStorageProvider:
                 "该图片存储在 TOS，请启用对象存储配置",
                 status_code=503,
             )
+
+
+def _create_preview_thumbnail(source: Path, target: Path, thumbnail_max_size: int) -> None:
+    with PillowImage.open(source) as image:
+        image.seek(0)
+        image.thumbnail(
+            (
+                thumbnail_max_size,
+                thumbnail_max_size * THUMBNAIL_MAX_HEIGHT_MULTIPLIER,
+            ),
+            PillowImage.Resampling.LANCZOS,
+            reducing_gap=3.0,
+        )
+        if image.mode not in {"RGB", "L"}:
+            background = PillowImage.new("RGB", image.size, "white")
+            if "A" in image.getbands():
+                background.paste(image, mask=image.getchannel("A"))
+            else:
+                background.paste(image.convert("RGB"))
+            image = background
+        image.convert("RGB").save(
+            target,
+            format="JPEG",
+            quality=90,
+            subsampling=0,
+            optimize=True,
+        )

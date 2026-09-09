@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import { CanRole } from '@client/src/lib/auth';
+import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import type { useImageDetailActions } from '@client/src/features/images/useImageDetailActions';
 import type { AssetImage, ImageDetail } from '@client/src/types/api';
 import ImageDownloadMenu from './ImageDownloadMenu';
@@ -140,12 +141,11 @@ function IdentityCodePanel({ detail }: { detail: ImageDetail }) {
   if (!identityCode) return null;
 
   const copy = async (value: string, message: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
+    if (await copyTextToClipboard(value)) {
       toast.success(message);
-    } catch {
-      toast.error('复制失败，请手动选择编码');
+      return;
     }
+    toast.error('复制失败，请手动选择编码');
   };
 
   return (

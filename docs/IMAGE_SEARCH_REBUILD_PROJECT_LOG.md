@@ -8,6 +8,19 @@
 
 ---
 
+## 2026-09-09：身份码复制与预览性能（D284）
+
+- 根因：公司服务器当前通过 HTTP IP 访问，浏览器不提供 `navigator.clipboard`；详情页因此显示复制失败，素材卡调用则产生未处理异常而没有反馈。新增统一 `copyTextToClipboard()`，安全上下文优先 Clipboard API，HTTP 环境在原点击事件内使用兼容复制；详情、普通素材卡、语义搜索卡和管理员身份码页全部接入，并统一成功/失败提示。
+- D281 的历史长图兼容从“缩略图不足时直接传原图”调整为“一次性自修复”：首次预览检测到旧缩略图宽度不足后，从原图重建当前 `640px` 宽 JPEG，原位覆盖 local 文件或 TOS 缩略图对象，并直接返回新缩略图；后续不再反复下载大原图。若临时重建失败，当前请求保底返回旧缩略图。缩略图响应增加 `private, max-age=86400` 浏览器缓存，不增加下载计数。
+- 语义搜索继续保留最多 150 条结果用于卖点库存覆盖，但搜索结果网格只先挂载 24 条，接近页面底部时每批再追加 24 条；普通卡与搜索卡增加异步图片解码，降低一次性网络、解码和布局压力。
+- 无数据库迁移；不改身份码值、原图、素材组/版本关系、人工 accepted 卖点关系、搜索召回、排序或附件下载逻辑。
+- 验证：前端全量 19 个文件、64 passed，TypeScript、ESLint 和 production build 通过；后端 `test_security_and_images.py + test_tos_storage.py + test_asset_identity_codes.py + test_documentation_consistency.py` 共 43 passed，相关 Ruff、Pyright 均通过；`git diff --check` 通过。
+
+### 后续
+
+- 服务器覆盖更新包并重建 backend/web 后，以 HTTP IP 分别测试详情、素材卡和身份码管理复制。
+- 首次打开历史长图时后台会完成一次缩略图自修复；刷新或再次打开同图应直接使用已保存缩略图。观察 TOS 带宽和页面滚动体感，不需要重传已有图片。
+
 ## 2026-09-09：国内服务器一键更新（D283）
 
 - backend 与 web Dockerfile 新增可配置的 `PIP_INDEX_URL`、`NPM_CONFIG_REGISTRY`；Compose 把两个变量作为构建参数传入。国内服务器可同时覆盖五个基础镜像、清华 PyPI 和 npmmirror，避免构建中途重新访问境外源。

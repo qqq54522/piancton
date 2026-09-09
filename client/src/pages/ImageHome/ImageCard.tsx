@@ -9,6 +9,7 @@ import { sendImageToAssetAgent } from '@client/src/features/assets/assetAgentEve
 import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
 import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
+import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import RadialActionMenu from './RadialActionMenu';
 
 interface ImageCardProps {
@@ -39,8 +40,11 @@ const ImageCard = ({
 
   const copyIdentity = async () => {
     if (!identityCode) return;
-    await navigator.clipboard.writeText(identityCode);
-    toast.success('身份码已复制');
+    if (await copyTextToClipboard(identityCode)) {
+      toast.success('身份码已复制');
+      return;
+    }
+    toast.error('复制失败，请进入图片详情手动选择身份码');
   };
 
   const actionMenu = (
@@ -77,6 +81,7 @@ const ImageCard = ({
               alt={image.title}
               className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
               loading="lazy"
+              decoding="async"
               onLoad={onImageLoad}
             />
             {overlay && <div className="absolute inset-0 overflow-hidden">{overlay}</div>}
@@ -123,6 +128,7 @@ const ImageCard = ({
             alt={image.title}
             className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             loading="lazy"
+            decoding="async"
             onLoad={onImageLoad}
           />
           {overlay && <div className="absolute inset-0 overflow-hidden">{overlay}</div>}

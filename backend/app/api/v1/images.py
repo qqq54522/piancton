@@ -222,6 +222,7 @@ def get_image_thumbnail(
         release=service.storage.release,
         media_type=media_type,
         content_disposition_type="inline",
+        headers={"Cache-Control": "private, max-age=86400"},
         background=background_tasks,
     )
 

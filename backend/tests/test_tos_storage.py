@@ -124,7 +124,7 @@ def test_api_remote_upload_preview_download_zip_and_purge(client, db_factory, re
     assert not remote.client.objects
 
 
-def test_remote_legacy_long_thumbnail_falls_back_and_cleans_temp_file(
+def test_remote_legacy_long_thumbnail_is_regenerated_and_cleans_temp_file(
     client,
     db_factory,
     remote,
@@ -149,9 +149,11 @@ def test_remote_legacy_long_thumbnail_falls_back_and_cleans_temp_file(
 
     preview = client.get(payload["thumbnailUrl"])
     assert preview.status_code == 200
-    assert preview.headers["content-type"].startswith("image/png")
+    assert preview.headers["content-type"].startswith("image/jpeg")
     with PillowImage.open(BytesIO(preview.content)) as served:
-        assert served.size == (1200, 3600)
+        assert served.size == (640, 1920)
+    with PillowImage.open(BytesIO(remote.client.objects[(remote.bucket, object_key)])) as stored:
+        assert stored.size == (640, 1920)
     assert not list(remote.downloads.iterdir())
 
 

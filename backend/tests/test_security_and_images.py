@@ -176,7 +176,7 @@ def test_long_image_thumbnail_keeps_preview_width(client):
     assert image_size(thumbnail.content) == (640, 1920)
 
 
-def test_existing_long_image_with_legacy_thumbnail_falls_back_to_original(
+def test_existing_long_image_with_legacy_thumbnail_is_regenerated_once(
     client,
     db_factory,
 ):
@@ -202,8 +202,14 @@ def test_existing_long_image_with_legacy_thumbnail_falls_back_to_original(
 
     preview = client.get(payload["thumbnailUrl"])
     assert preview.status_code == 200
-    assert preview.headers["content-type"].startswith("image/png")
-    assert image_size(preview.content) == (1200, 3600)
+    assert preview.headers["content-type"].startswith("image/jpeg")
+    assert preview.headers["cache-control"] == "private, max-age=86400"
+    assert image_size(preview.content) == (640, 1920)
+    assert image_size(thumbnail_path.read_bytes()) == (640, 1920)
+
+    second_preview = client.get(payload["thumbnailUrl"])
+    assert second_preview.status_code == 200
+    assert image_size(second_preview.content) == (640, 1920)
 
 
 def test_deleted_title_is_released_and_restore_renumbers_on_conflict(client):
@@ -368,7 +374,8 @@ def test_ai_analysis_route_is_retired_and_keeps_existing_content_untouched(
         name = "fake"
         configured = True
 
-        def generate_json(self, _request):
+        def generate_json(self, request):
+            del request
             return ModelCallResult(
                 {
                     "image_summary": "平板界面展示数学动画和分步计算。",

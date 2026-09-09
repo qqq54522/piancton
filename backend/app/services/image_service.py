@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Optional
@@ -29,6 +30,8 @@ from app.services.serializers import image_to_detail, image_to_read
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
+
+logger = logging.getLogger(__name__)
 
 
 def encode_cursor(sort_by: str, value: str | int, image_id: str) -> str:
@@ -240,12 +243,17 @@ class ImageService:
                 self.storage.release(path)
                 raise
             if thumbnail_width < expected_width:
-                # Thumbnails created before the long-image preview fix were
-                # bounded to a square. Serve the original until that stored
-                # thumbnail is regenerated so existing assets become sharp
-                # immediately without asking users to upload them again.
-                self.storage.release(path)
-                return self.storage.path_for(image.storage_key), image, image.media_type
+                try:
+                    refreshed_path = self.storage.regenerate_thumbnail(
+                        image.storage_key,
+                        image.thumbnail_storage_key,
+                        self.thumbnail_max_size,
+                    )
+                except Exception:
+                    logger.warning("failed to regenerate portrait thumbnail", exc_info=True)
+                else:
+                    self.storage.release(path)
+                    path = refreshed_path
         return path, image, "image/jpeg"
 
     def download(self, image_id: str) -> tuple[Path, Image]:

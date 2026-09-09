@@ -136,6 +136,7 @@ const SemanticSearchResult = ({
             onClear={projectBasket.clear}
           />
           <SearchResultGrid
+            key={`${result.searchLogId ?? keyword}:${visibleResults.length}`}
             items={visibleResults}
             keyword={keyword}
             searchLogId={result.searchLogId}

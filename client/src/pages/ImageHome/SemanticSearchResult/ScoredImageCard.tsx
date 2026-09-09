@@ -9,6 +9,7 @@ import { sendImageToAssetAgent } from '@client/src/features/assets/assetAgentEve
 import type { ProjectBasketItem } from '@client/src/features/assets/useProjectBasket';
 import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
+import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import type { AssetImage, ScoredImageMatch } from '@client/src/types/api';
 import { itemVariants } from './constants';
 import RadialActionMenu from '../RadialActionMenu';
@@ -42,8 +43,11 @@ function ScoredImageCard({
   const identityCode = selected.identityCode || scored.image.identityCode;
   const copyIdentity = async () => {
     if (!identityCode) return;
-    await navigator.clipboard.writeText(identityCode);
-    toast.success('身份码已复制');
+    if (await copyTextToClipboard(identityCode)) {
+      toast.success('身份码已复制');
+      return;
+    }
+    toast.error('复制失败，请进入图片详情手动选择身份码');
   };
 
   return (
@@ -64,6 +68,7 @@ function ScoredImageCard({
           alt={selected.title}
           className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
+          decoding="async"
         />
       </Link>
 

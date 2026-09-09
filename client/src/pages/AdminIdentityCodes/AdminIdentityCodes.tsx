@@ -10,6 +10,7 @@ import PageHeader from '@client/src/components/PageHeader';
 import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
+import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import type { ImageIdentityCodeRead } from '@client/src/types/api';
 
 const PAGE_SIZE = 20;
@@ -39,14 +40,13 @@ export default function AdminIdentityCodes() {
   };
 
   const copyCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
+    if (await copyTextToClipboard(code)) {
       setCopiedCode(code);
       window.setTimeout(() => setCopiedCode((current) => current === code ? null : current), 1600);
       toast.success('身份码已复制');
-    } catch {
-      toast.error('复制失败，请手动选择身份码');
+      return;
     }
+    toast.error('复制失败，请手动选择身份码');
   };
 
   return (
