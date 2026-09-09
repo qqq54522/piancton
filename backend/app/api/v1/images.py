@@ -28,6 +28,7 @@ from app.api.storage_response import StorageFileResponse
 from app.models.user import User
 from app.schemas.image import (
     ImageDetailRead,
+    ImageFilterMetadataUpdate,
     ImageListResponse,
     ImageRead,
     ImageTitleResolution,
@@ -215,8 +216,7 @@ def get_image_thumbnail(
     _: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
 ):
-    path, image = service.thumbnail(image_id)
-    media_type = "image/jpeg" if image.thumbnail_storage_key else image.media_type
+    path, _image, media_type = service.thumbnail(image_id)
     return StorageFileResponse(
         path,
         release=service.storage.release,
@@ -293,6 +293,36 @@ def update_image_title(
         action="image.update_title",
         target_type="image",
         target_id=image_id,
+        request_id=request.state.request_id,
+    )
+    return image
+
+
+@router.patch("/{image_id}/filter-metadata", response_model=ImageRead)
+def update_image_filter_metadata(
+    image_id: str,
+    payload: ImageFilterMetadataUpdate,
+    request: Request,
+    user: User = Depends(require_write_role),
+    service: ImageService = Depends(get_image_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    image = service.update_filter_metadata(
+        image_id,
+        channel=payload.channel,
+        style_label=payload.style_label,
+        is_scene_image=payload.is_scene_image,
+    )
+    audit.record(
+        actor_user_id=user.id,
+        action="image.update_filter_metadata",
+        target_type="image",
+        target_id=image_id,
+        details={
+            "channel": image.channel,
+            "styleLabel": image.style_label,
+            "isSceneImage": image.is_scene_image,
+        },
         request_id=request.state.request_id,
     )
     return image

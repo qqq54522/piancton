@@ -83,7 +83,7 @@ class AssetService:
         version_no = max((image.version_no for image in group.images), default=0) + 1
         resolved_channel = self._resolve_version_channel(group, channel)
         image = Image(
-            version_code=self.identities.allocate_version_code(group.asset_code, version_no),
+            identity_code=self.identities.allocate_code(),
             title=resolved_title,
             file_name=original_name,
             storage_key=staged.storage_key,
@@ -102,7 +102,6 @@ class AssetService:
         )
         try:
             self.images.add(image)
-            self.identities.register_image(image)
             self.storage.finalize(staged)
             self.uow.commit()
         except Exception:
@@ -142,7 +141,7 @@ class AssetService:
             previous_primary.asset_role = "revision"
             previous_primary.is_current = False
         image = Image(
-            version_code=self.identities.allocate_version_code(group.asset_code, version_no),
+            identity_code=self.identities.allocate_code(),
             title=resolved_title,
             file_name=original_name,
             storage_key=staged.storage_key,
@@ -164,7 +163,6 @@ class AssetService:
             group.primary_image_id = image.id
             group.title = image.title
             self.assets.save(group)
-            self.identities.register_image(image)
             self.storage.finalize(staged)
             self.uow.commit()
         except Exception:
@@ -197,6 +195,7 @@ class AssetService:
             )
 
         image.deleted_at = datetime.now(timezone.utc)
+        image.identity_code = None
         self.images.save(image)
         self.uow.commit()
         self.search_index.delete_image(image.id)

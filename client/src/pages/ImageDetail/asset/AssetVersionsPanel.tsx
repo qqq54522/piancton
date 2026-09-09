@@ -16,12 +16,19 @@ type AssetImage = AssetGroup['images'][number];
 
 interface AssetVersionsPanelProps {
   group: AssetGroup;
+  currentImageId: string;
   editable: boolean;
   actions: AssetActions;
-  onPrimaryChanged: (imageId: string) => void;
+  onImageSelected: (imageId: string) => void;
 }
 
-function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: AssetVersionsPanelProps) {
+function AssetVersionsPanel({
+  group,
+  currentImageId,
+  editable,
+  actions,
+  onImageSelected,
+}: AssetVersionsPanelProps) {
   const [dialogMode, setDialogMode] = useState<'variant' | 'replace' | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AssetImage | null>(null);
   const pending = actions.addVariant.isPending || actions.replacePrimary.isPending;
@@ -37,7 +44,7 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
         const updated = await actions.replacePrimary.mutateAsync(input);
         toast.success('主图已替换，旧主图已保留为历史版本');
         setDialogMode(null);
-        if (updated.primaryImageId) onPrimaryChanged(updated.primaryImageId);
+        if (updated.primaryImageId) onImageSelected(updated.primaryImageId);
         return;
       }
       await actions.addVariant.mutateAsync(input);
@@ -51,6 +58,12 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
       toast.error(getApiError(error).message);
     }
   };
+
+  const orderedImages = [...group.images].sort((left, right) => {
+    if (left.id === currentImageId) return -1;
+    if (right.id === currentImageId) return 1;
+    return left.versionNo - right.versionNo;
+  });
 
   const removeVariant = async () => {
     if (!deleteTarget) return;
@@ -68,7 +81,9 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-semibold">版本与尺寸</h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">同组版本共享业务关系，搜索结果只占一个位置。</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            当前打开的版本就是上方主视图；其他横版、竖版可双向切换。素材组封面只决定默认搜索展示。
+          </p>
         </div>
         {editable && (
           <div className="flex gap-2">
@@ -82,18 +97,32 @@ function AssetVersionsPanel({ group, editable, actions, onPrimaryChanged }: Asse
         )}
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {group.images.map((image) => (
-          <div key={image.id} className={`overflow-hidden rounded-xl border ${image.isCurrent ? 'border-border' : 'border-dashed opacity-60'}`}>
-            <img src={previewUrlFor(image)} alt={image.title} className="aspect-[4/3] w-full object-cover" />
+        {orderedImages.map((image) => (
+          <div
+            key={image.id}
+            className={`overflow-hidden rounded-xl border ${image.id === currentImageId ? 'border-foreground ring-1 ring-foreground' : image.isCurrent ? 'border-border' : 'border-dashed opacity-60'}`}
+          >
+            <button
+              type="button"
+              className="block w-full text-left"
+              aria-label={`查看版本“${image.title}”`}
+              onClick={() => onImageSelected(image.id)}
+            >
+              <img src={previewUrlFor(image)} alt={image.title} className="aspect-[4/3] w-full object-cover" />
+            </button>
             <div className="space-y-1 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-xs font-medium">{image.title}</p>
                 <div className="flex shrink-0 items-center gap-1">
                   <Badge
-                    variant={image.id === group.primaryImageId ? 'default' : 'outline'}
-                    className={`text-[10px] ${image.id === group.primaryImageId ? 'bg-foreground text-background' : ''}`}
+                    variant={image.id === currentImageId ? 'default' : 'outline'}
+                    className={`text-[10px] ${image.id === currentImageId ? 'bg-foreground text-background' : ''}`}
                   >
-                    {image.id === group.primaryImageId ? '正式主图' : image.isCurrent ? '可用版本' : '历史版本'}
+                    {image.id === currentImageId
+                      ? '当前查看'
+                      : image.id === group.primaryImageId
+                        ? '素材组封面'
+                        : image.isCurrent ? '关联版本' : '历史版本'}
                   </Badge>
                   {editable && image.id !== group.primaryImageId && (
                     <Button

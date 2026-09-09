@@ -88,7 +88,7 @@ const GlobalImageSearch = ({
           <Search className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-foreground/55" />
           <Input
             aria-label="搜索业务素材"
-            placeholder="搜索素材，或粘贴素材码/版本码/分享链接"
+            placeholder="搜索素材，或粘贴图片身份码"
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={(event) => {

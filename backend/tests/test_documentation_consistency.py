@@ -87,7 +87,6 @@ def test_master_and_project_log_publish_the_same_current_phase():
     search_constants = _read("client/src/pages/ImageHome/SemanticSearchResult/constants.ts")
     upload_dialog = _read("client/src/pages/ImageHome/UploadDialog.tsx")
     concept_page = _read("client/src/pages/AdminConcepts/AdminConcepts.tsx")
-    image_ai_panel = _read("client/src/pages/ImageDetail/ImageAiAnalysisPanel.tsx")
     semantic_profile_presentation = _read(
         "client/src/pages/ImageDetail/semanticProfilePresentation.ts"
     )
@@ -189,13 +188,12 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "styleLabel" in upload_dialog
     assert "isSceneImage" in upload_dialog
     assert 'title="业务卖点管理"' in concept_page
-    assert "作为火山向量路由命中后的本地素材归属标签" in concept_page
+    assert "业务体系" in concept_page
+    assert "下面是当前归属于这个业务体系的卖点" in concept_page
     assert "卖点管理" in layout
     assert "AI培训" not in concept_page
     assert "new Set" in concept_phrase_presentation
     assert "link.origin === 'manual'" in concept_phrase_presentation
-    assert "visibleSemanticProfileGroups" in image_ai_panel
-    assert "页面只展示画面事实、场景和素材独有搜索表达" in image_ai_panel
     assert "title: '画面事实'" in semantic_profile_presentation
     assert "title: '场景'" in semantic_profile_presentation
     assert "title: '素材独有搜索表达'" in semantic_profile_presentation
@@ -208,11 +206,10 @@ def test_master_and_project_log_publish_the_same_current_phase():
         "画面排除边界",
         "客观内容标签",
     ):
-        assert hidden_group not in image_ai_panel
         assert hidden_group not in semantic_profile_presentation
-    assert 'role="switch"' in asset_concept_panel
-    assert "selectPendingConceptSuggestions" in asset_concept_panel
-    assert "需要为这张素材补充其他卖点关系时再开启" in asset_concept_panel
+    assert "SellingPointRelationFields" in asset_concept_panel
+    assert "replaceConceptRelations" in asset_concept_panel
+    assert "这不是图片质量评分" in asset_concept_panel
     assert "image.id !== group.primaryImageId" in asset_versions_panel
     assert "删除版本" in asset_versions_panel
     assert "已继承主图业务信息" in asset_versions_panel
@@ -223,7 +220,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "candidate.asset_group_id != image.asset_group_id" in related_image_service
     assert 'if asset_role != "derivative"' in asset_api
     assert 'search-phrases' not in asset_api
-    assert "derivative_analysis_not_required" in ai_api
+    assert "image_content_analysis_retired" in ai_api
     assert "group.primary_image_id == image.id" in image_analysis_service
     assert 'if phrase.review_status == "accepted"' in search_index
     assert 'if item.review_status == "accepted"' in database_search_recall
@@ -244,7 +241,6 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert '"contentDimensions"' not in search_index
     assert '"contentTags"' not in meilisearch_client
     assert "self._sync_primary(group_id)" in asset_relation_service
-    assert "def remove_phrase" in asset_relation_service
     assert "_reject_shadowed_ai_suggestions" in asset_relation_service
     assert "和学校课程一致" in master
     assert "外部服务只增强" in master

@@ -13,7 +13,6 @@ from app.models.image import (
     AnalysisRun,
     Image,
     ImageEmbedding,
-    ImageTitleReservation,
 )
 
 IMAGE_LOAD_OPTIONS = (
@@ -51,22 +50,10 @@ class ImageRepository:
         )
 
     def list_all_titles(self, *, exclude_image_id: str | None = None) -> list[str]:
-        stmt = select(Image.title)
+        stmt = select(Image.title).where(Image.deleted_at.is_(None))
         if exclude_image_id:
             stmt = stmt.where(Image.id != exclude_image_id)
-        image_titles = list(self.db.scalars(stmt).all())
-        reserved_titles = list(
-            self.db.scalars(select(ImageTitleReservation.title)).all()
-        )
-        return image_titles + reserved_titles
-
-    def reserve_title(self, title: str) -> None:
-        self.db.add(
-            ImageTitleReservation(
-                normalized_title=title.strip().casefold(),
-                title=title.strip(),
-            )
-        )
+        return list(self.db.scalars(stmt).all())
 
     def lock_title_namespace(self, namespace: str) -> None:
         if self.db.bind is None or self.db.bind.dialect.name != "postgresql":
@@ -342,6 +329,7 @@ class ImageRepository:
         )
         for image in rows:
             image.deleted_at = deleted_at
+            image.identity_code = None
             self.db.add(image)
         self.db.flush()
         return len(rows)

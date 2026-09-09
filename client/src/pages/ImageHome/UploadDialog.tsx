@@ -98,7 +98,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     setUploading(true);
     try {
       const automaticRenames: string[] = [];
-      const assetCodes: string[] = [];
+      const identityCodes: string[] = [];
       for (const [index, file] of files.entries()) {
         const fileTitle = files.length === 1 && title.trim()
           ? title.trim()
@@ -114,7 +114,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
         if (image.title !== fileTitle.trim().slice(0, 255)) {
           automaticRenames.push(image.title);
         }
-        if (image.assetCode) assetCodes.push(image.assetCode);
+        if (image.identityCode) identityCodes.push(image.identityCode);
         if (image.assetGroupId && (primaryConceptId || supportConceptIds.length > 0)) {
           await assetApi.replaceAssetConceptRelations(image.assetGroupId, [
             ...(primaryConceptId
@@ -131,9 +131,9 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
       const renameMessage = automaticRenames.length
         ? `；重名素材已自动保存为 ${automaticRenames.slice(0, 3).join('、')}${automaticRenames.length > 3 ? ` 等 ${automaticRenames.length} 个名称` : ''}`
         : '';
-      const codeMessage = assetCodes.length === 1
-        ? `；素材码 ${assetCodes[0]}`
-        : '；每张图片已自动分配素材码';
+      const codeMessage = identityCodes.length === 1
+        ? `；身份码 ${identityCodes[0]}`
+        : '；每张图片已自动分配身份码';
       toast.success(`${baseMessage}${renameMessage}${codeMessage}`);
       onSuccess();
       close();

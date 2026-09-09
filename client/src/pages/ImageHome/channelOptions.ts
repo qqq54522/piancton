@@ -48,10 +48,9 @@ export function addCustomChannel(value: string) {
 
 export function useChannelOptions(extraChannels: string[] = []) {
   const managedChannels = useChannelIntentValues();
-  void extraChannels;
 
   return useMemo(
-    () => uniqueChannels(managedChannels),
-    [managedChannels],
+    () => uniqueChannels([...managedChannels, ...extraChannels]),
+    [extraChannels, managedChannels],
   );
 }

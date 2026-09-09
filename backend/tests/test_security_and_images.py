@@ -21,6 +21,11 @@ def png_file(width: int = 8, height: int = 4) -> bytes:
     return output.getvalue()
 
 
+def image_size(content: bytes) -> tuple[int, int]:
+    with PillowImage.open(BytesIO(content)) as image:
+        return image.size
+
+
 def admin_headers(client) -> dict[str, str]:
     csrf = login(client, "admin", "admin-password")
     return {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
@@ -155,7 +160,53 @@ def test_upload_preview_download_and_phase6_detail_contract(client):
     assert client.get(f"/api/images/{image['id']}").json()["downloadCount"] == 1
 
 
-def test_global_duplicate_titles_are_previewed_and_numbered_even_in_trash(client):
+def test_long_image_thumbnail_keeps_preview_width(client):
+    headers = admin_headers(client)
+    response = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("long-poster.png", png_file(1200, 3600), "image/png")},
+        data={"title": "长图清晰预览", "channel": "手机端大图", "autoAnalyze": "false"},
+    )
+    assert response.status_code == 201
+
+    thumbnail = client.get(response.json()["thumbnailUrl"])
+    assert thumbnail.status_code == 200
+    assert thumbnail.headers["content-type"].startswith("image/jpeg")
+    assert image_size(thumbnail.content) == (640, 1920)
+
+
+def test_existing_long_image_with_legacy_thumbnail_falls_back_to_original(
+    client,
+    db_factory,
+):
+    from app.api import dependencies
+    from app.models.image import Image
+
+    headers = admin_headers(client)
+    response = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("legacy-long.png", png_file(1200, 3600), "image/png")},
+        data={"title": "旧长图清晰预览", "channel": "手机端大图", "autoAnalyze": "false"},
+    )
+    assert response.status_code == 201
+    payload = response.json()
+
+    with db_factory() as db:
+        image = db.get(Image, payload["id"])
+        thumbnail_path = (
+            dependencies.settings.storage_dir / ".thumbnails" / image.thumbnail_storage_key
+        )
+    PillowImage.new("RGB", (213, 640), "red").save(thumbnail_path, format="JPEG")
+
+    preview = client.get(payload["thumbnailUrl"])
+    assert preview.status_code == 200
+    assert preview.headers["content-type"].startswith("image/png")
+    assert image_size(preview.content) == (1200, 3600)
+
+
+def test_deleted_title_is_released_and_restore_renumbers_on_conflict(client):
     headers = admin_headers(client)
     first = upload(client, headers, "AI私教")
 
@@ -177,22 +228,20 @@ def test_global_duplicate_titles_are_previewed_and_numbered_even_in_trash(client
     assert third["title"] == "AI私教002"
     assert different["title"] == "私教答疑"
 
-    deleted = client.delete(f"/api/images/{third['id']}", headers=headers)
+    deleted = client.delete(f"/api/images/{first['id']}", headers=headers)
     assert deleted.status_code == 204
     after_delete = client.get(
         "/api/images/title-resolution",
         params={"title": "AI私教"},
     )
-    assert after_delete.json()["resolvedTitle"] == "AI私教003"
+    assert after_delete.json()["resolvedTitle"] == "AI私教"
 
-    purged = client.delete(f"/api/images/{third['id']}/purge", headers=headers)
-    assert purged.status_code == 204
-    after_purge = client.get(
-        "/api/images/title-resolution",
-        params={"title": "AI私教"},
-    )
-    assert after_purge.json()["resolvedTitle"] == "AI私教003"
-    assert first["title"] == "AI私教"
+    replacement = upload(client, headers, "AI私教")
+    assert replacement["title"] == "AI私教"
+
+    restored = client.post(f"/api/images/{first['id']}/restore", headers=headers)
+    assert restored.status_code == 200
+    assert restored.json()["title"] == "AI私教003"
 
 
 def test_renaming_a_primary_image_auto_numbers_and_keeps_group_title_in_sync(client):

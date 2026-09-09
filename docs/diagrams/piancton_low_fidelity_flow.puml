@@ -43,7 +43,7 @@ package "管理员运营与系统配置" {
   rectangle "渠道管理 /admin/channels\n----\n渠道标签\n渠道话术\n推荐说明" as Channels #EEF2FF
   rectangle "API 中心 /admin/api-center\n----\n新增 API\n健康检查\n任务路由\n调用链路\n容量/排除" as ApiCenter #EEF2FF
   rectangle "搜索运营 /admin/search-ops\n----\n概览\n治理\n问题\n审核队列\n概念健康\n性能\n素材缺口\n反馈归档" as SearchOps #EEF2FF
-  rectangle "身份码管理 /admin/identity-codes\n----\n素材码\n版本码\n复制\n历史台账" as IdentityCodes #EEF2FF
+  rectangle "身份码管理 /admin/identity-codes\n----\n一图一码\n仅活动图片\n复制\n查看图片" as IdentityCodes #EEF2FF
   rectangle "用户与权限 /admin/users\n----\nadmin\ndesigner\nbusiness\n重置密码" as Users #EEF2FF
   rectangle "审计/统计\n----\n审计日志\n使用统计\n登录/访问/下载" as AuditUsage #EEF2FF
 }
@@ -86,7 +86,7 @@ end note
 note bottom of SearchResult
 搜索结果不是只看视觉相似。
 普通搜索走卖点理解和 accepted 关系；
-身份码/分享链接先走精确查找。
+单张图片身份码先走精确查找。
 end note
 
 note bottom of ApiCenter

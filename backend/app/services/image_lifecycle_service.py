@@ -7,6 +7,7 @@ from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
 from app.schemas.image import ImageRead
 from app.services.asset_identity_service import AssetIdentityService
+from app.services.image_title_service import ImageTitleService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_read
 from app.services.storage_service import StorageProvider
@@ -28,10 +29,12 @@ class ImageLifecycleService:
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.identities = AssetIdentityService(db)
+        self.image_titles = ImageTitleService(db)
 
     def delete(self, image_id: str) -> None:
         image = self._get(image_id)
         image.deleted_at = datetime.now(timezone.utc)
+        image.identity_code = None
         self.images.save(image)
         self.uow.commit()
         self.search_index.delete_image(image_id)
@@ -42,6 +45,14 @@ class ImageLifecycleService:
 
     def restore(self, image_id: str) -> ImageRead:
         image = self._get_deleted(image_id)
+        restored_title = self.image_titles.resolve(
+            image.title,
+            exclude_image_id=image.id,
+        )
+        image.title = restored_title
+        if image.asset_group and image.asset_group.primary_image_id == image.id:
+            image.asset_group.title = restored_title
+        image.identity_code = self.identities.allocate_code()
         image.deleted_at = None
         self.images.save(image)
         self.uow.commit()
@@ -53,7 +64,6 @@ class ImageLifecycleService:
         self.storage.delete_key(image.storage_key)
         if image.thumbnail_storage_key:
             self.storage.delete_key(image.thumbnail_storage_key, thumbnail=True)
-        self.identities.retire_image(image.id)
         self.images.delete(image)
         self.uow.commit()
         self.search_index.delete_image(image_id)

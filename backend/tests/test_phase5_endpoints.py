@@ -143,6 +143,74 @@ def test_phase5_asset_version_writes_inherit_primary_channel(client):
     assert primary_image["channel"] == primary["channel"]
 
 
+def test_phase5_filter_metadata_can_be_changed_after_upload(client, monkeypatch):
+    indexed: list[str] = []
+    monkeypatch.setattr(
+        SearchIndexSync,
+        "upsert_image",
+        lambda _self, image: indexed.append(image.id),
+    )
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={
+            "title": "筛选信息可编辑",
+            "channel": "PPT",
+            "styleLabel": "旧风格",
+            "isSceneImage": "false",
+            "autoAnalyze": "false",
+        },
+    ).json()
+    variant_group = client.post(
+        f"/api/asset-groups/{primary['assetGroupId']}/images",
+        headers=headers,
+        files={"file": ("vertical.png", png_file("green"), "image/png")},
+        data={
+            "title": "筛选信息竖版",
+            "assetRole": "derivative",
+            "autoAnalyze": "false",
+        },
+    ).json()
+    variant_id = next(
+        item["id"] for item in variant_group["images"] if item["id"] != primary["id"]
+    )
+    indexed.clear()
+
+    updated = client.patch(
+        f"/api/images/{variant_id}/filter-metadata",
+        headers=headers,
+        json={
+            "channel": "官网大图、手机端大图",
+            "styleLabel": "数据卡片",
+            "isSceneImage": True,
+        },
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["channel"] == "官网大图、手机端大图"
+    assert updated.json()["styleLabel"] == "数据卡片"
+    assert updated.json()["isSceneImage"] is True
+    assert set(indexed) == {primary["id"], variant_id}
+    group = client.get(
+        f"/api/asset-groups/{primary['assetGroupId']}", headers=headers
+    ).json()
+    assert group["styleLabel"] == "数据卡片"
+    assert group["isSceneImage"] is True
+    channels = {item["id"]: item["channel"] for item in group["images"]}
+    assert channels[primary["id"]] == "PPT"
+    assert channels[variant_id] == "官网大图、手机端大图"
+
+    missing_channel = client.patch(
+        f"/api/images/{variant_id}/filter-metadata",
+        headers=headers,
+        json={"channel": " ", "styleLabel": None, "isSceneImage": False},
+    )
+    assert missing_channel.status_code == 422
+
+
 def test_phase5_source_links_are_editor_only(client):
     admin_csrf = login(client, "admin", "admin-password")
     admin_headers = {"X-CSRF-Token": admin_csrf, "Origin": "http://localhost:5173"}

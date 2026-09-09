@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import * as assetApi from '@client/src/api/asset';
+import * as imageApi from '@client/src/api/image';
 import type { AssetGroup } from '@client/src/types/api';
 import { assetGroupKey } from './useAssetGroup';
 
@@ -29,6 +30,21 @@ export function useAssetActions(groupId: string) {
   const deleteVariant = useMutation({
     mutationFn: (imageId: string) => assetApi.deleteAssetVariant(groupId, imageId),
     onSuccess: update,
+  });
+  const updateFilterMetadata = useMutation({
+    mutationFn: ({
+      imageId,
+      ...input
+    }: Parameters<typeof imageApi.updateImageFilterMetadata>[1] & { imageId: string }) => (
+      imageApi.updateImageFilterMetadata(imageId, input)
+    ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: assetGroupKey(groupId) }),
+        queryClient.invalidateQueries({ queryKey: ['images'] }),
+        queryClient.invalidateQueries({ queryKey: ['image-detail'] }),
+      ]);
+    },
   });
   const confirmConcept = useMutation({
     mutationFn: (input: {
@@ -98,6 +114,7 @@ export function useAssetActions(groupId: string) {
     reviewConcept,
     reviewConcepts,
     updateSourceLink,
+    updateFilterMetadata,
     updateBusinessClassification,
   };
 }

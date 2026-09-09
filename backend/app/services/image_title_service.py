@@ -35,6 +35,4 @@ class ImageTitleService:
             exclude_image_id=exclude_image_id,
         )
         resolved = allocate_unique_image_title(title, existing)
-        if reserve:
-            self.images.reserve_title(resolved)
         return resolved

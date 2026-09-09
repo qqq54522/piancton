@@ -14,9 +14,7 @@ from app.schemas.asset import (
 def asset_image_to_read(image: Image) -> AssetImageRead:
     return AssetImageRead(
         id=image.id,
-        asset_code=image.asset_group.asset_code if image.asset_group else None,
-        version_code=image.version_code,
-        share_path=f"/share/{image.version_code}" if image.version_code else None,
+        identity_code=image.identity_code,
         title=image.title,
         file_name=image.file_name,
         thumbnail_url=f"/api/images/{image.id}/thumbnail",
@@ -54,8 +52,6 @@ def asset_group_to_read(
     ]
     return AssetGroupRead(
         id=group.id,
-        asset_code=group.asset_code,
-        share_path=f"/share/{group.asset_code}" if group.asset_code else None,
         title=group.title,
         primary_image_id=group.primary_image_id,
         approval_status=group.approval_status,

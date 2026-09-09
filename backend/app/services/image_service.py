@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Optional
 
+from PIL import Image as PillowImage
+
 from app.core.errors import AppError, NotFoundError
 from app.domain.image_titles import clean_image_title
 from app.models.asset import AssetGroup
@@ -126,7 +128,6 @@ class ImageService:
         requested_title = title.strip() or Path(original_name).stem
         resolved_title = self.image_titles.resolve(requested_title)
         group = AssetGroup(
-            asset_code=self.identities.allocate_asset_code(),
             title=resolved_title,
             approval_status="approved",
             publish_status="published",
@@ -135,7 +136,7 @@ class ImageService:
             created_by=uploader,
         )
         image = Image(
-            version_code=self.identities.allocate_version_code(group.asset_code, 1),
+            identity_code=self.identities.allocate_code(),
             title=resolved_title,
             file_name=original_name,
             storage_key=staged.storage_key,
@@ -155,8 +156,6 @@ class ImageService:
         try:
             self.images.add(image)
             group.primary_image_id = image.id
-            self.identities.register_group(group)
-            self.identities.register_image(image)
             self.embedding_index.upsert_image(self.images, image)
             self.storage.finalize(staged)
             self.uow.commit()
@@ -187,6 +186,30 @@ class ImageService:
         self._sync_index(image.id)
         return image_to_read(image)
 
+    def update_filter_metadata(
+        self,
+        image_id: str,
+        *,
+        channel: str,
+        style_label: str | None,
+        is_scene_image: bool,
+    ) -> ImageRead:
+        image = self._get(image_id)
+        resolved_channel = channel.strip()
+        if not resolved_channel:
+            raise AppError("channel_required", "请至少保留一个使用渠道", status_code=422)
+        image.channel = resolved_channel
+        group = image.asset_group
+        if group:
+            group.style_label = (style_label or "").strip() or None
+            group.is_scene_image = is_scene_image
+        self.images.save(image)
+        self.uow.commit()
+        self._sync_index(image.id)
+        if group and group.primary_image_id and group.primary_image_id != image.id:
+            self._sync_index(group.primary_image_id)
+        return image_to_read(self._get(image.id))
+
     def resolve_title(self, title: str) -> ImageTitleResolution:
         requested = title.strip()
         resolved = self.image_titles.resolve(requested, reserve=False)
@@ -200,13 +223,30 @@ class ImageService:
         image = self._get(image_id)
         return self.storage.path_for(image.storage_key), image
 
-    def thumbnail(self, image_id: str) -> tuple[Path, Image]:
+    def thumbnail(self, image_id: str) -> tuple[Path, Image, str]:
         image = self.images.get_any(image_id)
         if not image:
             raise NotFoundError("image_not_found", "图片不存在")
         if not image.thumbnail_storage_key:
-            return self.storage.path_for(image.storage_key), image
-        return self.storage.thumbnail_path_for(image.thumbnail_storage_key), image
+            return self.storage.path_for(image.storage_key), image, image.media_type
+
+        path = self.storage.thumbnail_path_for(image.thumbnail_storage_key)
+        if image.width and image.height and image.height > image.width:
+            expected_width = min(image.width, self.thumbnail_max_size)
+            try:
+                with PillowImage.open(path) as thumbnail:
+                    thumbnail_width = thumbnail.width
+            except Exception:
+                self.storage.release(path)
+                raise
+            if thumbnail_width < expected_width:
+                # Thumbnails created before the long-image preview fix were
+                # bounded to a square. Serve the original until that stored
+                # thumbnail is regenerated so existing assets become sharp
+                # immediately without asking users to upload them again.
+                self.storage.release(path)
+                return self.storage.path_for(image.storage_key), image, image.media_type
+        return path, image, "image/jpeg"
 
     def download(self, image_id: str) -> tuple[Path, Image]:
         image = self._get(image_id)

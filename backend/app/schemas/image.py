@@ -12,6 +12,12 @@ class ImageTitleUpdate(ApiModel):
     title: str = Field(min_length=1, max_length=255)
 
 
+class ImageFilterMetadataUpdate(ApiModel):
+    channel: str = Field(min_length=1, max_length=100)
+    style_label: Optional[str] = Field(default=None, max_length=100)
+    is_scene_image: bool
+
+
 class ImageTitleResolution(ApiModel):
     requested_title: str
     resolved_title: str
@@ -37,9 +43,7 @@ class AnalysisRunRead(ApiModel):
 
 class ImageRead(ApiModel):
     id: str
-    asset_code: Optional[str] = None
-    version_code: Optional[str] = None
-    share_path: Optional[str] = None
+    identity_code: Optional[str] = None
     title: str
     file_name: str
     content_url: str

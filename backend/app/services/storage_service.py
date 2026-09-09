@@ -18,6 +18,13 @@ ALLOWED_FORMATS = {
     "GIF": ("image/gif", ".gif"),
 }
 
+# The masonry/grid preview is width-constrained. Bounding every thumbnail to a
+# square made portrait assets progressively narrower (for example, a 1:3 image
+# became only 213 px wide with a 640 px setting) and the browser then enlarged
+# it. Keep the configured width for readable long-image previews while still
+# bounding pathological panoramas by height.
+THUMBNAIL_MAX_HEIGHT_MULTIPLIER = 12
+
 
 @dataclass(frozen=True)
 class StagedUpload:
@@ -110,7 +117,14 @@ class LocalStorageProvider:
             media_type, extension = ALLOWED_FORMATS[image_format]
             with PillowImage.open(temp_path) as image:
                 image.seek(0)
-                image.thumbnail((thumbnail_max_size, thumbnail_max_size))
+                image.thumbnail(
+                    (
+                        thumbnail_max_size,
+                        thumbnail_max_size * THUMBNAIL_MAX_HEIGHT_MULTIPLIER,
+                    ),
+                    PillowImage.Resampling.LANCZOS,
+                    reducing_gap=3.0,
+                )
                 if image.mode not in {"RGB", "L"}:
                     background = PillowImage.new("RGB", image.size, "white")
                     if "A" in image.getbands():
@@ -121,7 +135,8 @@ class LocalStorageProvider:
                 image.convert("RGB").save(
                     thumbnail_temp_path,
                     format="JPEG",
-                    quality=82,
+                    quality=90,
+                    subsampling=0,
                     optimize=True,
                 )
             return StagedUpload(

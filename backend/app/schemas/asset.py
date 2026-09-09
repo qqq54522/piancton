@@ -8,9 +8,7 @@ from app.schemas.base import ApiModel
 
 class AssetImageRead(ApiModel):
     id: str
-    asset_code: Optional[str] = None
-    version_code: Optional[str] = None
-    share_path: Optional[str] = None
+    identity_code: Optional[str] = None
     title: str
     file_name: str
     thumbnail_url: str
@@ -60,8 +58,6 @@ class AssetSourceLinkRead(ApiModel):
 
 class AssetGroupRead(ApiModel):
     id: str
-    asset_code: Optional[str] = None
-    share_path: Optional[str] = None
     title: str
     primary_image_id: Optional[str] = None
     approval_status: str

@@ -31,7 +31,7 @@ const ImageDeleteDialog = ({
       <AlertDialogHeader>
         <AlertDialogTitle>确认删除图片「{title}」？</AlertDialogTitle>
         <AlertDialogDescription>
-          删除后无法恢复，该图片关联的所有标签也将解除绑定。
+          图片会移入回收站并立即释放当前名称；素材组卖点关系不会被删除，需要时可以恢复。
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

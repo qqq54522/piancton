@@ -18,12 +18,9 @@ import type {
 } from './api.generated';
 import type { components } from './openapi';
 
-export type AssetIdentityCodeRead = components['schemas']['AssetIdentityCodeRead'];
-export type AssetIdentityCodeSummary = components['schemas']['AssetIdentityCodeSummary'];
-export type AssetIdentityCodeListResponse = components['schemas']['AssetIdentityCodeListResponse'];
-
-export type AssetIdentityCodeType = 'asset' | 'version';
-export type AssetIdentityCodeStatus = 'active' | 'deleted' | 'retired';
+export type ImageIdentityCodeRead = components['schemas']['ImageIdentityCodeRead'];
+export type ImageIdentityCodeSummary = components['schemas']['ImageIdentityCodeSummary'];
+export type ImageIdentityCodeListResponse = components['schemas']['ImageIdentityCodeListResponse'];
 
 export interface TagWithCount extends Tag {
   children?: TagWithCount[];
@@ -101,10 +98,8 @@ export interface SemanticSearchRequest {
 }
 
 export interface AssetImage {
-  id: string;
-  assetCode?: string | null;
-  versionCode?: string | null;
-  sharePath?: string | null;
+    id: string;
+  identityCode?: string | null;
   title: string;
   fileName: string;
   thumbnailUrl: string;
@@ -162,12 +157,12 @@ export interface AssetSourceLink {
 
 export interface AssetGroup {
   id: string;
-  assetCode?: string | null;
-  sharePath?: string | null;
   title: string;
   primaryImageId?: string | null;
   approvalStatus: string;
   publishStatus: string;
+  styleLabel?: string | null;
+  isSceneImage?: boolean | null;
   createdBy: string;
   images: AssetImage[];
   conceptLinks: AssetConceptLink[];

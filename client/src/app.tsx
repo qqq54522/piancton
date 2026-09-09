@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 
 import Layout from './components/Layout';
 import { AdminRoute, DesignerRoute, ProtectedRoute } from './lib/auth';
@@ -19,11 +19,6 @@ const Login = lazy(() => import('./pages/Login/Login'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 const Trash = lazy(() => import('./pages/Trash/Trash'));
 
-const SharedAssetRedirect = () => {
-  const { code } = useParams<{ code: string }>();
-  return <Navigate to={`/image/${code ?? ''}`} replace />;
-};
-
 const PageFallback = () => (
   <div className="grid min-h-[50vh] place-items-center text-sm text-muted-foreground">
     正在加载...
@@ -38,7 +33,6 @@ const RoutesComponent = () => (
         <Route element={<Layout />}>
           <Route index element={<ImageHome />} />
           <Route path="image/:id" element={<ImageDetail />} />
-          <Route path="share/:code" element={<SharedAssetRedirect />} />
           <Route element={<DesignerRoute />}>
             <Route path="trash" element={<Trash />} />
             <Route path="search-ops" element={<AdminSearchOps />} />

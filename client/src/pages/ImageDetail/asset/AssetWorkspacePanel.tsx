@@ -5,16 +5,23 @@ import { useAssetActions } from '@client/src/features/assets/useAssetActions';
 import { useAssetGroup } from '@client/src/features/assets/useAssetGroup';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
 import AssetConceptReviewPanel from './AssetConceptReviewPanel';
+import AssetFilterMetadataPanel from './AssetFilterMetadataPanel';
 import AssetSourceLinksPanel from './AssetSourceLinksPanel';
 import AssetVersionsPanel from './AssetVersionsPanel';
 
 interface AssetWorkspacePanelProps {
   groupId: string;
+  currentImageId: string;
   editable: boolean;
-  onPrimaryChanged: (imageId: string) => void;
+  onImageSelected: (imageId: string) => void;
 }
 
-function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorkspacePanelProps) {
+function AssetWorkspacePanel({
+  groupId,
+  currentImageId,
+  editable,
+  onImageSelected,
+}: AssetWorkspacePanelProps) {
   const group = useAssetGroup(groupId);
   const concepts = useBusinessConcepts(editable);
   const actions = useAssetActions(groupId);
@@ -46,12 +53,18 @@ function AssetWorkspacePanel({ groupId, editable, onPrimaryChanged }: AssetWorks
       </div>
       <AssetVersionsPanel
         group={group.data}
+        currentImageId={currentImageId}
         editable={editable}
         actions={actions}
-        onPrimaryChanged={onPrimaryChanged}
+        onImageSelected={onImageSelected}
       />
       {editable && (
         <>
+          <AssetFilterMetadataPanel
+            group={group.data}
+            currentImageId={currentImageId}
+            actions={actions}
+          />
           <AssetSourceLinksPanel group={group.data} actions={actions} />
           <AssetConceptReviewPanel
             group={group.data}

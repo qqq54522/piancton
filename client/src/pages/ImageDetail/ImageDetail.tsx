@@ -227,8 +227,9 @@ const ImageDetail = () => {
       {detail.assetGroupId && (
         <AssetWorkspacePanel
           groupId={detail.assetGroupId}
+          currentImageId={detail.id}
           editable={isDesigner}
-          onPrimaryChanged={(imageId) => navigate(`/image/${imageId}`, { replace: true })}
+          onImageSelected={(imageId) => navigate(`/image/${imageId}`, { replace: true })}
         />
       )}
 

@@ -46,14 +46,13 @@ class IdentitySearchService:
                 match_summary=f"没有找到身份码“{code}”对应的已发布素材",
             )
 
-        code_type = "素材码" if "-V" not in code else "版本码"
         response = self.response_builder.build_response(
             keyword=keyword,
             hits=[
                 SearchHit(
                     image=image,
                     score=1.0,
-                    reasons=(f"{code_type}精确匹配",),
+                    reasons=("身份码精确匹配",),
                 )
             ],
             search_mode="fuzzy",

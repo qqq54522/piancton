@@ -21,7 +21,7 @@ import type {
   ApiTemperatureTuneRequest,
   ApiTemperatureTuneResult,
   ApiProviderGroup,
-  AssetIdentityCodeListResponse,
+  ImageIdentityCodeListResponse,
   ModelTaskName,
   RoutingSlot,
   RoutingSlotUpdate,
@@ -196,10 +196,8 @@ export async function updateRoutingSlot(
 
 export async function fetchIdentityCodes(params: {
   q?: string;
-  codeType?: 'all' | 'asset' | 'version';
-  status?: 'all' | 'active' | 'deleted' | 'retired';
   page?: number;
   pageSize?: number;
-} = {}): Promise<AssetIdentityCodeListResponse> {
+} = {}): Promise<ImageIdentityCodeListResponse> {
   return (await api.get('/api/admin/identity-codes', { params })).data;
 }

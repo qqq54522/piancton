@@ -204,7 +204,7 @@ def main() -> None:
         "detail_biz": Screen("detail_biz", "素材详情业务视图", "/image/:id", ("大图预览", "素材信息 / 身份码", "相关素材推荐", "业务侧推荐栏"), (2040, 780, 2640, 1330), "#16a34a"),
         "download": Screen("download", "预览 / 下载", "DownloadMenu", ("预览不计数", "下载写入统计", "主图 / 版本下载"), (2780, 820, 3220, 1170), "#16a34a"),
         "agent": Screen("agent", "素材库 Agent", "AssetAgentWidget", ("个人会话列表", "加入图片上下文", "解释卖点 / 场景 / 话术", "每日 00:00 重置"), (3360, 775, 3970, 1335), "#10b981", "#f0fdf4"),
-        "share": Screen("share", "分享链接入口", "/share/:code", ("解析素材码 / 版本码", "确定性重定向", "不进入语义搜索"), (4130, 840, 4630, 1160), "#16a34a"),
+        "share": Screen("share", "身份码精确查找", "首页搜索框", ("解析单张图片身份码", "返回对应图片", "不进入语义搜索"), (4130, 840, 4630, 1160), "#16a34a"),
 
         "upload": Screen("upload", "上传主图弹窗", "UploadDialog", ("选择图片 / 批量提示", "素材名称与重名检查", "渠道必填", "卖点/证明点/证据点可选", "提交后自动分配身份码"), (130, 1600, 760, 2150), "#f97316"),
         "phrase": Screen("phrase", "上传前话术生成", "PhraseGenerator", ("选择生成数量", "读取图片 + 标题 + 卖点", "生成候选素材话术", "人工修改后提交"), (860, 1600, 1360, 2010), "#f97316"),
@@ -214,11 +214,11 @@ def main() -> None:
         "version": Screen("version", "版本 / 删除弹窗", "VersionDialog", ("新增主图/派生图", "设为主图", "删除变体确认"), (3540, 1605, 4015, 2010), "#f97316"),
         "trash": Screen("trash", "回收站", "/trash", ("已删除图片列表", "恢复", "永久删除"), (4140, 1605, 4640, 2010), "#f97316"),
 
-        "concepts": Screen("concepts", "卖点管理", "/admin/concepts", ("六大体系", "16 个卖点", "公共话术编辑", "AI 建议需确认"), (130, 2450, 690, 2940), "#6366f1"),
+        "concepts": Screen("concepts", "卖点管理", "/admin/concepts", ("左侧六大业务体系", "右侧所属卖点", "16 个卖点", "按体系切换"), (130, 2450, 690, 2940), "#6366f1"),
         "channels": Screen("channels", "渠道管理", "/admin/channels", ("渠道标签列表", "渠道家族 / 尺寸语境", "渠道话术", "搜索结果推荐说明"), (790, 2450, 1350, 2940), "#6366f1"),
         "api": Screen("api", "API 中心", "/admin/api-center", ("健康度监测", "API 管理 / Key 指纹", "调度配置 / 任务槽位", "调用链路日志", "中转站与维护状态"), (1450, 2415, 2070, 2990), "#6366f1"),
         "ops": Screen("ops", "搜索运营", "/admin/search-ops", ("总览 / 项目治理", "待处理问题 / AI 待审核", "概念健康 / 素材资产", "源文件健康 / 模型速度", "素材缺口 / 反馈归档"), (2170, 2415, 2800, 2990), "#6366f1"),
-        "codes": Screen("codes", "身份码管理", "/admin/identity-codes", ("素材码 / 版本码", "状态筛选", "复制身份码", "删除后不释放旧码"), (2900, 2450, 3460, 2940), "#6366f1"),
+        "codes": Screen("codes", "身份码管理", "/admin/identity-codes", ("一张图片一个码", "只列活动图片", "复制身份码", "删除即消失"), (2900, 2450, 3460, 2940), "#6366f1"),
         "usage": Screen("usage", "使用统计", "/admin/usage", ("今日 / 7 / 30 / 90 天", "登录 / 访问 / 下载", "用户使用量", "最近事件"), (3560, 2450, 4120, 2940), "#6366f1"),
         "users": Screen("users", "用户管理", "/admin/users", ("创建账号", "角色切换", "启用 / 停用", "重置密码"), (4220, 2450, 4780, 2940), "#6366f1"),
         "audit": Screen("audit", "审计日志", "/admin/audit", ("后台操作记录", "API 变更摘要", "非敏感审计", "排查留痕"), (1450, 3050, 2070, 3195), "#6366f1"),
@@ -273,7 +273,7 @@ def main() -> None:
     connect(draw, [side(screens["api"], "top"), (1760, 2310), (3600, 2310), (3600, 1428), side(screens["agent"], "bottom")], "asset_agent_chat", purple, 3)
     connect(draw, [side(screens["api"], "top"), (1760, 2265), (2385, 2265), side(screens["ai"], "bottom")], "图片分析/话术生成", purple, 3)
     connect(draw, [side(screens["api"], "top"), (1760, 2290), (965, 2290), side(screens["loading"], "bottom")], "搜索理解", purple, 3)
-    connect(draw, [side(screens["codes"], "top"), (3180, 2365), (4380, 2365), side(screens["share"], "bottom")], "身份码台账", purple, 3)
+    connect(draw, [side(screens["codes"], "top"), (3180, 2365), (4380, 2365), side(screens["share"], "bottom")], "活动图片身份码", purple, 3)
     connect(draw, [side(screens["usage"], "top"), (3840, 2370), (1620, 2370), (1620, 1350), side(screens["result"], "bottom")], "下载/访问统计", gray, 3)
     connect(draw, [side(screens["users"], "top"), (4500, 2350), (4500, 330), (2170, 330), side(screens["role"], "top")], "角色权限", purple, 3)
     connect(draw, [side(screens["ops"], "top"), (2485, 2350), (1600, 2350), (1600, 1350), side(screens["result"], "bottom")], "搜索日志/反馈", gray, 3)
@@ -281,7 +281,7 @@ def main() -> None:
     rounded(draw, (90, 3270, 5110, 3420), 20, "#f8fafc", "#cbd5e1", 2)
     text(draw, (125, 3298), "核心运行规则", "#0f172a", SCREEN_TITLE)
     notes = [
-        "身份码 / 分享链接：先走确定性查找，直接进入素材详情，不让模型猜。",
+        "单张图片身份码：先走确定性查找，直接进入素材详情，不让模型猜。",
         "普通搜索：统一走 API 中心做体系、卖点、证明点理解，再受 accepted 人工关系约束。",
         "素材库 Agent：只解释图片、卖点、场景和话术，不写入业务事实；每个用户会话隔离。",
         "API Key：只在后台 API 中心维护，文档和仓库只放示例格式，不暴露真实密钥。",

@@ -5,7 +5,7 @@ from app.models.api_provider import (
     ModelCallTrace,
     ModelRoutingSlot,
 )
-from app.models.asset import AssetConceptLink, AssetGroup, AssetIdentityCode, AssetSearchPhrase
+from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.asset_agent import AssetAgentMessage, AssetAgentSession
 from app.models.business_concept import (
     BusinessConcept,
@@ -28,7 +28,6 @@ from app.models.user import AuditLog, LoginThrottle, User, UserSession
 __all__ = [
     "ApiCenterSetting",
     "AssetGroup",
-    "AssetIdentityCode",
     "AssetConceptLink",
     "AssetSearchPhrase",
     "AssetAgentSession",

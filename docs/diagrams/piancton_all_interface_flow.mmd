@@ -17,7 +17,7 @@ flowchart LR
     B4["素材详情 /image/:id<br/>大图预览<br/>素材信息<br/>身份码<br/>相关素材推荐"]
     B5["预览/下载<br/>预览不计数<br/>下载计数<br/>按版本下载"]
     B6["素材库 Agent<br/>个人会话<br/>加入图片上下文<br/>解释卖点/场景/话术<br/>自然日重置"]
-    B7["分享链接 /share/:code<br/>解析身份码<br/>重定向到详情"]
+    B7["图片身份码精确查找<br/>解析当前图片身份码<br/>直接返回详情"]
   end
 
   subgraph C[设计师 / 管理员素材维护流]
@@ -35,7 +35,7 @@ flowchart LR
     D2["渠道管理 /admin/channels<br/>渠道标签<br/>渠道家族<br/>尺寸语境<br/>渠道话术<br/>推荐说明"]
     D3["API 中心 /admin/api-center<br/>健康度监测<br/>API 管理<br/>调度配置<br/>调用链路日志"]
     D4["搜索运营 /admin/search-ops<br/>总览/治理<br/>待处理问题<br/>AI 待审核<br/>概念健康度<br/>素材缺口/反馈归档"]
-    D5["身份码管理 /admin/identity-codes<br/>素材码<br/>版本码<br/>状态筛选<br/>复制<br/>历史台账"]
+    D5["身份码管理 /admin/identity-codes<br/>一图一码<br/>仅活动图片<br/>复制<br/>查看图片"]
     D6["使用统计 /admin/usage<br/>登录<br/>页面访问<br/>下载<br/>活跃用户"]
     D7["用户管理 /admin/users<br/>创建账号<br/>角色切换<br/>启停用户<br/>重置密码"]
     D8["审计日志 /admin/audit<br/>后台操作<br/>非敏感变更摘要<br/>排查记录"]
@@ -67,8 +67,7 @@ flowchart LR
   D3 -.模型任务调度.-> B2
   D3 -.图片分析/Agent.-> C3
   D4 -.搜索反馈和缺口.-> D1
-  D5 -.身份码精确查找.-> B7
+  D5 -.图片身份码精确查找.-> B7
   D6 -.使用事件.-> B1
   D7 -.角色权限.-> A4
   D8 -.后台审计.-> D3
-

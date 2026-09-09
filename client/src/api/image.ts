@@ -50,6 +50,17 @@ export async function updateImageTitle(
   return (await api.patch(`/api/images/${id}/title`, data)).data;
 }
 
+export async function updateImageFilterMetadata(
+  id: string,
+  data: {
+    channel: string;
+    styleLabel?: string | null;
+    isSceneImage: boolean;
+  },
+): Promise<ImageItem> {
+  return (await api.patch(`/api/images/${id}/filter-metadata`, data)).data;
+}
+
 export async function resolveImageTitle(title: string): Promise<ImageTitleResolution> {
   return (await api.get('/api/images/title-resolution', { params: { title } })).data;
 }

@@ -280,6 +280,23 @@ export interface paths {
         patch: operations["update_image_title_api_images__image_id__title_patch"];
         trace?: never;
     };
+    "/api/images/{image_id}/filter-metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Image Filter Metadata */
+        patch: operations["update_image_filter_metadata_api_images__image_id__filter_metadata_patch"];
+        trace?: never;
+    };
     "/api/asset-groups": {
         parameters: {
             query?: never;
@@ -1974,10 +1991,6 @@ export interface components {
         AssetGroupRead: {
             /** Id */
             id: string;
-            /** Assetcode */
-            assetCode?: string | null;
-            /** Sharepath */
-            sharePath?: string | null;
             /** Title */
             title: string;
             /** Primaryimageid */
@@ -2015,85 +2028,12 @@ export interface components {
              */
             updatedAt: string;
         };
-        /** AssetIdentityCodeListResponse */
-        AssetIdentityCodeListResponse: {
-            /** Items */
-            items: components["schemas"]["AssetIdentityCodeRead"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Pagesize */
-            pageSize: number;
-            summary: components["schemas"]["AssetIdentityCodeSummary"];
-        };
-        /** AssetIdentityCodeRead */
-        AssetIdentityCodeRead: {
-            /** Code */
-            code: string;
-            /**
-             * Codetype
-             * @enum {string}
-             */
-            codeType: "asset" | "version";
-            /** Assetgroupid */
-            assetGroupId?: string | null;
-            /** Primaryimageid */
-            primaryImageId?: string | null;
-            /** Imageid */
-            imageId?: string | null;
-            /** Assettitle */
-            assetTitle?: string | null;
-            /** Imagetitle */
-            imageTitle?: string | null;
-            /** Filename */
-            fileName?: string | null;
-            /** Assetrole */
-            assetRole?: string | null;
-            /** Versionno */
-            versionNo?: number | null;
-            /** Iscurrent */
-            isCurrent?: boolean | null;
-            /** Deletedat */
-            deletedAt?: string | null;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /** Retiredat */
-            retiredAt?: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "active" | "deleted" | "retired";
-            /** Detailpath */
-            detailPath?: string | null;
-        };
-        /** AssetIdentityCodeSummary */
-        AssetIdentityCodeSummary: {
-            /** Assettotal */
-            assetTotal: number;
-            /** Versiontotal */
-            versionTotal: number;
-            /** Activetotal */
-            activeTotal: number;
-            /** Deletedtotal */
-            deletedTotal: number;
-            /** Retiredtotal */
-            retiredTotal: number;
-        };
         /** AssetImageRead */
         AssetImageRead: {
             /** Id */
             id: string;
-            /** Assetcode */
-            assetCode?: string | null;
-            /** Versioncode */
-            versionCode?: string | null;
-            /** Sharepath */
-            sharePath?: string | null;
+            /** Identitycode */
+            identityCode?: string | null;
             /** Title */
             title: string;
             /** Filename */
@@ -2616,12 +2556,8 @@ export interface components {
         ImageDetailRead: {
             /** Id */
             id: string;
-            /** Assetcode */
-            assetCode?: string | null;
-            /** Versioncode */
-            versionCode?: string | null;
-            /** Sharepath */
-            sharePath?: string | null;
+            /** Identitycode */
+            identityCode?: string | null;
             /** Title */
             title: string;
             /** Filename */
@@ -2689,6 +2625,56 @@ export interface components {
             /** Analysisruns */
             analysisRuns?: components["schemas"]["AnalysisRunRead"][];
         };
+        /** ImageFilterMetadataUpdate */
+        ImageFilterMetadataUpdate: {
+            /** Channel */
+            channel: string;
+            /** Stylelabel */
+            styleLabel?: string | null;
+            /** Issceneimage */
+            isSceneImage: boolean;
+        };
+        /** ImageIdentityCodeListResponse */
+        ImageIdentityCodeListResponse: {
+            /** Items */
+            items: components["schemas"]["ImageIdentityCodeRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            summary: components["schemas"]["ImageIdentityCodeSummary"];
+        };
+        /** ImageIdentityCodeRead */
+        ImageIdentityCodeRead: {
+            /** Code */
+            code: string;
+            /** Imageid */
+            imageId: string;
+            /** Imagetitle */
+            imageTitle: string;
+            /** Filename */
+            fileName: string;
+            /** Channel */
+            channel?: string | null;
+            /** Width */
+            width?: number | null;
+            /** Height */
+            height?: number | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Detailpath */
+            detailPath: string;
+        };
+        /** ImageIdentityCodeSummary */
+        ImageIdentityCodeSummary: {
+            /** Imagetotal */
+            imageTotal: number;
+        };
         /** ImageListResponse */
         ImageListResponse: {
             /** Items */
@@ -2702,12 +2688,8 @@ export interface components {
         ImageRead: {
             /** Id */
             id: string;
-            /** Assetcode */
-            assetCode?: string | null;
-            /** Versioncode */
-            versionCode?: string | null;
-            /** Sharepath */
-            sharePath?: string | null;
+            /** Identitycode */
+            identityCode?: string | null;
             /** Title */
             title: string;
             /** Filename */
@@ -4175,6 +4157,46 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ImageTitleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_image_filter_metadata_api_images__image_id__filter_metadata_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                image_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageFilterMetadataUpdate"];
             };
         };
         responses: {
@@ -5804,8 +5826,6 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
-                codeType?: string;
-                status?: string;
                 page?: number;
                 pageSize?: number;
             };
@@ -5823,7 +5843,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssetIdentityCodeListResponse"];
+                    "application/json": components["schemas"]["ImageIdentityCodeListResponse"];
                 };
             };
             /** @description Validation Error */

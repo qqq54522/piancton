@@ -464,7 +464,6 @@ def seed(count: int = DEFAULT_PLACEHOLDER_COUNT, dry_run: bool = False) -> tuple
 
             concept = concepts[spec.concept_code]
             group = AssetGroup(
-                asset_code=identities.allocate_asset_code(),
                 title=spec.title,
                 approval_status="approved",
                 publish_status="published",
@@ -476,7 +475,7 @@ def seed(count: int = DEFAULT_PLACEHOLDER_COUNT, dry_run: bool = False) -> tuple
             )
             image = Image(
                 id=image_id,
-                version_code=identities.allocate_version_code(group.asset_code, 1),
+                identity_code=identities.allocate_code(),
                 title=spec.title,
                 file_name=(
                     f"placeholder-{spec.serial_no:04d}-"
@@ -539,9 +538,6 @@ def seed(count: int = DEFAULT_PLACEHOLDER_COUNT, dry_run: bool = False) -> tuple
                 for phrase in spec.phrases
             )
             db.add(image)
-            db.flush()
-            identities.register_group(group)
-            identities.register_image(image)
             db.flush()
             search_index.upsert_image(image)
             created += 1

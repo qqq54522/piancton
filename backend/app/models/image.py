@@ -19,11 +19,11 @@ class Image(Base):
     __tablename__ = "images"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    version_code: Mapped[str] = mapped_column(
+    identity_code: Mapped[Optional[str]] = mapped_column(
         String(32),
+        nullable=True,
         unique=True,
         index=True,
-        default=lambda: f"PC-{uuid.uuid4().hex[:6].upper()}-V01",
     )
     title: Mapped[str] = mapped_column(String(255), index=True)
     file_name: Mapped[str] = mapped_column(String(255))
@@ -57,6 +57,8 @@ class Image(Base):
             "uq_images_title_normalized",
             func.lower(func.trim(title)),
             unique=True,
+            sqlite_where=deleted_at.is_(None),
+            postgresql_where=deleted_at.is_(None),
         ),
     )
 
@@ -70,18 +72,6 @@ class Image(Base):
         back_populates="image", cascade="all, delete-orphan", uselist=False
     )
     asset_group: Mapped[Optional["AssetGroup"]] = relationship(back_populates="images")
-
-
-class ImageTitleReservation(Base):
-    __tablename__ = "image_title_reservations"
-
-    normalized_title: Mapped[str] = mapped_column(String(255), primary_key=True)
-    title: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, index=True
-    )
-
-
 class ContentTag(Base):
     __tablename__ = "content_tags"
 

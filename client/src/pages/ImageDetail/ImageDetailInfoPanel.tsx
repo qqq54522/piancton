@@ -1,4 +1,4 @@
-import { Check, Copy, Link2, Loader2, Trash2 } from 'lucide-react';
+import { Check, Copy, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@client/src/components/ui/button';
@@ -136,10 +136,8 @@ const ImageDetailInfoPanel = ({
 };
 
 function IdentityCodePanel({ detail }: { detail: ImageDetail }) {
-  const assetCode = detail.assetCode;
-  const versionCode = detail.versionCode;
-  const sharePath = detail.sharePath;
-  if (!assetCode && !versionCode) return null;
+  const identityCode = detail.identityCode;
+  if (!identityCode) return null;
 
   const copy = async (value: string, message: string) => {
     try {
@@ -150,36 +148,18 @@ function IdentityCodePanel({ detail }: { detail: ImageDetail }) {
     }
   };
 
-  const shareUrl = sharePath
-    ? `${window.location.origin}${sharePath}`
-    : null;
-
   return (
     <div className="mt-5 rounded-xl border border-border/80 bg-[#f7f7f5] p-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold text-foreground">素材身份</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">用于分享和精准查找，不随标题变化</p>
-        </div>
-        {shareUrl && (
-          <button
-            type="button"
-            aria-label="复制分享链接"
-            title="复制分享链接"
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-white text-foreground transition hover:bg-foreground hover:text-background"
-            onClick={() => copy(shareUrl, '分享链接已复制')}
-          >
-            <Link2 className="size-4" />
-          </button>
-        )}
+      <div>
+        <p className="text-xs font-semibold text-foreground">图片身份码</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">每张图片一个码，删除图片后同步移除</p>
       </div>
-      <div className="mt-3 space-y-2">
-        {assetCode && (
-          <IdentityCodeRow label="素材码" value={assetCode} onCopy={() => copy(assetCode, '素材码已复制')} />
-        )}
-        {versionCode && (
-          <IdentityCodeRow label="版本码" value={versionCode} onCopy={() => copy(versionCode, '版本码已复制')} />
-        )}
+      <div className="mt-3">
+        <IdentityCodeRow
+          label="身份码"
+          value={identityCode}
+          onCopy={() => copy(identityCode, '身份码已复制')}
+        />
       </div>
     </div>
   );

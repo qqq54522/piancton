@@ -35,7 +35,7 @@ const ImageCard = ({
   const imageUrl = useImageUrl(previewUrlFor(image, { animateGif: animateGifPreview }));
   const { ability, isLoading } = useAuth();
   const isDesigner = !isLoading && ability.can('designer', ROLE_SUBJECT);
-  const identityCode = image.versionCode || image.assetCode;
+  const identityCode = image.identityCode;
 
   const copyIdentity = async () => {
     if (!identityCode) return;

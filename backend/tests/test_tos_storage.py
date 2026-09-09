@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from PIL import Image as PillowImage
 from sqlalchemy import select
 
 from app.api import dependencies
@@ -121,6 +122,37 @@ def test_api_remote_upload_preview_download_zip_and_purge(client, db_factory, re
     remote.client.fail_delete = False
     assert client.delete(f"/api/images/{image['id']}/purge", headers=headers).status_code == 204
     assert not remote.client.objects
+
+
+def test_remote_legacy_long_thumbnail_falls_back_and_cleans_temp_file(
+    client,
+    db_factory,
+    remote,
+    monkeypatch,
+):
+    install_remote(monkeypatch, remote)
+    response = client.post(
+        "/api/images/upload",
+        headers=admin_headers(client),
+        files={"file": ("legacy-long.png", png_file(1200, 3600), "image/png")},
+        data={"title": "远端旧长图", "channel": "手机端大图", "autoAnalyze": "false"},
+    )
+    assert response.status_code == 201
+    payload = response.json()
+
+    legacy_thumbnail = BytesIO()
+    PillowImage.new("RGB", (213, 640), "red").save(legacy_thumbnail, format="JPEG")
+    with db_factory() as db:
+        image = db.get(Image, payload["id"])
+        object_key = remote.object_key(image.thumbnail_storage_key, thumbnail=True)
+    remote.client.objects[(remote.bucket, object_key)] = legacy_thumbnail.getvalue()
+
+    preview = client.get(payload["thumbnailUrl"])
+    assert preview.status_code == 200
+    assert preview.headers["content-type"].startswith("image/png")
+    with PillowImage.open(BytesIO(preview.content)) as served:
+        assert served.size == (1200, 3600)
+    assert not list(remote.downloads.iterdir())
 
 
 def test_legacy_local_reads_and_verified_migration(client, db_factory, monkeypatch):

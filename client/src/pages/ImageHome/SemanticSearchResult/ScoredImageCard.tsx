@@ -39,7 +39,7 @@ function ScoredImageCard({
   const [selectedId, setSelectedId] = useState(variants[0].id);
   const selected = variants.find((item) => item.id === selectedId) ?? variants[0];
   const canSaveToProjectBasket = Boolean(scored.assetGroupId && onToggleProjectBasket);
-  const identityCode = selected.versionCode || selected.assetCode || scored.image.versionCode || scored.image.assetCode;
+  const identityCode = selected.identityCode || scored.image.identityCode;
   const copyIdentity = async () => {
     if (!identityCode) return;
     await navigator.clipboard.writeText(identityCode);
@@ -127,9 +127,7 @@ function ScoredImageCard({
 function fallbackVariant(scored: ScoredImageMatch): AssetImage {
   return {
     id: scored.image.id,
-    assetCode: scored.image.assetCode,
-    versionCode: scored.image.versionCode,
-    sharePath: scored.image.sharePath,
+    identityCode: scored.image.identityCode,
     title: scored.image.title,
     fileName: scored.image.fileName,
     thumbnailUrl: scored.image.thumbnailUrl,
