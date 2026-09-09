@@ -8,6 +8,13 @@
 
 ---
 
+## 2026-09-09：国内服务器一键更新（D283）
+
+- backend 与 web Dockerfile 新增可配置的 `PIP_INDEX_URL`、`NPM_CONFIG_REGISTRY`；Compose 把两个变量作为构建参数传入。国内服务器可同时覆盖五个基础镜像、清华 PyPI 和 npmmirror，避免构建中途重新访问境外源。
+- 生成仅含 Git 项目文件的更新包；不包含 `.env`、PostgreSQL、图片卷、训练数据、输出或报告。部署流程先备份 `.env` 与数据库，再覆盖代码并重建容器。
+- backend 入口仍按 `alembic upgrade head → seed_taxonomy → uvicorn` 启动，现有活动图片自动执行 `0035` 一图一码迁移；主图优先沿用原素材组码作为图片身份码，其他活动版本获得唯一新码，已删除图片不保留码。
+- 验证：`docker compose config --quiet` 与 `git diff --check` 通过。
+
 ## 2026-09-09：业务体系归类与一图一码（D282）
 
 - 业务卖点管理改为“左侧业务体系、右侧所属卖点”。左侧读取六大 active system 标签，右侧只展示与当前体系存在 `core` 归属的核心卖点；页面不再把火山向量路由技术角色当成管理员主要信息。

@@ -12,6 +12,20 @@
 
 ## 本轮部署修正
 
+国内服务器构建时可直接在根目录 `.env` 覆盖完整镜像名与依赖源，无需修改 Dockerfile：
+
+```env
+POSTGRES_IMAGE=m.daocloud.io/docker.io/library/postgres:17-alpine
+PYTHON_BASE_IMAGE=m.daocloud.io/docker.io/library/python:3.12-slim
+NODE_BASE_IMAGE=m.daocloud.io/docker.io/library/node:22-alpine
+NGINX_BASE_IMAGE=m.daocloud.io/docker.io/library/nginx:1.27-alpine
+MEILISEARCH_IMAGE=m.daocloud.io/docker.io/getmeili/meilisearch:v1.13
+PIP_INDEX_URL=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+```
+
+这七项只影响拉取和构建来源，不改数据库、图片卷、业务数据或运行时 API 配置。
+
 - Compose 显式传入 `.env.docker.example` 的全部 VikingDB 参数。
 - `.dockerignore` 排除 `backend/.env.*`，仅保留示例文件，防止本地 VikingDB 配置进入镜像。
 - 服务设置 `restart: unless-stopped`，支持服务器重启后自动恢复。
