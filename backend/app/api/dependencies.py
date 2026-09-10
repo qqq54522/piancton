@@ -37,6 +37,8 @@ from app.services.storage_factory import build_storage
 from app.services.tag_service import TagService
 from app.services.usage_analytics_service import UsageAnalyticsService
 from app.services.user_service import UserService
+from app.services.viking_knowledge_service_client import VikingKnowledgeServiceClient
+from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
 from app.services.vikingdb_client import VikingDBClient
 from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
@@ -66,7 +68,26 @@ def _build_scheduled_provider(
     return api_center.build_scheduled_provider(default_request_id=request_id)
 
 
-def _build_vikingdb_knowledge_router(db: Session) -> VikingDBKnowledgeRouter | None:
+def _build_vikingdb_knowledge_router(
+    db: Session,
+) -> VikingDBKnowledgeRouter | VikingKnowledgeServiceRouter | None:
+    runtime_catalog = IntentCatalogService(
+        BusinessConceptRepository(db)
+    ).runtime_catalog()
+    if settings.viking_knowledge_service_enabled:
+        return VikingKnowledgeServiceRouter(
+            client=VikingKnowledgeServiceClient(
+                base_url=settings.viking_knowledge_service_base_url,
+                api_key=settings.viking_knowledge_service_api_key,
+                service_resource_id=settings.viking_knowledge_service_resource_id,
+                chat_path=settings.viking_knowledge_service_path,
+                timeout_seconds=settings.viking_knowledge_service_timeout_seconds,
+                result_limit=settings.viking_knowledge_service_result_limit,
+            ),
+            runtime_catalog=runtime_catalog,
+            enabled=settings.viking_knowledge_service_enabled,
+            max_matches=settings.viking_knowledge_service_max_matches,
+        )
     if not settings.vikingdb_knowledge_router_enabled:
         return None
     return VikingDBKnowledgeRouter(
@@ -79,9 +100,7 @@ def _build_vikingdb_knowledge_router(db: Session) -> VikingDBKnowledgeRouter | N
             timeout_seconds=settings.vikingdb_timeout_seconds,
         ),
         index_name=settings.vikingdb_index_name,
-        runtime_catalog=IntentCatalogService(
-            BusinessConceptRepository(db)
-        ).runtime_catalog(),
+        runtime_catalog=runtime_catalog,
         enabled=settings.vikingdb_knowledge_router_enabled,
         limit=settings.vikingdb_search_limit,
         min_score=settings.vikingdb_knowledge_min_score,
@@ -182,7 +201,10 @@ def get_search_service(
     db: Session = Depends(get_db),
 ) -> SearchService:
     pure_vikingdb_search = (
-        settings.vikingdb_knowledge_router_enabled
+        (
+            settings.viking_knowledge_service_enabled
+            or settings.vikingdb_knowledge_router_enabled
+        )
         and not settings.vikingdb_skill_backup_enabled
     )
     search_ai_service = get_search_ai_service(

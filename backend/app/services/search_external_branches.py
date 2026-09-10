@@ -20,6 +20,7 @@ from app.services.search_models import (
     SearchDeadline,
     SearchHit,
 )
+from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
 from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 
 
@@ -44,7 +45,9 @@ class SearchExternalBranches:
         candidate_review_limit: int,
         embedding_top_n: int,
         candidate_limit: int,
-        vikingdb_knowledge_router: VikingDBKnowledgeRouter | None = None,
+        vikingdb_knowledge_router: (
+            VikingDBKnowledgeRouter | VikingKnowledgeServiceRouter | None
+        ) = None,
         vikingdb_skill_backup_enabled: bool = True,
         understanding_grace_seconds: float = 5.0,
         understanding_retry_attempts: int = 1,

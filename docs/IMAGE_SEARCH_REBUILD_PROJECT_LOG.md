@@ -2,11 +2,24 @@
 
 更新时间：2026-09-10
 当前范围：Phase 0～Phase 6；火山 VikingDB 干净知识路由、渠道/版位筛选、搜索顶部命中解释和 API 调用边界收口继续按真实业务边界推进
-当前状态：Phase 0～6 工程改造完成；当前打开的本地项目作为唯一基准；火山 VikingDB 当前只保留六大体系和 16 个卖点的干净知识文档；搜索主链路由火山先命中卖点，再回本地数据库按人工 accepted 关系取图库；API 中心当前正式自动调度只保留搜索结果顶部“命中卖点解释”和素材库 Agent 两类调用；搜索顶部解释由后端与前端双层清理过程文案；上传图片语义分析、上传前素材话术生成和兼容文案卖点匹配不再作为当前主流程任务。
+当前状态：Phase 0～6 工程改造完成；当前打开的本地项目作为唯一基准；火山知识库服务可作为当前优先卖点裁决入口，旧 VikingDB 向量知识路由保留兼容；搜索主链路由火山先判断卖点并给出依据，再回本地数据库按人工 accepted 关系取图库；API 中心当前正式自动调度只保留搜索结果顶部“命中卖点解释”和素材库 Agent 两类调用；搜索顶部解释由后端与前端双层清理过程文案；上传图片语义分析、上传前素材话术生成和兼容文案卖点匹配不再作为当前主流程任务。
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
 
 ---
+
+## 2026-09-10：Viking 知识库服务卖点裁决（D292）
+
+- 背景：用户在火山 Viking 知识库控制台验证了“卖点图知识库/卖点图调用”的问答效果，可以判断一句自然语言是否属于洋葱业务卖点、命中哪些卖点，并给出定义和判断依据。该效果比旧的线上向量数据库直接相似召回更符合当前“先判卖点，再回本地图库取图”的产品方向。
+- 实现：新增 `VikingKnowledgeServiceClient` 调用火山知识库 `/api/knowledge/service/chat`，使用 Bearer API Key；新增 `VikingKnowledgeServiceRouter`，把 `generated_answer`、`reasoning_content` 和检索片段中的卖点命中转为现有 `SearchUnderstanding`。依赖注入改为新知识库服务配置启用时优先使用新服务，未启用时继续兼容旧 VikingDB 向量知识路由。
+- 边界：知识库服务只做卖点裁决和解释，不直接返回图片、不写入图片事实、不替代本地 PostgreSQL 中人工 accepted 的 `expresses/supports` 关系；非卖点问题会转为 `no_reliable_intent_search`，避免把客服/价格/退款问题硬套卖点。
+- 配置：新增 `VIKING_KNOWLEDGE_SERVICE_ENABLED`、`VIKING_KNOWLEDGE_SERVICE_BASE_URL`、`VIKING_KNOWLEDGE_SERVICE_API_KEY`、`VIKING_KNOWLEDGE_SERVICE_RESOURCE_ID`、`VIKING_KNOWLEDGE_SERVICE_PATH`、`VIKING_KNOWLEDGE_SERVICE_TIMEOUT_SECONDS`、`VIKING_KNOWLEDGE_SERVICE_RESULT_LIMIT` 和 `VIKING_KNOWLEDGE_SERVICE_MAX_MATCHES`。真实 API Key 只放本机或服务器 `.env`，不进入版本库。
+- 验证：新增路由断言覆盖单卖点、多卖点、非卖点问题和只依赖检索片段命中的场景；`PYTHONDONTWRITEBYTECODE=1 /opt/homebrew/bin/python3 -m py_compile ...` 通过；相关 Ruff 通过；手动执行新增路由断言通过。本机正式 pytest 未执行：系统 Python 未安装 pytest，`backend/.venv` 为 Python 3.9，加载既有 FastAPI app 时会被既有 `str | None` 语法阻断。
+
+### 后续
+
+- 服务器 `.env` 填入知识库服务 ID/API Key 并开启 `VIKING_KNOWLEDGE_SERVICE_ENABLED=true`、`VIKINGDB_SKILL_BACKUP_ENABLED=false` 后，重建 backend/web，再用“拍题精学 + 学一题会一类”“退款多少钱”“湖南省合作案例图”等真实查询分别验收：业务话术命中卖点并返回本地 accepted 图片；非卖点问题不返回卖点图；精确图片检索继续优先走本地图库。
+- 若火山服务返回文案格式漂移，优先在控制台 Prompt 要求稳定 JSON 输出，再调整后端解析；不要把大量自然语言特判堆入搜索编排器。
 
 ## 2026-09-10：长图详情原图按需加载（D291）
 

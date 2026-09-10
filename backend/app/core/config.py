@@ -88,6 +88,16 @@ class Settings(BaseSettings):
     vikingdb_knowledge_multi_score_ratio: float = 0.9
     vikingdb_knowledge_multi_score_gap: float = 0.08
     vikingdb_knowledge_max_matches: int = 3
+    viking_knowledge_service_enabled: bool = False
+    viking_knowledge_service_base_url: str = (
+        "https://api-knowledgebase.mlp.cn-beijing.volces.com"
+    )
+    viking_knowledge_service_api_key: str = ""
+    viking_knowledge_service_resource_id: str = ""
+    viking_knowledge_service_path: str = "/api/knowledge/service/chat"
+    viking_knowledge_service_timeout_seconds: float = 12.0
+    viking_knowledge_service_result_limit: int = 6
+    viking_knowledge_service_max_matches: int = 4
     reranker_base_url: str = ""
     reranker_api_key: str = ""
     reranker_model_name: str = ""
