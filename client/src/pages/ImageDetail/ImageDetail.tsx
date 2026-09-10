@@ -25,13 +25,19 @@ const ImageDetail = () => {
   const detail = detailQuery.data ?? null;
   const assetGroupQuery = useAssetGroup(detail?.assetGroupId);
   const loading = detailQuery.isLoading;
-  const mainImageUrl = useImageUrl(detail?.contentUrl ?? '');
+  const [showOriginalImage, setShowOriginalImage] = useState(false);
   const canDesign = useAuth();
   const isDesigner = !canDesign.isLoading && canDesign.ability.can('designer', ROLE_SUBJECT);
   const actions = useImageDetailActions(detail);
-  const useScrollableTallPreview = Boolean(
+  const isTallImage = Boolean(
     detail?.width && detail.height && detail.height / detail.width > 1.65,
   );
+  const mainImageUrl = useImageUrl(
+    isTallImage && !showOriginalImage
+      ? detail?.thumbnailUrl ?? detail?.contentUrl ?? ''
+      : detail?.contentUrl ?? '',
+  );
+  const useScrollableTallPreview = isTallImage;
   const previewBackgroundClassName = 'bg-[linear-gradient(135deg,#f1f5f9_25%,transparent_25%),linear-gradient(225deg,#f1f5f9_25%,transparent_25%),linear-gradient(45deg,#f1f5f9_25%,transparent_25%),linear-gradient(315deg,#f1f5f9_25%,#fff_25%)] bg-[length:24px_24px] bg-[position:12px_0,12px_0,0_0,0_0]';
   const previewFrameModeClassName = useScrollableTallPreview
     ? 'overflow-y-auto overflow-x-hidden overscroll-contain p-4 sm:p-5'
@@ -44,6 +50,10 @@ const ImageDetail = () => {
   const businessSideRef = useRef<HTMLElement | null>(null);
   const [infoPanelHeight, setInfoPanelHeight] = useState<number | null>(null);
   const [sideRecommendationsMaxHeight, setSideRecommendationsMaxHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    setShowOriginalImage(false);
+  }, [detail?.id]);
 
   useEffect(() => {
     const frame = imageFrameRef.current;
@@ -146,9 +156,14 @@ const ImageDetail = () => {
             <section className="surface-card overflow-hidden">
               <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
                 <div
-                  className={`${previewBackgroundClassName} ${previewFrameModeClassName} lg:border-r lg:border-border/70`}
+                  className={`relative ${previewBackgroundClassName} ${previewFrameModeClassName} lg:border-r lg:border-border/70`}
                   style={{ height: 'clamp(520px, calc(100vh - 150px), 760px)' }}
                 >
+                  <LongImageLoadControl
+                    active={useScrollableTallPreview}
+                    showingOriginal={showOriginalImage}
+                    onShowOriginal={() => setShowOriginalImage(true)}
+                  />
                   <img
                     src={mainImageUrl}
                     alt={detail.title}
@@ -211,9 +226,14 @@ const ImageDetail = () => {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.75fr)]">
         <div
           ref={imageFrameRef}
-          className={`surface-card ${previewBackgroundClassName} ${previewFrameModeClassName}`}
+          className={`surface-card relative ${previewBackgroundClassName} ${previewFrameModeClassName}`}
           style={useScrollableTallPreview ? { height: 'clamp(560px, calc(100vh - 148px), 820px)' } : { aspectRatio: detail.width && detail.height ? `${detail.width} / ${detail.height}` : '4 / 3' }}
         >
+          <LongImageLoadControl
+            active={useScrollableTallPreview}
+            showingOriginal={showOriginalImage}
+            onShowOriginal={() => setShowOriginalImage(true)}
+          />
           <img
             src={mainImageUrl}
             alt={detail.title}
@@ -253,5 +273,34 @@ const ImageDetail = () => {
     </div>
   );
 };
+
+interface LongImageLoadControlProps {
+  active: boolean;
+  showingOriginal: boolean;
+  onShowOriginal: () => void;
+}
+
+function LongImageLoadControl({
+  active,
+  showingOriginal,
+  onShowOriginal,
+}: LongImageLoadControlProps) {
+  if (!active) return null;
+
+  return (
+    <div className="absolute right-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 rounded-full border border-border/70 bg-white/95 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
+      <span>{showingOriginal ? '正在显示原图' : '预览图加载更快'}</span>
+      {!showingOriginal && (
+        <button
+          type="button"
+          onClick={onShowOriginal}
+          className="rounded-full bg-foreground px-2.5 py-1 text-xs font-semibold text-background transition hover:bg-foreground/90"
+        >
+          查看原图
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default ImageDetail;
