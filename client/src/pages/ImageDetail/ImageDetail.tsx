@@ -29,6 +29,16 @@ const ImageDetail = () => {
   const canDesign = useAuth();
   const isDesigner = !canDesign.isLoading && canDesign.ability.can('designer', ROLE_SUBJECT);
   const actions = useImageDetailActions(detail);
+  const useScrollableTallPreview = Boolean(
+    detail?.width && detail.height && detail.height / detail.width > 1.65,
+  );
+  const previewBackgroundClassName = 'bg-[linear-gradient(135deg,#f1f5f9_25%,transparent_25%),linear-gradient(225deg,#f1f5f9_25%,transparent_25%),linear-gradient(45deg,#f1f5f9_25%,transparent_25%),linear-gradient(315deg,#f1f5f9_25%,#fff_25%)] bg-[length:24px_24px] bg-[position:12px_0,12px_0,0_0,0_0]';
+  const previewFrameModeClassName = useScrollableTallPreview
+    ? 'overflow-y-auto overflow-x-hidden overscroll-contain p-4 sm:p-5'
+    : 'flex items-center justify-center overflow-hidden';
+  const previewImageClassName = useScrollableTallPreview
+    ? 'mx-auto h-auto w-full max-w-full'
+    : 'max-h-full max-w-full object-contain';
   const imageFrameRef = useRef<HTMLDivElement | null>(null);
   const businessRelatedRef = useRef<HTMLDivElement | null>(null);
   const businessSideRef = useRef<HTMLElement | null>(null);
@@ -136,13 +146,13 @@ const ImageDetail = () => {
             <section className="surface-card overflow-hidden">
               <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
                 <div
-                  className="flex items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#f1f5f9_25%,transparent_25%),linear-gradient(225deg,#f1f5f9_25%,transparent_25%),linear-gradient(45deg,#f1f5f9_25%,transparent_25%),linear-gradient(315deg,#f1f5f9_25%,#fff_25%)] bg-[length:24px_24px] bg-[position:12px_0,12px_0,0_0,0_0] lg:border-r lg:border-border/70"
+                  className={`${previewBackgroundClassName} ${previewFrameModeClassName} lg:border-r lg:border-border/70`}
                   style={{ height: 'clamp(520px, calc(100vh - 150px), 760px)' }}
                 >
                   <img
                     src={mainImageUrl}
                     alt={detail.title}
-                    className="max-h-full max-w-full object-contain"
+                    className={previewImageClassName}
                   />
                 </div>
 
@@ -201,13 +211,13 @@ const ImageDetail = () => {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.75fr)]">
         <div
           ref={imageFrameRef}
-          className="surface-card flex items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#f1f5f9_25%,transparent_25%),linear-gradient(225deg,#f1f5f9_25%,transparent_25%),linear-gradient(45deg,#f1f5f9_25%,transparent_25%),linear-gradient(315deg,#f1f5f9_25%,#fff_25%)] bg-[length:24px_24px] bg-[position:12px_0,12px_0,0_0,0_0]"
-          style={{ aspectRatio: detail.width && detail.height ? `${detail.width} / ${detail.height}` : '4 / 3' }}
+          className={`surface-card ${previewBackgroundClassName} ${previewFrameModeClassName}`}
+          style={useScrollableTallPreview ? { height: 'clamp(560px, calc(100vh - 148px), 820px)' } : { aspectRatio: detail.width && detail.height ? `${detail.width} / ${detail.height}` : '4 / 3' }}
         >
           <img
             src={mainImageUrl}
             alt={detail.title}
-            className="max-h-full max-w-full object-contain"
+            className={previewImageClassName}
           />
         </div>
 
