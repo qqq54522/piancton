@@ -118,13 +118,21 @@ const SemanticSearchResult = ({
       )}
 
       {!result.fallback && routeSummary && (
-        <div className="mb-4 flex flex-col gap-1 rounded-lg border border-foreground/10 bg-foreground px-4 py-3 text-background shadow-sm">
-          <p className="text-xs font-semibold leading-5">
-            {routeSummary.title}
-          </p>
-          <p className="text-xs leading-5 text-background/78">
-            {routeSummary.description}
-          </p>
+        <div className="mb-4 rounded-xl border border-foreground/10 bg-foreground px-4 py-3 text-background shadow-sm">
+          <div className="space-y-2 text-xs leading-5">
+            <p>
+              <span className="font-semibold">结果：</span>
+              <span>{routeSummary.result}</span>
+            </p>
+            <p className="text-background/82">
+              <span className="font-semibold text-background">判断：</span>
+              <span>{routeSummary.judgment}</span>
+            </p>
+            <p className="text-background/82">
+              <span className="font-semibold text-background">定义：</span>
+              <span>{routeSummary.definition}</span>
+            </p>
+          </div>
         </div>
       )}
 
@@ -182,15 +190,16 @@ function buildRouteSummary({
   keyword,
   matchedSellingPoints,
   routeExplanation,
-}: RouteSummaryInput): { title: string; description: string } | null {
+}: RouteSummaryInput): { result: string; judgment: string; definition: string } | null {
   if (matchedSellingPoints.length === 0) return null;
   const sellingPointText = matchedSellingPoints.length > 0
     ? matchedSellingPoints.slice(0, 3).join('、')
     : '当前需求';
   return {
-    title: `命中卖点：${sellingPointText}`,
-    description: cleanRouteExplanation(routeExplanation)
+    result: `命中卖点：${sellingPointText}`,
+    judgment: cleanRouteExplanation(routeExplanation)
       || buildLocalRouteExplanation(keyword, sellingPointText),
+    definition: buildSellingPointDefinitions(matchedSellingPoints),
   };
 }
 
@@ -207,7 +216,11 @@ function cleanRouteExplanation(value?: string | null): string {
     '同时按',
     '收窄版位',
   ];
-  const explanation = (value ?? '').replace(/\s+/g, ' ').trim();
+  const explanation = (value ?? '')
+    .replace(/<reference\b[^>]*>[\s\S]*?<\/reference>/g, '')
+    .replace(/<\/?reference\b[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   const cutoffIndexes = processMarkers
     .map((marker) => explanation.indexOf(marker))
     .filter((index) => index >= 0);
@@ -218,6 +231,9 @@ function cleanRouteExplanation(value?: string | null): string {
     .replace(/(?:未指定渠道|已按当前渠道\/场景筛选|同时按).+?(?:。|$)/g, '')
     .replace(/当前返回\s*\d+\s*组[^。]*。?/g, '')
     .replace(/卡片下方[^。]*。?/g, '')
+    .replace(/相关证明点[:：][\s\S]*$/g, '')
+    .replace(/对应[^。]*证明点[:：][\s\S]*$/g, '')
+    .replace(/证明点\s*\d+[:：][^。]*。?/g, '')
     .replace(/[，,；; ]+$/g, '')
     .trim();
 }
@@ -227,5 +243,47 @@ function buildLocalRouteExplanation(keyword: string, sellingPointText: string): 
   const queryText = query ? `「${query}」` : '这句话';
   return `${queryText}的有效信号不是单个关键词，而是整句话表达出的学习动作、目标结果和使用场景；这些信号与「${sellingPointText}」的核心能力一致，所以优先推荐该卖点下已确认的素材。`;
 }
+
+function buildSellingPointDefinitions(matchedSellingPoints: string[]): string {
+  const definitions = matchedSellingPoints
+    .slice(0, 3)
+    .map((name) => {
+      const definition = SELLING_POINT_DEFINITIONS[name];
+      return definition ? `${name}：${definition}` : `${name}：以知识库中该卖点的业务定义为准。`;
+    });
+  return definitions.join('；');
+}
+
+const SELLING_POINT_DEFINITIONS: Record<string, string> = {
+  同步校内: '课程按孩子所在地区和学校使用的教材版本、目录及章节进度对应，减少校内外版本不一致、章节对不上的问题。',
+  教材版本与课程目录同步: '课程按孩子所在地区和学校使用的教材版本、目录及章节进度对应，减少校内外版本不一致、章节对不上的问题。',
+  动画精讲: '通过动画演绎、过程可视化和故事化表达，把课堂中难理解、讲得快或缺少直观呈现的知识点讲清楚。',
+  动画讲透知识点: '通过动画演绎、过程可视化和故事化表达，把课堂中难理解、讲得快或缺少直观呈现的知识点讲清楚。',
+  课后小测: '孩子学完当前课或知识点后立即练习或小测，用结果确认是否掌握，并把错题和本节学情反馈出来。',
+  学练测闭环: '孩子学完当前课或知识点后立即练习或小测，用结果确认是否掌握，并把错题和本节学情反馈出来。',
+  新课标新考法预测: '围绕课标和考试改革带来的新情境、跨学科、开放探究及题型变化，拆解命题趋势、考查逻辑与应对方法。',
+  新课标新考法: '围绕课标和考试改革带来的新情境、跨学科、开放探究及题型变化，拆解命题趋势、考查逻辑与应对方法。',
+  专项培优: '根据学科高频考点、重难点、薄弱题型和考试阶段，提供专项训练、系统讲解、考前重点梳理及高频易错题训练。',
+  分学科重难点专项培优: '根据学科高频考点、重难点、薄弱题型和考试阶段，提供专项训练、系统讲解、考前重点梳理及高频易错题训练。',
+  举一反三: '先讲清知识与题型背后的底层原理、命题逻辑和解题路径，再通过变式题和同类题训练迁移能力。',
+  '理解原理，举一反三': '先讲清知识与题型背后的底层原理、命题逻辑和解题路径，再通过变式题和同类题训练迁移能力。',
+  专家规划: '由具备命题研究、教材编写或学科教研背景的专家参与课程体系、知识顺序和能力进阶路径设计。',
+  命题专家与教材编者设计: '由具备命题研究、教材编写或学科教研背景的专家参与课程体系、知识顺序和能力进阶路径设计。',
+  学段衔接: '从小学到高中连续覆盖课程，并针对幼小、小升初、初升高等学习跃迁提供过渡内容，兼顾同步和拔高。',
+  小初高一体化与学段衔接: '从小学到高中连续覆盖课程，并针对幼小、小升初、初升高等学习跃迁提供过渡内容，兼顾同步和拔高。',
+  万能解法: '讲解知识和问题背后的底层原理、通用方法与学科思维，帮助孩子从固定套路转向自主分析与迁移。',
+  底层方法与思维培养: '讲解知识和问题背后的底层原理、通用方法与学科思维，帮助孩子从固定套路转向自主分析与迁移。',
+  AI定制学习方案: '根据学生当前条件、目标和可投入时间，自动生成个人学习路径、每日任务、课程顺序和阶段进度。',
+  'AI 量身定制学习方案': '根据学生当前条件、目标和可投入时间，自动生成个人学习路径、每日任务、课程顺序和阶段进度。',
+  AI私教答疑: '在学习过程中支持文字、语音或图片等输入，围绕当前知识问题进行即时互动答疑和追问澄清。',
+  'AI 私教随时答疑': '在学习过程中支持文字、语音或图片等输入，围绕当前知识问题进行即时互动答疑和追问澄清。',
+  AI拍题精学: '识别拍摄的具体题目后，通过分步提问、条件梳理和思路提示引导孩子自主推导，而不是直接展示最终答案。',
+  'AI 拍题精学': '识别拍摄的具体题目后，通过分步提问、条件梳理和思路提示引导孩子自主推导，而不是直接展示最终答案。',
+  极速预习复习: '课前拍摄课本或学习内容快速获得知识梳理，课后拍摄笔记或内容快速回顾当天重点和薄弱处。',
+  AI错题本: '把线下错题拍照上传并整理到线上错题本，便于学生随时查阅、复盘，并围绕同类题继续训练。',
+  'AI 错题本': '把线下错题拍照上传并整理到线上错题本，便于学生随时查阅、复盘，并围绕同类题继续训练。',
+  真人老师督学: '由专属真人伴学老师持续参与学习管理，进行问题诊断、阶段计划、提醒督促、回访复盘和家长同步。',
+  学情报告反馈: '按日或按周汇总学习内容、时长、行为和效果，通过家长可访问的报告反馈真实进度、薄弱点与异常情况。',
+};
 
 export default SemanticSearchResult;

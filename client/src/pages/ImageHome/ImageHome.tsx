@@ -20,15 +20,12 @@ import { channelValueIncludes } from './channelValue';
 /** 桌面端设计师/管理员使用左侧导航栏，不再占用顶部高度 */
 const APP_HEADER_HEIGHT = 0;
 const HOME_CONTENT_TOP_GAP = 16;
-const SEARCH_LOADING_ESTIMATE_MS = 60_000;
 const SEARCH_LOADING_MESSAGE_HEIGHT_REM = 1.25;
 const SEARCH_LOADING_MESSAGE_INTERVAL_MS = 2400;
-const SEARCH_LOADING_PROGRESS_TICK_MS = 500;
-const SEARCH_LOADING_PROGRESS_RADIUS = 34;
-const SEARCH_LOADING_PROGRESS_CIRCUMFERENCE = 2 * Math.PI * SEARCH_LOADING_PROGRESS_RADIUS;
 const SEARCH_LOADING_MESSAGES = [
-  '搜索时间较长，预计 20-60 秒，请耐心等待',
-  '正在进行语义匹配，结果会自动出现',
+  '我先把这句话拆成业务动作、目标结果和使用场景。',
+  '正在对照卖点知识库，判断它属于哪个核心卖点。',
+  '命中卖点后，会回到素材库取这个卖点下已确认的图片。',
 ] as const;
 
 interface ImageHomeLocationState {
@@ -336,7 +333,6 @@ const SearchErrorState = ({
 
 const SearchLoadingState = () => {
   const [messageIndex, setMessageIndex] = useState(0);
-  const [progress, setProgress] = useState(() => getEstimatedSearchProgress(0));
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -345,79 +341,40 @@ const SearchLoadingState = () => {
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const startedAt = performance.now();
-    const updateProgress = () => {
-      setProgress(getEstimatedSearchProgress(performance.now() - startedAt));
-    };
-    updateProgress();
-    const timer = window.setInterval(updateProgress, SEARCH_LOADING_PROGRESS_TICK_MS);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const strokeDashoffset = SEARCH_LOADING_PROGRESS_CIRCUMFERENCE
-    * (1 - progress / 100);
-
   return (
-    <div className="flex flex-col items-center justify-center py-20">
+    <div className="flex min-h-[360px] items-start justify-center px-4 pt-12 sm:pt-16">
       <div
-        className="relative size-24"
-        role="progressbar"
-        aria-label="搜索进度"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={progress}
+        className="w-full max-w-[760px] rounded-3xl border border-border/70 bg-card px-6 py-6 shadow-sm sm:px-8"
+        role="status"
+        aria-live="polite"
       >
-        <svg className="size-24 -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
-          <circle
-            className="stroke-secondary"
-            cx="40"
-            cy="40"
-            r={SEARCH_LOADING_PROGRESS_RADIUS}
-            fill="none"
-            strokeWidth="6"
-          />
-          <circle
-            className="stroke-foreground transition-[stroke-dashoffset] duration-500 ease-out"
-            cx="40"
-            cy="40"
-            r={SEARCH_LOADING_PROGRESS_RADIUS}
-            fill="none"
-            strokeLinecap="round"
-            strokeWidth="6"
-            style={{
-              strokeDasharray: SEARCH_LOADING_PROGRESS_CIRCUMFERENCE,
-              strokeDashoffset,
-            }}
-          />
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-base font-semibold text-foreground">
-          {progress}%
-        </span>
-      </div>
-      <div className="mt-4 h-5 max-w-[90vw] overflow-hidden text-center text-sm text-muted-foreground" aria-live="polite">
-        <div
-          className="transition-transform duration-500 ease-out"
-          style={{ transform: `translateY(-${messageIndex * SEARCH_LOADING_MESSAGE_HEIGHT_REM}rem)` }}
-        >
-          {SEARCH_LOADING_MESSAGES.map((message) => (
-            <p key={message} className="h-5 whitespace-nowrap leading-5">{message}</p>
-          ))}
+        <div className="rounded-2xl bg-secondary/55 px-5 py-5">
+          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
+            <span className="inline-flex size-5 animate-pulse items-center justify-center rounded-full bg-foreground text-[10px] text-background">
+              ✺
+            </span>
+            思考中...
+          </div>
+          <div className="border-l border-border pl-4 text-sm leading-7 text-foreground/82">
+            <div className="h-5 overflow-hidden">
+              <div
+                className="transition-transform duration-500 ease-out"
+                style={{ transform: `translateY(-${messageIndex * SEARCH_LOADING_MESSAGE_HEIGHT_REM}rem)` }}
+              >
+                {SEARCH_LOADING_MESSAGES.map((message) => (
+                  <p key={message} className="h-5 whitespace-nowrap leading-5">{message}</p>
+                ))}
+              </div>
+            </div>
+            <p className="mt-2 text-foreground/64">
+              这一步会先判断卖点，再返回对应素材，稍等一下就好。
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-
-function getEstimatedSearchProgress(elapsedMs: number): number {
-  const earlyProgress = Math.min(elapsedMs / SEARCH_LOADING_ESTIMATE_MS, 1);
-  const easedProgress = 1 - Math.pow(1 - earlyProgress, 2.4);
-  if (elapsedMs <= SEARCH_LOADING_ESTIMATE_MS) {
-    return Math.round(8 + easedProgress * 84);
-  }
-  const longWaitProgress = Math.min((elapsedMs - SEARCH_LOADING_ESTIMATE_MS) / SEARCH_LOADING_ESTIMATE_MS, 1);
-  return Math.round(92 + longWaitProgress * 4);
-}
 
 interface ManualFilterRailProps {
   open: boolean;
