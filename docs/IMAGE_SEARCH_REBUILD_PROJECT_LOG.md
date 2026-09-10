@@ -7814,6 +7814,42 @@ Model：数据结构和关系
 2. 进入 API 中心 → 知识与数据库，确认知识库服务与 VikingDB V2 的配置。
 3. 分别点击“测试连接”。
 4. 用短词、长句、多卖点句和无效素材词验证搜索链路。
+
+# 2026-09-10 D296 搜索 fallback 展示热修
+
+## 本轮目标
+
+- 修复搜索页把 `fallback=true` 误显示为整条查找通道失败的问题。
+- 让用户能看见真实结果、空状态和卖点判断，而不是被错误页盖住。
+
+## 完成内容
+
+- 首页搜索不可用状态改为只由真实接口错误 `globalSearchError` 触发。
+- 语义搜索结果组件不再把 fallback 渲染为整页失败状态。
+- fallback 改为结果区顶部黄色提示条：说明部分智能判断链路降级，但保留当前可用结果。
+- “结果 / 判断 / 定义”黑色裁决卡和图片/空状态在 fallback 时继续正常展示。
+
+## 修改文件
+
+- `client/src/pages/ImageHome/ImageHome.tsx`
+- `client/src/pages/ImageHome/SemanticSearchResult/index.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+## 数据迁移
+
+- 无。
+- 不改变知识库、VikingDB、API Center 配置、图片事实、人工 accepted 关系或后端协议。
+
+## 测试结果
+
+- 前端 `npm run typecheck` 通过。
+- 前端 `npm run lint` 通过。
+- `git diff --check` 通过。
+
+## 下一步
+
+- 服务器重建前端后，搜索 `考前复习`、短词和无效素材词，观察是否从整页错误改为结果/空状态加提示条。
 # 2026-09-07 D275 公司服务器部署准备
 
 按用户确认采用空库部署：不带图片、旧账号和 API 配置，初始化 6 个体系和 16 个卖点，管理员单独创建；复用现有 VikingDB。补齐 Compose 环境变量和重启策略，Docker 排除本地 `.env.*`。镜像构建、空库迁移和种子幂等通过；前端 54 测试及构建通过，后端 364 passed / 21 failed / 4 skipped，Ruff 与 Pyright 遗留问题未清零。无新增迁移，无本地业务数据写入。服务器尚待拉取、启动、创建管理员及生产验收，详见 `COMPANY_SERVER_DEPLOYMENT_2026-09-07.md`。

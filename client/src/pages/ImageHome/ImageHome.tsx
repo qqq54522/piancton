@@ -86,7 +86,7 @@ const ImageHome = () => {
   const browsingImages = filterBrowseImages(manualFilteredImages, searchRefinements);
   const showingFilteredEmptyState = images.length > 0 && browsingImages.length === 0;
   const browsingLoading = loading || (globalSearchLoading && !showingTypedSearch);
-  const searchUnavailable = globalSearchError || Boolean(semanticResult?.fallback);
+  const searchUnavailable = Boolean(globalSearchError);
   const headerTopOffset = (isBusiness ? 0 : APP_HEADER_HEIGHT) + stickyHeaderHeight;
   const contentTopOffset = headerTopOffset + HOME_CONTENT_TOP_GAP;
   const retrySearch = () => {
@@ -231,7 +231,6 @@ const ImageHome = () => {
                   showBusinessAccount={isBusiness}
                   animateGifPreview={animatedGifPreview.enabled}
                   onClear={clearGlobalSearch}
-                  onRetry={retrySearch}
                 />
               ) : (
                 <div>

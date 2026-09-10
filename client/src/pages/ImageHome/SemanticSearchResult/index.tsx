@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { RotateCcw, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 
 import { submitSearchFeedback } from '@client/src/api/image';
@@ -25,7 +25,6 @@ interface SemanticSearchResultProps {
   showBusinessAccount: boolean;
   animateGifPreview: boolean;
   onClear: () => void;
-  onRetry: () => void;
 }
 
 
@@ -38,7 +37,6 @@ const SemanticSearchResult = ({
   showBusinessAccount,
   animateGifPreview,
   onClear,
-  onRetry,
 }: SemanticSearchResultProps) => {
   const [feedbackNote, setFeedbackNote] = useState('');
   const [submittedFeedback, setSubmittedFeedback] = useState<SearchFeedbackType | null>(null);
@@ -92,32 +90,20 @@ const SemanticSearchResult = ({
       )}
 
       {result.fallback && (
-        <div className="flex min-h-[360px] items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-base font-semibold text-muted-foreground">查找通道出现了一些问题，请稍后再试</h2>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {result.fallbackReason || '外部语义增强未在时限内完成'}
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-                onClick={onRetry}
-              >
-                <RotateCcw className="size-4" />
-                重新尝试
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground" onClick={onClear}>
-                清除搜索
-              </Button>
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <div>
+              <p className="font-medium">部分智能判断链路发生降级，已保留当前可用搜索结果。</p>
+              <p className="mt-1">
+                {result.fallbackReason || '外部语义增强未在时限内完成，可稍后重试或到 API 中心测试连接。'}
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {!result.fallback && routeSummary && (
+      {routeSummary && (
         <div className="mb-4 rounded-xl border border-foreground/10 bg-foreground px-4 py-3 text-background shadow-sm">
           <div className="space-y-2 text-xs leading-5">
             <p>
@@ -136,7 +122,7 @@ const SemanticSearchResult = ({
         </div>
       )}
 
-      {!result.fallback && visibleResults.length > 0 ? (
+      {visibleResults.length > 0 ? (
         <>
           <ProjectBasketPanel
             items={projectBasket.items}
