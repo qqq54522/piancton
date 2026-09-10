@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.errors import ForbiddenError
 from app.db.session import SessionLocal, get_db
 from app.models.user import User, UserSession
+from app.repositories.api_center_repository import ApiCenterRepository
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
@@ -29,6 +30,7 @@ from app.services.image_service import ImageService
 from app.services.intent_catalog_service import IntentCatalogService
 from app.services.search_cache import shared_search_caches
 from app.services.search_index_sync import SearchIndexSync
+from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
 from app.services.search_log_service import SearchLogService
 from app.services.search_ops_service import SearchOpsService
 from app.services.search_service import SearchService
@@ -44,6 +46,52 @@ from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 
 settings = get_settings()
+
+
+def _api_center_setting(db: Session, key: str, default: object) -> str:
+    row = ApiCenterRepository(db).get_setting(key)
+    if row is not None and row.value != "":
+        return row.value
+    return str(default or "")
+
+
+def _api_center_bool(db: Session, key: str, default: bool) -> bool:
+    raw = _api_center_setting(db, key, default).strip().lower()
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    if raw in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
+
+
+def _api_center_float(
+    db: Session,
+    key: str,
+    default: float,
+    *,
+    minimum: float,
+    maximum: float,
+) -> float:
+    try:
+        value = float(_api_center_setting(db, key, default).strip())
+    except ValueError:
+        value = default
+    return max(minimum, min(value, maximum))
+
+
+def _api_center_int(
+    db: Session,
+    key: str,
+    default: int,
+    *,
+    minimum: int,
+    maximum: int,
+) -> int:
+    try:
+        value = int(float(_api_center_setting(db, key, default).strip()))
+    except ValueError:
+        value = default
+    return max(minimum, min(value, maximum))
 
 
 def _trace_session_factory(db: Session):
@@ -70,44 +118,169 @@ def _build_scheduled_provider(
 
 def _build_vikingdb_knowledge_router(
     db: Session,
-) -> VikingDBKnowledgeRouter | VikingKnowledgeServiceRouter | None:
+) -> (
+    VikingDBKnowledgeRouter
+    | VikingKnowledgeServiceRouter
+    | SearchKnowledgeFallbackRouter
+    | None
+):
     runtime_catalog = IntentCatalogService(
         BusinessConceptRepository(db)
     ).runtime_catalog()
-    if settings.viking_knowledge_service_enabled:
-        return VikingKnowledgeServiceRouter(
+    vector_enabled = _api_center_bool(
+        db,
+        "vikingdb_knowledge_router_enabled",
+        settings.vikingdb_knowledge_router_enabled,
+    )
+    vector_base_url = _api_center_setting(db, "vikingdb_base_url", settings.vikingdb_base_url)
+    vector_api_key = _api_center_setting(db, "vikingdb_api_key", settings.vikingdb_api_key)
+    vector_collection_name = _api_center_setting(
+        db,
+        "vikingdb_collection_name",
+        settings.vikingdb_collection_name,
+    )
+    vector_index_name = _api_center_setting(
+        db,
+        "vikingdb_index_name",
+        settings.vikingdb_index_name,
+    )
+    vector_timeout_seconds = _api_center_float(
+        db,
+        "vikingdb_timeout_seconds",
+        settings.vikingdb_timeout_seconds,
+        minimum=0.5,
+        maximum=120.0,
+    )
+    vector_search_limit = _api_center_int(
+        db,
+        "vikingdb_search_limit",
+        settings.vikingdb_search_limit,
+        minimum=1,
+        maximum=100,
+    )
+    knowledge_service_enabled = _api_center_bool(
+        db,
+        "viking_knowledge_service_enabled",
+        settings.viking_knowledge_service_enabled,
+    )
+    fallback_enabled = _api_center_bool(
+        db,
+        "vikingdb_knowledge_fallback_enabled",
+        settings.vikingdb_knowledge_fallback_enabled,
+    )
+    vector_router = None
+    if vector_enabled:
+        vector_router = VikingDBKnowledgeRouter(
+            client=VikingDBClient(
+                base_url=vector_base_url,
+                api_key=vector_api_key,
+                collection_name=vector_collection_name,
+                upsert_path=settings.vikingdb_upsert_path,
+                search_path=settings.vikingdb_search_path,
+                timeout_seconds=vector_timeout_seconds,
+            ),
+            index_name=vector_index_name,
+            runtime_catalog=runtime_catalog,
+            enabled=vector_enabled,
+            limit=vector_search_limit,
+            min_score=_api_center_float(
+                db,
+                "vikingdb_knowledge_min_score",
+                settings.vikingdb_knowledge_min_score,
+                minimum=0.0,
+                maximum=1.0,
+            ),
+            multi_score_ratio=settings.vikingdb_knowledge_multi_score_ratio,
+            multi_score_gap=settings.vikingdb_knowledge_multi_score_gap,
+            max_matches=_api_center_int(
+                db,
+                "vikingdb_knowledge_max_matches",
+                settings.vikingdb_knowledge_max_matches,
+                minimum=1,
+                maximum=6,
+            ),
+        )
+    if knowledge_service_enabled:
+        service_router = VikingKnowledgeServiceRouter(
             client=VikingKnowledgeServiceClient(
-                base_url=settings.viking_knowledge_service_base_url,
-                api_key=settings.viking_knowledge_service_api_key,
-                service_resource_id=settings.viking_knowledge_service_resource_id,
+                base_url=_api_center_setting(
+                    db,
+                    "viking_knowledge_service_base_url",
+                    settings.viking_knowledge_service_base_url,
+                ),
+                api_key=_api_center_setting(
+                    db,
+                    "viking_knowledge_service_api_key",
+                    settings.viking_knowledge_service_api_key,
+                ),
+                service_resource_id=_api_center_setting(
+                    db,
+                    "viking_knowledge_service_resource_id",
+                    settings.viking_knowledge_service_resource_id,
+                ),
                 chat_path=settings.viking_knowledge_service_path,
-                timeout_seconds=settings.viking_knowledge_service_timeout_seconds,
-                result_limit=settings.viking_knowledge_service_result_limit,
+                timeout_seconds=_api_center_float(
+                    db,
+                    "viking_knowledge_service_timeout_seconds",
+                    settings.viking_knowledge_service_timeout_seconds,
+                    minimum=0.5,
+                    maximum=60.0,
+                ),
+                result_limit=_api_center_int(
+                    db,
+                    "viking_knowledge_service_result_limit",
+                    settings.viking_knowledge_service_result_limit,
+                    minimum=1,
+                    maximum=20,
+                ),
             ),
             runtime_catalog=runtime_catalog,
-            enabled=settings.viking_knowledge_service_enabled,
-            max_matches=settings.viking_knowledge_service_max_matches,
+            enabled=knowledge_service_enabled,
+            max_matches=_api_center_int(
+                db,
+                "viking_knowledge_service_max_matches",
+                settings.viking_knowledge_service_max_matches,
+                minimum=1,
+                maximum=6,
+            ),
         )
-    if not settings.vikingdb_knowledge_router_enabled:
-        return None
-    return VikingDBKnowledgeRouter(
-        client=VikingDBClient(
-            base_url=settings.vikingdb_base_url,
-            api_key=settings.vikingdb_api_key,
-            collection_name=settings.vikingdb_collection_name,
-            upsert_path=settings.vikingdb_upsert_path,
-            search_path=settings.vikingdb_search_path,
-            timeout_seconds=settings.vikingdb_timeout_seconds,
-        ),
-        index_name=settings.vikingdb_index_name,
-        runtime_catalog=runtime_catalog,
-        enabled=settings.vikingdb_knowledge_router_enabled,
-        limit=settings.vikingdb_search_limit,
-        min_score=settings.vikingdb_knowledge_min_score,
-        multi_score_ratio=settings.vikingdb_knowledge_multi_score_ratio,
-        multi_score_gap=settings.vikingdb_knowledge_multi_score_gap,
-        max_matches=settings.vikingdb_knowledge_max_matches,
-    )
+        if fallback_enabled:
+            fallback_router = VikingDBKnowledgeRouter(
+                client=VikingDBClient(
+                    base_url=vector_base_url,
+                    api_key=vector_api_key,
+                    collection_name=vector_collection_name,
+                    upsert_path=settings.vikingdb_upsert_path,
+                    search_path=settings.vikingdb_search_path,
+                    timeout_seconds=vector_timeout_seconds,
+                ),
+                index_name=vector_index_name,
+                runtime_catalog=runtime_catalog,
+                enabled=vector_enabled,
+                limit=max(1, vector_search_limit),
+                min_score=_api_center_float(
+                    db,
+                    "vikingdb_knowledge_fallback_min_score",
+                    settings.vikingdb_knowledge_fallback_min_score,
+                    minimum=0.0,
+                    maximum=1.0,
+                ),
+                multi_score_ratio=1.0,
+                multi_score_gap=0.0,
+                max_matches=_api_center_int(
+                    db,
+                    "vikingdb_knowledge_fallback_max_matches",
+                    settings.vikingdb_knowledge_fallback_max_matches,
+                    minimum=1,
+                    maximum=6,
+                ),
+            )
+            return SearchKnowledgeFallbackRouter(
+                primary=service_router,
+                fallback=fallback_router,
+            )
+        return service_router
+    return vector_router
 
 
 def get_db_session_factory():
@@ -202,8 +375,16 @@ def get_search_service(
 ) -> SearchService:
     pure_vikingdb_search = (
         (
-            settings.viking_knowledge_service_enabled
-            or settings.vikingdb_knowledge_router_enabled
+            _api_center_bool(
+                db,
+                "viking_knowledge_service_enabled",
+                settings.viking_knowledge_service_enabled,
+            )
+            or _api_center_bool(
+                db,
+                "vikingdb_knowledge_router_enabled",
+                settings.vikingdb_knowledge_router_enabled,
+            )
         )
         and not settings.vikingdb_skill_backup_enabled
     )

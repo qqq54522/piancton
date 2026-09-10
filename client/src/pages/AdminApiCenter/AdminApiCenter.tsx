@@ -4,11 +4,13 @@ import {
   Activity,
   Ban,
   ChevronDown,
+  Database,
   KeyRound,
   ListTree,
   PowerOff,
   RadioTower,
   Route,
+  Save,
   Sparkles,
   Trash2,
 } from 'lucide-react';
@@ -22,8 +24,12 @@ import {
   probeApiCredentialTemperature,
   runApiCenterMaintenance,
   runApiHealthChecks,
+  testExternalKnowledgeService,
+  testExternalVectorDatabase,
   testApiCredential,
   updateApiCredential,
+  updateExternalKnowledgeService,
+  updateExternalVectorDatabase,
   updateRoutingSlot,
 } from '@client/src/api/admin';
 import {
@@ -43,6 +49,9 @@ import type {
   ApiCredential,
   ApiCredentialCreate,
   ApiCredentialUpdate,
+  ApiExternalConnectionTestResult,
+  ApiExternalKnowledgeServiceUpdate,
+  ApiExternalVectorDatabaseUpdate,
   ApiTemperatureTuneResult,
   ModelTaskName,
   RoutingSlotUpdate,
@@ -51,6 +60,7 @@ import type {
 const tabs = [
   { id: 'health', label: '健康度监测', icon: Activity },
   { id: 'keys', label: 'API 管理', icon: KeyRound },
+  { id: 'external', label: '知识与数据库', icon: Database },
   { id: 'routing', label: '模型位置', icon: Route },
   { id: 'traces', label: '调用链路日志', icon: ListTree },
 ] as const;
@@ -177,7 +187,7 @@ export default function AdminApiCenter() {
       <PageHeader
         eyebrow="API Center"
         title="API 中心"
-        description="当前只维护命中卖点解释和素材库 Agent 两个模型位置；搜索主判断由火山向量检索负责。"
+        description="统一管理模型 API、卖点知识库和 VikingDB 向量库；搜索主判断走知识库，未命中时再由向量库做 top1 兜底，本地图库仍是最终事实源。"
       />
 
       <div className="mt-7 flex flex-wrap gap-1 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
@@ -208,6 +218,7 @@ export default function AdminApiCenter() {
             <HealthChecks data={data} onOpenTraces={() => setActiveTab('traces')} />
           )}
           {activeTab === 'keys' && <ApiKeys data={data} />}
+          {activeTab === 'external' && <ExternalConnections data={data} />}
           {activeTab === 'routing' && <RoutingSlots data={data} />}
           {activeTab === 'traces' && <CallTraces data={data} />}
         </div>
@@ -606,6 +617,252 @@ function CapabilityBadges({ credential }: { credential: ApiCredential }) {
         </Badge>
       ))}
     </div>
+  );
+}
+
+function ExternalConnections({ data }: { data: ApiCenterSummary }) {
+  const queryClient = useQueryClient();
+  const [knowledgeForm, setKnowledgeForm] = useState<ApiExternalKnowledgeServiceUpdate>({
+    ...data.externalConnections.knowledgeService,
+    apiKey: '',
+  });
+  const [vectorForm, setVectorForm] = useState<ApiExternalVectorDatabaseUpdate>({
+    ...data.externalConnections.vectorDatabase,
+    apiKey: '',
+  });
+  const saveKnowledgeMutation = useMutation({
+    mutationFn: updateExternalKnowledgeService,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
+  });
+  const saveVectorMutation = useMutation({
+    mutationFn: updateExternalVectorDatabase,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
+  });
+  const testKnowledgeMutation = useMutation({
+    mutationFn: () => testExternalKnowledgeService(),
+  });
+  const testVectorMutation = useMutation({
+    mutationFn: () => testExternalVectorDatabase(),
+  });
+
+  useEffect(() => {
+    setKnowledgeForm((current) => ({
+      ...data.externalConnections.knowledgeService,
+      apiKey: current.apiKey ?? '',
+    }));
+    setVectorForm((current) => ({
+      ...data.externalConnections.vectorDatabase,
+      apiKey: current.apiKey ?? '',
+    }));
+  }, [data.externalConnections]);
+
+  return (
+    <section className="surface-card overflow-hidden">
+      <SectionHeader
+        title="知识与数据库调度"
+        description="这里决定搜索先问哪个知识库、失败后是否进入向量库兜底。页面保存后即写入 API Center，后端下一次搜索会优先读取这里的配置。"
+      />
+      <div className="grid gap-4 bg-muted/20 p-4 xl:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">卖点知识库服务</h3>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                作为主判断：负责理解用户这句话属于哪个业务体系/核心卖点，并输出“结果、判断、定义”。
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className={knowledgeForm.enabled ? statusClass.ok : statusClass.disabled}
+            >
+              {knowledgeForm.enabled ? '主判断启用' : '已停用'}
+            </Badge>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <SwitchField
+              checked={Boolean(knowledgeForm.enabled)}
+              label="启用为卖点主判断"
+              onChange={(enabled) => setKnowledgeForm({ ...knowledgeForm, enabled })}
+            />
+            <LabeledInput
+              label="服务地址"
+              hint="https://api-knowledgebase..."
+              value={knowledgeForm.baseUrl ?? ''}
+              onChange={(baseUrl) => setKnowledgeForm({ ...knowledgeForm, baseUrl })}
+            />
+            <LabeledInput
+              label="服务 ID"
+              hint="kb-service-..."
+              value={knowledgeForm.serviceResourceId ?? ''}
+              onChange={(serviceResourceId) => (
+                setKnowledgeForm({ ...knowledgeForm, serviceResourceId })
+              )}
+            />
+            <LabeledInput
+              label="API Key"
+              hint={
+                data.externalConnections.knowledgeService.apiKeyConfigured
+                  ? '已配置，留空不修改'
+                  : '未配置，请粘贴 key'
+              }
+              type="password"
+              value={knowledgeForm.apiKey ?? ''}
+              onChange={(apiKey) => setKnowledgeForm({ ...knowledgeForm, apiKey })}
+            />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <NumberField
+                label="超时秒数"
+                value={knowledgeForm.timeoutSeconds ?? 12}
+                min={0.5}
+                step={0.5}
+                onChange={(timeoutSeconds) => setKnowledgeForm({ ...knowledgeForm, timeoutSeconds })}
+              />
+              <NumberField
+                label="参考片段数"
+                value={knowledgeForm.resultLimit ?? 6}
+                min={1}
+                max={20}
+                step={1}
+                onChange={(resultLimit) => setKnowledgeForm({ ...knowledgeForm, resultLimit })}
+              />
+              <NumberField
+                label="最多卖点数"
+                value={knowledgeForm.maxMatches ?? 4}
+                min={1}
+                max={6}
+                step={1}
+                onChange={(maxMatches) => setKnowledgeForm({ ...knowledgeForm, maxMatches })}
+              />
+            </div>
+          </div>
+          <ConnectionActions
+            isSaving={saveKnowledgeMutation.isPending}
+            isTesting={testKnowledgeMutation.isPending}
+            onSave={() => saveKnowledgeMutation.mutate(knowledgeForm)}
+            onTest={() => testKnowledgeMutation.mutate()}
+          />
+          <MutationMessage mutation={saveKnowledgeMutation} successText="卖点知识库配置已保存。" />
+          <TestMessage mutation={testKnowledgeMutation} />
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">VikingDB V2 向量库</h3>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                作为兜底判断：知识库没识别出来时，只取 top1；分数低于阈值直接打回，避免乱推。
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className={vectorForm.fallbackEnabled ? statusClass.ok : statusClass.disabled}
+            >
+              {vectorForm.fallbackEnabled ? '兜底启用' : '兜底关闭'}
+            </Badge>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <SwitchField
+                checked={Boolean(vectorForm.enabled)}
+                label="允许向量库判断卖点"
+                onChange={(enabled) => setVectorForm({ ...vectorForm, enabled })}
+              />
+              <SwitchField
+                checked={Boolean(vectorForm.fallbackEnabled)}
+                label="作为知识库兜底"
+                onChange={(fallbackEnabled) => setVectorForm({ ...vectorForm, fallbackEnabled })}
+              />
+            </div>
+            <LabeledInput
+              label="服务地址"
+              hint="https://api-vikingdb..."
+              value={vectorForm.baseUrl ?? ''}
+              onChange={(baseUrl) => setVectorForm({ ...vectorForm, baseUrl })}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <LabeledInput
+                label="Collection"
+                hint="piancton_search_knowledge_v2..."
+                value={vectorForm.collectionName ?? ''}
+                onChange={(collectionName) => setVectorForm({ ...vectorForm, collectionName })}
+              />
+              <LabeledInput
+                label="Index"
+                hint="piancton_knowledge_v2_idx"
+                value={vectorForm.indexName ?? ''}
+                onChange={(indexName) => setVectorForm({ ...vectorForm, indexName })}
+              />
+            </div>
+            <LabeledInput
+              label="API Key"
+              hint={
+                data.externalConnections.vectorDatabase.apiKeyConfigured
+                  ? '已配置，留空不修改'
+                  : '未配置，请粘贴 key'
+              }
+              type="password"
+              value={vectorForm.apiKey ?? ''}
+              onChange={(apiKey) => setVectorForm({ ...vectorForm, apiKey })}
+            />
+            <div className="grid gap-3 sm:grid-cols-4">
+              <NumberField
+                label="召回数量"
+                value={vectorForm.searchLimit ?? 5}
+                min={1}
+                max={100}
+                step={1}
+                onChange={(searchLimit) => setVectorForm({ ...vectorForm, searchLimit })}
+              />
+              <NumberField
+                label="主判断阈值"
+                value={vectorForm.primaryMinScore ?? 0.34}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(primaryMinScore) => setVectorForm({ ...vectorForm, primaryMinScore })}
+              />
+              <NumberField
+                label="兜底阈值"
+                value={vectorForm.fallbackMinScore ?? 0.2}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(fallbackMinScore) => setVectorForm({ ...vectorForm, fallbackMinScore })}
+              />
+              <NumberField
+                label="兜底卖点数"
+                value={vectorForm.fallbackMaxMatches ?? 1}
+                min={1}
+                max={6}
+                step={1}
+                onChange={(fallbackMaxMatches) => (
+                  setVectorForm({ ...vectorForm, fallbackMaxMatches })
+                )}
+              />
+            </div>
+            <NumberField
+              label="超时秒数"
+              value={vectorForm.timeoutSeconds ?? 30}
+              min={0.5}
+              step={0.5}
+              onChange={(timeoutSeconds) => setVectorForm({ ...vectorForm, timeoutSeconds })}
+            />
+          </div>
+          <ConnectionActions
+            isSaving={saveVectorMutation.isPending}
+            isTesting={testVectorMutation.isPending}
+            onSave={() => saveVectorMutation.mutate(vectorForm)}
+            onTest={() => testVectorMutation.mutate()}
+          />
+          <MutationMessage mutation={saveVectorMutation} successText="VikingDB 向量库配置已保存。" />
+          <TestMessage mutation={testVectorMutation} />
+        </div>
+      </div>
+      <div className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">
+        推荐当前策略：卖点知识库开启；VikingDB 仅作为 fallback 开启；fallback 阈值 0.20；fallback 卖点数 1。
+        图片返回仍只读本地已审核素材关系，因此这里不会直接改变图片事实。
+      </div>
+    </section>
   );
 }
 
@@ -1514,6 +1771,144 @@ function LabeledInput({
         onChange={(event) => onChange(event.target.value)}
       />
     </label>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
+  return (
+    <label className="grid gap-1.5 text-sm">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <Input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
+  );
+}
+
+function SwitchField({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="pc-switch rounded-xl border border-border bg-muted/30 px-3 py-2"
+      data-checked={checked}
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+    >
+      <span className="pc-switch-track" />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function ConnectionActions({
+  isSaving,
+  isTesting,
+  onSave,
+  onTest,
+}: {
+  isSaving: boolean;
+  isTesting: boolean;
+  onSave: () => void;
+  onTest: () => void;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      <Button size="sm" disabled={isSaving} onClick={onSave}>
+        <Save className="size-4" />
+        {isSaving ? '保存中...' : '保存配置'}
+      </Button>
+      <Button variant="outline" size="sm" disabled={isTesting} onClick={onTest}>
+        <Sparkles className="size-4" />
+        {isTesting ? '测试中...' : '测试连接'}
+      </Button>
+    </div>
+  );
+}
+
+function MutationMessage({
+  mutation,
+  successText,
+}: {
+  mutation: { isSuccess: boolean; isError: boolean; error: unknown };
+  successText: string;
+}) {
+  if (mutation.isSuccess) {
+    return <p className="mt-3 text-sm text-emerald-700">{successText}</p>;
+  }
+  if (mutation.isError) {
+    return (
+      <p className="mt-3 text-sm text-destructive">
+        {getApiError(mutation.error).message}
+      </p>
+    );
+  }
+  return null;
+}
+
+function TestMessage({
+  mutation,
+}: {
+  mutation: {
+    isSuccess: boolean;
+    isError: boolean;
+    error: unknown;
+    data?: ApiExternalConnectionTestResult;
+  };
+}) {
+  if (mutation.isError) {
+    return (
+      <p className="mt-3 text-sm text-destructive">
+        {getApiError(mutation.error).message}
+      </p>
+    );
+  }
+  if (!mutation.isSuccess || !mutation.data) return null;
+  const className = mutation.data.status === 'ok'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+    : mutation.data.status === 'failed'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : 'border-slate-200 bg-slate-50 text-slate-600';
+  return (
+    <div className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${className}`}>
+      <div className="font-medium">
+        {statusLabel[mutation.data.status] ?? mutation.data.status}
+        {' · '}
+        {mutation.data.durationMs}ms
+      </div>
+      <div>{mutation.data.message}</div>
+      {Object.keys(mutation.data.preview ?? {}).length ? (
+        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg bg-white/60 p-2 text-[11px] text-slate-700">
+          {JSON.stringify(mutation.data.preview, null, 2)}
+        </pre>
+      ) : null}
+    </div>
   );
 }
 

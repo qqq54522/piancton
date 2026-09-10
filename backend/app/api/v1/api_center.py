@@ -9,6 +9,12 @@ from app.schemas.api_center import (
     ApiCredentialCreate,
     ApiCredentialRead,
     ApiCredentialUpdate,
+    ApiExternalConnectionTestRequest,
+    ApiExternalConnectionTestResult,
+    ApiExternalKnowledgeServiceConfig,
+    ApiExternalKnowledgeServiceUpdate,
+    ApiExternalVectorDatabaseConfig,
+    ApiExternalVectorDatabaseUpdate,
     ApiHealthCheckCreate,
     ApiHealthCheckRead,
     ApiHealthCheckRunRequest,
@@ -245,3 +251,93 @@ def update_routing_slot(
     service: ApiCenterService = Depends(get_api_center_service),
 ):
     return service.update_slot(task, payload, actor_user_id=user.id)
+
+
+@router.patch(
+    "/external-connections/knowledge-service",
+    response_model=ApiExternalKnowledgeServiceConfig,
+)
+def update_external_knowledge_service(
+    payload: ApiExternalKnowledgeServiceUpdate,
+    request: Request,
+    user: User = Depends(require_roles("admin")),
+    service: ApiCenterService = Depends(get_api_center_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    config = service.update_external_knowledge_service(payload)
+    changed_fields = [
+        field
+        for field, value in payload.model_dump(exclude_unset=True).items()
+        if value is not None and field != "api_key"
+    ]
+    if payload.api_key and payload.api_key.strip():
+        changed_fields.append("api_key")
+    audit.record(
+        actor_user_id=user.id,
+        action="api_center.external.knowledge_service.update",
+        target_type="api_external_connection",
+        target_id="knowledge-service",
+        details={
+            "changedFields": changed_fields,
+            "apiKeyChanged": bool(payload.api_key and payload.api_key.strip()),
+        },
+        request_id=request.state.request_id,
+    )
+    return config
+
+
+@router.patch(
+    "/external-connections/vector-database",
+    response_model=ApiExternalVectorDatabaseConfig,
+)
+def update_external_vector_database(
+    payload: ApiExternalVectorDatabaseUpdate,
+    request: Request,
+    user: User = Depends(require_roles("admin")),
+    service: ApiCenterService = Depends(get_api_center_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    config = service.update_external_vector_database(payload)
+    changed_fields = [
+        field
+        for field, value in payload.model_dump(exclude_unset=True).items()
+        if value is not None and field != "api_key"
+    ]
+    if payload.api_key and payload.api_key.strip():
+        changed_fields.append("api_key")
+    audit.record(
+        actor_user_id=user.id,
+        action="api_center.external.vector_database.update",
+        target_type="api_external_connection",
+        target_id="vector-database",
+        details={
+            "changedFields": changed_fields,
+            "apiKeyChanged": bool(payload.api_key and payload.api_key.strip()),
+        },
+        request_id=request.state.request_id,
+    )
+    return config
+
+
+@router.post(
+    "/external-connections/knowledge-service/test",
+    response_model=ApiExternalConnectionTestResult,
+)
+def test_external_knowledge_service(
+    payload: ApiExternalConnectionTestRequest,
+    _: User = Depends(require_roles("admin")),
+    service: ApiCenterService = Depends(get_api_center_service),
+):
+    return service.test_external_knowledge_service(payload)
+
+
+@router.post(
+    "/external-connections/vector-database/test",
+    response_model=ApiExternalConnectionTestResult,
+)
+def test_external_vector_database(
+    payload: ApiExternalConnectionTestRequest,
+    _: User = Depends(require_roles("admin")),
+    service: ApiCenterService = Depends(get_api_center_service),
+):
+    return service.test_external_vector_database(payload)

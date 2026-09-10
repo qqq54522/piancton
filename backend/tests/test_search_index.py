@@ -583,6 +583,47 @@ def test_vikingdb_knowledge_router_rejects_generic_short_words():
     assert router.route("标题") is None
 
 
+def test_vikingdb_knowledge_router_fallback_can_use_low_top1_threshold():
+    router = VikingDBKnowledgeRouter(
+        client=_FakeVikingSearchClient(
+            [
+                _viking_match("focused_excellence", 0.23),
+                _viking_match("photo_guided_learning", 0.22),
+            ]
+        ),
+        index_name="piancton_search_assets_idx",
+        runtime_catalog=_router_catalog(),
+        enabled=True,
+        min_score=0.2,
+        max_matches=1,
+    )
+
+    understanding = router.route("学有余力进一步提升")
+
+    assert understanding is not None
+    assert understanding.query_type == "business_intent_search"
+    assert [
+        item.concept for item in understanding.matched_business_concepts
+    ] == ["同步考点体系 > 专项培优"]
+
+
+def test_vikingdb_knowledge_router_fallback_still_rejects_generic_short_words():
+    router = VikingDBKnowledgeRouter(
+        client=_FakeVikingSearchClient(
+            [
+                _viking_match("focused_excellence", 0.25),
+            ]
+        ),
+        index_name="piancton_search_assets_idx",
+        runtime_catalog=_router_catalog(),
+        enabled=True,
+        min_score=0.2,
+        max_matches=1,
+    )
+
+    assert router.route("图") is None
+
+
 def test_vikingdb_client_upsert_payload(monkeypatch):
     requests = []
 

@@ -8,6 +8,7 @@ from app.schemas.image import SearchResponse
 from app.services.ai_service import AiService
 from app.services.identity_search_service import IdentitySearchService
 from app.services.search_cache import SearchCaches
+from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
 from app.services.search_service_components import build_search_components
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
 from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
@@ -51,7 +52,10 @@ class SearchService:
         cache_max_entries: int = 512,
         caches: SearchCaches | None = None,
         vikingdb_knowledge_router: (
-            VikingDBKnowledgeRouter | VikingKnowledgeServiceRouter | None
+            VikingDBKnowledgeRouter
+            | VikingKnowledgeServiceRouter
+            | SearchKnowledgeFallbackRouter
+            | None
         ) = None,
         vikingdb_skill_backup_enabled: bool = True,
     ):

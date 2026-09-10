@@ -8,6 +8,20 @@
 
 ---
 
+## 2026-09-10：知识库未命中向量兜底（D294）
+
+- 背景：用户确认当前产品链路仍应优先使用火山知识库服务做卖点判断和依据说明；但短词、弱表达或知识库问答未产出可信卖点时，需要回到旧 VikingDB 向量知识路由做第二裁判，避免真实业务表达被直接打回。
+- 实现：新增 `SearchKnowledgeFallbackRouter`。知识库服务明确命中卖点或明确判为非卖点问题时不再 fallback；只有知识库服务返回空/未命中时，才调用 VikingDB 向量知识路由。依赖注入支持在知识库服务启用时额外打开向量 fallback，fallback 路由使用独立阈值和最大卖点数配置。
+- 策略：fallback 默认 `VIKINGDB_KNOWLEDGE_FALLBACK_MIN_SCORE=0.2`、`VIKINGDB_KNOWLEDGE_FALLBACK_MAX_MATCHES=1`，即只取 top1 卖点；低于 0.2 直接视为无可靠卖点，不返图。兜底命中后仍只使用卖点 code 回本地数据库按人工 accepted `expresses/supports` 关系取图，并继续由搜索结果顶部解释 API 生成统一的“结果 / 判断 / 定义”展示。
+- 边界：为避免降阈值污染，`图/图片/素材/标题/大图/小图/背景/颜色/海报/案例` 等短泛词不会因为 fallback 分数超过 0.2 被硬匹配到随机卖点；带实体的学校、省份、合作案例、身份码等精准找图仍应走本地图库路径，不由知识库或向量 fallback 创造图片事实。
+- 配置：新增 `VIKINGDB_KNOWLEDGE_FALLBACK_ENABLED`、`VIKINGDB_KNOWLEDGE_FALLBACK_MIN_SCORE` 和 `VIKINGDB_KNOWLEDGE_FALLBACK_MAX_MATCHES` 示例项。真实知识库服务 Key、向量库 Key 和服务 ID 继续只放本机/服务器 `.env`。
+- 验证：新增组合路由测试覆盖知识库命中终止、知识库非卖点终止、知识库未命中后启用向量 fallback；新增 VikingDB 路由测试覆盖低阈值 top1 兜底和短泛词拦截。
+
+### 后续
+
+- 服务器 `.env` 同时开启知识库服务与向量 fallback 后重建 backend，用“学有余力进一步提升”“退款多少钱”“图”“拍题精学让孩子学一题会一类”等真实搜索验收：弱业务话术可由 fallback 命中 top1，非业务/泛词不返图，多卖点强表达仍由知识库优先识别。
+- 观察 0.2 阈值一轮真实日志；如果弱业务词仍漏召，再调低 fallback 阈值或补少量知识库表达；如果泛业务词误召，再提高阈值或补更窄的短词拦截。
+
 ## 2026-09-10：Viking 知识库服务卖点裁决（D292）
 
 - 背景：用户在火山 Viking 知识库控制台验证了“卖点图知识库/卖点图调用”的问答效果，可以判断一句自然语言是否属于洋葱业务卖点、命中哪些卖点，并给出定义和判断依据。该效果比旧的线上向量数据库直接相似召回更符合当前“先判卖点，再回本地图库取图”的产品方向。
@@ -7736,6 +7750,70 @@ Model：数据结构和关系
 1. 重建 backend 容器。
 2. 执行火山 collection 重置脚本。
 3. 用探针确认当前检索只返回 `system`/`selling_point` 文档。
+
+# 2026-09-10 D295 API 中心外部连接调度
+
+按用户“我在这个中心调度就可以”的要求，把 API 中心从只管理模型 Key/模型位置，扩展为当前搜索链路的外部能力中控台。
+
+## 本轮目标
+
+- 在 API 中心可视化管理卖点知识库服务和 VikingDB V2 向量库。
+- 让后端搜索运行时优先读取 API 中心保存的外部连接配置。
+- 保持本地数据库仍为图片、素材关系和人工审核事实源。
+
+## 完成内容
+
+- `ApiCenterSummary` 新增 `externalConnections`，返回卖点知识库服务与 VikingDB V2 的启用状态、地址、资源 ID、collection/index、阈值、召回数量和 key 是否已配置。
+- 新增 API Center 外部连接接口：
+  - `PATCH /api/admin/api-center/external-connections/knowledge-service`
+  - `PATCH /api/admin/api-center/external-connections/vector-database`
+  - `POST /api/admin/api-center/external-connections/knowledge-service/test`
+  - `POST /api/admin/api-center/external-connections/vector-database/test`
+- 外部连接配置写入 `api_center_settings`；保存 key 时只落库，不通过 summary 回显完整 key，留空表示不修改现有 key。
+- 搜索运行时的卖点知识库、VikingDB collection/index、启停、fallback 阈值和 top1 数量，均优先读取 API 中心配置；`.env` 仅作为未保存配置时的兜底来源。
+- API 中心前端新增“知识与数据库”页签，提供两张配置卡：
+  - 卖点知识库服务：主判断开关、服务地址、服务 ID、API Key、超时、参考片段数、最多卖点数、连接测试。
+  - VikingDB V2 向量库：向量判断开关、fallback 开关、地址、collection、index、API Key、召回数量、主判断阈值、fallback 阈值、fallback 卖点数、超时、连接测试。
+- 页面顶部文案更新为“知识库主判断 + 向量库 top1 兜底 + 本地图库事实源”。
+
+## 修改文件
+
+- `backend/app/schemas/api_center.py`
+- `backend/app/services/api_center_service.py`
+- `backend/app/api/v1/api_center.py`
+- `backend/app/api/dependencies.py`
+- `client/src/types/api.ts`
+- `client/src/api/admin.ts`
+- `client/src/pages/AdminApiCenter/AdminApiCenter.tsx`
+- `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`
+- `docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`
+
+## 数据迁移
+
+- 无数据库 schema 迁移。
+- 使用既有 `api_center_settings` 保存外部连接配置。
+- 不写入真实 API Key 到代码或文档。
+- 不改变本地素材、图片、渠道、业务概念和人工 accepted 关系。
+
+## 测试结果
+
+- 后端相关文件 `python3 -m py_compile` 通过。
+- 后端相关文件 Ruff 通过。
+- 前端 `npm run typecheck` 通过。
+- `docker compose config --quiet` 通过。
+- `git diff --check` 通过。
+
+## 遗留问题
+
+- 仍需服务器重建后在 API 中心页面保存真实外部连接配置并点击连接测试。
+- 本轮只做当前两条真实链路的固定中控卡，不做任意新增多个数据库/知识库连接的通用连接市场。
+
+## 下一步
+
+1. 重建并启动服务器容器。
+2. 进入 API 中心 → 知识与数据库，确认知识库服务与 VikingDB V2 的配置。
+3. 分别点击“测试连接”。
+4. 用短词、长句、多卖点句和无效素材词验证搜索链路。
 # 2026-09-07 D275 公司服务器部署准备
 
 按用户确认采用空库部署：不带图片、旧账号和 API 配置，初始化 6 个体系和 16 个卖点，管理员单独创建；复用现有 VikingDB。补齐 Compose 环境变量和重启策略，Docker 排除本地 `.env.*`。镜像构建、空库迁移和种子幂等通过；前端 54 测试及构建通过，后端 364 passed / 21 failed / 4 skipped，Ruff 与 Pyright 遗留问题未清零。无新增迁移，无本地业务数据写入。服务器尚待拉取、启动、创建管理员及生产验收，详见 `COMPANY_SERVER_DEPLOYMENT_2026-09-07.md`。

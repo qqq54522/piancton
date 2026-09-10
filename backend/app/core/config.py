@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     vikingdb_knowledge_multi_score_ratio: float = 0.9
     vikingdb_knowledge_multi_score_gap: float = 0.08
     vikingdb_knowledge_max_matches: int = 3
+    vikingdb_knowledge_fallback_enabled: bool = False
+    vikingdb_knowledge_fallback_min_score: float = 0.2
+    vikingdb_knowledge_fallback_max_matches: int = 1
     viking_knowledge_service_enabled: bool = False
     viking_knowledge_service_base_url: str = (
         "https://api-knowledgebase.mlp.cn-beijing.volces.com"

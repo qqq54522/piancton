@@ -46,6 +46,13 @@ from app.schemas.api_center import (
     ApiCredentialCreate,
     ApiCredentialRead,
     ApiCredentialUpdate,
+    ApiExternalConnectionsRead,
+    ApiExternalConnectionTestRequest,
+    ApiExternalConnectionTestResult,
+    ApiExternalKnowledgeServiceConfig,
+    ApiExternalKnowledgeServiceUpdate,
+    ApiExternalVectorDatabaseConfig,
+    ApiExternalVectorDatabaseUpdate,
     ApiHealthCheckCreate,
     ApiHealthCheckRead,
     ApiHealthCheckRunRequest,
@@ -68,6 +75,8 @@ from app.services.api_center_runtime_policy import (
     provider_runtime_snapshot,
 )
 from app.services.unit_of_work import UnitOfWork
+from app.services.viking_knowledge_service_client import VikingKnowledgeServiceClient
+from app.services.vikingdb_client import VikingDBClient
 
 DEFAULT_ROUTING_SLOTS: tuple[tuple[str, str, float, int], ...] = (
     ("search_result_recommendation_reason", "搜索结果：命中卖点解释", 30.0, 2500),
@@ -80,6 +89,27 @@ TASK_LAYER_LABELS = {
 }
 ENV_IMPORT_SETTING_KEY = "environment_credentials_imported"
 MAINTENANCE_STATUS_SETTING_KEY = "api_center_maintenance_status"
+EXTERNAL_SETTING_KEYS = {
+    "knowledge_enabled": "viking_knowledge_service_enabled",
+    "knowledge_base_url": "viking_knowledge_service_base_url",
+    "knowledge_api_key": "viking_knowledge_service_api_key",
+    "knowledge_resource_id": "viking_knowledge_service_resource_id",
+    "knowledge_timeout": "viking_knowledge_service_timeout_seconds",
+    "knowledge_result_limit": "viking_knowledge_service_result_limit",
+    "knowledge_max_matches": "viking_knowledge_service_max_matches",
+    "vector_enabled": "vikingdb_knowledge_router_enabled",
+    "vector_fallback_enabled": "vikingdb_knowledge_fallback_enabled",
+    "vector_base_url": "vikingdb_base_url",
+    "vector_api_key": "vikingdb_api_key",
+    "vector_collection": "vikingdb_collection_name",
+    "vector_index": "vikingdb_index_name",
+    "vector_timeout": "vikingdb_timeout_seconds",
+    "vector_search_limit": "vikingdb_search_limit",
+    "vector_primary_min_score": "vikingdb_knowledge_min_score",
+    "vector_primary_max_matches": "vikingdb_knowledge_max_matches",
+    "vector_fallback_min_score": "vikingdb_knowledge_fallback_min_score",
+    "vector_fallback_max_matches": "vikingdb_knowledge_fallback_max_matches",
+}
 TEMPERATURE_PROBE_TIMEOUT_SECONDS = 60.0
 TEMPERATURE_PROBE_MAX_CANDIDATES = 6
 DEFAULT_TEMPERATURE_PROBE_CANDIDATES = (0.2, 1.0, 0.0, 0.7)
@@ -298,6 +328,7 @@ class ApiCenterService:
                 p95_latency_ms=_percentile(durations, 0.95),
             ),
             maintenance=self.maintenance_status(),
+            external_connections=self.external_connections(),
             credentials=[
                 self._credential_read(item, schedule_metrics.get(item.id))
                 for item in credentials
@@ -313,6 +344,327 @@ class ApiCenterService:
                 )
                 for item in recent_traces
             ],
+        )
+
+    def external_connections(self) -> ApiExternalConnectionsRead:
+        settings = get_settings()
+        knowledge_api_key = self._external_setting(
+            EXTERNAL_SETTING_KEYS["knowledge_api_key"],
+            settings.viking_knowledge_service_api_key,
+        )
+        vector_api_key = self._external_setting(
+            EXTERNAL_SETTING_KEYS["vector_api_key"],
+            settings.vikingdb_api_key,
+        )
+        return ApiExternalConnectionsRead(
+            knowledge_service=ApiExternalKnowledgeServiceConfig(
+                enabled=self._external_bool(
+                    EXTERNAL_SETTING_KEYS["knowledge_enabled"],
+                    settings.viking_knowledge_service_enabled,
+                ),
+                base_url=self._external_setting(
+                    EXTERNAL_SETTING_KEYS["knowledge_base_url"],
+                    settings.viking_knowledge_service_base_url,
+                ),
+                service_resource_id=self._external_setting(
+                    EXTERNAL_SETTING_KEYS["knowledge_resource_id"],
+                    settings.viking_knowledge_service_resource_id,
+                ),
+                api_key_configured=bool(knowledge_api_key.strip()),
+                timeout_seconds=self._external_float(
+                    EXTERNAL_SETTING_KEYS["knowledge_timeout"],
+                    settings.viking_knowledge_service_timeout_seconds,
+                    minimum=0.5,
+                    maximum=60.0,
+                ),
+                result_limit=self._external_int(
+                    EXTERNAL_SETTING_KEYS["knowledge_result_limit"],
+                    settings.viking_knowledge_service_result_limit,
+                    minimum=1,
+                    maximum=20,
+                ),
+                max_matches=self._external_int(
+                    EXTERNAL_SETTING_KEYS["knowledge_max_matches"],
+                    settings.viking_knowledge_service_max_matches,
+                    minimum=1,
+                    maximum=6,
+                ),
+            ),
+            vector_database=ApiExternalVectorDatabaseConfig(
+                enabled=self._external_bool(
+                    EXTERNAL_SETTING_KEYS["vector_enabled"],
+                    settings.vikingdb_knowledge_router_enabled,
+                ),
+                fallback_enabled=self._external_bool(
+                    EXTERNAL_SETTING_KEYS["vector_fallback_enabled"],
+                    settings.vikingdb_knowledge_fallback_enabled,
+                ),
+                base_url=self._external_setting(
+                    EXTERNAL_SETTING_KEYS["vector_base_url"],
+                    settings.vikingdb_base_url,
+                ),
+                collection_name=self._external_setting(
+                    EXTERNAL_SETTING_KEYS["vector_collection"],
+                    settings.vikingdb_collection_name,
+                ),
+                index_name=self._external_setting(
+                    EXTERNAL_SETTING_KEYS["vector_index"],
+                    settings.vikingdb_index_name,
+                ),
+                api_key_configured=bool(vector_api_key.strip()),
+                timeout_seconds=self._external_float(
+                    EXTERNAL_SETTING_KEYS["vector_timeout"],
+                    settings.vikingdb_timeout_seconds,
+                    minimum=0.5,
+                    maximum=120.0,
+                ),
+                search_limit=self._external_int(
+                    EXTERNAL_SETTING_KEYS["vector_search_limit"],
+                    settings.vikingdb_search_limit,
+                    minimum=1,
+                    maximum=100,
+                ),
+                primary_min_score=self._external_float(
+                    EXTERNAL_SETTING_KEYS["vector_primary_min_score"],
+                    settings.vikingdb_knowledge_min_score,
+                    minimum=0.0,
+                    maximum=1.0,
+                ),
+                primary_max_matches=self._external_int(
+                    EXTERNAL_SETTING_KEYS["vector_primary_max_matches"],
+                    settings.vikingdb_knowledge_max_matches,
+                    minimum=1,
+                    maximum=6,
+                ),
+                fallback_min_score=self._external_float(
+                    EXTERNAL_SETTING_KEYS["vector_fallback_min_score"],
+                    settings.vikingdb_knowledge_fallback_min_score,
+                    minimum=0.0,
+                    maximum=1.0,
+                ),
+                fallback_max_matches=self._external_int(
+                    EXTERNAL_SETTING_KEYS["vector_fallback_max_matches"],
+                    settings.vikingdb_knowledge_fallback_max_matches,
+                    minimum=1,
+                    maximum=6,
+                ),
+            ),
+        )
+
+    def update_external_knowledge_service(
+        self,
+        payload: ApiExternalKnowledgeServiceUpdate,
+    ) -> ApiExternalKnowledgeServiceConfig:
+        if payload.enabled is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["knowledge_enabled"],
+                _bool_str(payload.enabled),
+            )
+        if payload.base_url is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["knowledge_base_url"],
+                _validate_api_base_url(payload.base_url),
+            )
+        if payload.service_resource_id is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["knowledge_resource_id"],
+                _bounded(payload.service_resource_id, 120),
+            )
+        if payload.api_key is not None and payload.api_key.strip():
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["knowledge_api_key"],
+                _bounded(payload.api_key, 500),
+            )
+        if payload.timeout_seconds is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["knowledge_timeout"],
+                str(max(0.5, min(payload.timeout_seconds, 60.0))),
+            )
+        if payload.result_limit is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["knowledge_result_limit"],
+                str(max(1, min(int(payload.result_limit), 20))),
+            )
+        if payload.max_matches is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["knowledge_max_matches"],
+                str(max(1, min(int(payload.max_matches), 6))),
+            )
+        self.uow.commit()
+        return self.external_connections().knowledge_service
+
+    def update_external_vector_database(
+        self,
+        payload: ApiExternalVectorDatabaseUpdate,
+    ) -> ApiExternalVectorDatabaseConfig:
+        if payload.enabled is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_enabled"],
+                _bool_str(payload.enabled),
+            )
+        if payload.fallback_enabled is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_fallback_enabled"],
+                _bool_str(payload.fallback_enabled),
+            )
+        if payload.base_url is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_base_url"],
+                _validate_api_base_url(payload.base_url),
+            )
+        if payload.collection_name is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_collection"],
+                _bounded(payload.collection_name, 160),
+            )
+        if payload.index_name is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_index"],
+                _bounded(payload.index_name, 160),
+            )
+        if payload.api_key is not None and payload.api_key.strip():
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_api_key"],
+                _bounded(payload.api_key, 500),
+            )
+        if payload.timeout_seconds is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_timeout"],
+                str(max(0.5, min(payload.timeout_seconds, 120.0))),
+            )
+        if payload.search_limit is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_search_limit"],
+                str(max(1, min(int(payload.search_limit), 100))),
+            )
+        if payload.primary_min_score is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_primary_min_score"],
+                str(max(0.0, min(payload.primary_min_score, 1.0))),
+            )
+        if payload.primary_max_matches is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_primary_max_matches"],
+                str(max(1, min(int(payload.primary_max_matches), 6))),
+            )
+        if payload.fallback_min_score is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_fallback_min_score"],
+                str(max(0.0, min(payload.fallback_min_score, 1.0))),
+            )
+        if payload.fallback_max_matches is not None:
+            self.repo.set_setting(
+                EXTERNAL_SETTING_KEYS["vector_fallback_max_matches"],
+                str(max(1, min(int(payload.fallback_max_matches), 6))),
+            )
+        self.uow.commit()
+        return self.external_connections().vector_database
+
+    def test_external_knowledge_service(
+        self,
+        payload: ApiExternalConnectionTestRequest,
+    ) -> ApiExternalConnectionTestResult:
+        config = self.external_connections().knowledge_service
+        if not config.enabled:
+            return ApiExternalConnectionTestResult(
+                status="skipped",
+                duration_ms=0,
+                message="卖点知识库服务未启用",
+            )
+        api_key = self._external_setting(
+            EXTERNAL_SETTING_KEYS["knowledge_api_key"],
+            get_settings().viking_knowledge_service_api_key,
+        )
+        client = VikingKnowledgeServiceClient(
+            base_url=config.base_url,
+            api_key=api_key,
+            service_resource_id=config.service_resource_id,
+            timeout_seconds=config.timeout_seconds,
+            result_limit=config.result_limit,
+        )
+        if not client.configured:
+            return ApiExternalConnectionTestResult(
+                status="skipped",
+                duration_ms=0,
+                message="卖点知识库服务配置不完整",
+            )
+        started = time.monotonic()
+        try:
+            result = client.chat(payload.query)
+        except Exception as exc:
+            return ApiExternalConnectionTestResult(
+                status="failed",
+                duration_ms=_elapsed_ms(started),
+                message=str(exc)[:160],
+            )
+        return ApiExternalConnectionTestResult(
+            status="ok",
+            duration_ms=_elapsed_ms(started),
+            message="卖点知识库服务调用成功",
+            preview={
+                "answerPreview": result.generated_answer[:240],
+                "reasoningPreview": result.reasoning_content[:240],
+                "referenceCount": len(result.result_list),
+            },
+        )
+
+    def test_external_vector_database(
+        self,
+        payload: ApiExternalConnectionTestRequest,
+    ) -> ApiExternalConnectionTestResult:
+        config = self.external_connections().vector_database
+        if not config.enabled and not config.fallback_enabled:
+            return ApiExternalConnectionTestResult(
+                status="skipped",
+                duration_ms=0,
+                message="VikingDB 卖点判断未启用",
+            )
+        api_key = self._external_setting(
+            EXTERNAL_SETTING_KEYS["vector_api_key"],
+            get_settings().vikingdb_api_key,
+        )
+        client = VikingDBClient(
+            base_url=config.base_url,
+            api_key=api_key,
+            collection_name=config.collection_name,
+            timeout_seconds=config.timeout_seconds,
+        )
+        if not client.configured or not config.index_name.strip():
+            return ApiExternalConnectionTestResult(
+                status="skipped",
+                duration_ms=0,
+                message="VikingDB 配置不完整",
+            )
+        started = time.monotonic()
+        try:
+            result = client.search_text(
+                payload.query,
+                index_name=config.index_name,
+                limit=1,
+                filter_expression={
+                    "op": "must",
+                    "field": "doc_type",
+                    "conds": ["selling_point"],
+                },
+                output_fields=["doc_id", "doc_type", "concept_code", "search_text"],
+            )
+        except Exception as exc:
+            return ApiExternalConnectionTestResult(
+                status="failed",
+                duration_ms=_elapsed_ms(started),
+                message=str(exc)[:160],
+            )
+        first = result.matches[0] if result.matches else {}
+        return ApiExternalConnectionTestResult(
+            status="ok",
+            duration_ms=_elapsed_ms(started),
+            message=f"VikingDB 调用成功，召回 {len(result.matches)} 条",
+            preview={
+                "matchCount": len(result.matches),
+                "firstConceptCode": first.get("concept_code"),
+                "firstDocId": first.get("doc_id"),
+                "firstTextPreview": str(first.get("search_text") or "")[:160],
+            },
         )
 
     def maintenance_status(self) -> ApiCenterMaintenanceRead:
@@ -368,6 +720,37 @@ class ApiCenterService:
             ),
             next_run_at=next_run_at,
         )
+
+    def _external_setting(self, key: str, default: object) -> str:
+        raw = self.repo.get_setting(key)
+        if raw is not None and raw.value != "":
+            return raw.value
+        return str(default or "")
+
+    def _external_bool(self, key: str, default: bool) -> bool:
+        return _parse_bool(self._external_setting(key, default), default=default)
+
+    def _external_float(
+        self,
+        key: str,
+        default: float,
+        *,
+        minimum: float,
+        maximum: float,
+    ) -> float:
+        value = _parse_float(self._external_setting(key, default), default=default)
+        return max(minimum, min(value, maximum))
+
+    def _external_int(
+        self,
+        key: str,
+        default: int,
+        *,
+        minimum: int,
+        maximum: int,
+    ) -> int:
+        value = _parse_int(self._external_setting(key, default), default=default)
+        return max(minimum, min(value, maximum))
 
     def run_maintenance_cycle(
         self,
@@ -2587,6 +2970,37 @@ def _loads_dict(raw: str) -> dict:
     except json.JSONDecodeError:
         return {}
     return value if isinstance(value, dict) else {}
+
+
+def _bool_str(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def _parse_bool(value: object, *, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    normalized = str(value or "").strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
+
+
+def _parse_float(value: object, *, default: float) -> float:
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_int(value: object, *, default: int) -> int:
+    try:
+        return int(float(str(value).strip()))
+    except (TypeError, ValueError):
+        return default
 
 
 @contextmanager

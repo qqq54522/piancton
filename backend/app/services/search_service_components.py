@@ -17,6 +17,7 @@ from app.services.query_profile_service import QueryProfileService
 from app.services.query_understanding_service import QueryUnderstandingService
 from app.services.search_cache import SearchCaches, build_search_caches
 from app.services.search_external_branches import SearchExternalBranches
+from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
 from app.services.search_orchestrator import AsyncSearchOrchestrator
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_rerank_coordinator import SearchRerankCoordinator
@@ -68,7 +69,10 @@ def build_search_components(
     cache_max_entries: int,
     caches: SearchCaches | None,
     vikingdb_knowledge_router: (
-        VikingDBKnowledgeRouter | VikingKnowledgeServiceRouter | None
+        VikingDBKnowledgeRouter
+        | VikingKnowledgeServiceRouter
+        | SearchKnowledgeFallbackRouter
+        | None
     ),
     vikingdb_skill_backup_enabled: bool,
 ) -> SearchServiceComponents:

@@ -14,6 +14,11 @@ import type {
   ApiCredential,
   ApiCredentialCreate,
   ApiCredentialUpdate,
+  ApiExternalConnectionTestResult,
+  ApiExternalKnowledgeServiceConfig,
+  ApiExternalKnowledgeServiceUpdate,
+  ApiExternalVectorDatabaseConfig,
+  ApiExternalVectorDatabaseUpdate,
   ApiHealthCheck,
   ApiHealthCheckRunRequest,
   ApiHealthCheckRunResult,
@@ -192,6 +197,42 @@ export async function updateRoutingSlot(
   payload: RoutingSlotUpdate,
 ): Promise<RoutingSlot> {
   return (await api.patch(`/api/admin/api-center/routing-slots/${task}`, payload)).data;
+}
+
+export async function updateExternalKnowledgeService(
+  payload: ApiExternalKnowledgeServiceUpdate,
+): Promise<ApiExternalKnowledgeServiceConfig> {
+  return (
+    await api.patch('/api/admin/api-center/external-connections/knowledge-service', payload)
+  ).data;
+}
+
+export async function updateExternalVectorDatabase(
+  payload: ApiExternalVectorDatabaseUpdate,
+): Promise<ApiExternalVectorDatabaseConfig> {
+  return (
+    await api.patch('/api/admin/api-center/external-connections/vector-database', payload)
+  ).data;
+}
+
+export async function testExternalKnowledgeService(
+  query = '学有余力进一步提升',
+): Promise<ApiExternalConnectionTestResult> {
+  return (
+    await api.post('/api/admin/api-center/external-connections/knowledge-service/test', { query }, {
+      timeout: apiCenterRequestWaitMs(20, 1),
+    })
+  ).data;
+}
+
+export async function testExternalVectorDatabase(
+  query = '学有余力进一步提升',
+): Promise<ApiExternalConnectionTestResult> {
+  return (
+    await api.post('/api/admin/api-center/external-connections/vector-database/test', { query }, {
+      timeout: apiCenterRequestWaitMs(30, 1),
+    })
+  ).data;
 }
 
 export async function fetchIdentityCodes(params: {

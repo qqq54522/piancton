@@ -81,6 +81,23 @@ NEGATION_MARKERS = (
     "排除",
 )
 
+GENERIC_SHORT_QUERY_BLOCKLIST = {
+    "图",
+    "图片",
+    "素材",
+    "标题",
+    "大图",
+    "小图",
+    "长图",
+    "竖图",
+    "横图",
+    "背景",
+    "颜色",
+    "配色",
+    "海报",
+    "案例",
+}
+
 
 @dataclass(frozen=True)
 class VikingDBKnowledgeMatch:
@@ -188,6 +205,8 @@ class VikingDBKnowledgeRouter:
         query: str,
         raw_matches: list[dict[str, Any]],
     ) -> list[VikingDBKnowledgeMatch]:
+        if _looks_like_generic_short_query(query):
+            return []
         selling_points = [
             match
             for match in (self._parse_match(item) for item in raw_matches)
@@ -296,6 +315,11 @@ def _looks_like_direct_expert_entry(query: str) -> bool:
         marker in compact for marker in DIRECT_EXPERT_ENTRY_CONTEXT
     )
     return compact == "专家" or has_business_context
+
+
+def _looks_like_generic_short_query(query: str) -> bool:
+    compact = _compact_query(query)
+    return bool(compact in GENERIC_SHORT_QUERY_BLOCKLIST)
 
 
 def _compact_query(query: str) -> str:

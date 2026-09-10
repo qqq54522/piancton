@@ -12,6 +12,7 @@ from app.services.meilisearch_recall_service import MeilisearchRecallService
 from app.services.query_understanding_service import QueryUnderstandingService
 from app.services.search_branch_runner import SearchBranchRunner
 from app.services.search_cache import SearchCaches
+from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
 from app.services.search_models import (
     ExternalSearchCandidate,
     QueryUnderstandingOutcome,
@@ -46,7 +47,10 @@ class SearchExternalBranches:
         embedding_top_n: int,
         candidate_limit: int,
         vikingdb_knowledge_router: (
-            VikingDBKnowledgeRouter | VikingKnowledgeServiceRouter | None
+            VikingDBKnowledgeRouter
+            | VikingKnowledgeServiceRouter
+            | SearchKnowledgeFallbackRouter
+            | None
         ) = None,
         vikingdb_skill_backup_enabled: bool = True,
         understanding_grace_seconds: float = 5.0,

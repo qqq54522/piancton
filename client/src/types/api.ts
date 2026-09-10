@@ -771,6 +771,68 @@ export interface RoutingSlotUpdate {
   notes?: string | null;
 }
 
+export interface ApiExternalKnowledgeServiceConfig {
+  enabled: boolean;
+  baseUrl: string;
+  serviceResourceId: string;
+  apiKeyConfigured: boolean;
+  timeoutSeconds: number;
+  resultLimit: number;
+  maxMatches: number;
+}
+
+export interface ApiExternalVectorDatabaseConfig {
+  enabled: boolean;
+  fallbackEnabled: boolean;
+  baseUrl: string;
+  collectionName: string;
+  indexName: string;
+  apiKeyConfigured: boolean;
+  timeoutSeconds: number;
+  searchLimit: number;
+  primaryMinScore: number;
+  primaryMaxMatches: number;
+  fallbackMinScore: number;
+  fallbackMaxMatches: number;
+}
+
+export interface ApiExternalConnections {
+  knowledgeService: ApiExternalKnowledgeServiceConfig;
+  vectorDatabase: ApiExternalVectorDatabaseConfig;
+}
+
+export interface ApiExternalKnowledgeServiceUpdate {
+  enabled?: boolean;
+  baseUrl?: string;
+  serviceResourceId?: string;
+  apiKey?: string;
+  timeoutSeconds?: number;
+  resultLimit?: number;
+  maxMatches?: number;
+}
+
+export interface ApiExternalVectorDatabaseUpdate {
+  enabled?: boolean;
+  fallbackEnabled?: boolean;
+  baseUrl?: string;
+  collectionName?: string;
+  indexName?: string;
+  apiKey?: string;
+  timeoutSeconds?: number;
+  searchLimit?: number;
+  primaryMinScore?: number;
+  primaryMaxMatches?: number;
+  fallbackMinScore?: number;
+  fallbackMaxMatches?: number;
+}
+
+export interface ApiExternalConnectionTestResult {
+  status: 'ok' | 'failed' | 'skipped';
+  durationMs: number;
+  message: string;
+  preview: Record<string, unknown>;
+}
+
 export interface ApiHealthCheck {
   id: string;
   credentialId: string;
@@ -935,6 +997,7 @@ export interface ApiCenterMaintenanceRunResult {
 export interface ApiCenterSummary {
   overview: ApiCenterOverview;
   maintenance: ApiCenterMaintenance;
+  externalConnections: ApiExternalConnections;
   credentials: ApiCredential[];
   providerGroups: ApiProviderGroup[];
   routingSlots: RoutingSlot[];

@@ -246,6 +246,72 @@ class ApiCallTraceListResponse(ApiModel):
     has_more: bool
 
 
+class ApiExternalKnowledgeServiceConfig(ApiModel):
+    enabled: bool
+    base_url: str
+    service_resource_id: str
+    api_key_configured: bool
+    timeout_seconds: float
+    result_limit: int
+    max_matches: int
+
+
+class ApiExternalVectorDatabaseConfig(ApiModel):
+    enabled: bool
+    fallback_enabled: bool
+    base_url: str
+    collection_name: str
+    index_name: str
+    api_key_configured: bool
+    timeout_seconds: float
+    search_limit: int
+    primary_min_score: float
+    primary_max_matches: int
+    fallback_min_score: float
+    fallback_max_matches: int
+
+
+class ApiExternalConnectionsRead(ApiModel):
+    knowledge_service: ApiExternalKnowledgeServiceConfig
+    vector_database: ApiExternalVectorDatabaseConfig
+
+
+class ApiExternalKnowledgeServiceUpdate(ApiModel):
+    enabled: Optional[bool] = None
+    base_url: Optional[str] = None
+    service_resource_id: Optional[str] = None
+    api_key: Optional[str] = None
+    timeout_seconds: Optional[float] = None
+    result_limit: Optional[int] = None
+    max_matches: Optional[int] = None
+
+
+class ApiExternalVectorDatabaseUpdate(ApiModel):
+    enabled: Optional[bool] = None
+    fallback_enabled: Optional[bool] = None
+    base_url: Optional[str] = None
+    collection_name: Optional[str] = None
+    index_name: Optional[str] = None
+    api_key: Optional[str] = None
+    timeout_seconds: Optional[float] = None
+    search_limit: Optional[int] = None
+    primary_min_score: Optional[float] = None
+    primary_max_matches: Optional[int] = None
+    fallback_min_score: Optional[float] = None
+    fallback_max_matches: Optional[int] = None
+
+
+class ApiExternalConnectionTestRequest(ApiModel):
+    query: str = "学有余力进一步提升"
+
+
+class ApiExternalConnectionTestResult(ApiModel):
+    status: Literal["ok", "failed", "skipped"]
+    duration_ms: int
+    message: str
+    preview: dict = {}
+
+
 class ApiCenterOverview(ApiModel):
     credential_count: int
     active_credential_count: int
@@ -290,6 +356,7 @@ class ApiCenterMaintenanceRunResult(ApiModel):
 class ApiCenterSummary(ApiModel):
     overview: ApiCenterOverview
     maintenance: ApiCenterMaintenanceRead
+    external_connections: ApiExternalConnectionsRead
     credentials: list[ApiCredentialRead]
     provider_groups: list[ApiProviderGroupRead] = []
     routing_slots: list[RoutingSlotRead]
