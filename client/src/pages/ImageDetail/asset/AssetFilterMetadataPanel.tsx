@@ -6,6 +6,7 @@ import { getApiError } from '@client/src/api/client';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import type { useAssetActions } from '@client/src/features/assets/useAssetActions';
+import { useImageChannelOptions } from '@client/src/features/images/hooks/useImageListQuery';
 import type { AssetGroup } from '@client/src/types/api';
 import { addCustomChannel, useChannelOptions } from '../../ImageHome/channelOptions';
 import { joinChannelValues, splitChannelValue } from '../../ImageHome/channelValue';
@@ -34,7 +35,11 @@ function AssetFilterMetadataPanel({
   const [isSceneImage, setIsSceneImage] = useState(group.isSceneImage === true);
   const [addingChannel, setAddingChannel] = useState(false);
   const [draftChannel, setDraftChannel] = useState('');
-  const channelOptions = useChannelOptions(initialChannels);
+  const remoteChannels = useImageChannelOptions(Boolean(currentImage));
+  const channelOptions = useChannelOptions([
+    ...(remoteChannels.data?.channels ?? []),
+    ...initialChannels,
+  ]);
 
   useEffect(() => {
     setSelectedChannels(initialChannelKey ? initialChannelKey.split('|') : []);

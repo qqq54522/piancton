@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AssetGroup } from '@client/src/types/api';
 import AssetFilterMetadataPanel from './AssetFilterMetadataPanel';
+
+vi.mock('@client/src/api/image', () => ({
+  fetchImageChannels: vi.fn().mockResolvedValue({ channels: ['服务器渠道'] }),
+}));
 
 const group = {
   id: 'group-1',
@@ -57,13 +62,7 @@ describe('AssetFilterMetadataPanel', () => {
       updateFilterMetadata: { isPending: false, mutateAsync },
     } as never;
 
-    render(
-      <AssetFilterMetadataPanel
-        group={group}
-        currentImageId="horizontal"
-        actions={actions}
-      />,
-    );
+    renderPanel(actions);
 
     expect(screen.getByRole('button', { name: '自定义横版渠道' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'PPT' }));
@@ -80,4 +79,31 @@ describe('AssetFilterMetadataPanel', () => {
       isSceneImage: true,
     }));
   });
+
+  it('shows channels loaded from the shared server catalog', async () => {
+    const actions = {
+      updateFilterMetadata: { isPending: false, mutateAsync: vi.fn() },
+    } as never;
+
+    renderPanel(actions);
+
+    expect(await screen.findByRole('button', { name: '服务器渠道' })).toBeTruthy();
+  });
 });
+
+function renderPanel(actions: never) {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <AssetFilterMetadataPanel
+        group={group}
+        currentImageId="horizontal"
+        actions={actions}
+      />
+    </QueryClientProvider>,
+  );
+}

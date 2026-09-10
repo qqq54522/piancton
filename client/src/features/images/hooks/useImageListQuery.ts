@@ -3,6 +3,15 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import * as imageApi from '@client/src/api/image';
 
+export function useImageChannelOptions(enabled = true) {
+  return useQuery({
+    queryKey: ['images', 'channels'],
+    queryFn: () => imageApi.fetchImageChannels(),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 export function useImageListQuery(
   keyword: string,
   sortBy: 'createdAt' | 'downloadCount',
@@ -21,11 +30,7 @@ export function useImageListQuery(
     }),
     getNextPageParam: (page) => page.hasMore ? page.nextCursor : undefined,
   });
-  const channelQuery = useQuery({
-    queryKey: ['images', 'channels'],
-    queryFn: () => imageApi.fetchImageChannels(),
-    staleTime: 30_000,
-  });
+  const channelQuery = useImageChannelOptions();
   const images = useMemo(
     () => imageQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [imageQuery.data],

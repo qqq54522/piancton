@@ -17,6 +17,7 @@ import {
 import { Input } from '@client/src/components/ui/input';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
 import { SellingPointRelationFields } from '@client/src/features/assets/SellingPointRelationFields';
+import { useImageChannelOptions } from '@client/src/features/images/hooks/useImageListQuery';
 import { useImageTitleResolution } from '@client/src/features/images/useImageTitleResolution';
 import UploadAssetPicker from './UploadAssetPicker';
 import { addCustomChannel, useChannelOptions } from './channelOptions';
@@ -41,7 +42,8 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [debouncedTitle, setDebouncedTitle] = useState('');
   const [uploading, setUploading] = useState(false);
   const concepts = useBusinessConcepts(open);
-  const channelOptions = useChannelOptions();
+  const remoteChannels = useImageChannelOptions(open);
+  const channelOptions = useChannelOptions(remoteChannels.data?.channels ?? []);
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
