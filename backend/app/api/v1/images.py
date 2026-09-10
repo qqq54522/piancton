@@ -27,6 +27,7 @@ from app.api.dependencies import (
 from app.api.storage_response import StorageFileResponse
 from app.models.user import User
 from app.schemas.image import (
+    ImageChannelOptions,
     ImageDetailRead,
     ImageFilterMetadataUpdate,
     ImageListResponse,
@@ -60,6 +61,14 @@ def list_images(
     service: ImageService = Depends(get_image_service),
 ):
     return service.list_images(keyword, cursor, limit, sort_by)
+
+
+@router.get("/channels", response_model=ImageChannelOptions)
+def list_image_channels(
+    _: User = Depends(get_current_user),
+    service: ImageService = Depends(get_image_service),
+):
+    return service.list_channels()
 
 
 @router.post("/search", response_model=SearchResponse)

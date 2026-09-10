@@ -2,6 +2,7 @@ import { api } from './client';
 
 import type {
   ImageDetail,
+  ImageChannelOptions,
   ImageItem,
   ImageListParams,
   ImageListResponse,
@@ -17,6 +18,10 @@ import type {
 
 export async function fetchImages(params: ImageListParams): Promise<ImageListResponse> {
   return (await api.get('/api/images', { params })).data;
+}
+
+export async function fetchImageChannels(): Promise<ImageChannelOptions> {
+  return (await api.get('/api/images/channels')).data;
 }
 
 export async function fetchImageDetail(id: string): Promise<ImageDetail> {

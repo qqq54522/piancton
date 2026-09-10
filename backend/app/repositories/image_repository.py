@@ -126,6 +126,18 @@ class ImageRepository:
             order = (desc(Image.created_at), desc(Image.id))
         return list(self.db.scalars(stmt.distinct().order_by(*order).limit(limit + 1)).all())
 
+    def list_active_channels(self) -> list[str]:
+        stmt = (
+            select(Image.channel)
+            .where(
+                Image.deleted_at.is_(None),
+                Image.channel.is_not(None),
+                func.trim(Image.channel) != "",
+            )
+            .order_by(Image.channel)
+        )
+        return list(self.db.scalars(stmt).all())
+
     def search(self, keyword: str, limit: int) -> list[Image]:
         pattern = f"%{keyword}%"
         normalized_keyword = keyword.strip().lower()

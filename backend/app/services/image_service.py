@@ -15,6 +15,7 @@ from app.models.asset import AssetGroup
 from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
 from app.schemas.image import (
+    ImageChannelOptions,
     ImageDetailRead,
     ImageListResponse,
     ImageRead,
@@ -105,6 +106,19 @@ class ImageService:
             items=[image_to_read(item) for item in items],
             next_cursor=next_cursor,
             has_more=has_more,
+        )
+
+    def list_channels(self) -> ImageChannelOptions:
+        seen: set[str] = set()
+        channels: list[str] = []
+        for raw_value in self.images.list_active_channels():
+            for channel in _split_channel_value(raw_value):
+                if channel in seen:
+                    continue
+                seen.add(channel)
+                channels.append(channel)
+        return ImageChannelOptions(
+            channels=sorted(channels, key=lambda value: value.casefold())
         )
 
     def get_detail(self, image_id: str) -> ImageDetailRead:
@@ -285,3 +299,14 @@ class ImageService:
             return image
         image = self.identities.require_image(value)
         return image
+
+
+def _split_channel_value(value: str | None) -> list[str]:
+    if not value:
+        return []
+    normalized = value.replace(",", "、").replace("，", "、")
+    return [
+        item.strip()
+        for item in normalized.split("、")
+        if item.strip()
+    ]

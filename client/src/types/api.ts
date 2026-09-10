@@ -39,6 +39,10 @@ export interface ImageListResponse {
   hasMore: boolean;
 }
 
+export interface ImageChannelOptions {
+  channels: string[];
+}
+
 export interface UpdateImageTitleRequest {
   title: string;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import * as imageApi from '@client/src/api/image';
 
@@ -18,6 +18,11 @@ export function useImageListQuery(
       sortBy,
     }),
     getNextPageParam: (page) => page.hasMore ? page.nextCursor : undefined,
+  });
+  const channelQuery = useQuery({
+    queryKey: ['images', 'channels'],
+    queryFn: () => imageApi.fetchImageChannels(),
+    staleTime: 30_000,
   });
   const images = useMemo(
     () => imageQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -42,6 +47,7 @@ export function useImageListQuery(
 
   return {
     hasMore: Boolean(hasNextPage),
+    availableChannels: channelQuery.data?.channels ?? [],
     images,
     loading: imageQuery.isLoading,
     loadingMore: isFetchingNextPage,

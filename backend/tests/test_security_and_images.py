@@ -119,6 +119,27 @@ def test_business_cannot_write_and_tag_catalog_is_read_only(client):
     assert response.status_code == 405
 
 
+def test_business_can_read_channels_created_from_designer_assets(client):
+    headers = designer_headers(client)
+    response = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("custom-channel.png", png_file(), "image/png")},
+        data={
+            "title": "自定义渠道素材",
+            "channel": "合作案例、 小学洋葱优势",
+            "autoAnalyze": "false",
+        },
+    )
+    assert response.status_code == 201
+
+    login(client, "business", "business-password")
+    channels = client.get("/api/images/channels")
+
+    assert channels.status_code == 200
+    assert set(channels.json()["channels"]) >= {"合作案例", "小学洋葱优势"}
+
+
 def test_upload_preview_download_and_phase6_detail_contract(client):
     headers = admin_headers(client)
     invalid = client.post(

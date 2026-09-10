@@ -124,10 +124,6 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     () => collectSearchRefinementOptions(semanticResult?.results ?? []),
     [semanticResult],
   );
-  const knownChannelValues = useMemo(
-    () => new Set(channelIntentEntries.map((entry) => entry.value)),
-    [channelIntentEntries],
-  );
   const resetRefinements = useCallback(() => {
     setSelectedChannel(EMPTY_SEARCH_REFINEMENTS.channel);
     setChannelIntent(EMPTY_SEARCH_REFINEMENTS.channelIntent);
@@ -257,10 +253,7 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
     if (channelIntent && !isChannelIntentInCatalog(channelIntent, channelIntentEntries)) {
       setChannelIntent(null);
     }
-    if (selectedChannel && !knownChannelValues.has(selectedChannel)) {
-      setSelectedChannel('');
-    }
-  }, [channelIntent, channelIntentEntries, knownChannelValues, selectedChannel]);
+  }, [channelIntent, channelIntentEntries]);
 
   useEffect(() => {
     const state: StoredSearchState = {

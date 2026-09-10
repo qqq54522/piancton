@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/images/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Image Channels */
+        get: operations["list_image_channels_api_images_channels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/images/search": {
         parameters: {
             query?: never;
@@ -2675,6 +2692,11 @@ export interface components {
             /** Imagetotal */
             imageTotal: number;
         };
+        /** ImageChannelOptions */
+        ImageChannelOptions: {
+            /** Channels */
+            channels?: string[];
+        };
         /** ImageListResponse */
         ImageListResponse: {
             /** Items */
@@ -3763,6 +3785,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_image_channels_api_images_channels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageChannelOptions"];
                 };
             };
         };
