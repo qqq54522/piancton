@@ -54,6 +54,7 @@ class RelatedImageService:
                 None,
                 None,
                 None,
+                None,
                 limit,
                 "createdAt",
             ):
