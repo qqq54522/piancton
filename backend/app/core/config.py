@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     session_ttl_hours: int = 168
     max_upload_bytes: int = 100 * 1024 * 1024
     max_image_pixels: int = 80_000_000
+    max_long_image_pixels: int = 160_000_000
+    long_image_min_aspect_ratio: float = 3.0
     thumbnail_max_size: int = 640
     login_max_attempts: int = 5
     login_window_minutes: int = 15

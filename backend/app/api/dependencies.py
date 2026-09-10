@@ -111,6 +111,8 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
         build_storage(settings),
         settings.max_upload_bytes,
         settings.max_image_pixels,
+        settings.max_long_image_pixels,
+        settings.long_image_min_aspect_ratio,
         settings.thumbnail_max_size,
         embedding_index=EmbeddingIndexSync.from_settings(),
         vector_index=VikingDBVectorIndexSync.from_settings(),
@@ -123,6 +125,8 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
         build_storage(settings),
         settings.max_upload_bytes,
         settings.max_image_pixels,
+        settings.max_long_image_pixels,
+        settings.long_image_min_aspect_ratio,
         settings.thumbnail_max_size,
         vector_index=VikingDBVectorIndexSync.from_settings(),
     )

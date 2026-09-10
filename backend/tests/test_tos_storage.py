@@ -49,7 +49,7 @@ def remote(tmp_path):
 
 
 def test_remote_roundtrip_and_cleanup(remote):
-    staged = remote.stage(BytesIO(png_file()), 100000, 100000, 640)
+    staged = remote.stage(BytesIO(png_file()), 100000, 100000, 200000, 3.0, 640)
     remote.finalize(staged)
     assert staged.storage_key.startswith("tos-")
     assert not staged.temp_path.exists()
@@ -64,7 +64,7 @@ def test_remote_roundtrip_and_cleanup(remote):
 
 
 def test_failed_thumbnail_upload_rolls_back_both_objects(remote):
-    staged = remote.stage(BytesIO(png_file()), 100000, 100000, 640)
+    staged = remote.stage(BytesIO(png_file()), 100000, 100000, 200000, 3.0, 640)
     remote.client.fail_put = True
     with pytest.raises(AppError) as error:
         remote.finalize(staged)
@@ -225,7 +225,7 @@ def test_response_releases_temporary_file_on_send_failure(remote):
 
     from app.api.storage_response import StorageFileResponse
 
-    staged = remote.stage(BytesIO(png_file()), 100000, 100000, 640)
+    staged = remote.stage(BytesIO(png_file()), 100000, 100000, 200000, 3.0, 640)
     remote.finalize(staged)
     path = remote.path_for(staged.storage_key)
     response = StorageFileResponse(path, release=remote.release)

@@ -63,6 +63,8 @@ class ImageService:
         storage: StorageProvider,
         max_upload_bytes: int,
         max_image_pixels: int,
+        max_long_image_pixels: int,
+        long_image_min_aspect_ratio: float,
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
         embedding_index: EmbeddingIndexSync | None = None,
@@ -72,6 +74,8 @@ class ImageService:
         self.storage = storage
         self.max_upload_bytes = max_upload_bytes
         self.max_image_pixels = max_image_pixels
+        self.max_long_image_pixels = max_long_image_pixels
+        self.long_image_min_aspect_ratio = long_image_min_aspect_ratio
         self.thumbnail_max_size = thumbnail_max_size
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
@@ -141,6 +145,8 @@ class ImageService:
             stream,
             self.max_upload_bytes,
             self.max_image_pixels,
+            self.max_long_image_pixels,
+            self.long_image_min_aspect_ratio,
             self.thumbnail_max_size,
         )
         requested_title = title.strip() or Path(original_name).stem

@@ -34,6 +34,8 @@ class AssetService:
         storage: StorageProvider,
         max_upload_bytes: int,
         max_image_pixels: int,
+        max_long_image_pixels: int,
+        long_image_min_aspect_ratio: float,
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
         vector_index: VikingDBVectorIndexSync | None = None,
@@ -43,6 +45,8 @@ class AssetService:
         self.storage = storage
         self.max_upload_bytes = max_upload_bytes
         self.max_image_pixels = max_image_pixels
+        self.max_long_image_pixels = max_long_image_pixels
+        self.long_image_min_aspect_ratio = long_image_min_aspect_ratio
         self.thumbnail_max_size = thumbnail_max_size
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
@@ -76,6 +80,8 @@ class AssetService:
             stream,
             self.max_upload_bytes,
             self.max_image_pixels,
+            self.max_long_image_pixels,
+            self.long_image_min_aspect_ratio,
             self.thumbnail_max_size,
         )
         requested_title = title.strip() or Path(original_name).stem
@@ -127,6 +133,8 @@ class AssetService:
             stream,
             self.max_upload_bytes,
             self.max_image_pixels,
+            self.max_long_image_pixels,
+            self.long_image_min_aspect_ratio,
             self.thumbnail_max_size,
         )
         requested_title = title.strip() or Path(original_name).stem

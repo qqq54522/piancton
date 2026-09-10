@@ -44,6 +44,8 @@ class StorageProvider(Protocol):
         stream: BinaryIO,
         max_bytes: int,
         max_pixels: int,
+        max_long_image_pixels: int,
+        long_image_min_aspect_ratio: float,
         thumbnail_max_size: int,
     ) -> StagedUpload: ...
     def finalize(self, upload: StagedUpload) -> None: ...
@@ -81,6 +83,8 @@ class LocalStorageProvider:
         stream: BinaryIO,
         max_bytes: int,
         max_pixels: int,
+        max_long_image_pixels: int,
+        long_image_min_aspect_ratio: float,
         thumbnail_max_size: int,
     ) -> StagedUpload:
         temp_path = self.staging / f"{uuid.uuid4()}.upload"
@@ -101,12 +105,13 @@ class LocalStorageProvider:
                 with PillowImage.open(temp_path) as image:
                     image_format = image.format or ""
                     width, height = image.size
-                    if width * height > max_pixels:
-                        raise AppError(
-                            "image_too_many_pixels",
-                            f"图片像素总数不能超过 {max_pixels}",
-                            status_code=413,
-                        )
+                    _validate_image_pixels(
+                        width,
+                        height,
+                        max_pixels,
+                        max_long_image_pixels,
+                        long_image_min_aspect_ratio,
+                    )
                     image.verify()
             except (UnidentifiedImageError, OSError) as exc:
                 raise AppError(
@@ -254,3 +259,33 @@ def _create_preview_thumbnail(source: Path, target: Path, thumbnail_max_size: in
             subsampling=0,
             optimize=True,
         )
+
+
+def _validate_image_pixels(
+    width: int,
+    height: int,
+    max_pixels: int,
+    max_long_image_pixels: int,
+    long_image_min_aspect_ratio: float,
+) -> None:
+    pixels = width * height
+    if pixels <= max_pixels:
+        return
+
+    longer = max(width, height)
+    shorter = max(min(width, height), 1)
+    aspect_ratio = longer / shorter
+    if aspect_ratio >= long_image_min_aspect_ratio and pixels <= max_long_image_pixels:
+        return
+
+    if aspect_ratio >= long_image_min_aspect_ratio:
+        limit = max_long_image_pixels
+        limit_label = "长图"
+    else:
+        limit = max_pixels
+        limit_label = "普通图片"
+    raise AppError(
+        "image_too_many_pixels",
+        f"图片像素总数为 {pixels}，超过{limit_label}上限 {limit}",
+        status_code=413,
+    )

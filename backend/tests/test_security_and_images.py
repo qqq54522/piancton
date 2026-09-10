@@ -233,6 +233,46 @@ def test_long_image_thumbnail_keeps_preview_width(client):
     assert image_size(thumbnail.content) == (640, 1920)
 
 
+def test_long_image_can_exceed_regular_pixel_limit(client, monkeypatch):
+    from app.api import dependencies
+
+    monkeypatch.setattr(dependencies.settings, "max_image_pixels", 1_000)
+    monkeypatch.setattr(dependencies.settings, "max_long_image_pixels", 5_000)
+    monkeypatch.setattr(dependencies.settings, "long_image_min_aspect_ratio", 3.0)
+    headers = admin_headers(client)
+
+    response = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("allowed-long.png", png_file(20, 100), "image/png")},
+        data={"title": "允许长图", "channel": "手机端大图", "autoAnalyze": "false"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["width"] == 20
+    assert response.json()["height"] == 100
+
+
+def test_large_non_long_image_still_respects_regular_pixel_limit(client, monkeypatch):
+    from app.api import dependencies
+
+    monkeypatch.setattr(dependencies.settings, "max_image_pixels", 1_000)
+    monkeypatch.setattr(dependencies.settings, "max_long_image_pixels", 5_000)
+    monkeypatch.setattr(dependencies.settings, "long_image_min_aspect_ratio", 3.0)
+    headers = admin_headers(client)
+
+    response = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("too-large-square.png", png_file(40, 40), "image/png")},
+        data={"title": "普通大图", "channel": "PPT", "autoAnalyze": "false"},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "image_too_many_pixels"
+    assert "普通图片上限 1000" in response.json()["detail"]["message"]
+
+
 def test_existing_long_image_with_legacy_thumbnail_is_regenerated_once(
     client,
     db_factory,

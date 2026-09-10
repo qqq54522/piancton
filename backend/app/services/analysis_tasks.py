@@ -32,6 +32,8 @@ def run_image_analysis_task(
         LocalStorageProvider(settings.storage_dir),
         settings.max_upload_bytes,
         settings.max_image_pixels,
+        settings.max_long_image_pixels,
+        settings.long_image_min_aspect_ratio,
         settings.thumbnail_max_size,
     )
     analysis = ImageAnalysisService(db, embedding_index=EmbeddingIndexSync.from_settings())

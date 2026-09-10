@@ -37,8 +37,23 @@ class TosStorageProvider(LocalStorageProvider):
         folder = "thumbnails" if thumbnail else "originals"
         return f"{self.prefix}/{folder}/{key}"
 
-    def stage(self, stream, max_bytes, max_pixels, thumbnail_max_size) -> StagedUpload:
-        upload = super().stage(stream, max_bytes, max_pixels, thumbnail_max_size)
+    def stage(
+        self,
+        stream,
+        max_bytes,
+        max_pixels,
+        max_long_image_pixels,
+        long_image_min_aspect_ratio,
+        thumbnail_max_size,
+    ) -> StagedUpload:
+        upload = super().stage(
+            stream,
+            max_bytes,
+            max_pixels,
+            max_long_image_pixels,
+            long_image_min_aspect_ratio,
+            thumbnail_max_size,
+        )
         return replace(
             upload,
             storage_key=REMOTE_PREFIX + upload.storage_key,
