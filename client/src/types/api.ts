@@ -28,6 +28,7 @@ export interface TagWithCount extends Tag {
 
 export interface ImageListParams {
   keyword?: string;
+  channel?: string;
   cursor?: string;
   limit?: number;
   sortBy?: 'createdAt' | 'downloadCount';

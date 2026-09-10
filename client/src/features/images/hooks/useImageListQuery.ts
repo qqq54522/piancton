@@ -6,13 +6,15 @@ import * as imageApi from '@client/src/api/image';
 export function useImageListQuery(
   keyword: string,
   sortBy: 'createdAt' | 'downloadCount',
+  channel: string,
 ) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const imageQuery = useInfiniteQuery({
-    queryKey: ['images', keyword, sortBy],
+    queryKey: ['images', keyword, sortBy, channel],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => imageApi.fetchImages({
       keyword: keyword || undefined,
+      channel: channel || undefined,
       cursor: pageParam,
       limit: 12,
       sortBy,

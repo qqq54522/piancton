@@ -69,12 +69,40 @@ class ImageRepository:
     def list(
         self,
         keyword: Optional[str],
+        channel: Optional[str],
         cursor_value: str | int | datetime | None,
         cursor_id: str | None,
         limit: int,
         sort_by: str,
     ) -> list[Image]:
         stmt = select(Image).where(Image.deleted_at.is_(None)).options(*IMAGE_LOAD_OPTIONS)
+        if channel:
+            normalized_channel = channel.strip().replace(" ", "")
+            normalized_field = func.replace(
+                func.replace(
+                    func.replace(
+                        func.replace(
+                            func.replace(Image.channel, " ", ""),
+                            ",",
+                            "、",
+                        ),
+                        "，",
+                        "、",
+                    ),
+                    "/",
+                    "、",
+                ),
+                "／",
+                "、",
+            )
+            stmt = stmt.where(
+                or_(
+                    normalized_field == normalized_channel,
+                    normalized_field.ilike(f"{normalized_channel}、%"),
+                    normalized_field.ilike(f"%、{normalized_channel}、%"),
+                    normalized_field.ilike(f"%、{normalized_channel}"),
+                )
+            )
         if keyword:
             keyword_terms = expand_search_terms(keyword)[:30]
             patterns = [f"%{term}%" for term in keyword_terms if term.strip()]

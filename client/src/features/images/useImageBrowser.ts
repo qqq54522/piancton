@@ -13,7 +13,7 @@ export function useImageBrowser() {
   const [sortBy, setSortBy] = useState<'createdAt' | 'downloadCount'>('createdAt');
   const [uploadOpen, setUploadOpen] = useState(false);
   const global = useGlobalImageSearch({ allTags });
-  const list = useImageListQuery(keyword, sortBy);
+  const list = useImageListQuery(keyword, sortBy, global.searchRefinements.channel);
   const refinementOptions = useMemo(() => ({
     ...global.refinementOptions,
     channels: uniqueChannels([

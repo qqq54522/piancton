@@ -85,6 +85,7 @@ class ImageService:
     def list_images(
         self,
         keyword: Optional[str],
+        channel: Optional[str],
         cursor: Optional[str],
         limit: int,
         sort_by: str,
@@ -92,7 +93,7 @@ class ImageService:
         cursor_value = cursor_id = None
         if cursor:
             cursor_value, cursor_id = decode_cursor(cursor, sort_by)
-        rows = self.images.list(keyword, cursor_value, cursor_id, limit, sort_by)
+        rows = self.images.list(keyword, channel, cursor_value, cursor_id, limit, sort_by)
         has_more = len(rows) > limit
         items = rows[:limit]
         next_cursor = None
@@ -304,7 +305,7 @@ class ImageService:
 def _split_channel_value(value: str | None) -> list[str]:
     if not value:
         return []
-    normalized = value.replace(",", "、").replace("，", "、")
+    normalized = value.replace(",", "、").replace("，", "、").replace("/", "、").replace("／", "、")
     return [
         item.strip()
         for item in normalized.split("、")

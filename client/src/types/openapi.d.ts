@@ -3757,6 +3757,7 @@ export interface operations {
         parameters: {
             query?: {
                 keyword?: string | null;
+                channel?: string | null;
                 cursor?: string | null;
                 limit?: number;
                 sortBy?: string;

@@ -140,6 +140,42 @@ def test_business_can_read_channels_created_from_designer_assets(client):
     assert set(channels.json()["channels"]) >= {"合作案例", "小学洋葱优势"}
 
 
+def test_channel_filter_is_applied_before_pagination(client):
+    headers = designer_headers(client)
+    target = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("abstract-concept.png", png_file(), "image/png")},
+        data={
+            "title": "洋葱是怎样让学生理解抽象概念的？",
+            "channel": "小学数学、合作案例",
+            "autoAnalyze": "false",
+        },
+    )
+    assert target.status_code == 201
+    for index in range(4):
+        response = client.post(
+            "/api/images/upload",
+            headers=headers,
+            files={"file": (f"newer-{index}.png", png_file(), "image/png")},
+            data={
+                "title": f"更新上传素材 {index}",
+                "channel": "PPT",
+                "autoAnalyze": "false",
+            },
+        )
+        assert response.status_code == 201
+
+    login(client, "business", "business-password")
+    filtered = client.get(
+        "/api/images",
+        params={"channel": "小学数学", "limit": 2},
+    )
+
+    assert filtered.status_code == 200
+    assert [item["id"] for item in filtered.json()["items"]] == [target.json()["id"]]
+
+
 def test_upload_preview_download_and_phase6_detail_contract(client):
     headers = admin_headers(client)
     invalid = client.post(

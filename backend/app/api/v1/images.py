@@ -50,6 +50,7 @@ router = APIRouter(prefix="/images", tags=["images"])
 @router.get("", response_model=ImageListResponse)
 def list_images(
     keyword: Optional[str] = None,
+    channel: Optional[str] = Query(default=None, max_length=100),
     cursor: Optional[str] = None,
     limit: int = Query(default=12, ge=1, le=50),
     sort_by: str = Query(
@@ -60,7 +61,7 @@ def list_images(
     _: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
 ):
-    return service.list_images(keyword, cursor, limit, sort_by)
+    return service.list_images(keyword, channel, cursor, limit, sort_by)
 
 
 @router.get("/channels", response_model=ImageChannelOptions)
