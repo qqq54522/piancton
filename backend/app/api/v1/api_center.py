@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.api.dependencies import get_api_center_service, get_audit_service, require_roles
