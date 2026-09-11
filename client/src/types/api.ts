@@ -689,6 +689,7 @@ export interface AssetAgentImageContext {
   imageId: string;
   assetGroupId?: string | null;
   title: string;
+  imageUrl?: string | null;
 }
 
 export interface AssetAgentMessage {

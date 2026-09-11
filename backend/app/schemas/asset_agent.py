@@ -21,6 +21,7 @@ class AssetAgentImageContext(ApiModel):
     image_id: str
     asset_group_id: str | None = None
     title: str = Field(min_length=1, max_length=255)
+    image_url: str | None = Field(default=None, max_length=1000)
 
 
 class AssetAgentMessageRead(ApiModel):

@@ -104,6 +104,37 @@ def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
     assert provider.called is False
 
 
+def test_asset_agent_passes_context_image_url_to_ai_search_chat(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-ai-search-image-user", password_hash="x", role="business")
+        group = AssetGroup(title="拍题精学图组", created_by="admin")
+        image = Image(
+            title="拍题精学讲解图",
+            file_name="photo.png",
+            storage_key="photo.png",
+            thumbnail_storage_key="photo-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+            asset_group=group,
+        )
+        db.add_all([user, group, image])
+        db.commit()
+
+        ai_search = _FakeAiSearchChat()
+        response = AssetAgentService(
+            db,
+            _FailingProvider(),
+            ai_search_chat=ai_search,
+            ai_search_public_base_url="http://example.test",
+        ).chat(
+            user,
+            AssetAgentChatRequest(message="讲解这张图", image_ids=[image.id]),
+        )
+
+    assert response.used_model is True
+    assert ai_search.last_image_url == f"http://example.test/api/images/{image.id}/thumbnail"
+
+
 def test_asset_agent_sessions_are_user_private_even_for_admin(client):
     business_csrf = login(client, "business", "business-password")
     business_headers = {"X-CSRF-Token": business_csrf, "Origin": "http://localhost:5173"}
@@ -257,6 +288,7 @@ class _FailingProvider:
 
 class _FakeAiSearchChat:
     last_query = ""
+    last_image_url = ""
 
     @property
     def chat_search_configured(self) -> bool:
@@ -270,8 +302,10 @@ class _FakeAiSearchChat:
         user_id: str = "",
         page_size: int = 10,
         enable_suggestions: bool = True,
+        image_url: str = "",
     ) -> VolcAiSearchChatResult:
         self.last_query = query
+        self.last_image_url = image_url
         return VolcAiSearchChatResult(
             session_id=session_id,
             query=query,

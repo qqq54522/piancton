@@ -81,6 +81,7 @@ function ScoredImageCard({
             imageId: selected.id,
             assetGroupId: scored.assetGroupId,
             title: scored.assetTitle || selected.title,
+            imageUrl: previewUrlFor(selected, { animateGif: animateGifPreview }),
           });
         }}
         onToggleProjectBasket={canSaveToProjectBasket

@@ -33,15 +33,15 @@ export interface AgentState {
 }
 
 export const DEFAULT_QUESTIONS = [
-  '这张图适合怎么用？',
+  '这张图适合表达哪个核心卖点？',
   '这个卖点怎么跟家长讲？',
-  '帮我判断这句话适合哪个卖点',
+  '还能推荐哪些相近素材方向？',
 ] as const;
 
 export const MAX_SESSIONS = 20;
 export const LOCAL_SESSION_PREFIX = 'local-';
 export const DEFAULT_GREETING =
-  '我是 Piancton Agent。你可以问我图片、卖点、六大体系、素材使用和销售话术；如果把图片发给我，我会结合已确认的素材信息一起回答。';
+  'Hi，我是洋葱业务知识助手。你可以问我业务体系、核心卖点、证明点、家长沟通和素材方向；把图片发给我，我会结合图片和知识库判断它适合表达什么卖点。';
 
 const LEGACY_DEFAULT_GREETING =
   '我是素材库 Agent。你可以把图片发给我，我会按已确认的卖点和素材信息帮你解释。';
@@ -178,6 +178,7 @@ export function contextPayloadToApi(
     imageId: payload.imageId,
     assetGroupId: payload.assetGroupId ?? null,
     title: payload.title,
+    imageUrl: payload.imageUrl ?? null,
   };
 }
 
@@ -188,6 +189,7 @@ export function contextApiToPayload(
     imageId: value.imageId,
     assetGroupId: value.assetGroupId ?? null,
     title: value.title,
+    imageUrl: value.imageUrl ?? null,
   };
 }
 

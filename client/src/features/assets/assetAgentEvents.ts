@@ -4,6 +4,7 @@ export interface AssetAgentImagePayload {
   imageId: string;
   assetGroupId?: string | null;
   title: string;
+  imageUrl?: string | null;
 }
 
 export function sendImageToAssetAgent(payload: AssetAgentImagePayload) {

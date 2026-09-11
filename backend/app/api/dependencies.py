@@ -543,6 +543,9 @@ def get_asset_agent_service(
         if settings.ai_search_enabled and settings.ai_search_chat_enabled
         else None,
         ai_search_chat_page_size=settings.ai_search_page_size,
+        ai_search_public_base_url=(
+            settings.ai_search_public_base_url or settings.public_base_url or _first_cors_origin()
+        ),
     )
 
 

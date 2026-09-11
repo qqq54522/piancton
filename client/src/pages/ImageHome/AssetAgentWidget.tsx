@@ -46,6 +46,8 @@ import {
   type AgentState,
 } from './assetAgentSessionModel';
 
+const AUTO_IMAGE_PROMPT = '请讲解这张图片，判断它适合表达什么业务体系和核心卖点，并给出可以怎么使用。';
+
 interface AssetAgentWidgetProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -70,6 +72,7 @@ function AssetAgentWidgetInner({
   const [state, setState] = useState<AgentState>(() => stateFromSessions([createLocalSession()]));
   const sessionMenuRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const askRef = useRef<((question?: string, sessionOverride?: AgentSession) => Promise<void>) | null>(null);
   const [markState, setMarkState] = useState<'idle' | 'thinking' | 'happy' | 'wake'>('idle');
   const activeSession = useMemo(
     () => state.sessions.find((session) => session.id === state.activeSessionId)
@@ -131,11 +134,13 @@ function AssetAgentWidgetInner({
     return normalized;
   }, []);
 
-  const addImageToSession = useCallback(async (image: AssetAgentImagePayload) => {
+  const addImageToSession = useCallback(async (
+    image: AssetAgentImagePayload,
+  ): Promise<AgentSession | null> => {
     setOpenState(true);
     const current = activeSessionRef.current;
     const contextImages = current?.contextImages ?? [];
-    if (contextImages.some((item) => item.imageId === image.imageId)) return;
+    if (contextImages.some((item) => item.imageId === image.imageId)) return current ?? null;
 
     const nextContext = [...contextImages, image].slice(-8);
     if (!current || isLocalSession(current.id)) {
@@ -143,11 +148,13 @@ function AssetAgentWidgetInner({
         const created = await createAssetAgentSession({
           contextImages: nextContext.map(contextPayloadToApi),
         });
-        setState((existing) => upsertSession(existing, sessionFromApi(created), created.id));
+        const normalized = sessionFromApi(created);
+        setState((existing) => upsertSession(existing, normalized, created.id));
+        return normalized;
       } catch (error) {
         pushAssistantError(getApiError(error).message);
+        return null;
       }
-      return;
     }
 
     setState((existing) => updateSession(existing, current.id, (session) => ({
@@ -168,9 +175,12 @@ function AssetAgentWidgetInner({
       const updated = await updateAssetAgentSessionContext(current.id, {
         contextImages: nextContext.map(contextPayloadToApi),
       });
-      setState((existing) => upsertSession(existing, sessionFromApi(updated), updated.id));
+      const normalized = sessionFromApi(updated);
+      setState((existing) => upsertSession(existing, normalized, updated.id));
+      return normalized;
     } catch (error) {
       pushAssistantError(getApiError(error).message, current.id);
+      return null;
     }
   }, [pushAssistantError, setOpenState]);
 
@@ -256,7 +266,10 @@ function AssetAgentWidgetInner({
 
   useEffect(() => {
     return listenForAssetAgentImages((image) => {
-      void addImageToSession(image);
+      void (async () => {
+        const session = await addImageToSession(image);
+        if (session) void askRef.current?.(AUTO_IMAGE_PROMPT, session);
+      })();
     });
   }, [addImageToSession]);
 
@@ -314,12 +327,13 @@ function AssetAgentWidgetInner({
     }
   };
 
-  const ask = async (question?: string) => {
+  const ask = async (question?: string, sessionOverride?: AgentSession) => {
     const message = (question ?? input).trim();
-    if (!message || loadingSessionId || initialLoading || !activeSession) return;
-    let targetSession = activeSession;
+    const sourceSession = sessionOverride ?? activeSession;
+    if (!message || loadingSessionId || initialLoading || !sourceSession) return;
+    let targetSession = sourceSession;
 
-    setInput('');
+    if (!question) setInput('');
     setMarkState('thinking');
     try {
       if (isLocalSession(targetSession.id)) {
@@ -437,6 +451,10 @@ function AssetAgentWidgetInner({
       setLoadingSessionId(null);
     }
   };
+
+  useEffect(() => {
+    askRef.current = ask;
+  });
 
   if (!open) {
     return (
@@ -590,9 +608,19 @@ function AssetAgentWidgetInner({
             {activeSession.contextImages.map((image) => (
               <span
                 key={image.imageId}
-                className="inline-flex max-w-[180px] shrink-0 items-center gap-1 rounded-full border border-border/60 bg-white px-2 py-1 text-[11px] text-foreground shadow-sm"
+                className="inline-flex max-w-[210px] shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-white px-2 py-1 text-[11px] text-foreground shadow-sm"
               >
-                <ImageIcon className="size-3" />
+                {image.imageUrl ? (
+                  <img
+                    src={image.imageUrl}
+                    alt=""
+                    className="size-5 rounded-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <ImageIcon className="size-3" />
+                )}
                 <span className="truncate">{image.title}</span>
               </span>
             ))}
@@ -632,7 +660,9 @@ function AssetAgentWidgetInner({
                   {message.reasoningContent}
                 </div>
               )}
-              {message.content || (message.streaming ? '正在组织最终回答…' : '')}
+              <AgentMessageContent
+                content={message.content || (message.streaming ? '正在组织最终回答…' : '')}
+              />
               {message.role === 'assistant' && message.usedModel === false && (
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   未调用到模型，已走本地兜底
@@ -675,6 +705,20 @@ function AssetAgentWidgetInner({
             </div>
           </div>
         )}
+        {!loading && activeSession.suggestedQuestions.length > 0 && (
+          <div className="ml-auto w-[86%] space-y-1.5">
+            {activeSession.suggestedQuestions.slice(0, 3).map((question) => (
+              <button
+                key={question}
+                type="button"
+                className="w-full rounded-xl border border-border/70 bg-white px-3 py-2 text-left text-[11px] leading-4 text-foreground shadow-sm transition hover:border-foreground/20 hover:bg-secondary/60"
+                onClick={() => void ask(question)}
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -706,6 +750,58 @@ function AssetAgentWidgetInner({
       </div>
     </aside>
   );
+}
+
+function AgentMessageContent({ content }: { content: string }) {
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-1.5">
+      {lines.map((rawLine, index) => {
+        const line = rawLine.trim();
+        const key = `${index}-${rawLine}`;
+        if (!line) return <div key={key} className="h-1" />;
+        if (/^#{1,3}\s+/.test(line)) {
+          return (
+            <p key={key} className="pt-1 text-[13px] font-semibold text-foreground">
+              {renderInlineMarkdown(line.replace(/^#{1,3}\s+/, ''))}
+            </p>
+          );
+        }
+        if (/^[-*]\s+/.test(line)) {
+          return (
+            <p key={key} className="pl-3 text-xs leading-5 before:mr-1 before:content-['•']">
+              {renderInlineMarkdown(line.replace(/^[-*]\s+/, ''))}
+            </p>
+          );
+        }
+        if (/^\d+[.)、]\s*/.test(line)) {
+          return (
+            <p key={key} className="text-xs leading-5">
+              {renderInlineMarkdown(line)}
+            </p>
+          );
+        }
+        return (
+          <p key={key} className="text-xs leading-5">
+            {renderInlineMarkdown(line)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function renderInlineMarkdown(value: string) {
+  return value.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={`${part}-${index}`} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
 }
 
 export default AssetAgentWidget;

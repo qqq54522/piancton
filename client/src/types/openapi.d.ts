@@ -2116,6 +2116,8 @@ export interface components {
             assetGroupId?: string | null;
             /** Title */
             title: string;
+            /** Imageurl */
+            imageUrl?: string | null;
         };
         /** AssetAgentMessageRead */
         AssetAgentMessageRead: {

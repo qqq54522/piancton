@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
+from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -72,12 +73,14 @@ class AssetAgentService:
         knowledge_router: Any | None = None,
         ai_search_chat: VolcAiSearchClient | None = None,
         ai_search_chat_page_size: int = 10,
+        ai_search_public_base_url: str = "",
     ):
         self.db = db
         self.provider = provider
         self.knowledge_router = knowledge_router
         self.ai_search_chat = ai_search_chat
         self.ai_search_chat_page_size = max(1, min(ai_search_chat_page_size, 50))
+        self.ai_search_public_base_url = ai_search_public_base_url.rstrip("/")
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
@@ -203,6 +206,7 @@ class AssetAgentService:
             session=session,
             message=message,
             context_text=context_text,
+            context_images=context_images,
         )
         if external_chat is not None:
             suggestions = _clean_suggestions(external_chat.suggestions) or _fallback_suggestions(
@@ -329,6 +333,7 @@ class AssetAgentService:
                     session=session,
                     message=message,
                     context_text=context_text,
+                    context_images=context_images,
                 )
                 if external_chat is not None:
                     answer = external_chat.answer.strip()
@@ -554,6 +559,7 @@ class AssetAgentService:
                 image_id=image.id,
                 asset_group_id=image.asset_group_id,
                 title=image.title,
+                image_url=f"/api/images/{image.id}/thumbnail",
             )
             for image in images[:8]
         ]
@@ -750,6 +756,7 @@ class AssetAgentService:
         session: AssetAgentSession,
         message: str,
         context_text: str,
+        context_images: list[AssetAgentImageContext],
     ) -> VolcAiSearchChatResult | None:
         client = self.ai_search_chat
         if client is None or not getattr(client, "chat_search_configured", False):
@@ -762,6 +769,10 @@ class AssetAgentService:
                 user_id=user.id,
                 page_size=self.ai_search_chat_page_size,
                 enable_suggestions=True,
+                image_url=_first_image_url(
+                    context_images,
+                    public_base_url=self.ai_search_public_base_url,
+                ),
             )
         except VolcAiSearchClientError:
             return None
@@ -782,6 +793,22 @@ def _ai_search_chat_message(message: str, context_text: str) -> str:
             context_text,
         )
     )
+
+
+def _first_image_url(
+    context_images: list[AssetAgentImageContext],
+    *,
+    public_base_url: str,
+) -> str:
+    for item in context_images:
+        image_url = (item.image_url or f"/api/images/{item.image_id}/thumbnail").strip()
+        if not image_url:
+            continue
+        if image_url.startswith(("http://", "https://")):
+            return image_url
+        if public_base_url:
+            return urljoin(f"{public_base_url}/", image_url.lstrip("/"))
+    return ""
 
 
 def _ai_search_chat_attempt(*, status: str, error: str = "") -> dict[str, Any]:
@@ -950,11 +977,13 @@ def _parse_context_images(raw: str | None) -> list[AssetAgentImageContext]:
         if not image_id or not title:
             continue
         asset_group_id = value.get("assetGroupId") or value.get("asset_group_id")
+        image_url = value.get("imageUrl") or value.get("image_url")
         items.append(
             AssetAgentImageContext(
                 image_id=image_id,
                 asset_group_id=str(asset_group_id).strip() if asset_group_id else None,
                 title=_clip(title, 255),
+                image_url=_clip(str(image_url).strip(), 1000) if image_url else None,
             )
         )
     return items
@@ -976,6 +1005,7 @@ def _clean_context_images(
                 image_id=image_id,
                 asset_group_id=value.asset_group_id.strip() if value.asset_group_id else None,
                 title=_clip(title, 255),
+                image_url=_clip(value.image_url.strip(), 1000) if value.image_url else None,
             )
         )
     return cleaned[-8:]

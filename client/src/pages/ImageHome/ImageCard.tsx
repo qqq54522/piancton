@@ -56,6 +56,7 @@ const ImageCard = ({
           imageId: image.id,
           assetGroupId: image.assetGroupId,
           title: image.title,
+          imageUrl: previewUrlFor(image, { animateGif: animateGifPreview }),
         });
       }}
       downloadHref={image.downloadUrl}
