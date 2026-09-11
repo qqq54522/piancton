@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
 from collections.abc import Iterator
+from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
@@ -28,6 +28,7 @@ from app.repositories.asset_agent_repository import (
 from app.repositories.asset_repository import AssetRepository
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
+from app.schemas.ai import SearchUnderstanding
 from app.schemas.asset_agent import (
     AssetAgentChatRequest,
     AssetAgentChatResponse,
@@ -41,8 +42,12 @@ from app.schemas.asset_agent import (
     AssetAgentSessionListResponse,
     AssetAgentSessionRead,
 )
-from app.schemas.ai import SearchUnderstanding
 from app.services.unit_of_work import UnitOfWork
+from app.services.volc_ai_search_client import (
+    VolcAiSearchChatResult,
+    VolcAiSearchClient,
+    VolcAiSearchClientError,
+)
 
 MAX_AGENT_SESSIONS = 20
 AGENT_RESET_TIMEZONE = ZoneInfo("Asia/Shanghai")
@@ -65,10 +70,14 @@ class AssetAgentService:
         provider: ModelProvider,
         *,
         knowledge_router: Any | None = None,
+        ai_search_chat: VolcAiSearchClient | None = None,
+        ai_search_chat_page_size: int = 10,
     ):
         self.db = db
         self.provider = provider
         self.knowledge_router = knowledge_router
+        self.ai_search_chat = ai_search_chat
+        self.ai_search_chat_page_size = max(1, min(ai_search_chat_page_size, 50))
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
@@ -188,6 +197,33 @@ class AssetAgentService:
         concept_cards = self._concept_cards(groups)
         context_cards = self._context_cards(images, groups) + concept_cards
         context_text = self._context_text(images, groups)
+
+        external_chat = self._try_ai_search_chat(
+            user=user,
+            session=session,
+            message=message,
+            context_text=context_text,
+        )
+        if external_chat is not None:
+            suggestions = _clean_suggestions(external_chat.suggestions) or _fallback_suggestions(
+                bool(images or groups)
+            )
+            answer = external_chat.answer.strip()
+            session.suggested_questions_json = _json_dump(suggestions)
+            self._add_message(session, role="assistant", content=answer, used_model=True)
+            self.sessions.save(session)
+            self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
+            self.uow.commit()
+            return AssetAgentChatResponse(
+                answer=answer,
+                conversation_id=session.id,
+                session=self._session_read(session),
+                suggested_questions=suggestions,
+                context_cards=context_cards,
+                used_model=True,
+                provider_attempts=[_ai_search_chat_attempt(status="ok")],
+            )
+
         understanding = self._route_business_understanding(message, images, groups)
         prompt = _agent_prompt()
         input_text = "\n\n".join(
@@ -246,9 +282,7 @@ class AssetAgentService:
             suggested_questions=suggestions,
             context_cards=context_cards,
             used_model=used_model,
-            provider_attempts=[
-                attempt for attempt in attempts if isinstance(attempt, dict)
-            ],
+            provider_attempts=[attempt for attempt in attempts if isinstance(attempt, dict)],
         )
 
     def chat_stream(
@@ -286,7 +320,49 @@ class AssetAgentService:
                 context_cards = self._context_cards(images, groups) + concept_cards
                 context_text = self._context_text(images, groups)
 
-                yield _sse("reasoning_delta", {"text": "我先判断这句话是在找图、问卖点，还是要销售话术。\n"})
+                yield _sse(
+                    "reasoning_delta",
+                    {"text": "我会先调用洋葱业务知识问答，基于卖点体系和素材库数据回答。\n"},
+                )
+                external_chat = self._try_ai_search_chat(
+                    user=user,
+                    session=session,
+                    message=message,
+                    context_text=context_text,
+                )
+                if external_chat is not None:
+                    answer = external_chat.answer.strip()
+                    suggestions = _clean_suggestions(
+                        external_chat.suggestions
+                    ) or _fallback_suggestions(bool(images or groups))
+                    for chunk in _chunk_text(answer):
+                        yield _sse("answer_delta", {"text": chunk})
+                    session.suggested_questions_json = _json_dump(suggestions)
+                    self._add_message(
+                        session,
+                        role="assistant",
+                        content=answer,
+                        used_model=True,
+                    )
+                    self.sessions.save(session)
+                    self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
+                    self.uow.commit()
+                    response = AssetAgentChatResponse(
+                        answer=answer,
+                        conversation_id=session.id,
+                        session=self._session_read(session),
+                        suggested_questions=suggestions,
+                        context_cards=context_cards,
+                        used_model=True,
+                        provider_attempts=[_ai_search_chat_attempt(status="ok")],
+                    )
+                    yield _sse("final", response.model_dump(mode="json", by_alias=True))
+                    return
+
+                yield _sse(
+                    "reasoning_delta",
+                    {"text": "我先判断这句话是在找图、问卖点，还是要销售话术。\n"},
+                )
                 understanding = self._route_business_understanding(message, images, groups)
                 if understanding:
                     for chunk in _chunk_text(_visible_reasoning_text(understanding)):
@@ -514,9 +590,7 @@ class AssetAgentService:
                 item
                 for item in (
                     f"渠道/尺寸：{image.channel}" if image.channel else "",
-                    f"图片摘要：{_clip(image.image_summary, 120)}"
-                    if image.image_summary
-                    else "",
+                    f"图片摘要：{_clip(image.image_summary, 120)}" if image.image_summary else "",
                     f"素材组：{image.asset_group.title}" if image.asset_group else "",
                 )
                 if item
@@ -614,9 +688,7 @@ class AssetAgentService:
                         concept.name,
                         concept.code,
                         f"体系：{'、'.join(system_names)}" if system_names else "",
-                        f"定义：{_clip(concept.definition, 120)}"
-                        if concept.definition
-                        else "",
+                        f"定义：{_clip(concept.definition, 120)}" if concept.definition else "",
                         f"搜索话术：{'、'.join(phrases)}" if phrases else "",
                     )
                     if item
@@ -671,8 +743,55 @@ class AssetAgentService:
             return None
         return result if isinstance(result, SearchUnderstanding) else None
 
+    def _try_ai_search_chat(
+        self,
+        *,
+        user: User,
+        session: AssetAgentSession,
+        message: str,
+        context_text: str,
+    ) -> VolcAiSearchChatResult | None:
+        client = self.ai_search_chat
+        if client is None or not getattr(client, "chat_search_configured", False):
+            return None
+        self.db.flush()
+        try:
+            return client.chat_search(
+                _ai_search_chat_message(message, context_text),
+                session_id=session.id,
+                user_id=user.id,
+                page_size=self.ai_search_chat_page_size,
+                enable_suggestions=True,
+            )
+        except VolcAiSearchClientError:
+            return None
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _ai_search_chat_message(message: str, context_text: str) -> str:
+    if not context_text.strip():
+        return message
+    return "\n\n".join(
+        (
+            message,
+            "当前用户还带了以下素材上下文。请只在确有依据时引用这些素材；"
+            "如果问题与素材无关，优先按洋葱业务知识回答。",
+            context_text,
+        )
+    )
+
+
+def _ai_search_chat_attempt(*, status: str, error: str = "") -> dict[str, Any]:
+    return {
+        "provider": "volc_ai_search_chat",
+        "model": "chat_search",
+        "status": status,
+        "duration_ms": None,
+        "error": error,
+    }
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:
@@ -728,8 +847,7 @@ def _understanding_text(understanding: SearchUnderstanding) -> str:
         for item in understanding.matched_business_concepts
     )
     proof_points = "、".join(
-        f"{item.name}（{item.weight:.2f}）"
-        for item in understanding.matched_proof_points
+        f"{item.name}（{item.weight:.2f}）" for item in understanding.matched_proof_points
     )
     return "\n".join(
         item
@@ -896,13 +1014,14 @@ def _title_from_message(message: str) -> str:
 
 def _agent_prompt() -> str:
     return """
-你是“Piancton 通用业务 Agent”，服务对象是销售、运营和设计。
+你是“Piancton 通用业务 Agent”，服务对象包括销售、市场、运营、教研、设计、客服和管理团队。
 你不是分开的图片助手、卖点助手或销售助手，而是同一个统一业务机器人。
-你要帮助他们理解：图片怎么用、用户话术命中什么标准卖点、六大体系/核心卖点怎么解释、销售该如何回复家长、相近卖点边界在哪里。
+你要帮助内部成员理解图片使用、卖点体系、业务边界、素材表达和对外沟通话术。
 
 事实边界：
 1. 必须优先使用“已发送图片/素材上下文”和“项目启用卖点简表”里的事实。
-2. 如果输入里有“知识库/向量库卖点判断”，它是当前卖点裁决结果，优先级高于你自己的自由猜测；不要推翻它，只能围绕它解释和追问。
+2. 如果输入里有“知识库/向量库卖点判断”，它是当前卖点裁决结果。
+   不要推翻它，只能围绕它解释和追问。
 3. 对项目没有确认的信息，不要编造；要说“当前项目资料未确认”。
 4. 不要编造图片、素材名称、素材数量、学校案例、效果数据或产品能力。
 5. 如果没有图片/素材候选，只能先判断卖点和说明下一步，不能假装已经找到图片。
@@ -920,16 +1039,21 @@ def _agent_prompt() -> str:
 4. 回答要中文、业务口吻、可落地，允许比普通客服回答更完整一些。
 
 找图/找素材流程：
-1. 当用户输入像“找图、推荐图片、配图、素材、海报、PPT、宣传图、这句话适合哪张图、我想表达……”时，先判断这句话可能对应哪个核心卖点和体系。
-2. 如果用户只是给出一段卖点表达或模糊需求，先问确认：例如“你是想找【卖点名】这个卖点下的素材吗？如果是，我下一步会按这个卖点继续找图。”
+1. 当用户输入像“找图、推荐图片、配图、素材、海报、PPT、宣传图、
+   这句话适合哪张图、我想表达……”时，先判断可能对应的核心卖点和体系。
+2. 如果用户只是给出一段卖点表达或模糊需求，先问确认。
+   例如：“你是想找【卖点名】这个卖点下的素材吗？
+   如果是，我下一步会按这个卖点继续找图。”
 3. 如果已发送图片/素材上下文中有候选，才可以推荐最合适的一张或几张，并说明推荐原因。
 4. 如果当前上下文没有候选图片，就明确说“确认后我会去素材库按这个卖点找图”，不要自行虚构素材。
-5. 如果一句话同时包含多个独立卖点，要保留多个候选，不要强行压成唯一卖点；可以让用户确认优先找哪一个。
+5. 如果一句话同时包含多个独立卖点，要保留多个候选。
+   不要强行压成唯一卖点；可以让用户确认优先找哪一个。
 
 解释/销售流程：
 1. 如果用户问六大体系、核心卖点、相近卖点边界，就直接解释，并指出判断边界。
 2. 如果用户给了家长原话或销售场景，要先判断家长真实关心点，再给销售可直接复制的话术。
-3. 如果用户问某张图片为什么合适，要结合图片/素材上下文回答：它表达什么卖点、为什么适合、适合怎么对业务方/家长讲。
+3. 如果用户问某张图片为什么合适，要结合图片/素材上下文回答。
+   说明它表达什么卖点、为什么适合、适合怎么对业务方或家长讲。
 
 只返回 JSON：{"answer":"...","suggestedQuestions":["..."]}。
 """.strip()
@@ -956,9 +1080,7 @@ def _group_facts(group: AssetGroup) -> list[str]:
         facts.append(f"{prefix}卖点：{link.concept.name}{reason}")
 
     phrases = [
-        phrase.phrase
-        for phrase in group.search_phrases
-        if phrase.review_status == "accepted"
+        phrase.phrase for phrase in group.search_phrases if phrase.review_status == "accepted"
     ][:10]
     if phrases:
         facts.append(f"已确认搜索话术：{'、'.join(phrases)}")
@@ -972,9 +1094,7 @@ def _concept_facts(concept: BusinessConcept, evidence_reason: str | None) -> lis
         if link.status == "active" and link.system_tag
     ]
     phrases = [
-        phrase.phrase
-        for phrase in concept.search_phrases
-        if phrase.review_status == "accepted"
+        phrase.phrase for phrase in concept.search_phrases if phrase.review_status == "accepted"
     ][:8]
     return [
         item
@@ -986,9 +1106,7 @@ def _concept_facts(concept: BusinessConcept, evidence_reason: str | None) -> lis
             if concept.recommendation_text
             else "",
             f"搜索话术：{'、'.join(phrases)}" if phrases else "",
-            f"当前素材关联原因：{_clip(evidence_reason, 120)}"
-            if evidence_reason
-            else "",
+            f"当前素材关联原因：{_clip(evidence_reason, 120)}" if evidence_reason else "",
         )
         if item
     ]

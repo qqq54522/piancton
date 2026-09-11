@@ -11,6 +11,7 @@ from app.models.user import User
 from app.schemas.asset_agent import AssetAgentChatRequest
 from app.services import asset_agent_service
 from app.services.asset_agent_service import AssetAgentService
+from app.services.volc_ai_search_client import VolcAiSearchChatResult
 from tests.conftest import login
 
 T = TypeVar("T")
@@ -82,6 +83,27 @@ def test_asset_agent_uses_confirmed_asset_context(db_factory):
     assert response.answer == "这张图可以用来解释 AI 定制班。"
 
 
+def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-ai-search-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+
+        provider = _FailingProvider()
+        ai_search = _FakeAiSearchChat()
+        response = AssetAgentService(db, provider, ai_search_chat=ai_search).chat(
+            user,
+            AssetAgentChatRequest(message="同步考点体系怎么跟家长解释？"),
+        )
+
+    assert response.used_model is True
+    assert response.answer == "这是火山 AI Search 的业务知识回答。"
+    assert response.suggested_questions == ["这个卖点适合什么素材？"]
+    assert response.provider_attempts[0]["provider"] == "volc_ai_search_chat"
+    assert ai_search.last_query == "同步考点体系怎么跟家长解释？"
+    assert provider.called is False
+
+
 def test_asset_agent_sessions_are_user_private_even_for_admin(client):
     business_csrf = login(client, "business", "business-password")
     business_headers = {"X-CSRF-Token": business_csrf, "Origin": "http://localhost:5173"}
@@ -106,9 +128,7 @@ def test_asset_agent_sessions_are_user_private_even_for_admin(client):
     admin_headers = {"X-CSRF-Token": admin_csrf, "Origin": "http://localhost:5173"}
     admin_listed = client.get("/api/asset-agent/sessions")
     assert admin_listed.status_code == 200
-    assert session_id not in [
-        item["id"] for item in admin_listed.json()["sessions"]
-    ]
+    assert session_id not in [item["id"] for item in admin_listed.json()["sessions"]]
 
     admin_send = client.post(
         f"/api/asset-agent/sessions/{session_id}/messages",
@@ -212,3 +232,50 @@ class _RecordingProvider:
     ) -> ModelCallResult[T]:
         result = self.generate_json(request)
         return ModelCallResult(validator(result.value), result.attempts)
+
+
+class _FailingProvider:
+    name = "failing"
+    called = False
+
+    @property
+    def configured(self) -> bool:
+        return True
+
+    def generate_json(self, request: ModelRequest) -> ModelCallResult[dict[str, Any]]:
+        self.called = True
+        raise AssertionError("local model should not be called when AI Search chat works")
+
+    def generate_validated_json(
+        self,
+        request: ModelRequest,
+        validator: Callable[[dict[str, Any]], T],
+    ) -> ModelCallResult[T]:
+        self.called = True
+        raise AssertionError("local model should not be called when AI Search chat works")
+
+
+class _FakeAiSearchChat:
+    last_query = ""
+
+    @property
+    def chat_search_configured(self) -> bool:
+        return True
+
+    def chat_search(
+        self,
+        query: str,
+        *,
+        session_id: str,
+        user_id: str = "",
+        page_size: int = 10,
+        enable_suggestions: bool = True,
+    ) -> VolcAiSearchChatResult:
+        self.last_query = query
+        return VolcAiSearchChatResult(
+            session_id=session_id,
+            query=query,
+            answer="这是火山 AI Search 的业务知识回答。",
+            response={"answer": "这是火山 AI Search 的业务知识回答。"},
+            suggestions=["这个卖点适合什么素材？"],
+        )

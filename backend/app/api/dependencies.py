@@ -121,15 +121,8 @@ def _build_scheduled_provider(
 
 def _build_vikingdb_knowledge_router(
     db: Session,
-) -> (
-    VikingDBKnowledgeRouter
-    | VikingKnowledgeServiceRouter
-    | SearchKnowledgeFallbackRouter
-    | None
-):
-    runtime_catalog = IntentCatalogService(
-        BusinessConceptRepository(db)
-    ).runtime_catalog()
+) -> VikingDBKnowledgeRouter | VikingKnowledgeServiceRouter | SearchKnowledgeFallbackRouter | None:
+    runtime_catalog = IntentCatalogService(BusinessConceptRepository(db)).runtime_catalog()
     vector_enabled = _api_center_bool(
         db,
         "vikingdb_knowledge_router_enabled",
@@ -305,16 +298,30 @@ def _build_ai_search_client() -> VolcAiSearchClient:
         base_url=settings.ai_search_base_url,
         api_key=settings.ai_search_api_key,
         dataset_id=settings.ai_search_dataset_id,
+        application_id=settings.ai_search_application_id,
         search_path=settings.ai_search_search_path,
+        chat_search_path=settings.ai_search_chat_path,
+        chat_dataset_ids=settings.ai_search_chat_dataset_ids,
         timeout_seconds=settings.ai_search_timeout_seconds,
+    )
+
+
+def _build_ai_search_chat_client() -> VolcAiSearchClient:
+    return VolcAiSearchClient(
+        base_url=settings.ai_search_base_url,
+        api_key=settings.ai_search_api_key,
+        dataset_id=settings.ai_search_dataset_id,
+        application_id=settings.ai_search_application_id,
+        search_path=settings.ai_search_search_path,
+        chat_search_path=settings.ai_search_chat_path,
+        chat_dataset_ids=settings.ai_search_chat_dataset_ids,
+        timeout_seconds=settings.ai_search_chat_timeout_seconds,
     )
 
 
 def _build_ai_search_index() -> VolcAiSearchIndexSync:
     public_base_url = (
-        settings.ai_search_public_base_url
-        or settings.public_base_url
-        or _first_cors_origin()
+        settings.ai_search_public_base_url or settings.public_base_url or _first_cors_origin()
     )
     return VolcAiSearchIndexSync(
         _build_ai_search_client(),
@@ -410,28 +417,23 @@ def get_search_service(
     db: Session = Depends(get_db),
 ) -> SearchService:
     pure_vikingdb_search = (
-        (
-            _api_center_bool(
-                db,
-                "viking_knowledge_service_enabled",
-                settings.viking_knowledge_service_enabled,
-            )
-            or _api_center_bool(
-                db,
-                "vikingdb_knowledge_router_enabled",
-                settings.vikingdb_knowledge_router_enabled,
-            )
+        _api_center_bool(
+            db,
+            "viking_knowledge_service_enabled",
+            settings.viking_knowledge_service_enabled,
         )
-        and not settings.vikingdb_skill_backup_enabled
-    )
+        or _api_center_bool(
+            db,
+            "vikingdb_knowledge_router_enabled",
+            settings.vikingdb_knowledge_router_enabled,
+        )
+    ) and not settings.vikingdb_skill_backup_enabled
     search_ai_service = get_search_ai_service(
         db,
         request_id=request.state.request_id,
     )
     provider_attempts = (
-        1
-        if pure_vikingdb_search
-        else _provider_attempt_count(search_ai_service.provider)
+        1 if pure_vikingdb_search else _provider_attempt_count(search_ai_service.provider)
     )
     return SearchService(
         db,
@@ -483,9 +485,7 @@ def get_search_service(
         candidate_review_limit=settings.search_candidate_review_limit,
         understanding_grace_seconds=settings.search_understanding_grace_seconds,
         understanding_retry_attempts=settings.search_understanding_retry_attempts,
-        understanding_retry_backoff_seconds=(
-            settings.search_understanding_retry_backoff_seconds
-        ),
+        understanding_retry_backoff_seconds=(settings.search_understanding_retry_backoff_seconds),
         reranker_timeout_seconds=settings.search_reranker_timeout_seconds,
         result_recommendation_timeout_seconds=(
             settings.search_result_recommendation_timeout_seconds
@@ -539,6 +539,10 @@ def get_asset_agent_service(
         db,
         _build_scheduled_provider(db, request_id=request.state.request_id),
         knowledge_router=_build_vikingdb_knowledge_router(db),
+        ai_search_chat=_build_ai_search_chat_client()
+        if settings.ai_search_enabled and settings.ai_search_chat_enabled
+        else None,
+        ai_search_chat_page_size=settings.ai_search_page_size,
     )
 
 
@@ -553,9 +557,7 @@ def get_search_ai_service(
         system_routing_timeout_seconds=(settings.search_system_routing_timeout_seconds),
         selling_point_timeout_seconds=(settings.search_selling_point_timeout_seconds),
         proof_point_timeout_seconds=(settings.search_proof_point_timeout_seconds),
-        candidate_review_timeout_seconds=(
-            settings.search_candidate_review_timeout_seconds
-        ),
+        candidate_review_timeout_seconds=(settings.search_candidate_review_timeout_seconds),
     )
 
 

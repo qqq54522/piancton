@@ -93,9 +93,7 @@ class Settings(BaseSettings):
     vikingdb_knowledge_fallback_min_score: float = 0.2
     vikingdb_knowledge_fallback_max_matches: int = 1
     viking_knowledge_service_enabled: bool = False
-    viking_knowledge_service_base_url: str = (
-        "https://api-knowledgebase.mlp.cn-beijing.volces.com"
-    )
+    viking_knowledge_service_base_url: str = "https://api-knowledgebase.mlp.cn-beijing.volces.com"
     viking_knowledge_service_api_key: str = ""
     viking_knowledge_service_resource_id: str = ""
     viking_knowledge_service_path: str = "/api/knowledge/service/chat"
@@ -108,6 +106,10 @@ class Settings(BaseSettings):
     ai_search_api_key: str = ""
     ai_search_application_id: str = ""
     ai_search_search_path: str = ""
+    ai_search_chat_enabled: bool = False
+    ai_search_chat_path: str = ""
+    ai_search_chat_dataset_ids: str = ""
+    ai_search_chat_timeout_seconds: float = 20.0
     ai_search_dataset_id: str = ""
     ai_search_timeout_seconds: float = 8.0
     ai_search_page_size: int = 10
