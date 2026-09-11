@@ -310,6 +310,62 @@ def test_phase5_source_links_are_editor_only(client):
     assert removed.json()["sourceLinks"] == []
 
 
+def test_source_link_changes_refresh_ai_search_primary_image(client, monkeypatch):
+    class FakeAiSearchIndex:
+        configured = True
+
+        def __init__(self):
+            self.upserted: list[str] = []
+            self.deleted: list[str] = []
+
+        def upsert_image(self, image):
+            self.upserted.append(image.id)
+
+        def delete_image(self, image_id):
+            self.deleted.append(image_id)
+
+    fake_index = FakeAiSearchIndex()
+    csrf = login(client, "admin", "admin-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+    primary = client.post(
+        "/api/images/upload",
+        headers=headers,
+        files={"file": ("primary.png", png_file(), "image/png")},
+        data={"title": "卖点补充同步图", "channel": "PPT", "autoAnalyze": "false"},
+    ).json()
+    monkeypatch.setattr(dependencies, "_build_ai_search_index", lambda: fake_index)
+    group_id = primary["assetGroupId"]
+
+    added = client.post(
+        f"/api/asset-groups/{group_id}/source-links",
+        headers=headers,
+        json={
+            "label": "卖点补充",
+            "url": "https://example.com/source",
+            "linkType": "other",
+            "note": "这张图适合解释 AI 拍题精学的分步引导。",
+        },
+    )
+    assert added.status_code == 200
+    link_id = added.json()["sourceLinks"][0]["id"]
+
+    updated = client.patch(
+        f"/api/asset-groups/{group_id}/source-links/{link_id}",
+        headers=headers,
+        json={"note": "改成更适合销售对家长讲解的卖点补充。"},
+    )
+    assert updated.status_code == 200
+
+    removed = client.delete(
+        f"/api/asset-groups/{group_id}/source-links/{link_id}",
+        headers=headers,
+    )
+    assert removed.status_code == 200
+
+    assert fake_index.upserted == [primary["id"], primary["id"], primary["id"]]
+    assert fake_index.deleted == []
+
+
 def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
     from app.api.v1 import assets as assets_api
 

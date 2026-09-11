@@ -362,6 +362,7 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
         settings.long_image_min_aspect_ratio,
         settings.thumbnail_max_size,
         vector_index=VikingDBVectorIndexSync.from_settings(),
+        ai_search_index=_build_ai_search_index(),
     )
 
 

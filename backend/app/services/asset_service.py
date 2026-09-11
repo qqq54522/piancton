@@ -21,6 +21,7 @@ from app.services.search_index_sync import SearchIndexSync
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
+from app.services.volc_ai_search_sync import VolcAiSearchIndexSync
 
 ASSET_ROLES = {"derivative", "alternative", "revision"}
 
@@ -39,6 +40,7 @@ class AssetService:
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
         vector_index: VikingDBVectorIndexSync | None = None,
+        ai_search_index: VolcAiSearchIndexSync | None = None,
     ):
         self.assets = AssetRepository(db)
         self.images = ImageRepository(db)
@@ -50,6 +52,7 @@ class AssetService:
         self.thumbnail_max_size = thumbnail_max_size
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
+        self.ai_search_index = ai_search_index or VolcAiSearchIndexSync.disabled()
         self.uow = UnitOfWork(db)
         self.image_titles = ImageTitleService(db)
         self.identities = AssetIdentityService(db)
@@ -116,6 +119,7 @@ class AssetService:
             raise
         self.search_index.upsert_image(image)
         self.vector_index.best_effort_upsert_image(image)
+        self.ai_search_index.upsert_image(image)
         # Group-level relations and accepted phrases are inherited by reference.
         return asset_group_to_read(self._get(group_id))
 
@@ -179,9 +183,11 @@ class AssetService:
             raise
         if previous_primary:
             self.search_index.delete_image(previous_primary.id)
+            self.ai_search_index.delete_image(previous_primary.id)
             self.vector_index.best_effort_upsert_image(previous_primary)
         self.search_index.upsert_image(image)
         self.vector_index.best_effort_upsert_image(image)
+        self.ai_search_index.upsert_image(image)
         return asset_group_to_read(self._get(group_id))
 
     def delete_variant(self, group_id: str, image_id: str) -> AssetGroupRead:
@@ -207,6 +213,7 @@ class AssetService:
         self.images.save(image)
         self.uow.commit()
         self.search_index.delete_image(image.id)
+        self.ai_search_index.delete_image(image.id)
         self.vector_index.best_effort_upsert_image(image)
         return asset_group_to_read(self._get(group_id))
 
@@ -227,6 +234,7 @@ class AssetService:
         )
         self.assets.add(link)
         self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(
             self._get(group_id),
             include_source_links=True,
@@ -253,6 +261,7 @@ class AssetService:
             link.note = _clean_optional(values["note"])
         self.assets.save(link)
         self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(
             self._get(group_id),
             include_source_links=True,
@@ -265,6 +274,7 @@ class AssetService:
             raise NotFoundError("asset_source_link_not_found", "源文件链接不存在")
         self.assets.delete(link)
         self.uow.commit()
+        self._sync_primary(group_id)
         return asset_group_to_read(
             self._get(group_id),
             include_source_links=True,
@@ -412,6 +422,17 @@ class AssetService:
         if not group:
             raise NotFoundError("asset_group_not_found", "素材组不存在")
         return group
+
+    def _sync_primary(self, group_id: str) -> None:
+        group = self._get(group_id)
+        if not group.primary_image_id:
+            return
+        image = self.images.get(group.primary_image_id)
+        if not image:
+            return
+        self.search_index.upsert_image(image)
+        self.vector_index.best_effort_upsert_image(image)
+        self.ai_search_index.upsert_image(image)
 
     def _resolve_version_channel(
         self,
