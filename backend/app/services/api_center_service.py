@@ -80,7 +80,7 @@ from app.services.vikingdb_client import VikingDBClient
 
 DEFAULT_ROUTING_SLOTS: tuple[tuple[str, str, float, int], ...] = (
     ("search_result_recommendation_reason", "搜索结果：命中卖点解释", 30.0, 2500),
-    ("asset_agent_chat", "素材库 Agent：业务解释", 30.0, 3500),
+    ("asset_agent_chat", "Piancton Agent：通用业务问答", 30.0, 3500),
 )
 SEARCH_TASKS = ("search_result_recommendation_reason",)
 
@@ -173,7 +173,7 @@ ENV_CREDENTIAL_SPECS: tuple[dict[str, Any], ...] = (
         "tasks": SEARCH_TASKS,
     },
     {
-        "label": "环境导入 · 素材库 Agent Key",
+        "label": "环境导入 · Piancton Agent Key",
         "api_key": "asset_phrase_api_key",
         "base_url": "asset_phrase_base_url",
         "model_name": "asset_phrase_model_name",
@@ -185,6 +185,10 @@ ENV_CREDENTIAL_SPECS: tuple[dict[str, Any], ...] = (
         ),
     },
 )
+ENV_CREDENTIAL_TASKS_BY_LABEL = {
+    str(spec["label"]): tuple(str(task) for task in spec["tasks"])
+    for spec in ENV_CREDENTIAL_SPECS
+}
 _ENVIRONMENT_IMPORT_LOCK = Lock()
 HEALTH_CHECK_MAX_WORKERS = 4
 
@@ -350,42 +354,46 @@ class ApiCenterService:
         settings = get_settings()
         knowledge_api_key = self._external_setting(
             EXTERNAL_SETTING_KEYS["knowledge_api_key"],
-            settings.viking_knowledge_service_api_key,
+            getattr(settings, "viking_knowledge_service_api_key", ""),
         )
         vector_api_key = self._external_setting(
             EXTERNAL_SETTING_KEYS["vector_api_key"],
-            settings.vikingdb_api_key,
+            getattr(settings, "vikingdb_api_key", ""),
         )
         return ApiExternalConnectionsRead(
             knowledge_service=ApiExternalKnowledgeServiceConfig(
                 enabled=self._external_bool(
                     EXTERNAL_SETTING_KEYS["knowledge_enabled"],
-                    settings.viking_knowledge_service_enabled,
+                    getattr(settings, "viking_knowledge_service_enabled", False),
                 ),
                 base_url=self._external_setting(
                     EXTERNAL_SETTING_KEYS["knowledge_base_url"],
-                    settings.viking_knowledge_service_base_url,
+                    getattr(
+                        settings,
+                        "viking_knowledge_service_base_url",
+                        "https://api-knowledgebase.mlp.cn-beijing.volces.com",
+                    ),
                 ),
                 service_resource_id=self._external_setting(
                     EXTERNAL_SETTING_KEYS["knowledge_resource_id"],
-                    settings.viking_knowledge_service_resource_id,
+                    getattr(settings, "viking_knowledge_service_resource_id", ""),
                 ),
                 api_key_configured=bool(knowledge_api_key.strip()),
                 timeout_seconds=self._external_float(
                     EXTERNAL_SETTING_KEYS["knowledge_timeout"],
-                    settings.viking_knowledge_service_timeout_seconds,
+                    getattr(settings, "viking_knowledge_service_timeout_seconds", 12.0),
                     minimum=0.5,
                     maximum=60.0,
                 ),
                 result_limit=self._external_int(
                     EXTERNAL_SETTING_KEYS["knowledge_result_limit"],
-                    settings.viking_knowledge_service_result_limit,
+                    getattr(settings, "viking_knowledge_service_result_limit", 6),
                     minimum=1,
                     maximum=20,
                 ),
                 max_matches=self._external_int(
                     EXTERNAL_SETTING_KEYS["knowledge_max_matches"],
-                    settings.viking_knowledge_service_max_matches,
+                    getattr(settings, "viking_knowledge_service_max_matches", 4),
                     minimum=1,
                     maximum=6,
                 ),
@@ -393,58 +401,62 @@ class ApiCenterService:
             vector_database=ApiExternalVectorDatabaseConfig(
                 enabled=self._external_bool(
                     EXTERNAL_SETTING_KEYS["vector_enabled"],
-                    settings.vikingdb_knowledge_router_enabled,
+                    getattr(settings, "vikingdb_knowledge_router_enabled", False),
                 ),
                 fallback_enabled=self._external_bool(
                     EXTERNAL_SETTING_KEYS["vector_fallback_enabled"],
-                    settings.vikingdb_knowledge_fallback_enabled,
+                    getattr(settings, "vikingdb_knowledge_fallback_enabled", False),
                 ),
                 base_url=self._external_setting(
                     EXTERNAL_SETTING_KEYS["vector_base_url"],
-                    settings.vikingdb_base_url,
+                    getattr(
+                        settings,
+                        "vikingdb_base_url",
+                        "https://api-vikingdb.vikingdb.cn-beijing.volces.com",
+                    ),
                 ),
                 collection_name=self._external_setting(
                     EXTERNAL_SETTING_KEYS["vector_collection"],
-                    settings.vikingdb_collection_name,
+                    getattr(settings, "vikingdb_collection_name", ""),
                 ),
                 index_name=self._external_setting(
                     EXTERNAL_SETTING_KEYS["vector_index"],
-                    settings.vikingdb_index_name,
+                    getattr(settings, "vikingdb_index_name", ""),
                 ),
                 api_key_configured=bool(vector_api_key.strip()),
                 timeout_seconds=self._external_float(
                     EXTERNAL_SETTING_KEYS["vector_timeout"],
-                    settings.vikingdb_timeout_seconds,
+                    getattr(settings, "vikingdb_timeout_seconds", 30.0),
                     minimum=0.5,
                     maximum=120.0,
                 ),
                 search_limit=self._external_int(
                     EXTERNAL_SETTING_KEYS["vector_search_limit"],
-                    settings.vikingdb_search_limit,
+                    getattr(settings, "vikingdb_search_limit", 5),
                     minimum=1,
                     maximum=100,
                 ),
                 primary_min_score=self._external_float(
                     EXTERNAL_SETTING_KEYS["vector_primary_min_score"],
-                    settings.vikingdb_knowledge_min_score,
+                    getattr(settings, "vikingdb_knowledge_min_score", 0.34),
                     minimum=0.0,
                     maximum=1.0,
                 ),
                 primary_max_matches=self._external_int(
                     EXTERNAL_SETTING_KEYS["vector_primary_max_matches"],
-                    settings.vikingdb_knowledge_max_matches,
+                    getattr(settings, "vikingdb_knowledge_max_matches", 3),
                     minimum=1,
                     maximum=6,
                 ),
                 fallback_min_score=self._external_float(
                     EXTERNAL_SETTING_KEYS["vector_fallback_min_score"],
-                    settings.vikingdb_knowledge_fallback_min_score,
+                    getattr(settings, "vikingdb_knowledge_fallback_min_score", 0.2),
                     minimum=0.0,
                     maximum=1.0,
                 ),
                 fallback_max_matches=self._external_int(
                     EXTERNAL_SETTING_KEYS["vector_fallback_max_matches"],
-                    settings.vikingdb_knowledge_fallback_max_matches,
+                    getattr(settings, "vikingdb_knowledge_fallback_max_matches", 1),
                     minimum=1,
                     maximum=6,
                 ),
@@ -942,6 +954,7 @@ class ApiCenterService:
         self.import_environment_credentials_once()
         self.normalize_legacy_credential_statuses()
         self.normalize_legacy_credential_fingerprints()
+        self.normalize_legacy_credential_task_scopes()
 
     def normalize_legacy_credential_statuses(self) -> None:
         changed = False
@@ -961,6 +974,26 @@ class ApiCenterService:
                 continue
             credential.api_key_fingerprint = _api_key_fingerprint(
                 credential.api_key_secret,
+            )
+            credential.updated_at = datetime.now(timezone.utc)
+            changed = True
+        if changed:
+            self.uow.commit()
+
+    def normalize_legacy_credential_task_scopes(self) -> None:
+        """Move old env-imported keys from retired tasks onto current runtime tasks."""
+
+        changed = False
+        for credential in self.repo.list_credentials():
+            current_scope = _loads_list(credential.task_scope_json)
+            if not current_scope or any(task in TASK_LAYER_LABELS for task in current_scope):
+                continue
+            normalized_scope = ENV_CREDENTIAL_TASKS_BY_LABEL.get(credential.label)
+            if not normalized_scope:
+                continue
+            credential.task_scope_json = json.dumps(
+                list(normalized_scope),
+                ensure_ascii=False,
             )
             credential.updated_at = datetime.now(timezone.utc)
             changed = True

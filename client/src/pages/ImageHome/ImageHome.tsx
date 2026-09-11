@@ -39,6 +39,7 @@ const ImageHome = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [manualFilterOpen, setManualFilterOpen] = useState(false);
+  const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const animatedGifPreview = useAnimatedGifPreview();
   const consumedLocationStateKeyRef = useRef<string | null>(null);
   const stickyHeaderRef = useRef<HTMLDivElement>(null);
@@ -171,10 +172,10 @@ const ImageHome = () => {
   }, [isDesigner, setUploadOpen]);
 
   return (
-    <div className="pb-8">
+    <div className={`pb-8 transition-[padding] duration-300 ease-out ${agentPanelOpen ? 'lg:pr-[440px]' : ''}`}>
       <div
         ref={stickyHeaderRef}
-        className={`fixed right-0 top-0 z-40 border-b border-border/60 bg-white ${!isBusiness ? 'left-20' : 'left-0'} ${isBusiness ? 'px-4 py-4 sm:px-6 lg:px-8' : 'px-4 pb-4 pt-3 sm:px-6 lg:px-8'}`}
+        className={`fixed right-0 top-0 z-40 border-b border-border/60 bg-white transition-[left,right] duration-300 ease-out ${agentPanelOpen ? 'lg:right-[440px]' : ''} ${!isBusiness ? 'left-20' : 'left-0'} ${isBusiness ? 'px-4 py-4 sm:px-6 lg:px-8' : 'px-4 pb-4 pt-3 sm:px-6 lg:px-8'}`}
       >
         <div className="mx-auto w-full max-w-[1920px]">
           <GlobalImageSearch
@@ -293,7 +294,7 @@ const ImageHome = () => {
         onOpenChange={setUploadOpen}
         onSuccess={handleUploadSuccess}
       />
-      <AssetAgentWidget />
+      <AssetAgentWidget open={agentPanelOpen} onOpenChange={setAgentPanelOpen} />
     </div>
   );
 };

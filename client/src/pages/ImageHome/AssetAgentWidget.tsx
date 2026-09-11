@@ -7,7 +7,6 @@ import {
   MessageSquare,
   Plus,
   Send,
-  Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
@@ -17,6 +16,7 @@ import {
   deleteAssetAgentSession,
   listAssetAgentSessions,
   sendAssetAgentMessage,
+  streamAssetAgentMessage,
   updateAssetAgentSessionContext,
 } from '@client/src/api/assetAgent';
 import { getApiError } from '@client/src/api/client';
@@ -28,7 +28,6 @@ import {
 } from '@client/src/features/assets/assetAgentEvents';
 import { clearLegacyAssetAgentStorage } from '@client/src/features/assets/assetAgentStorage';
 import { useAuth } from '@client/src/lib/auth';
-import type { AssetAgentSession as ApiAssetAgentSession } from '@client/src/types/api';
 import {
   contextPayloadToApi,
   createLocalSession,
@@ -47,22 +46,23 @@ import {
   type AgentState,
 } from './assetAgentSessionModel';
 
-const GREETING_LINES = [
-  ['Hello，我在这里', '哪张图拿不准，可以来问我。'],
-  ['你来了，我也醒着', '想知道图片卖点，就丢给我。'],
-  ['有图不确定？', '我帮你把卖点和家长话术讲清楚。'],
-  ['今天想找哪张图？', '我可以先帮你读一遍素材。'],
-] as const;
+interface AssetAgentWidgetProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
 
-const AssetAgentWidget = () => {
+const AssetAgentWidget = ({ open, onOpenChange }: AssetAgentWidgetProps = {}) => {
   const { user } = useAuth();
   if (!user) return null;
 
-  return <AssetAgentWidgetInner key={user.id} />;
+  return <AssetAgentWidgetInner key={user.id} open={open} onOpenChange={onOpenChange} />;
 };
 
-function AssetAgentWidgetInner() {
-  const [open, setOpen] = useState(false);
+function AssetAgentWidgetInner({
+  open: controlledOpen,
+  onOpenChange,
+}: AssetAgentWidgetProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [input, setInput] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
@@ -78,12 +78,25 @@ function AssetAgentWidgetInner() {
   );
   const activeSessionRef = useRef<AgentSession | null>(activeSession);
   const loading = Boolean(activeSession && loadingSessionId === activeSession.id);
+  const hasStreamingAssistant = Boolean(
+    activeSession?.messages.some((message) => (
+      message.role === 'assistant' && message.streaming
+    )),
+  );
   const orbState = loading ? 'thinking' : markState;
   const persistedSessionCount = state.sessions.filter((session) => !isLocalSession(session.id)).length;
   const sessionCount = persistedSessionCount || state.sessions.length;
   const isTemporarySession = isLocalSession(activeSession.id);
   const activeSessionId = activeSession.id;
   const activeMessageCount = activeSession.messages.length;
+  const open = controlledOpen ?? internalOpen;
+
+  const setOpenState = useCallback((nextOpen: boolean) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  }, [controlledOpen, onOpenChange]);
 
   const pushAssistantError = useCallback((message: string, sessionId?: string) => {
     const targetId = sessionId ?? activeSessionRef.current?.id;
@@ -119,7 +132,7 @@ function AssetAgentWidgetInner() {
   }, []);
 
   const addImageToSession = useCallback(async (image: AssetAgentImagePayload) => {
-    setOpen(true);
+    setOpenState(true);
     const current = activeSessionRef.current;
     const contextImages = current?.contextImages ?? [];
     if (contextImages.some((item) => item.imageId === image.imageId)) return;
@@ -159,7 +172,7 @@ function AssetAgentWidgetInner() {
     } catch (error) {
       pushAssistantError(getApiError(error).message, current.id);
     }
-  }, [pushAssistantError]);
+  }, [pushAssistantError, setOpenState]);
 
   useEffect(() => {
     activeSessionRef.current = activeSession;
@@ -318,31 +331,89 @@ function AssetAgentWidgetInner() {
     }
 
     setLoadingSessionId(targetSession.id);
+    const assistantMessageId = safeId();
     setState((current) => updateSession(current, targetSession.id, (session) => ({
       ...session,
       title: session.title === '新对话' ? titleFromMessage(message) : session.title,
       messages: [
         ...session.messages,
         { id: safeId(), role: 'user', content: message },
+        {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          reasoningContent: '',
+          streaming: true,
+        },
       ],
       updatedAt: Date.now(),
     })));
     try {
-      const response = await sendAssetAgentMessage(targetSession.id, {
+      const payload = {
         message,
         imageIds: targetSession.contextImages.map((image) => image.imageId),
         assetGroupIds: targetSession.contextImages
           .map((image) => image.assetGroupId)
           .filter((value): value is string => Boolean(value)),
         conversationId: targetSession.id,
+      };
+      await streamAssetAgentMessage(targetSession.id, payload, (event) => {
+        if (event.type === 'error') {
+          throw new Error(event.message);
+        }
+        if (event.type === 'reasoning_delta' || event.type === 'answer_delta') {
+          setState((current) => updateSession(current, targetSession.id, (session) => ({
+            ...session,
+            messages: session.messages.map((item) => {
+              if (item.id !== assistantMessageId) return item;
+              return {
+                ...item,
+                reasoningContent: event.type === 'reasoning_delta'
+                  ? `${item.reasoningContent ?? ''}${event.text}`
+                  : item.reasoningContent,
+                content: event.type === 'answer_delta'
+                  ? `${item.content}${event.text}`
+                  : item.content,
+              };
+            }),
+            updatedAt: Date.now(),
+          })));
+          return;
+        }
+        setState((current) => updateSession(current, targetSession.id, (session) => ({
+          ...session,
+          messages: session.messages.map((item) => (
+            item.id === assistantMessageId
+              ? {
+                ...item,
+                content: item.content || event.response.answer,
+                usedModel: event.response.usedModel,
+                streaming: false,
+              }
+              : item
+          )),
+          suggestedQuestions: event.response.suggestedQuestions.length > 0
+            ? event.response.suggestedQuestions
+            : [...DEFAULT_QUESTIONS],
+          updatedAt: Date.now(),
+        })));
       });
-      if (response.session) {
-        setState((current) => upsertSession(
-          current,
-          sessionFromApi(response.session as ApiAssetAgentSession),
-          response.session?.id,
-        ));
-      } else {
+      setMarkState('happy');
+      window.setTimeout(() => setMarkState('idle'), 1400);
+    } catch (error) {
+      setState((current) => updateSession(current, targetSession.id, (session) => ({
+        ...session,
+        messages: session.messages.filter((item) => item.id !== assistantMessageId),
+      })));
+      try {
+        const response = await sendAssetAgentMessage(targetSession.id, {
+          message,
+          imageIds: targetSession.contextImages.map((image) => image.imageId),
+          assetGroupIds: targetSession.contextImages
+            .map((image) => image.assetGroupId)
+            .filter((value): value is string => Boolean(value)),
+          conversationId: targetSession.id,
+        });
         setState((current) => updateSession(current, targetSession.id, (session) => ({
           ...session,
           messages: [
@@ -354,11 +425,12 @@ function AssetAgentWidgetInner() {
             : [...DEFAULT_QUESTIONS],
           updatedAt: Date.now(),
         })));
+      } catch (fallbackError) {
+        const messageText = fallbackError instanceof Error
+          ? fallbackError.message
+          : getApiError(error).message;
+        pushAssistantError(messageText, targetSession.id);
       }
-      setMarkState('happy');
-      window.setTimeout(() => setMarkState('idle'), 1400);
-    } catch (error) {
-      pushAssistantError(getApiError(error).message, targetSession.id);
       setMarkState('wake');
       window.setTimeout(() => setMarkState('idle'), 900);
     } finally {
@@ -368,51 +440,37 @@ function AssetAgentWidgetInner() {
 
   if (!open) {
     return (
-      <div className="fixed bottom-24 right-6 z-50">
+      <div className="fixed bottom-8 right-6 z-50">
         <button
           type="button"
-          className="agent-greeting-bubble hidden w-[256px] rounded-2xl border border-border/80 bg-card/95 px-4 py-3 text-left text-xs leading-5 text-foreground shadow-xl shadow-foreground/10 backdrop-blur transition hover:-translate-y-0.5 sm:block"
-          onClick={() => setOpen(true)}
-        >
-          <span className="sr-only">Hello，我在这里。哪张图拿不准，可以来问我。</span>
-          <span className="agent-greeting-viewport" aria-hidden="true">
-            <span className="agent-greeting-track">
-              {[...GREETING_LINES, GREETING_LINES[0]].map(([title, subtitle], index) => (
-                <span
-                  key={`${title}-${index}`}
-                  className="agent-greeting-line"
-                >
-                  <span className="block font-semibold">{title}</span>
-                  <span className="mt-0.5 block text-muted-foreground">{subtitle}</span>
-                </span>
-              ))}
-            </span>
-          </span>
-        </button>
-        <button
-          type="button"
-          className="agent-launcher-glow inline-flex size-16 items-center justify-center rounded-full border border-white/70 bg-card/80 shadow-2xl shadow-foreground/20 backdrop-blur transition-transform hover:-translate-y-1"
+          className="agent-launcher-glow inline-flex items-center gap-2 rounded-full border border-white/80 bg-card/90 px-3 py-2 shadow-2xl shadow-foreground/18 backdrop-blur transition-transform hover:-translate-y-1"
           onClick={() => {
             setMarkState('wake');
-            setOpen(true);
+            setOpenState(true);
             window.setTimeout(() => setMarkState('idle'), 900);
           }}
-          aria-label="打开素材库 Agent"
+          aria-label="打开 Piancton Agent"
         >
-          <PianctonAgentMark size="lg" state={markState} />
+          <PianctonAgentMark size="md" state={markState} />
+          <span className="hidden pr-1 text-xs font-semibold text-foreground sm:inline">
+            Agent
+          </span>
         </button>
       </div>
     );
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex h-[660px] max-h-[calc(100vh-40px)] w-[420px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-[28px] border border-border/80 bg-card/95 shadow-2xl shadow-foreground/15 backdrop-blur-xl">
+    <aside
+      className="fixed bottom-0 right-0 top-0 z-50 flex h-dvh w-full flex-col overflow-hidden border-l border-border/80 bg-card/95 shadow-2xl shadow-foreground/18 backdrop-blur-xl sm:w-[420px] lg:w-[440px]"
+      aria-label="Piancton Agent 对话侧栏"
+    >
       <div className="border-b border-border/70 bg-gradient-to-br from-secondary/70 via-card to-card px-4 py-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <PianctonAgentMark size="md" state={orbState} />
             <div>
-              <p className="text-sm font-semibold tracking-tight">素材库 Agent</p>
+              <p className="text-sm font-semibold tracking-tight">Piancton Agent</p>
               <p className="text-[11px] leading-4 text-muted-foreground">
                 {loading
                   ? '正在理解素材上下文'
@@ -438,7 +496,7 @@ function AssetAgentWidgetInner() {
               variant="ghost"
               size="icon"
               className="size-8 rounded-full"
-              onClick={() => setOpen(false)}
+              onClick={() => setOpenState(false)}
               title="收起"
             >
               <X className="size-4" />
@@ -558,7 +616,23 @@ function AssetAgentWidgetInner() {
                     : 'border border-border/70 bg-[#f8f7f4] text-foreground',
               ].join(' ')}
             >
-              {message.content}
+              {message.role === 'assistant' && message.reasoningContent && (
+                <div className="mb-2 rounded-2xl border border-border/70 bg-white/75 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+                  <div className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
+                    <PianctonAgentMark
+                      size="sm"
+                      state={message.streaming ? 'thinking' : 'happy'}
+                      className="!size-4 shrink-0"
+                    />
+                    <span>{message.streaming ? '思考中…' : '已深度思考'}</span>
+                    {message.streaming && (
+                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {message.reasoningContent}
+                </div>
+              )}
+              {message.content || (message.streaming ? '正在组织最终回答…' : '')}
               {message.role === 'assistant' && message.usedModel === false && (
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   未调用到模型，已走本地兜底
@@ -567,7 +641,7 @@ function AssetAgentWidgetInner() {
             </div>
           </div>
         ))}
-        {loading && (
+        {loading && !hasStreamingAssistant && (
           <div className="flex justify-start">
             <div className="agent-thinking-card w-[92%] rounded-[22px] border border-border/80 bg-white px-4 py-3.5 text-xs shadow-md shadow-foreground/8">
               <div className="flex items-start gap-3">
@@ -578,13 +652,13 @@ function AssetAgentWidgetInner() {
                     <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
                   </div>
                   <p className="mt-1 leading-5 text-muted-foreground">
-                    我会先看图片上下文，再把它翻译成业务方能直接使用的卖点解释。
+                    我会先判断你是在找图、问卖点还是要销售话术，再给出下一步。
                   </p>
                   <div className="mt-3 space-y-1.5">
                     {[
-                      '读取当前图片与已确认卖点',
-                      '对照素材话术、证明点和使用场景',
-                      '组织成家长/业务都能听懂的回答',
+                      '判断当前需求：找图 / 解释 / 销售回复',
+                      '对照六大体系、核心卖点和素材事实',
+                      '组织成可确认、可继续推进的回答',
                     ].map((step, index) => (
                       <div
                         key={step}
@@ -605,25 +679,11 @@ function AssetAgentWidgetInner() {
       </div>
 
       <div className="border-t border-border/70 bg-card/95 px-4 py-3">
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {activeSession.suggestedQuestions.map((question) => (
-            <button
-              key={question}
-              type="button"
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-white px-2.5 py-1 text-[11px] text-muted-foreground transition hover:-translate-y-0.5 hover:border-foreground/30 hover:text-foreground hover:shadow-sm"
-              disabled={Boolean(loadingSessionId)}
-              onClick={() => void ask(question)}
-            >
-              <Sparkles className="size-3" />
-              {question}
-            </button>
-          ))}
-        </div>
         <div className="flex items-end gap-2">
           <textarea
             value={input}
             rows={2}
-            placeholder="问我：这张图怎么跟家长解释？"
+            placeholder="问我：这张图怎么用、卖点怎么讲、销售怎么回复？"
             className="min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-white px-3 py-2 text-xs outline-none transition focus:border-foreground/30 focus:shadow-sm"
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
@@ -644,7 +704,7 @@ function AssetAgentWidgetInner() {
           </Button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 

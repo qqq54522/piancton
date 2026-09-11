@@ -786,6 +786,12 @@ def test_vikingdb_client_search_payload(monkeypatch):
     assert payload["text"] == "拍题后一步步引导"
     assert payload["instruction"] == {"auto_fill": True}
     assert payload["limit"] == 3
+    assert payload["output_fields"] == [
+        "doc_id",
+        "doc_type",
+        "concept_code",
+        "search_text",
+    ]
     assert payload["filter"] == {
         "op": "must",
         "field": "doc_type",

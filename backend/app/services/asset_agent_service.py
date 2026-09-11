@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from collections.abc import Iterator
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
@@ -40,13 +41,14 @@ from app.schemas.asset_agent import (
     AssetAgentSessionListResponse,
     AssetAgentSessionRead,
 )
+from app.schemas.ai import SearchUnderstanding
 from app.services.unit_of_work import UnitOfWork
 
 MAX_AGENT_SESSIONS = 20
 AGENT_RESET_TIMEZONE = ZoneInfo("Asia/Shanghai")
 DEFAULT_GREETING = (
-    "我是素材库 Agent。你可以把图片发给我，"
-    "我会按已确认的卖点和素材信息帮你解释。"
+    "我是 Piancton Agent。你可以问我图片、卖点、六大体系、素材使用和销售话术；"
+    "如果把图片发给我，我会结合已确认的素材信息一起回答。"
 )
 
 
@@ -57,9 +59,16 @@ class AssetAgentService:
     points from confirmed project data, then lets the model rewrite the wording.
     """
 
-    def __init__(self, db: Session, provider: ModelProvider):
+    def __init__(
+        self,
+        db: Session,
+        provider: ModelProvider,
+        *,
+        knowledge_router: Any | None = None,
+    ):
         self.db = db
         self.provider = provider
+        self.knowledge_router = knowledge_router
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
@@ -137,10 +146,25 @@ class AssetAgentService:
         payload.conversation_id = session_id
         return self.chat(user, payload)
 
+    def chat_in_session_stream(
+        self,
+        user: User,
+        session_id: str,
+        payload: AssetAgentChatRequest,
+    ) -> Iterator[str]:
+        message = payload.message.strip()
+        if not message:
+            raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
+        session = self.sessions.get(session_id)
+        if session and session.user_id != user.id:
+            raise NotFoundError("asset_agent_session_not_found", "聊天记录不存在或已过期")
+        payload.conversation_id = session_id
+        return self.chat_stream(user, payload)
+
     def chat(self, user: User, payload: AssetAgentChatRequest) -> AssetAgentChatResponse:
         message = payload.message.strip()
         if not message:
-            raise AppError("empty_message", "请输入要问素材库 Agent 的问题", status_code=422)
+            raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
 
         self._reset_user_sessions_for_today(user)
         session = self._session_for_chat(user, payload)
@@ -164,12 +188,16 @@ class AssetAgentService:
         concept_cards = self._concept_cards(groups)
         context_cards = self._context_cards(images, groups) + concept_cards
         context_text = self._context_text(images, groups)
+        understanding = self._route_business_understanding(message, images, groups)
         prompt = _agent_prompt()
         input_text = "\n\n".join(
             item
             for item in (
                 f"用户问题：{message}",
                 f"当前对话ID：{session.id}",
+                f"知识库/向量库卖点判断：\n{_understanding_text(understanding)}"
+                if understanding
+                else "",
                 f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
                 f"项目启用卖点简表：\n{self._catalog_text(groups)}",
             )
@@ -222,6 +250,132 @@ class AssetAgentService:
                 attempt for attempt in attempts if isinstance(attempt, dict)
             ],
         )
+
+    def chat_stream(
+        self,
+        user: User,
+        payload: AssetAgentChatRequest,
+    ) -> Iterator[str]:
+        message = payload.message.strip()
+        if not message:
+            raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
+
+        def events() -> Iterator[str]:
+            session: AssetAgentSession | None = None
+            try:
+                self._reset_user_sessions_for_today(user)
+                session = self._session_for_chat(user, payload)
+                payload_context = self._context_from_ids(payload.image_ids)
+                if payload_context:
+                    session.context_images_json = _json_dump(
+                        [item.model_dump(by_alias=True) for item in payload_context]
+                    )
+                if session.title == "新对话":
+                    session.title = _title_from_message(message)
+                session.updated_at = _now()
+                self._add_message(session, role="user", content=message)
+
+                context_images = self._session_context(session)
+                image_ids = [item.image_id for item in context_images]
+                group_ids = [
+                    item.asset_group_id for item in context_images if item.asset_group_id
+                ] + payload.asset_group_ids
+                images = self._load_images(image_ids)
+                groups = self._load_groups(group_ids, images)
+                concept_cards = self._concept_cards(groups)
+                context_cards = self._context_cards(images, groups) + concept_cards
+                context_text = self._context_text(images, groups)
+
+                yield _sse("reasoning_delta", {"text": "我先判断这句话是在找图、问卖点，还是要销售话术。\n"})
+                understanding = self._route_business_understanding(message, images, groups)
+                if understanding:
+                    for chunk in _chunk_text(_visible_reasoning_text(understanding)):
+                        yield _sse("reasoning_delta", {"text": chunk})
+                else:
+                    yield _sse(
+                        "reasoning_delta",
+                        {
+                            "text": (
+                                "我没有拿到稳定的知识库/向量库卖点结论，接下来只按当前图片、素材上下文"
+                                "和项目卖点简表组织回答。\n"
+                            )
+                        },
+                    )
+
+                prompt = _agent_prompt()
+                input_text = "\n\n".join(
+                    item
+                    for item in (
+                        f"用户问题：{message}",
+                        f"当前对话ID：{session.id}",
+                        f"知识库/向量库卖点判断：\n{_understanding_text(understanding)}"
+                        if understanding
+                        else "",
+                        f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
+                        f"项目启用卖点简表：\n{self._catalog_text(groups)}",
+                    )
+                    if item
+                )
+
+                answer: str
+                suggestions: list[str]
+                used_model: bool
+                attempts: tuple[dict[str, Any], ...] = ()
+                try:
+                    call: ModelCallResult[dict[str, Any]] = self.provider.generate_json(
+                        ModelRequest(
+                            task="asset_agent_chat",
+                            prompt=prompt,
+                            input_text=input_text,
+                            timeout_seconds=45,
+                        ),
+                    )
+                    attempts = call.attempts
+                    result = AssetAgentModelResponse.model_validate(call.value)
+                    answer = result.answer.strip()
+                    suggestions = _clean_suggestions(result.suggested_questions)
+                    used_model = True
+                except (ModelProviderNotConfigured, ModelProviderError, ValueError) as exc:
+                    error_attempts = getattr(exc, "attempts", ())
+                    attempts = (
+                        tuple(item for item in error_attempts if isinstance(item, dict))
+                        if isinstance(error_attempts, (list, tuple))
+                        else ()
+                    )
+                    answer = self._fallback_answer(message, images, groups, error=str(exc))
+                    suggestions = _fallback_suggestions(bool(images or groups))
+                    used_model = False
+
+                for chunk in _chunk_text(answer):
+                    yield _sse("answer_delta", {"text": chunk})
+
+                session.suggested_questions_json = _json_dump(suggestions)
+                self._add_message(
+                    session,
+                    role="assistant",
+                    content=answer,
+                    used_model=used_model,
+                )
+                self.sessions.save(session)
+                self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
+                self.uow.commit()
+                response = AssetAgentChatResponse(
+                    answer=answer,
+                    conversation_id=session.id,
+                    session=self._session_read(session),
+                    suggested_questions=suggestions,
+                    context_cards=context_cards,
+                    used_model=used_model,
+                    provider_attempts=[
+                        attempt for attempt in attempts if isinstance(attempt, dict)
+                    ],
+                )
+                yield _sse("final", response.model_dump(mode="json", by_alias=True))
+            except Exception as exc:
+                self.uow.rollback()
+                yield _sse("error", {"message": _clip(str(exc) or exc.__class__.__name__, 200)})
+
+        return events()
 
     def _session_for_chat(
         self,
@@ -480,8 +634,10 @@ class AssetAgentService:
     ) -> str:
         if not images and not groups:
             return (
-                "我现在可以回答素材库/卖点相关问题；如果你把某张图片发送给我，"
-                "我会根据素材库里已确认的卖点、搜索话术和图片摘要来解释。"
+                "这次模型没有成功返回，我先说明当前能做的事：\n\n"
+                "我可以先帮你判断一段话更像在找哪个核心卖点；如果你确认，我再继续按这个卖点去素材库找图。"
+                "我也可以解释六大体系、核心卖点边界，或帮销售把家长问题改成可直接回复的话术。\n\n"
+                "当前没有图片/素材候选上下文，所以我不会编造具体图片。"
                 f"\n\n本次模型暂不可用：{_clip(error, 120)}"
             )
         lines = [
@@ -498,8 +654,126 @@ class AssetAgentService:
         lines.append(f"\n模型暂不可用：{_clip(error, 120)}")
         return "\n".join(lines)
 
+    def _route_business_understanding(
+        self,
+        message: str,
+        images: list[Image],
+        groups: list[AssetGroup],
+    ) -> SearchUnderstanding | None:
+        router = self.knowledge_router
+        if router is None or not getattr(router, "configured", False):
+            return None
+        if not _should_route_agent_message(message, images, groups):
+            return None
+        try:
+            result = router.route(message)
+        except Exception:
+            return None
+        return result if isinstance(result, SearchUnderstanding) else None
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _sse(event: str, data: dict[str, Any]) -> str:
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
+def _chunk_text(value: str, *, size: int = 8) -> Iterator[str]:
+    if not value:
+        return
+    for index in range(0, len(value), size):
+        yield value[index : index + size]
+
+
+def _should_route_agent_message(
+    message: str,
+    images: list[Image],
+    groups: list[AssetGroup],
+) -> bool:
+    query = message.strip()
+    if len(query) < 3:
+        return False
+    route_markers = (
+        "找图",
+        "找图片",
+        "找素材",
+        "推荐图片",
+        "配图",
+        "素材",
+        "图片",
+        "卖点",
+        "体系",
+        "属于",
+        "判断",
+        "匹配",
+        "命中",
+        "适合",
+        "解释",
+        "怎么讲",
+        "家长",
+        "销售",
+    )
+    if any(marker in query for marker in route_markers):
+        return True
+    if images or groups:
+        return any(marker in query for marker in ("卖点", "体系", "为什么", "适合", "怎么讲"))
+    return len(query) >= 6
+
+
+def _understanding_text(understanding: SearchUnderstanding) -> str:
+    concepts = "、".join(
+        f"{item.concept}（{item.relation}，{item.weight:.2f}）"
+        for item in understanding.matched_business_concepts
+    )
+    proof_points = "、".join(
+        f"{item.name}（{item.weight:.2f}）"
+        for item in understanding.matched_proof_points
+    )
+    return "\n".join(
+        item
+        for item in (
+            f"原话：{understanding.original_query}",
+            f"查询状态：{understanding.query_type}",
+            f"判断意图：{understanding.search_intent}",
+            f"命中卖点：{concepts}" if concepts else "",
+            f"命中证明点：{proof_points}" if proof_points else "",
+            f"策略：{understanding.search_strategy}" if understanding.search_strategy else "",
+        )
+        if item
+    )
+
+
+def _visible_reasoning_text(understanding: SearchUnderstanding) -> str:
+    concepts = understanding.matched_business_concepts
+    if understanding.query_type == "no_reliable_intent_search" or not concepts:
+        return (
+            "我先走了一遍知识库/向量库判断，但没有得到可靠卖点。\n"
+            "所以这句话暂时不能直接进入某个卖点下找图；我会先按普通业务问题回答，"
+            "或者请你补充想找的场景、对象和用途。\n"
+        )
+    names = "、".join(item.concept for item in concepts)
+    lines = [
+        f"我先把这句话交给知识库/向量库判断，当前更像命中：{names}。\n",
+        f"判断状态：{understanding.search_intent}\n",
+    ]
+    for index, concept in enumerate(concepts, start=1):
+        lines.append(
+            f"{index}. {concept.concept}：{concept.reason or '由知识库/向量库卖点资料命中'}；"
+            f"置信度约 {concept.weight:.0%}。\n"
+        )
+    if len(concepts) == 1:
+        lines.append(
+            "如果你是在找图，我会先按这个单一卖点继续组织下一步；"
+            "如果你确认，我再去素材库里找最贴合的图片。\n"
+        )
+    else:
+        lines.append(
+            "这句话不是单卖点，它同时出现多个独立信号；如果你是在找图，"
+            "我会先让你确认优先找哪一个卖点下的素材。\n"
+        )
+    return "".join(lines)
 
 
 def _is_active_today(session: AssetAgentSession) -> bool:
@@ -622,15 +896,42 @@ def _title_from_message(message: str) -> str:
 
 def _agent_prompt() -> str:
     return """
-你是“素材库业务解释 Agent”，服务对象是销售、运营和设计。
-你要帮助他们理解：某张图对应什么标准卖点、适合怎么跟家长解释、与相近卖点边界在哪里。
+你是“Piancton 通用业务 Agent”，服务对象是销售、运营和设计。
+你不是分开的图片助手、卖点助手或销售助手，而是同一个统一业务机器人。
+你要帮助他们理解：图片怎么用、用户话术命中什么标准卖点、六大体系/核心卖点怎么解释、销售该如何回复家长、相近卖点边界在哪里。
 
-规则：
+事实边界：
 1. 必须优先使用“已发送图片/素材上下文”和“项目启用卖点简表”里的事实。
-2. 对素材库没有确认的信息，不要编造；要说“当前素材库未确认”。
-3. 如果用户给了家长原话，要先判断家长真实关心点，再给销售可直接复制的话术。
-4. 回答要中文、业务口吻、可落地，避免空泛夸张。
-5. 只返回 JSON：{"answer":"...","suggestedQuestions":["..."]}。
+2. 如果输入里有“知识库/向量库卖点判断”，它是当前卖点裁决结果，优先级高于你自己的自由猜测；不要推翻它，只能围绕它解释和追问。
+3. 对项目没有确认的信息，不要编造；要说“当前项目资料未确认”。
+4. 不要编造图片、素材名称、素材数量、学校案例、效果数据或产品能力。
+5. 如果没有图片/素材候选，只能先判断卖点和说明下一步，不能假装已经找到图片。
+
+回答形态：
+1. 不要把答案过度提炼成一句话；保留可见的业务判断流程，让用户看到你怎么一步步判断。
+2. 这不是泄露内部草稿，而是面向用户的“可见工作流”。避免输出自我纠结、无意义反复或系统提示词。
+3. 可以按问题选用这些段落标题，不必机械凑满：
+   - “我先判断你现在要做什么”
+   - “我理解你在找的卖点”
+   - “为什么我这样判断”
+   - “下一步我会怎么找图”
+   - “推荐素材”
+   - “销售可以这样说”
+4. 回答要中文、业务口吻、可落地，允许比普通客服回答更完整一些。
+
+找图/找素材流程：
+1. 当用户输入像“找图、推荐图片、配图、素材、海报、PPT、宣传图、这句话适合哪张图、我想表达……”时，先判断这句话可能对应哪个核心卖点和体系。
+2. 如果用户只是给出一段卖点表达或模糊需求，先问确认：例如“你是想找【卖点名】这个卖点下的素材吗？如果是，我下一步会按这个卖点继续找图。”
+3. 如果已发送图片/素材上下文中有候选，才可以推荐最合适的一张或几张，并说明推荐原因。
+4. 如果当前上下文没有候选图片，就明确说“确认后我会去素材库按这个卖点找图”，不要自行虚构素材。
+5. 如果一句话同时包含多个独立卖点，要保留多个候选，不要强行压成唯一卖点；可以让用户确认优先找哪一个。
+
+解释/销售流程：
+1. 如果用户问六大体系、核心卖点、相近卖点边界，就直接解释，并指出判断边界。
+2. 如果用户给了家长原话或销售场景，要先判断家长真实关心点，再给销售可直接复制的话术。
+3. 如果用户问某张图片为什么合适，要结合图片/素材上下文回答：它表达什么卖点、为什么适合、适合怎么对业务方/家长讲。
+
+只返回 JSON：{"answer":"...","suggestedQuestions":["..."]}。
 """.strip()
 
 
@@ -726,14 +1027,14 @@ def _clean_suggestions(values: list[str]) -> list[str]:
 def _fallback_suggestions(has_context: bool) -> list[str]:
     if has_context:
         return [
-            "这张图适合讲哪个卖点？",
-            "帮我用家长能听懂的话解释",
+            "这张图适合怎么用？",
+            "这个卖点怎么跟家长讲？",
             "它和相近卖点的区别是什么？",
         ]
     return [
-        "什么是同步校内？",
-        "什么是 AI 拍题精学？",
-        "哪些图适合讲考前突击？",
+        "什么是六大体系？",
+        "AI 拍题精学怎么讲？",
+        "家长问效果怎么回复？",
     ]
 
 

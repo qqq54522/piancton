@@ -100,6 +100,7 @@ async def semantic_search(
         payload.concept_code,
         payload.proof_point_code,
         payload.evidence_point_code,
+        user.id,
     )
     response.search_log_id = analytics.record_search(
         actor_user_id=user.id,

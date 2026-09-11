@@ -31,6 +31,7 @@ from app.services.serializers import image_to_detail, image_to_read
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
+from app.services.volc_ai_search_sync import VolcAiSearchIndexSync
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class ImageService:
         search_index: SearchIndexSync | None = None,
         embedding_index: EmbeddingIndexSync | None = None,
         vector_index: VikingDBVectorIndexSync | None = None,
+        ai_search_index: VolcAiSearchIndexSync | None = None,
     ):
         self.images = ImageRepository(db)
         self.storage = storage
@@ -81,6 +83,7 @@ class ImageService:
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
         self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
+        self.ai_search_index = ai_search_index or VolcAiSearchIndexSync.disabled()
         self.asset_relations = AssetRelationService(db)
         self.identities = AssetIdentityService(db)
         self.related_images = RelatedImageService(self.images)
@@ -293,6 +296,7 @@ class ImageService:
         if image:
             self.search_index.upsert_image(image)
             self.vector_index.best_effort_upsert_image(image)
+            self.ai_search_index.upsert_image(image)
 
     def _get(self, image_id: str) -> Image:
         image = self.images.get(image_id)

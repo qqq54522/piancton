@@ -23,6 +23,7 @@ from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from app.services.unit_of_work import UnitOfWork
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
+from app.services.volc_ai_search_sync import VolcAiSearchIndexSync
 
 
 class AssetRelationService:
@@ -35,6 +36,7 @@ class AssetRelationService:
         search_index: SearchIndexSync | None = None,
         embedding_index: EmbeddingIndexSync | None = None,
         vector_index: VikingDBVectorIndexSync | None = None,
+        ai_search_index: VolcAiSearchIndexSync | None = None,
     ):
         self.assets = AssetRepository(db)
         self.concepts = BusinessConceptRepository(db)
@@ -42,6 +44,7 @@ class AssetRelationService:
         self.search_index = search_index or SearchIndexSync.from_settings()
         self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
         self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
+        self.ai_search_index = ai_search_index or VolcAiSearchIndexSync.disabled()
         self.uow = UnitOfWork(db)
 
     def replace_analysis_suggestions(
@@ -288,6 +291,7 @@ class AssetRelationService:
         self.search_index.upsert_image(image)
         self.embedding_index.upsert_image(self.images, image)
         self.vector_index.best_effort_upsert_image(image)
+        self.ai_search_index.upsert_image(image)
 
     def _group(self, group_id: str) -> AssetGroup:
         group = self.assets.get(group_id)

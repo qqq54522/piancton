@@ -833,6 +833,25 @@ export interface ApiExternalConnectionTestResult {
   preview: Record<string, unknown>;
 }
 
+export interface ApiSearchChainDiagnosticStep {
+  name: string;
+  status: 'ok' | 'failed' | 'skipped';
+  durationMs: number;
+  message: string;
+  preview: Record<string, unknown>;
+}
+
+export interface ApiSearchChainDiagnosticResult {
+  status: 'ok' | 'degraded' | 'failed' | 'skipped';
+  query: string;
+  durationMs: number;
+  steps: ApiSearchChainDiagnosticStep[];
+  matchedConcepts: string[];
+  resultCount: number;
+  fallback: boolean;
+  fallbackReason?: string | null;
+}
+
 export interface ApiHealthCheck {
   id: string;
   credentialId: string;

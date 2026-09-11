@@ -16,6 +16,17 @@ class _FakeRouter:
         return self.result
 
 
+class _FailingRouter:
+    configured = True
+
+    def __init__(self):
+        self.called = 0
+
+    def route(self, keyword: str):
+        self.called += 1
+        raise RuntimeError("知识库服务返回异常状态：403")
+
+
 def test_fallback_router_keeps_primary_selling_point_result():
     primary = _FakeRouter(_understanding("AI拍题精学"))
     fallback = _FakeRouter(_understanding("举一反三"))
@@ -62,6 +73,20 @@ def test_fallback_router_uses_vector_route_when_primary_has_no_match():
     assert result is not None
     assert [item.concept for item in result.matched_business_concepts] == ["专项培优"]
     assert "知识库服务未产出可信卖点" in result.search_strategy
+
+
+def test_fallback_router_uses_vector_route_when_primary_fails():
+    primary = _FailingRouter()
+    fallback = _FakeRouter(_understanding("AI拍题精学"))
+    router = SearchKnowledgeFallbackRouter(primary=primary, fallback=fallback)
+
+    result = router.route("洋葱拍题精学习")
+
+    assert result is not None
+    assert [item.concept for item in result.matched_business_concepts] == ["AI拍题精学"]
+    assert primary.called == 1
+    assert fallback.called == 1
+    assert "知识库服务调用失败" in result.search_strategy
 
 
 def _understanding(concept: str) -> SearchUnderstanding:

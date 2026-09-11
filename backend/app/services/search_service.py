@@ -13,6 +13,7 @@ from app.services.search_service_components import build_search_components
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
 from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
 from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
+from app.services.volc_ai_search_service import VolcAiSearchService
 
 
 class SearchService:
@@ -58,6 +59,7 @@ class SearchService:
             | None
         ) = None,
         vikingdb_skill_backup_enabled: bool = True,
+        ai_search: VolcAiSearchService | None = None,
     ):
         components = build_search_components(
             db,
@@ -96,6 +98,7 @@ class SearchService:
         self.query_understanding = components.query_understanding
         self.orchestrator = components.orchestrator
         self.identity_search = IdentitySearchService(db)
+        self.ai_search = ai_search
 
     async def search_async(
         self,
@@ -105,7 +108,15 @@ class SearchService:
         concept_code: str | None = None,
         proof_point_code: str | None = None,
         evidence_point_code: str | None = None,
+        user_id: str = "",
     ) -> SearchResponse:
+        if (
+            self.ai_search is not None
+            and not any([system_code, concept_code, proof_point_code, evidence_point_code])
+        ):
+            ai_response = self.ai_search.search(keyword, limit=limit, user_id=user_id)
+            if ai_response is not None and not ai_response.fallback:
+                return ai_response
         return await self.orchestrator.search(
             keyword,
             limit,
@@ -136,6 +147,7 @@ class SearchService:
                     concept_code,
                     proof_point_code,
                     evidence_point_code,
+                    user_id="",
                 )
             )
         raise RuntimeError("异步上下文请调用 SearchService.search_async")

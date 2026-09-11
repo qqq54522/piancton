@@ -106,10 +106,7 @@ class VikingDBClient:
             or [
                 "doc_id",
                 "doc_type",
-                "source_id",
                 "concept_code",
-                "channel",
-                "status",
                 "search_text",
             ],
         }

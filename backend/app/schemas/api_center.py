@@ -312,6 +312,29 @@ class ApiExternalConnectionTestResult(ApiModel):
     preview: dict = {}
 
 
+class ApiSearchChainDiagnosticRequest(ApiModel):
+    query: str = "洋葱拍题精学习"
+
+
+class ApiSearchChainDiagnosticStep(ApiModel):
+    name: str
+    status: Literal["ok", "failed", "skipped"]
+    duration_ms: int = 0
+    message: str
+    preview: dict = {}
+
+
+class ApiSearchChainDiagnosticResult(ApiModel):
+    status: Literal["ok", "degraded", "failed", "skipped"]
+    query: str
+    duration_ms: int
+    steps: list[ApiSearchChainDiagnosticStep]
+    matched_concepts: list[str] = []
+    result_count: int = 0
+    fallback: bool = False
+    fallback_reason: Optional[str] = None
+
+
 class ApiCenterOverview(ApiModel):
     credential_count: int
     active_credential_count: int

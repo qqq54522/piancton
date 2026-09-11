@@ -880,6 +880,91 @@ export interface paths {
         patch: operations["update_routing_slot_api_admin_api_center_routing_slots__task__patch"];
         trace?: never;
     };
+    "/api/admin/api-center/external-connections/knowledge-service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update External Knowledge Service */
+        patch: operations["update_external_knowledge_service_api_admin_api_center_external_connections_knowledge_service_patch"];
+        trace?: never;
+    };
+    "/api/admin/api-center/external-connections/vector-database": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update External Vector Database */
+        patch: operations["update_external_vector_database_api_admin_api_center_external_connections_vector_database_patch"];
+        trace?: never;
+    };
+    "/api/admin/api-center/external-connections/knowledge-service/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test External Knowledge Service */
+        post: operations["test_external_knowledge_service_api_admin_api_center_external_connections_knowledge_service_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/external-connections/vector-database/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test External Vector Database */
+        post: operations["test_external_vector_database_api_admin_api_center_external_connections_vector_database_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-center/external-connections/search-chain/diagnose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Diagnose External Search Chain */
+        post: operations["diagnose_external_search_chain_api_admin_api_center_external_connections_search_chain_diagnose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/asset-agent/sessions": {
         parameters: {
             query?: never;
@@ -1400,6 +1485,7 @@ export interface components {
         ApiCenterSummary: {
             overview: components["schemas"]["ApiCenterOverview"];
             maintenance: components["schemas"]["ApiCenterMaintenanceRead"];
+            externalConnections: components["schemas"]["ApiExternalConnectionsRead"];
             /** Credentials */
             credentials: components["schemas"]["ApiCredentialRead"][];
             /**
@@ -1603,6 +1689,126 @@ export interface components {
             /** Autoassignenabled */
             autoAssignEnabled?: boolean | null;
         };
+        /** ApiExternalConnectionTestRequest */
+        ApiExternalConnectionTestRequest: {
+            /**
+             * Query
+             * @default 学有余力进一步提升
+             */
+            query: string;
+        };
+        /** ApiExternalConnectionTestResult */
+        ApiExternalConnectionTestResult: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "failed" | "skipped";
+            /** Durationms */
+            durationMs: number;
+            /** Message */
+            message: string;
+            /**
+             * Preview
+             * @default {}
+             */
+            preview: {
+                [key: string]: unknown;
+            };
+        };
+        /** ApiExternalConnectionsRead */
+        ApiExternalConnectionsRead: {
+            knowledgeService: components["schemas"]["ApiExternalKnowledgeServiceConfig"];
+            vectorDatabase: components["schemas"]["ApiExternalVectorDatabaseConfig"];
+        };
+        /** ApiExternalKnowledgeServiceConfig */
+        ApiExternalKnowledgeServiceConfig: {
+            /** Enabled */
+            enabled: boolean;
+            /** Baseurl */
+            baseUrl: string;
+            /** Serviceresourceid */
+            serviceResourceId: string;
+            /** Apikeyconfigured */
+            apiKeyConfigured: boolean;
+            /** Timeoutseconds */
+            timeoutSeconds: number;
+            /** Resultlimit */
+            resultLimit: number;
+            /** Maxmatches */
+            maxMatches: number;
+        };
+        /** ApiExternalKnowledgeServiceUpdate */
+        ApiExternalKnowledgeServiceUpdate: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Baseurl */
+            baseUrl?: string | null;
+            /** Serviceresourceid */
+            serviceResourceId?: string | null;
+            /** Apikey */
+            apiKey?: string | null;
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+            /** Resultlimit */
+            resultLimit?: number | null;
+            /** Maxmatches */
+            maxMatches?: number | null;
+        };
+        /** ApiExternalVectorDatabaseConfig */
+        ApiExternalVectorDatabaseConfig: {
+            /** Enabled */
+            enabled: boolean;
+            /** Fallbackenabled */
+            fallbackEnabled: boolean;
+            /** Baseurl */
+            baseUrl: string;
+            /** Collectionname */
+            collectionName: string;
+            /** Indexname */
+            indexName: string;
+            /** Apikeyconfigured */
+            apiKeyConfigured: boolean;
+            /** Timeoutseconds */
+            timeoutSeconds: number;
+            /** Searchlimit */
+            searchLimit: number;
+            /** Primaryminscore */
+            primaryMinScore: number;
+            /** Primarymaxmatches */
+            primaryMaxMatches: number;
+            /** Fallbackminscore */
+            fallbackMinScore: number;
+            /** Fallbackmaxmatches */
+            fallbackMaxMatches: number;
+        };
+        /** ApiExternalVectorDatabaseUpdate */
+        ApiExternalVectorDatabaseUpdate: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Fallbackenabled */
+            fallbackEnabled?: boolean | null;
+            /** Baseurl */
+            baseUrl?: string | null;
+            /** Collectionname */
+            collectionName?: string | null;
+            /** Indexname */
+            indexName?: string | null;
+            /** Apikey */
+            apiKey?: string | null;
+            /** Timeoutseconds */
+            timeoutSeconds?: number | null;
+            /** Searchlimit */
+            searchLimit?: number | null;
+            /** Primaryminscore */
+            primaryMinScore?: number | null;
+            /** Primarymaxmatches */
+            primaryMaxMatches?: number | null;
+            /** Fallbackminscore */
+            fallbackMinScore?: number | null;
+            /** Fallbackmaxmatches */
+            fallbackMaxMatches?: number | null;
+        };
         /** ApiHealthCheckCreate */
         ApiHealthCheckCreate: {
             /**
@@ -1697,6 +1903,69 @@ export interface components {
             status: "ok" | "watch" | "degraded";
             /** Recommendation */
             recommendation?: string | null;
+        };
+        /** ApiSearchChainDiagnosticRequest */
+        ApiSearchChainDiagnosticRequest: {
+            /**
+             * Query
+             * @default 洋葱拍题精学习
+             */
+            query: string;
+        };
+        /** ApiSearchChainDiagnosticResult */
+        ApiSearchChainDiagnosticResult: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "degraded" | "failed" | "skipped";
+            /** Query */
+            query: string;
+            /** Durationms */
+            durationMs: number;
+            /** Steps */
+            steps: components["schemas"]["ApiSearchChainDiagnosticStep"][];
+            /**
+             * Matchedconcepts
+             * @default []
+             */
+            matchedConcepts: string[];
+            /**
+             * Resultcount
+             * @default 0
+             */
+            resultCount: number;
+            /**
+             * Fallback
+             * @default false
+             */
+            fallback: boolean;
+            /** Fallbackreason */
+            fallbackReason?: string | null;
+        };
+        /** ApiSearchChainDiagnosticStep */
+        ApiSearchChainDiagnosticStep: {
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "failed" | "skipped";
+            /**
+             * Durationms
+             * @default 0
+             */
+            durationMs: number;
+            /** Message */
+            message: string;
+            /**
+             * Preview
+             * @default {}
+             */
+            preview: {
+                [key: string]: unknown;
+            };
         };
         /** ApiTemperatureProbeRead */
         ApiTemperatureProbeRead: {
@@ -2569,6 +2838,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImageChannelOptions */
+        ImageChannelOptions: {
+            /** Channels */
+            channels?: string[];
+        };
         /** ImageDetailRead */
         ImageDetailRead: {
             /** Id */
@@ -2691,11 +2965,6 @@ export interface components {
         ImageIdentityCodeSummary: {
             /** Imagetotal */
             imageTotal: number;
-        };
-        /** ImageChannelOptions */
-        ImageChannelOptions: {
-            /** Channels */
-            channels?: string[];
         };
         /** ImageListResponse */
         ImageListResponse: {
@@ -3808,6 +4077,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageChannelOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -5633,6 +5911,181 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoutingSlotRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_external_knowledge_service_api_admin_api_center_external_connections_knowledge_service_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiExternalKnowledgeServiceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiExternalKnowledgeServiceConfig"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_external_vector_database_api_admin_api_center_external_connections_vector_database_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiExternalVectorDatabaseUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiExternalVectorDatabaseConfig"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_external_knowledge_service_api_admin_api_center_external_connections_knowledge_service_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiExternalConnectionTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiExternalConnectionTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_external_vector_database_api_admin_api_center_external_connections_vector_database_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiExternalConnectionTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiExternalConnectionTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    diagnose_external_search_chain_api_admin_api_center_external_connections_search_chain_diagnose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiSearchChainDiagnosticRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiSearchChainDiagnosticResult"];
                 };
             };
             /** @description Validation Error */

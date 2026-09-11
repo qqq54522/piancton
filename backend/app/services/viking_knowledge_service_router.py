@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -75,7 +76,10 @@ class VikingKnowledgeServiceRouter:
         if not query or not self.configured:
             return None
         result = self.client.chat(query)
-        answer_text = _combined_answer_text(result.generated_answer, result.reasoning_content)
+        answer_text = _primary_answer_text(
+            result.generated_answer,
+            result.reasoning_content,
+        )
         if _looks_non_business(answer_text):
             return SearchUnderstanding(
                 original_query=query,
@@ -89,7 +93,11 @@ class VikingKnowledgeServiceRouter:
                 excluded_concepts=[],
                 search_strategy="VikingDB 知识库服务已判断无可靠卖点，不返回卖点图库",
             )
-        matches = self._select_matches(query, answer_text, result.result_list)
+        matches = self._select_matches(
+            query,
+            answer_text,
+            result.result_list if not result.generated_answer.strip() else [],
+        )
         if not matches:
             return None
         concepts = [
@@ -133,6 +141,9 @@ class VikingKnowledgeServiceRouter:
         answer_text: str,
         result_list: list[dict[str, Any]],
     ) -> list[VikingKnowledgeServiceMatch]:
+        explicit_matches = self._select_explicit_answer_matches(answer_text)
+        if explicit_matches:
+            return explicit_matches[: self.max_matches]
         scored: list[tuple[float, RuntimeIntent, str]] = []
         for intent in self.intents:
             score, reason = self._score_intent(intent, answer_text, result_list)
@@ -174,8 +185,8 @@ class VikingKnowledgeServiceRouter:
         answer = _normalize(answer_text)
         answer_hits = [
             term
-            for term in _intent_terms(intent)
-            if len(_normalize(term)) >= 2 and _normalize(term) in answer
+            for term in _explicit_intent_terms(intent)
+            if _is_strong_explicit_term(term, intent) and _normalize(term) in answer
         ]
         score = 0.0
         if answer_hits:
@@ -202,6 +213,39 @@ class VikingKnowledgeServiceRouter:
             reasons.append(f"参考片段命中“{top_result_hit}”")
         return score, "；".join(unique(reasons)) or "知识库服务命中卖点资料"
 
+    def _select_explicit_answer_matches(
+        self,
+        answer_text: str,
+    ) -> list[VikingKnowledgeServiceMatch]:
+        segment = _explicit_selling_point_segment(answer_text)
+        if not segment:
+            return []
+        normalized_segment = _normalize(segment)
+        scored: list[tuple[int, RuntimeIntent, str]] = []
+        for intent in self.intents:
+            if _answer_negates_intent(segment, intent):
+                continue
+            hits = [
+                term
+                for term in _explicit_intent_terms(intent)
+                if _is_strong_explicit_term(term, intent)
+                and _normalize(term) in normalized_segment
+            ]
+            if not hits:
+                continue
+            first_position = min(normalized_segment.find(_normalize(term)) for term in hits)
+            scored.append((first_position, intent, hits[0]))
+        scored.sort(key=lambda item: item[0])
+        return [
+            VikingKnowledgeServiceMatch(
+                code=intent.code,
+                display_name=intent.display_name,
+                score=0.98 if index == 0 else 0.92,
+                reason=f"知识库最终答案明确列出“{hit}”",
+            )
+            for index, (_position, intent, hit) in enumerate(scored)
+        ]
+
 
 def _intent_terms(intent: RuntimeIntent) -> tuple[str, ...]:
     return tuple(
@@ -216,6 +260,34 @@ def _intent_terms(intent: RuntimeIntent) -> tuple[str, ...]:
             ]
         )
     )
+
+
+def _explicit_intent_terms(intent: RuntimeIntent) -> tuple[str, ...]:
+    return tuple(
+        unique(
+            [
+                intent.code,
+                intent.name,
+                intent.display_name,
+                *intent.phrases,
+                *intent.exact_only_phrases,
+                *intent.interpretation_patterns,
+            ]
+        )
+    )
+
+
+def _is_strong_explicit_term(term: str, intent: RuntimeIntent) -> bool:
+    normalized = _normalize(term)
+    if not normalized:
+        return False
+    if normalized in {
+        _normalize(intent.code),
+        _normalize(intent.name),
+        _normalize(intent.display_name),
+    }:
+        return True
+    return len(normalized) >= 4
 
 
 def _looks_non_business(text: str) -> bool:
@@ -238,8 +310,28 @@ def _answer_negates_intent(text: str, intent: RuntimeIntent) -> bool:
     return False
 
 
-def _combined_answer_text(generated_answer: str, reasoning_content: str) -> str:
-    return "\n".join(item for item in (generated_answer, reasoning_content) if item.strip())
+def _primary_answer_text(generated_answer: str, reasoning_content: str) -> str:
+    if generated_answer.strip():
+        return generated_answer
+    return reasoning_content
+
+
+def _explicit_selling_point_segment(text: str) -> str:
+    normalized_text = text.strip()
+    if not normalized_text:
+        return ""
+    match = re.search(
+        r"核心卖点\s*[:：]\s*(.+?)(?=\n\s*-?\s*(?:判断置信度|为什么这样判断|卖点定义|相关证明点)\s*[:：]|$)",
+        normalized_text,
+        flags=re.DOTALL,
+    )
+    if not match:
+        return ""
+    segment = match.group(1)
+    stop_match = re.search(r"(?:判断置信度|为什么这样判断|卖点定义|相关证明点)\s*[:：]", segment)
+    if stop_match:
+        segment = segment[: stop_match.start()]
+    return segment.strip(" -—：:\n\t")
 
 
 def _result_text(item: dict[str, Any]) -> str:

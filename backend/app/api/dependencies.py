@@ -44,6 +44,9 @@ from app.services.viking_knowledge_service_router import VikingKnowledgeServiceR
 from app.services.vikingdb_client import VikingDBClient
 from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
+from app.services.volc_ai_search_client import VolcAiSearchClient
+from app.services.volc_ai_search_service import VolcAiSearchService
+from app.services.volc_ai_search_sync import VolcAiSearchIndexSync
 
 settings = get_settings()
 
@@ -297,6 +300,36 @@ def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
     )
 
 
+def _build_ai_search_client() -> VolcAiSearchClient:
+    return VolcAiSearchClient(
+        base_url=settings.ai_search_base_url,
+        api_key=settings.ai_search_api_key,
+        dataset_id=settings.ai_search_dataset_id,
+        search_path=settings.ai_search_search_path,
+        timeout_seconds=settings.ai_search_timeout_seconds,
+    )
+
+
+def _build_ai_search_index() -> VolcAiSearchIndexSync:
+    public_base_url = (
+        settings.ai_search_public_base_url
+        or settings.public_base_url
+        or _first_cors_origin()
+    )
+    return VolcAiSearchIndexSync(
+        _build_ai_search_client(),
+        enabled=settings.ai_search_enabled and settings.ai_search_sync_enabled,
+        public_base_url=public_base_url,
+    )
+
+
+def _first_cors_origin() -> str:
+    for origin in settings.cors_origin_list:
+        if origin.startswith("http://") or origin.startswith("https://"):
+            return origin
+    return ""
+
+
 def get_image_service(db: Session = Depends(get_db)) -> ImageService:
     return ImageService(
         db,
@@ -308,6 +341,7 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
         settings.thumbnail_max_size,
         embedding_index=EmbeddingIndexSync.from_settings(),
         vector_index=VikingDBVectorIndexSync.from_settings(),
+        ai_search_index=_build_ai_search_index(),
     )
 
 
@@ -340,6 +374,7 @@ def get_asset_relation_service(db: Session = Depends(get_db)) -> AssetRelationSe
         search_index=SearchIndexSync.from_settings(),
         embedding_index=EmbeddingIndexSync.from_settings(),
         vector_index=VikingDBVectorIndexSync.from_settings(),
+        ai_search_index=_build_ai_search_index(),
     )
 
 
@@ -354,6 +389,7 @@ def get_image_lifecycle_service(db: Session = Depends(get_db)) -> ImageLifecycle
         db,
         build_storage(settings),
         vector_index=VikingDBVectorIndexSync.from_settings(),
+        ai_search_index=_build_ai_search_index(),
     )
 
 
@@ -464,6 +500,12 @@ def get_search_service(
         ),
         vikingdb_knowledge_router=_build_vikingdb_knowledge_router(db),
         vikingdb_skill_backup_enabled=settings.vikingdb_skill_backup_enabled,
+        ai_search=VolcAiSearchService(
+            db,
+            _build_ai_search_client(),
+            enabled=settings.ai_search_enabled,
+            page_size=settings.ai_search_page_size,
+        ),
     )
 
 
@@ -496,6 +538,7 @@ def get_asset_agent_service(
     return AssetAgentService(
         db,
         _build_scheduled_provider(db, request_id=request.state.request_id),
+        knowledge_router=_build_vikingdb_knowledge_router(db),
     )
 
 

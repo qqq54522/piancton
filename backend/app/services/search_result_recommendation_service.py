@@ -29,6 +29,7 @@ _ROUTE_EXPLANATION_PROCESS_MARKERS = (
     "同时按",
     "收窄版位",
 )
+ROUTE_EXPLANATION_MAX_WAIT_SECONDS = 8.0
 
 
 class SearchResultRecommendationService:
@@ -125,9 +126,9 @@ class SearchResultRecommendationService:
                 cancellation=signal,
             ),
             timeout_seconds=(
-                deadline.clamp(self.timeout_seconds)
+                deadline.clamp(min(self.timeout_seconds, ROUTE_EXPLANATION_MAX_WAIT_SECONDS))
                 if deadline is not None
-                else self.timeout_seconds
+                else min(self.timeout_seconds, ROUTE_EXPLANATION_MAX_WAIT_SECONDS)
             ),
             attempt_task="search_result_recommendation_reason",
             attempt_layer="搜索结果：命中卖点解释",

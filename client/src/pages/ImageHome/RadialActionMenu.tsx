@@ -27,7 +27,7 @@ function RadialActionMenu({
   const actions = [
     {
       key: 'agent',
-      label: '发送到素材库 Agent',
+      label: '发送到 Piancton Agent',
       displayLabel: '发送到 Agent',
       icon: Bot,
       onClick: onSendToAgent,

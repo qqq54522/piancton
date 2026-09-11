@@ -12,6 +12,8 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   usedModel?: boolean | null;
+  reasoningContent?: string;
+  streaming?: boolean;
 }
 
 export interface AgentSession {
@@ -31,15 +33,28 @@ export interface AgentState {
 }
 
 export const DEFAULT_QUESTIONS = [
-  '这张图适合讲哪个卖点？',
-  '帮我用家长能听懂的话解释',
-  '它和相近卖点的区别是什么？',
+  '这张图适合怎么用？',
+  '这个卖点怎么跟家长讲？',
+  '帮我判断这句话适合哪个卖点',
 ] as const;
 
 export const MAX_SESSIONS = 20;
 export const LOCAL_SESSION_PREFIX = 'local-';
 export const DEFAULT_GREETING =
+  '我是 Piancton Agent。你可以问我图片、卖点、六大体系、素材使用和销售话术；如果把图片发给我，我会结合已确认的素材信息一起回答。';
+
+const LEGACY_DEFAULT_GREETING =
   '我是素材库 Agent。你可以把图片发给我，我会按已确认的卖点和素材信息帮你解释。';
+const LEGACY_DEFAULT_QUESTIONS = [
+  '这张图适合讲哪个卖点？',
+  '帮我用家长能听懂的话解释',
+  '它和相近卖点的区别是什么？',
+] as const;
+const LEGACY_DEFAULT_QUESTIONS_WITHOUT_CONTEXT = [
+  '什么是同步校内？',
+  '什么是 AI 拍题精学？',
+  '哪些图适合讲考前突击？',
+] as const;
 
 export function responseMessage(response: AssetAgentChatResponse): ChatMessage {
   const suffix = response.usedModel ? '' : '\n\n（本次模型不可用，已走本地兜底。）';
@@ -78,17 +93,39 @@ export function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
     messages: session.messages.map((message) => ({
       id: message.id,
       role: message.role,
-      content: message.content,
+      content: normalizeLegacyDefaultMessage(message.content),
       usedModel: message.usedModel,
     })),
     contextImages: session.contextImages.map(contextApiToPayload),
-    suggestedQuestions: session.suggestedQuestions.length > 0
-      ? session.suggestedQuestions
+    suggestedQuestions: normalizedSuggestedQuestions(session.suggestedQuestions).length > 0
+      ? normalizedSuggestedQuestions(session.suggestedQuestions)
       : [...DEFAULT_QUESTIONS],
     createdAt: dateToMillis(session.createdAt),
     updatedAt: dateToMillis(session.updatedAt),
     expiresAt: dateToMillis(session.expiresAt),
   };
+}
+
+function normalizeLegacyDefaultMessage(content: string): string {
+  return content === LEGACY_DEFAULT_GREETING ? DEFAULT_GREETING : content;
+}
+
+function normalizedSuggestedQuestions(questions: string[]): string[] {
+  if (
+    questions.length === LEGACY_DEFAULT_QUESTIONS.length
+    && questions.every((question, index) => question === LEGACY_DEFAULT_QUESTIONS[index])
+  ) {
+    return [...DEFAULT_QUESTIONS];
+  }
+  if (
+    questions.length === LEGACY_DEFAULT_QUESTIONS_WITHOUT_CONTEXT.length
+    && questions.every((question, index) => (
+      question === LEGACY_DEFAULT_QUESTIONS_WITHOUT_CONTEXT[index]
+    ))
+  ) {
+    return [...DEFAULT_QUESTIONS];
+  }
+  return questions;
 }
 
 export function stateFromSessions(

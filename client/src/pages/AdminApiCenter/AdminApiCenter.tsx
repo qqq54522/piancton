@@ -18,6 +18,7 @@ import {
 import {
   createApiCredential,
   deleteApiCredential,
+  diagnoseExternalSearchChain,
   disableApiProviderGroup,
   fetchApiCallTraces,
   fetchApiCenterSummary,
@@ -51,6 +52,7 @@ import type {
   ApiCredentialUpdate,
   ApiExternalConnectionTestResult,
   ApiExternalKnowledgeServiceUpdate,
+  ApiSearchChainDiagnosticResult,
   ApiExternalVectorDatabaseUpdate,
   ApiTemperatureTuneResult,
   ModelTaskName,
@@ -69,7 +71,7 @@ type TabId = (typeof tabs)[number]['id'];
 
 const currentTaskLabels: Record<string, string> = {
   search_result_recommendation_reason: '搜索结果：命中卖点解释',
-  asset_agent_chat: '素材库 Agent：业务解释',
+  asset_agent_chat: 'Piancton Agent：通用业务问答',
 };
 
 const retiredTaskLabels: Record<string, string> = {
@@ -93,7 +95,7 @@ const routingSlotDescriptions: Record<string, string> = {
   search_result_recommendation_reason:
     '搜索结果顶部的黑色说明，只解释用户原话为什么命中这些卖点；不参与火山召回、排序或候选准入。',
   asset_agent_chat:
-    '素材库右下角 Agent 的业务解释位置，可人工固定 DeepSeek 视觉模型主备；不写入业务事实。',
+    '右侧 Piancton Agent 的通用业务问答位置，可回答图片、卖点、体系和销售话术；不写入业务事实。',
 };
 
 const statusClass: Record<string, string> = {
@@ -104,6 +106,7 @@ const statusClass: Record<string, string> = {
   invalid: 'border-red-200 bg-red-50 text-red-700',
   failed: 'border-red-200 bg-red-50 text-red-700',
   timed_out: 'border-red-200 bg-red-50 text-red-700',
+  skipped: 'border-slate-200 bg-slate-50 text-slate-600',
   idle: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   busy: 'border-slate-200 bg-slate-50 text-slate-700',
   saturated: 'border-amber-200 bg-amber-50 text-amber-700',
@@ -115,6 +118,7 @@ const statusClass: Record<string, string> = {
 const statusLabel: Record<string, string> = {
   ok: 'OK',
   failed: '失败',
+  degraded: '降级可用',
   timed_out: '超时',
   skipped: '未配置/跳过',
   unknown: '未知',
@@ -630,6 +634,7 @@ function ExternalConnections({ data }: { data: ApiCenterSummary }) {
     ...data.externalConnections.vectorDatabase,
     apiKey: '',
   });
+  const [diagnosticQuery, setDiagnosticQuery] = useState('洋葱拍题精学习');
   const saveKnowledgeMutation = useMutation({
     mutationFn: updateExternalKnowledgeService,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-center-summary'] }),
@@ -643,6 +648,9 @@ function ExternalConnections({ data }: { data: ApiCenterSummary }) {
   });
   const testVectorMutation = useMutation({
     mutationFn: () => testExternalVectorDatabase(),
+  });
+  const diagnoseMutation = useMutation({
+    mutationFn: () => diagnoseExternalSearchChain(diagnosticQuery),
   });
 
   useEffect(() => {
@@ -662,6 +670,39 @@ function ExternalConnections({ data }: { data: ApiCenterSummary }) {
         title="知识与数据库调度"
         description="这里决定搜索先问哪个知识库、失败后是否进入向量库兜底。页面保存后即写入 API Center，后端下一次搜索会优先读取这里的配置。"
       />
+      <div className="border-b border-border bg-muted/20 p-4">
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">完整搜索链路体检</h3>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                用同一句话依次检查：API Center 配置、知识库主判断、VikingDB 兜底、最终搜索是否真的产出卖点和图片结果。
+              </p>
+              <Input
+                className="mt-3"
+                value={diagnosticQuery}
+                onChange={(event) => setDiagnosticQuery(event.target.value)}
+                placeholder="输入一条测试搜索，例如：考前复习 / 洋葱拍题精学习"
+              />
+            </div>
+            <Button
+              disabled={diagnoseMutation.isPending}
+              onClick={() => diagnoseMutation.mutate()}
+            >
+              <Sparkles className="size-4" />
+              {diagnoseMutation.isPending ? '体检中...' : '一键体检完整链路'}
+            </Button>
+          </div>
+          {diagnoseMutation.isError ? (
+            <p className="mt-3 text-sm text-destructive">
+              {getApiError(diagnoseMutation.error).message}
+            </p>
+          ) : null}
+          {diagnoseMutation.data ? (
+            <SearchChainDiagnosticPanel result={diagnoseMutation.data} />
+          ) : null}
+        </div>
+      </div>
       <div className="grid gap-4 bg-muted/20 p-4 xl:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1824,6 +1865,69 @@ function SwitchField({
       <span className="pc-switch-track" />
       <span>{label}</span>
     </button>
+  );
+}
+
+function SearchChainDiagnosticPanel({
+  result,
+}: {
+  result: ApiSearchChainDiagnosticResult;
+}) {
+  const className = result.status === 'ok'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+    : result.status === 'degraded'
+      ? 'border-amber-200 bg-amber-50 text-amber-800'
+      : result.status === 'failed'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : 'border-slate-200 bg-slate-50 text-slate-600';
+  return (
+    <div className="mt-4 grid gap-3">
+      <div className={`rounded-xl border px-3 py-2 text-xs leading-5 ${className}`}>
+        <div className="font-medium">
+          {statusLabel[result.status] ?? result.status}
+          {' · '}
+          {result.durationMs}ms
+        </div>
+        <div>
+          {result.status === 'ok'
+            ? `完整链路已跑通，命中 ${result.matchedConcepts.length} 个卖点，返回 ${result.resultCount} 张图。`
+            : result.status === 'degraded'
+              ? `最终搜索可用，命中 ${result.matchedConcepts.length} 个卖点，返回 ${result.resultCount} 张图；但至少一个上游步骤需要处理。`
+            : '完整链路没有稳定跑通，请按下面步骤定位问题。'}
+        </div>
+        {result.fallback || result.fallbackReason ? (
+          <div>
+            兜底状态：{result.fallback ? '已触发 VikingDB fallback' : '未触发 fallback'}
+            {result.fallbackReason ? ` · ${result.fallbackReason}` : ''}
+          </div>
+        ) : null}
+        {result.matchedConcepts.length ? (
+          <div>命中卖点：{result.matchedConcepts.join('、')}</div>
+        ) : null}
+      </div>
+      <div className="grid gap-2">
+        {result.steps.map((step) => (
+          <div
+            key={step.name}
+            className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs leading-5"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-foreground">{step.name}</span>
+              <Badge variant="outline" className={statusClass[step.status] ?? ''}>
+                {statusLabel[step.status] ?? step.status}
+              </Badge>
+              <span className="text-muted-foreground">{step.durationMs}ms</span>
+            </div>
+            <div className="mt-1 text-muted-foreground">{step.message}</div>
+            {Object.keys(step.preview ?? {}).length ? (
+              <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-lg bg-white/70 p-2 text-[11px] text-slate-700">
+                {JSON.stringify(step.preview, null, 2)}
+              </pre>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

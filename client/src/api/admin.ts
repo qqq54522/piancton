@@ -17,6 +17,7 @@ import type {
   ApiExternalConnectionTestResult,
   ApiExternalKnowledgeServiceConfig,
   ApiExternalKnowledgeServiceUpdate,
+  ApiSearchChainDiagnosticResult,
   ApiExternalVectorDatabaseConfig,
   ApiExternalVectorDatabaseUpdate,
   ApiHealthCheck,
@@ -231,6 +232,16 @@ export async function testExternalVectorDatabase(
   return (
     await api.post('/api/admin/api-center/external-connections/vector-database/test', { query }, {
       timeout: apiCenterRequestWaitMs(30, 1),
+    })
+  ).data;
+}
+
+export async function diagnoseExternalSearchChain(
+  query = '洋葱拍题精学习',
+): Promise<ApiSearchChainDiagnosticResult> {
+  return (
+    await api.post('/api/admin/api-center/external-connections/search-chain/diagnose', { query }, {
+      timeout: apiCenterRequestWaitMs(70, 1),
     })
   ).data;
 }

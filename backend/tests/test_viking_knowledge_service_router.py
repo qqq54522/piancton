@@ -73,6 +73,44 @@ def test_knowledge_service_router_keeps_real_multi_selling_point_answers():
     ]
 
 
+def test_knowledge_service_router_prefers_final_core_selling_points_over_reasoning_noise():
+    router = VikingKnowledgeServiceRouter(
+        client=FakeKnowledgeClient(
+            VikingKnowledgeServiceChatResult(
+                query="洋葱拍题精学能让孩子学一题会一类",
+                response={},
+                generated_answer=(
+                    "判断结果：\n"
+                    "- 业务体系：同步自学体系、同步考点体系\n"
+                    "- 核心卖点：\n"
+                    "  1. AI 拍题精学，识别知识点并引导孩子自己解题\n"
+                    "  2. 理解出题原理，通过一道题理解一类题\n"
+                    "- 判断置信度：高\n"
+                    "为什么这样判断：用户话术直接命中拍题精学和一题会一类。"
+                ),
+                reasoning_content=(
+                    "先看看是不是动画精讲，也可能是万能解法？不对，"
+                    "还要排除 AI错题本，最后以最终答案为准。"
+                ),
+                result_list=[
+                    {"content": "参考片段：动画精讲可以把抽象知识动态讲透"},
+                ],
+            )
+        ),
+        runtime_catalog=_catalog(),
+        enabled=True,
+    )
+
+    result = router.route("洋葱拍题精学能让孩子学一题会一类")
+
+    assert result is not None
+    assert result.query_type == "multi_business_intent_search"
+    assert [item.concept for item in result.matched_business_concepts] == [
+        "同步自学体系 > AI拍题精学",
+        "同步考点体系 > 举一反三",
+    ]
+
+
 def test_knowledge_service_router_blocks_non_business_answers():
     router = VikingKnowledgeServiceRouter(
         client=FakeKnowledgeClient(
@@ -179,11 +217,35 @@ def _catalog() -> RuntimeIntentCatalog:
                 code="transfer_practice",
                 name="举一反三",
                 display_name="同步考点体系 > 举一反三",
-                phrases=("一题带一类题",),
+                phrases=("一题带一类题", "理解出题原理"),
                 exact_only_phrases=(),
                 interpretation_patterns=(),
                 pain_points=("换题不会",),
                 must_have_concepts=("举一反三", "同类题"),
+                nice_to_have_concepts=(),
+                exclude_concepts=(),
+            ),
+            RuntimeIntent(
+                code="ai_error_book",
+                name="AI错题本",
+                display_name="同步自学体系 > AI错题本",
+                phrases=("拍题",),
+                exact_only_phrases=(),
+                interpretation_patterns=(),
+                pain_points=(),
+                must_have_concepts=(),
+                nice_to_have_concepts=(),
+                exclude_concepts=(),
+            ),
+            RuntimeIntent(
+                code="ai_tutor",
+                name="AI私教答疑",
+                display_name="同步自学体系 > AI私教答疑",
+                phrases=("拍题",),
+                exact_only_phrases=(),
+                interpretation_patterns=(),
+                pain_points=(),
+                must_have_concepts=(),
                 nice_to_have_concepts=(),
                 exclude_concepts=(),
             ),

@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.api.dependencies import get_api_center_service, get_audit_service, require_roles
+from app.api.dependencies import (
+    get_api_center_service,
+    get_audit_service,
+    get_search_service,
+    require_roles,
+)
 from app.models.user import User
 from app.schemas.api_center import (
     ApiCallTraceListResponse,
@@ -22,6 +29,9 @@ from app.schemas.api_center import (
     ApiHealthCheckRunRequest,
     ApiHealthCheckRunResult,
     ApiProviderGroupRead,
+    ApiSearchChainDiagnosticRequest,
+    ApiSearchChainDiagnosticResult,
+    ApiSearchChainDiagnosticStep,
     ApiTemperatureProbeRequest,
     ApiTemperatureTuneRequest,
     ApiTemperatureTuneResult,
@@ -30,6 +40,7 @@ from app.schemas.api_center import (
 )
 from app.services.api_center_service import ApiCenterService
 from app.services.audit_service import AuditService
+from app.services.search_service import SearchService
 
 router = APIRouter(prefix="/admin/api-center", tags=["admin"])
 
@@ -343,3 +354,163 @@ def test_external_vector_database(
     service: ApiCenterService = Depends(get_api_center_service),
 ):
     return service.test_external_vector_database(payload)
+
+
+@router.post(
+    "/external-connections/search-chain/diagnose",
+    response_model=ApiSearchChainDiagnosticResult,
+)
+async def diagnose_external_search_chain(
+    payload: ApiSearchChainDiagnosticRequest,
+    _: User = Depends(require_roles("admin")),
+    service: ApiCenterService = Depends(get_api_center_service),
+    search_service: SearchService = Depends(get_search_service),
+):
+    query = payload.query.strip() or "洋葱拍题精学习"
+    started = time.monotonic()
+    steps: list[ApiSearchChainDiagnosticStep] = []
+
+    external = service.external_connections()
+    knowledge_ready = (
+        external.knowledge_service.enabled
+        and external.knowledge_service.api_key_configured
+        and bool(external.knowledge_service.base_url.strip())
+        and bool(external.knowledge_service.service_resource_id.strip())
+    )
+    vector_ready = (
+        external.vector_database.enabled
+        and external.vector_database.fallback_enabled
+        and external.vector_database.api_key_configured
+        and bool(external.vector_database.base_url.strip())
+        and bool(external.vector_database.collection_name.strip())
+        and bool(external.vector_database.index_name.strip())
+    )
+    config_ok = knowledge_ready and vector_ready
+    steps.append(
+        ApiSearchChainDiagnosticStep(
+            name="配置读取",
+            status="ok" if config_ok else "failed",
+            message=(
+                "API 中心已配置知识库主判断与 VikingDB fallback"
+                if config_ok
+                else "API 中心外部连接配置不完整"
+            ),
+            preview={
+                "knowledgeEnabled": external.knowledge_service.enabled,
+                "knowledgeApiKeyConfigured": external.knowledge_service.api_key_configured,
+                "knowledgeServiceResourceId": external.knowledge_service.service_resource_id,
+                "vectorEnabled": external.vector_database.enabled,
+                "vectorFallbackEnabled": external.vector_database.fallback_enabled,
+                "vectorApiKeyConfigured": external.vector_database.api_key_configured,
+                "vectorCollectionName": external.vector_database.collection_name,
+                "vectorIndexName": external.vector_database.index_name,
+                "vectorFallbackMinScore": external.vector_database.fallback_min_score,
+                "vectorFallbackMaxMatches": external.vector_database.fallback_max_matches,
+            },
+        )
+    )
+
+    knowledge_result = service.test_external_knowledge_service(
+        ApiExternalConnectionTestRequest(query=query)
+    )
+    steps.append(
+        ApiSearchChainDiagnosticStep(
+            name="知识库服务",
+            status=knowledge_result.status,
+            duration_ms=knowledge_result.duration_ms,
+            message=knowledge_result.message,
+            preview=knowledge_result.preview,
+        )
+    )
+
+    vector_result = service.test_external_vector_database(
+        ApiExternalConnectionTestRequest(query=query)
+    )
+    steps.append(
+        ApiSearchChainDiagnosticStep(
+            name="VikingDB 向量库",
+            status=vector_result.status,
+            duration_ms=vector_result.duration_ms,
+            message=vector_result.message,
+            preview=vector_result.preview,
+        )
+    )
+
+    search_step_started = time.monotonic()
+    try:
+        search_response = await search_service.search_async(query, 12)
+    except Exception as exc:
+        steps.append(
+            ApiSearchChainDiagnosticStep(
+                name="完整搜索链路",
+                status="failed",
+                duration_ms=_elapsed_ms(search_step_started),
+                message=str(exc)[:160] or exc.__class__.__name__,
+            )
+        )
+        return ApiSearchChainDiagnosticResult(
+            status="failed",
+            query=query,
+            duration_ms=_elapsed_ms(started),
+            steps=steps,
+        )
+
+    matched_concepts = (
+        [
+            item.concept
+            for item in search_response.search_understanding.matched_business_concepts
+        ]
+        if search_response.search_understanding
+        else []
+    )
+    search_ok = bool(matched_concepts)
+    steps.append(
+        ApiSearchChainDiagnosticStep(
+            name="完整搜索链路",
+            status="ok" if search_ok else "failed",
+            duration_ms=_elapsed_ms(search_step_started),
+            message=(
+                "搜索已产出卖点并回本地图库取素材"
+                if search_ok
+                else "搜索未产出可靠卖点"
+            ),
+            preview={
+                "matchedConcepts": matched_concepts,
+                "resultCount": len(search_response.results),
+                "fallback": search_response.fallback,
+                "fallbackReason": search_response.fallback_reason,
+                "matchSummary": search_response.match_summary,
+                "branches": [
+                    {
+                        "source": branch.source,
+                        "status": branch.status,
+                        "durationMs": branch.duration_ms,
+                        "resultCount": branch.result_count,
+                        "detail": branch.detail,
+                    }
+                    for branch in (
+                        search_response.search_diagnostics.branches
+                        if search_response.search_diagnostics
+                        else []
+                    )
+                ],
+            },
+        )
+    )
+    overall_status = "ok" if search_ok and all(
+        step.status == "ok" for step in steps
+    ) else "degraded" if search_ok else "failed"
+    return ApiSearchChainDiagnosticResult(
+        status=overall_status,
+        query=query,
+        duration_ms=_elapsed_ms(started),
+        steps=steps,
+        matched_concepts=matched_concepts,
+        result_count=len(search_response.results),
+        fallback=search_response.fallback,
+        fallback_reason=search_response.fallback_reason,
+    )
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((time.monotonic() - started) * 1000))

@@ -20,6 +20,7 @@ IMAGE_LOAD_OPTIONS = (
     selectinload(Image.analysis_runs),
     selectinload(Image.asset_group).selectinload(AssetGroup.images),
     selectinload(Image.asset_group).selectinload(AssetGroup.search_phrases),
+    selectinload(Image.asset_group).selectinload(AssetGroup.source_links),
     selectinload(Image.asset_group)
     .selectinload(AssetGroup.concept_links)
     .selectinload(AssetConceptLink.concept)
@@ -243,6 +244,34 @@ class ImageRepository:
         )
         images_by_id = {image.id: image for image in self.db.scalars(stmt).all()}
         return [images_by_id[image_id] for image_id in image_ids if image_id in images_by_id]
+
+    def get_many_by_identity_codes(self, identity_codes: list[str]) -> list[Image]:
+        if not identity_codes:
+            return []
+        normalized_codes = [code.strip().upper() for code in identity_codes if code.strip()]
+        if not normalized_codes:
+            return []
+        stmt = (
+            select(Image)
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .where(
+                func.upper(Image.identity_code).in_(normalized_codes),
+                Image.deleted_at.is_(None),
+                or_(
+                    Image.asset_group_id.is_(None),
+                    and_(
+                        AssetGroup.publish_status == "published",
+                        Image.is_current.is_(True),
+                    ),
+                ),
+            )
+            .options(*IMAGE_LOAD_OPTIONS)
+        )
+        images_by_code = {
+            (image.identity_code or "").strip().upper(): image
+            for image in self.db.scalars(stmt).all()
+        }
+        return [images_by_code[code] for code in normalized_codes if code in images_by_code]
 
     def search_by_concept_ids(
         self,

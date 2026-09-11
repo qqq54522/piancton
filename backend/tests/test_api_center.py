@@ -1875,7 +1875,7 @@ def test_environment_credentials_are_imported_into_api_center(db_factory, monkey
     assert {
         "环境导入 · 搜索主 Key",
         "环境导入 · 搜索备用 Key",
-        "环境导入 · 素材库 Agent Key",
+        "环境导入 · Piancton Agent Key",
     }.issubset(labels)
     assert "环境导入 · 主图分析 Key" not in labels
     assert all(not item.api_key_preview.endswith("1111" * 2) for item in summary.credentials)
@@ -3111,6 +3111,54 @@ def test_initialize_runtime_normalizes_legacy_health_status_without_losing_manua
 
     assert stored.status == "active"
     assert [item.id for item in selected] == [credential.id]
+
+
+def test_initialize_runtime_moves_env_imported_keys_off_retired_tasks(db_factory):
+    with db_factory() as db:
+        service = ApiCenterService(db)
+        credential = service.repo.add_credential(
+            ModelApiCredential(
+                label="环境导入 · 搜索主 Key",
+                provider_type="openai_compatible",
+                base_url="https://legacy.example.test/v1",
+                model_name="gpt-legacy",
+                api_key_secret="sk-legacy-1234",
+                api_key_fingerprint="legacy",
+                api_key_preview="sk-l...1234",
+                task_scope_json=json.dumps(
+                    [
+                        "search_system_routing",
+                        "search_intent_understanding",
+                        "search_proof_point_understanding",
+                    ],
+                    ensure_ascii=False,
+                ),
+                status="active",
+                auto_assign_enabled=True,
+            )
+        )
+        manual = service.repo.add_credential(
+            ModelApiCredential(
+                label="人工旧 Key",
+                provider_type="openai_compatible",
+                base_url="https://manual.example.test/v1",
+                model_name="gpt-manual",
+                api_key_secret="sk-manual-1234",
+                api_key_fingerprint="manual",
+                api_key_preview="sk-m...1234",
+                task_scope_json=json.dumps(["search_system_routing"]),
+                status="active",
+                auto_assign_enabled=True,
+            )
+        )
+        db.commit()
+
+        service.initialize_runtime()
+
+        assert json.loads(credential.task_scope_json) == [
+            "search_result_recommendation_reason",
+        ]
+        assert json.loads(manual.task_scope_json) == ["search_system_routing"]
 
 
 def test_runtime_attempt_is_committed_in_trace_session(db_factory):

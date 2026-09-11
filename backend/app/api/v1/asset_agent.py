@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import get_asset_agent_service, require_csrf, require_roles
 from app.core.errors import ForbiddenError
@@ -57,6 +58,20 @@ def send_asset_agent_message(
     service: AssetAgentService = Depends(get_asset_agent_service),
 ):
     return service.chat_in_session(user, session_id, payload)
+
+
+@router.post("/sessions/{session_id}/messages/stream")
+def stream_asset_agent_message(
+    session_id: str,
+    payload: AssetAgentChatRequest,
+    user: User = Depends(require_asset_agent_user),
+    service: AssetAgentService = Depends(get_asset_agent_service),
+):
+    return StreamingResponse(
+        service.chat_in_session_stream(user, session_id, payload),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

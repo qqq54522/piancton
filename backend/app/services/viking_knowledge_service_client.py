@@ -97,8 +97,10 @@ class VikingKnowledgeServiceClient:
                 response.raise_for_status()
                 data = response.json()
         except httpx.HTTPStatusError as exc:
+            detail = _http_error_detail(exc.response)
+            suffix = f"：{detail}" if detail else ""
             raise VikingKnowledgeServiceClientError(
-                f"知识库服务返回异常状态：{exc.response.status_code}"
+                f"知识库服务返回异常状态：{exc.response.status_code}{suffix}"
             ) from exc
         except httpx.TimeoutException as exc:
             raise VikingKnowledgeServiceClientError("知识库服务调用超时") from exc
@@ -128,3 +130,16 @@ def _result_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def _http_error_detail(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except json.JSONDecodeError:
+        return response.text.strip()[:120]
+    if not isinstance(payload, dict):
+        return ""
+    message = payload.get("message") or payload.get("error") or payload.get("msg")
+    if message is None:
+        return ""
+    return str(message).strip()[:120]

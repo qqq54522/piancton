@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     max_long_image_pixels: int = 160_000_000
     long_image_min_aspect_ratio: float = 3.0
     thumbnail_max_size: int = 640
+    public_base_url: str = ""
     login_max_attempts: int = 5
     login_window_minutes: int = 15
     login_block_minutes: int = 30
@@ -101,6 +102,16 @@ class Settings(BaseSettings):
     viking_knowledge_service_timeout_seconds: float = 12.0
     viking_knowledge_service_result_limit: int = 6
     viking_knowledge_service_max_matches: int = 4
+    ai_search_enabled: bool = False
+    ai_search_sync_enabled: bool = True
+    ai_search_base_url: str = "https://aisearch.cn-beijing.volces.com"
+    ai_search_api_key: str = ""
+    ai_search_application_id: str = ""
+    ai_search_search_path: str = ""
+    ai_search_dataset_id: str = ""
+    ai_search_timeout_seconds: float = 8.0
+    ai_search_page_size: int = 10
+    ai_search_public_base_url: str = ""
     reranker_base_url: str = ""
     reranker_api_key: str = ""
     reranker_model_name: str = ""
