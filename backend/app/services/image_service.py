@@ -31,6 +31,7 @@ from app.services.serializers import image_to_detail, image_to_read
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
 from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
+from app.services.volc_ai_search_client import VolcAiSearchClient
 from app.services.volc_ai_search_sync import VolcAiSearchIndexSync
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,8 @@ class ImageService:
         embedding_index: EmbeddingIndexSync | None = None,
         vector_index: VikingDBVectorIndexSync | None = None,
         ai_search_index: VolcAiSearchIndexSync | None = None,
+        ai_search_client: VolcAiSearchClient | None = None,
+        ai_search_recommend_enabled: bool = False,
     ):
         self.images = ImageRepository(db)
         self.storage = storage
@@ -86,7 +89,11 @@ class ImageService:
         self.ai_search_index = ai_search_index or VolcAiSearchIndexSync.disabled()
         self.asset_relations = AssetRelationService(db)
         self.identities = AssetIdentityService(db)
-        self.related_images = RelatedImageService(self.images)
+        self.related_images = RelatedImageService(
+            self.images,
+            ai_search_client=ai_search_client,
+            ai_search_recommend_enabled=ai_search_recommend_enabled,
+        )
         self.image_titles = ImageTitleService(db)
 
     def list_images(
@@ -129,9 +136,27 @@ class ImageService:
             channels=sorted(channels, key=lambda value: value.casefold())
         )
 
-    def get_detail(self, image_id: str) -> ImageDetailRead:
+    def get_detail(
+        self,
+        image_id: str,
+        *,
+        user_id: str = "",
+        personalize: bool = False,
+    ) -> ImageDetailRead:
         image = self._get_or_identity(image_id)
-        return image_to_detail(image, self.related_images.related_images(image, 8))
+        sections = self.related_images.recommendation_sections(
+            image,
+            user_id=user_id,
+            personalize=personalize,
+            limit=8,
+        )
+        related = [
+            item
+            for section in sections
+            if section.purpose in {"same_selling_point", "visual_similar"}
+            for item in section.images
+        ][:8]
+        return image_to_detail(image, related, sections)
 
     def upload(
         self,

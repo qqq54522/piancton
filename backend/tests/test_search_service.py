@@ -17,6 +17,7 @@ from app.services.database_search_recall import database_match_score
 from app.services.related_image_service import RelatedImageService
 from app.services.search_models import ConceptMatch, SearchHit
 from app.services.search_service import SearchService
+from app.services.volc_ai_search_client import VolcAiSearchClient
 
 
 def create_concept_image(
@@ -525,8 +526,74 @@ def test_related_images_prioritize_shared_concepts_and_exclude_same_group_versio
         db.commit()
 
         related = RelatedImageService(ImageRepository(db)).related_images(source, limit=4)
+        sections = RelatedImageService(ImageRepository(db)).recommendation_sections(
+            source,
+            limit=4,
+        )
 
     assert [item.id for item in related] == [sibling.id]
+    assert sections[0].purpose == "same_selling_point"
+    assert [item.id for item in sections[0].images] == [sibling.id]
+
+
+def test_detail_personalization_rehydrates_only_local_published_images(
+    db_factory,
+    monkeypatch,
+):
+    with db_factory() as db:
+        source = create_concept_image(
+            db,
+            code="personal-source",
+            name="个性化源卖点",
+            title="个性化源图",
+        )
+        candidate_group = AssetGroup(
+            title="个性化候选",
+            created_by="admin",
+            publish_status="published",
+        )
+        candidate = Image(
+            title="个性化候选",
+            file_name="personalized.png",
+            storage_key="personalized.png",
+            thumbnail_storage_key="personalized-thumb.jpg",
+            media_type="image/png",
+            size_bytes=100,
+            uploader="admin",
+            asset_group=candidate_group,
+        )
+        db.add(candidate)
+        db.flush()
+        candidate_group.primary_image_id = candidate.id
+        db.commit()
+
+        client = VolcAiSearchClient(
+            base_url="https://aisearch.example.com",
+            api_key="secret",
+            dataset_id="items-1",
+            recommend_path="/api/v1/application/app-1/scene-detail",
+        )
+        monkeypatch.setattr(
+            client,
+            "recommend_items",
+            lambda **_kwargs: ["remote-orphan", candidate.id],
+        )
+        sections = RelatedImageService(
+            ImageRepository(db),
+            ai_search_client=client,
+            ai_search_recommend_enabled=True,
+        ).recommendation_sections(
+            source,
+            user_id="business-user",
+            personalize=True,
+            limit=4,
+        )
+
+    personalized = next(
+        section for section in sections if section.purpose == "personalized"
+    )
+    assert personalized.source == "ai_search"
+    assert [item.id for item in personalized.images] == [candidate.id]
 
 
 def test_meilisearch_not_configured_keeps_database_fallback(db_factory):

@@ -5,6 +5,7 @@ export type {
   ImageSemanticProfile,
   ImageDetail,
   ImageItem,
+  ImageRecommendationSection,
   ImageTitleResolution,
   LoginResponse,
   Tag,
@@ -396,6 +397,14 @@ export type SearchInteractionAction =
   | 'add_to_project'
   | 'remove_from_project'
   | 'send_to_agent';
+
+export type SearchInteractionSource =
+  | 'search_results'
+  | 'agent_chat'
+  | 'detail_same_selling_point'
+  | 'detail_visual_similar'
+  | 'detail_same_channel'
+  | 'detail_personalized';
 
 export interface SearchInteractionItem {
   id: string;

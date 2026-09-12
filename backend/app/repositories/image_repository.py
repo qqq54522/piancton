@@ -167,6 +167,30 @@ class ImageRepository:
         )
         return list(self.db.scalars(stmt).all())
 
+    def list_published_current(
+        self,
+        *,
+        channel: str | None = None,
+        limit: int = 100,
+    ) -> list[Image]:
+        stmt = (
+            select(Image)
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .where(
+                Image.deleted_at.is_(None),
+                Image.is_current.is_(True),
+                or_(
+                    Image.asset_group_id.is_(None),
+                    AssetGroup.publish_status == "published",
+                ),
+            )
+            .options(*IMAGE_LOAD_OPTIONS)
+        )
+        if channel:
+            stmt = stmt.where(Image.channel == channel)
+        stmt = stmt.order_by(desc(Image.created_at), desc(Image.id)).limit(limit)
+        return list(self.db.scalars(stmt).all())
+
     def search(self, keyword: str, limit: int) -> list[Image]:
         pattern = f"%{keyword}%"
         normalized_keyword = keyword.strip().lower()

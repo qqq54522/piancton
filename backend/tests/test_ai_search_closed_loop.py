@@ -203,6 +203,45 @@ def test_query_recommendations_use_the_existing_search_scene(monkeypatch):
     }
 
 
+def test_detail_recommendation_uses_parent_item_and_personalization(monkeypatch):
+    client = VolcAiSearchClient(
+        base_url="https://aisearch.example.com",
+        api_key="secret",
+        dataset_id="items-1",
+        recommend_path="/api/v1/application/app-1/scene-detail",
+    )
+    request: dict = {}
+
+    def fake_post(path, payload):
+        request.update(path=path, payload=payload)
+        return {
+            "result": {
+                "recommendation_results": [
+                    {"item": {"_id": "image-2"}},
+                    {"fields": {"image_id": "image-3"}},
+                ]
+            }
+        }
+
+    monkeypatch.setattr(client, "_post_json", fake_post)
+
+    assert client.recommend_items(
+        user_id="user-1",
+        parent_item_id="image-1",
+        page_size=6,
+    ) == ["image-2", "image-3"]
+    assert request == {
+        "path": "/api/v1/application/app-1/scene-detail",
+        "payload": {
+            "user": {"_user_id": "user-1"},
+            "parent_items": [{"_id": "image-1"}],
+            "page_size": 6,
+            "disable_personalize": False,
+            "output_fields": ["image_id", "identity_code"],
+        },
+    }
+
+
 def test_search_interaction_is_durably_synced_to_behavior_dataset(db_factory):
     with db_factory() as db:
         user = User(username="behavior-user", password_hash="x", role="business")
@@ -241,6 +280,29 @@ def test_search_interaction_is_durably_synced_to_behavior_dataset(db_factory):
             "search_log_id": "search-1",
             "position": 2,
         }
+
+
+def test_detail_recommendation_interaction_keeps_its_scene(db_factory):
+    with db_factory() as db:
+        user = User(username="detail-rec-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+
+        UsageAnalyticsService(db).record_search_interaction(
+            user,
+            search_log_id=None,
+            keyword="",
+            action="exposure",
+            result_image_id="image-2",
+            asset_group_id="asset-2",
+            position=1,
+            source="detail_same_selling_point",
+        )
+
+        pending = db.query(AiSearchBehaviorEvent).one()
+
+    assert pending.event_type == "exposure"
+    assert pending.event_scene == "detail_same_selling_point"
 
 
 @pytest.mark.parametrize("role", ["admin", "designer"])

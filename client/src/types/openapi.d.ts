@@ -3019,6 +3019,8 @@ export interface components {
             semanticProfile?: components["schemas"]["SemanticProfileRead"] | null;
             /** Relatedimages */
             relatedImages?: components["schemas"]["ImageRead"][];
+            /** Recommendationsections */
+            recommendationSections?: components["schemas"]["ImageRecommendationSectionRead"][];
             /** Analysisruns */
             analysisRuns?: components["schemas"]["AnalysisRunRead"][];
         };
@@ -3146,6 +3148,27 @@ export interface components {
              * @default 1
              */
             variantCount: number;
+        };
+        /** ImageRecommendationSectionRead */
+        ImageRecommendationSectionRead: {
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "same_selling_point" | "visual_similar" | "same_channel" | "personalized";
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "business_relations" | "semantic_profile" | "channel" | "ai_search";
+            /** Images */
+            images?: components["schemas"]["ImageRead"][];
+            /** Browsechannel */
+            browseChannel?: string | null;
         };
         /** ImageTitleResolution */
         ImageTitleResolution: {
@@ -3522,7 +3545,7 @@ export interface components {
              * @default search_results
              * @enum {string}
              */
-            source: "search_results" | "agent_chat";
+            source: "search_results" | "agent_chat" | "detail_same_selling_point" | "detail_visual_similar" | "detail_same_channel" | "detail_personalized";
             /** Conversationid */
             conversationId?: string | null;
         };

@@ -8,6 +8,18 @@ Piancton 只会把**业务端账号**在首页搜索结果和 Agent 推荐图片
 
 AI Search 搜索、开场和对话返回的图片 ID 必须回到 Piancton 数据库校验，只展示当前本地素材库能够读取的图片。外部推荐不能创建图片、改变卖点关系或绕过人工确认。用户行为可以成为火山侧个性化、热度和推荐学习信号，但本地不把下载量硬编码为压过卖点相关性的首要排序条件。
 
+图片详情页把用途分成四类：同卖点替换、相似画面与主题、同渠道适配、为你推荐。前三类由本地可信业务关系和素材事实生成；“为你推荐”调用火山 AI Search 的详情页推荐场景，携带当前业务账号 `user_id` 和父图片 `_id`。同组其它尺寸仍在素材版本区选择，不属于相似推荐。
+
+在当前应用的“推荐体验”中另建一个详情页推荐场景，继续关联现有物品数据集和现有用户行为数据集；发布后把控制台给出的场景 API 路径写入服务器 `.env`：
+
+```dotenv
+AI_SEARCH_RECOMMEND_ENABLED=true
+AI_SEARCH_RECOMMEND_PATH=/api/v1/application/<application_id>/scene-xxxxxxxx
+AI_SEARCH_RECOMMEND_TIMEOUT_SECONDS=8
+```
+
+这一步只增加推荐场景，不创建或更换数据集。路径未配置、接口超时或返回孤儿图片 ID 时，详情页继续正常显示本地三类推荐，只隐藏“为你推荐”。
+
 ## 火山控制台一次性配置
 
 在当前 AI Search 应用中创建并绑定一个“用户行为数据集”。字段必须按以下名称和类型建立：
@@ -19,7 +31,7 @@ AI Search 搜索、开场和对话返回的图片 ID 必须回到 Piancton 数�
 | `item_id` | String | 是 | 图片 ID，和物品数据集 `_id` 一致 |
 | `event_type` | String | 是 | `exposure`、`click`、`download`、`share`、`favorite`、`unfavorite` |
 | `event_timestamp` | Int64 | 是 | 毫秒时间戳 |
-| `event_scene` | String | 是 | `search_results` 或 `agent_chat` |
+| `event_scene` | String | 是 | `search_results`、`agent_chat` 或四类 `detail_*` 详情推荐场景 |
 | `source_action` | String | 否 | Piancton 原始动作 |
 | `search_log_id` | String | 否 | 首页搜索记录 ID |
 | `conversation_id` | String | 否 | Agent 会话 ID |

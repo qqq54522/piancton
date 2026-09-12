@@ -15,14 +15,17 @@ export type Tag = Omit<GeneratedTag, 'parentId'> & { parentId: string | null };
 
 type GeneratedImage = components['schemas']['ImageRead'];
 export type ImageItem = GeneratedImage;
+export type ImageRecommendationSection = components['schemas']['ImageRecommendationSectionRead'];
 
 type GeneratedImageDetail = components['schemas']['ImageDetailRead'];
 export type ImageDetail = Omit<
   GeneratedImageDetail,
   | 'relatedImages'
+  | 'recommendationSections'
   | 'analysisRuns'
 > & {
   relatedImages: ImageItem[];
+  recommendationSections: ImageRecommendationSection[];
   analysisRuns: AnalysisRun[];
 };
 

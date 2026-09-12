@@ -302,6 +302,7 @@ def _build_ai_search_client() -> VolcAiSearchClient:
         search_path=settings.ai_search_search_path,
         chat_search_path=settings.ai_search_chat_path,
         chat_dataset_ids=settings.ai_search_chat_dataset_ids,
+        recommend_path=settings.ai_search_recommend_path,
         behavior_dataset_id=settings.ai_search_behavior_dataset_id,
         timeout_seconds=settings.ai_search_timeout_seconds,
     )
@@ -316,8 +317,24 @@ def _build_ai_search_chat_client() -> VolcAiSearchClient:
         search_path=settings.ai_search_search_path,
         chat_search_path=settings.ai_search_chat_path,
         chat_dataset_ids=settings.ai_search_chat_dataset_ids,
+        recommend_path=settings.ai_search_recommend_path,
         behavior_dataset_id=settings.ai_search_behavior_dataset_id,
         timeout_seconds=settings.ai_search_chat_timeout_seconds,
+    )
+
+
+def _build_ai_search_recommend_client() -> VolcAiSearchClient:
+    return VolcAiSearchClient(
+        base_url=settings.ai_search_base_url,
+        api_key=settings.ai_search_api_key,
+        dataset_id=settings.ai_search_dataset_id,
+        application_id=settings.ai_search_application_id,
+        search_path=settings.ai_search_search_path,
+        chat_search_path=settings.ai_search_chat_path,
+        chat_dataset_ids=settings.ai_search_chat_dataset_ids,
+        recommend_path=settings.ai_search_recommend_path,
+        behavior_dataset_id=settings.ai_search_behavior_dataset_id,
+        timeout_seconds=settings.ai_search_recommend_timeout_seconds,
     )
 
 
@@ -351,6 +368,10 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
         embedding_index=EmbeddingIndexSync.from_settings(),
         vector_index=VikingDBVectorIndexSync.from_settings(),
         ai_search_index=_build_ai_search_index(),
+        ai_search_client=_build_ai_search_recommend_client(),
+        ai_search_recommend_enabled=(
+            settings.ai_search_enabled and settings.ai_search_recommend_enabled
+        ),
     )
 
 

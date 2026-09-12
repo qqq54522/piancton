@@ -30,7 +30,14 @@ class SearchInteractionCreate(ApiModel):
     result_image_id: Optional[str] = None
     asset_group_id: Optional[str] = None
     position: Optional[int] = None
-    source: Literal["search_results", "agent_chat"] = "search_results"
+    source: Literal[
+        "search_results",
+        "agent_chat",
+        "detail_same_selling_point",
+        "detail_visual_similar",
+        "detail_same_channel",
+        "detail_personalized",
+    ] = "search_results"
     conversation_id: Optional[str] = None
 
 

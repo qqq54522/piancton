@@ -1,15 +1,22 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
 from datetime import datetime, timezone
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from app.models.image import Image
 from app.schemas.image import (
     AnalysisRunRead,
     ImageDetailRead,
     ImageRead,
+    ImageRecommendationSectionRead,
     SemanticProfileRead,
 )
 from app.schemas.tag import TagRead
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
+
+if TYPE_CHECKING:
+    from app.services.related_image_service import ImageRecommendationSection
 
 AnalysisRunStatus = Literal["queued", "running", "succeeded", "failed"]
 VALID_ANALYSIS_RUN_STATUSES: set[AnalysisRunStatus] = {
@@ -92,7 +99,11 @@ def analysis_run_status(value: str) -> AnalysisRunStatus:
     return "failed"
 
 
-def image_to_detail(image: Image, related: list[Image]) -> ImageDetailRead:
+def image_to_detail(
+    image: Image,
+    related: list[Image],
+    recommendation_sections: Sequence[ImageRecommendationSection] | None = None,
+) -> ImageDetailRead:
     semantic_profile = ImageSemanticProfileService().profile_from_image(image)
     return ImageDetailRead(
         **image_to_read(image).model_dump(),
@@ -105,6 +116,17 @@ def image_to_detail(image: Image, related: list[Image]) -> ImageDetailRead:
             else None
         ),
         related_images=[image_to_read(item) for item in related],
+        recommendation_sections=[
+            ImageRecommendationSectionRead(
+                purpose=section.purpose,
+                title=section.title,
+                description=section.description,
+                source=section.source,
+                images=[image_to_read(item) for item in section.images],
+                browse_channel=section.browse_channel,
+            )
+            for section in (recommendation_sections or [])
+        ],
         analysis_runs=[
             AnalysisRunRead(
                 id=item.id,

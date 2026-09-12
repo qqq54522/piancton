@@ -68,10 +68,32 @@ class ImageRead(ApiModel):
     variant_count: int = 1
 
 
+class ImageRecommendationSectionRead(ApiModel):
+    purpose: Literal[
+        "same_selling_point",
+        "visual_similar",
+        "same_channel",
+        "personalized",
+    ]
+    title: str
+    description: str
+    source: Literal[
+        "business_relations",
+        "semantic_profile",
+        "channel",
+        "ai_search",
+    ]
+    images: List[ImageRead] = Field(default_factory=list)
+    browse_channel: Optional[str] = None
+
+
 class ImageDetailRead(ImageRead):
     image_summary: Optional[str] = None
     semantic_profile: Optional[SemanticProfileRead] = None
     related_images: List[ImageRead] = Field(default_factory=list)
+    recommendation_sections: List[ImageRecommendationSectionRead] = Field(
+        default_factory=list
+    )
     analysis_runs: List[AnalysisRunRead] = Field(default_factory=list)
 
 

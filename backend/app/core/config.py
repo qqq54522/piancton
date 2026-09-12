@@ -110,6 +110,9 @@ class Settings(BaseSettings):
     ai_search_chat_path: str = ""
     ai_search_chat_dataset_ids: str = ""
     ai_search_chat_timeout_seconds: float = 20.0
+    ai_search_recommend_enabled: bool = False
+    ai_search_recommend_path: str = ""
+    ai_search_recommend_timeout_seconds: float = 8.0
     ai_search_dataset_id: str = ""
     ai_search_timeout_seconds: float = 8.0
     ai_search_page_size: int = 10

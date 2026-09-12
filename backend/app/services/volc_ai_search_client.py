@@ -56,6 +56,7 @@ class VolcAiSearchClient:
         search_path: str = "",
         chat_search_path: str = "",
         chat_dataset_ids: str = "",
+        recommend_path: str = "",
         behavior_dataset_id: str = "",
         timeout_seconds: float = 8.0,
     ):
@@ -70,6 +71,7 @@ class VolcAiSearchClient:
         self.chat_dataset_ids = _parse_dataset_ids(chat_dataset_ids) or (
             [self.dataset_id] if self.dataset_id else []
         )
+        self.recommend_path = _normalize_path(recommend_path)
         self.behavior_dataset_id = behavior_dataset_id.strip()
         self.timeout_seconds = max(0.5, timeout_seconds)
 
@@ -86,6 +88,10 @@ class VolcAiSearchClient:
         return bool(
             self.base_url and self.api_key and self.application_id and self.chat_search_path
         )
+
+    @property
+    def recommend_configured(self) -> bool:
+        return bool(self.base_url and self.api_key and self.recommend_path)
 
     def search(
         self,
@@ -254,6 +260,29 @@ class VolcAiSearchClient:
             },
         )
         return _extract_recommendation_queries(response)[:page_size]
+
+    def recommend_items(
+        self,
+        *,
+        user_id: str,
+        parent_item_id: str,
+        page_size: int = 12,
+        disable_personalize: bool = False,
+    ) -> list[str]:
+        """Return item ids from a configured AI Search recommendation scene."""
+        if not self.recommend_configured:
+            raise VolcAiSearchClientError("AI Search 推荐场景尚未配置完整")
+        response = self._post_json(
+            self.recommend_path,
+            {
+                "user": {"_user_id": user_id},
+                "parent_items": [{"_id": parent_item_id}],
+                "page_size": max(1, min(page_size, 400)),
+                "disable_personalize": disable_personalize,
+                "output_fields": ["image_id", "identity_code"],
+            },
+        )
+        return _extract_recommendation_item_ids(response)[:page_size]
 
     def _stream_chat_payload(
         self,
@@ -435,6 +464,9 @@ def _parse_dataset_ids(value: str) -> list[str]:
 
 def _extract_matches(payload: dict[str, Any]) -> list[dict[str, Any]]:
     for key in (
+        "recommendation_results",
+        "recommend_results",
+        "rec_results",
         "search_results",
         "results",
         "items",
@@ -451,6 +483,42 @@ def _extract_matches(payload: dict[str, Any]) -> list[dict[str, Any]]:
             if nested:
                 return nested
     return []
+
+
+def _extract_recommendation_item_ids(payload: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+
+    def visit(value: Any, depth: int = 0) -> None:
+        if depth > 10:
+            return
+        if isinstance(value, dict):
+            fields = next(
+                (
+                    value.get(key)
+                    for key in ("fields", "display_fields", "item", "doc", "document")
+                    if isinstance(value.get(key), dict)
+                ),
+                None,
+            )
+            candidates = [fields, value] if fields is not None else [value]
+            for candidate in candidates:
+                item_id = str(
+                    candidate.get("image_id")
+                    or candidate.get("_id")
+                    or candidate.get("item_id")
+                    or ""
+                ).strip()
+                if item_id:
+                    values.append(item_id)
+                    break
+            for item in value.values():
+                visit(item, depth + 1)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item, depth + 1)
+
+    visit(payload)
+    return list(dict.fromkeys(values))
 
 
 def _extract_chat_answer(payload: dict[str, Any]) -> str:

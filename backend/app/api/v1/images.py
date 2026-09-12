@@ -296,10 +296,14 @@ def download_image(
 @router.get("/{image_id}", response_model=ImageDetailRead)
 def get_image_detail(
     image_id: str,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
 ):
-    return service.get_detail(image_id)
+    return service.get_detail(
+        image_id,
+        user_id=user.id,
+        personalize=user.role == "business",
+    )
 
 
 @router.patch("/{image_id}/title", response_model=ImageRead)

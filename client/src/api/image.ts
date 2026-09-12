@@ -10,6 +10,7 @@ import type {
   ProviderStatus,
   SearchFeedbackRequest,
   SearchInteractionAction,
+  SearchInteractionSource,
   SearchQueryRecommendations,
   SemanticSearchRequest,
   SemanticSearchResponse,
@@ -117,7 +118,7 @@ export async function recordSearchInteraction(data: {
   resultImageId?: string | null;
   assetGroupId?: string | null;
   position?: number;
-  source?: 'search_results' | 'agent_chat';
+  source?: SearchInteractionSource;
   conversationId?: string | null;
 }): Promise<void> {
   await api.post('/api/usage/search-interaction', data);
