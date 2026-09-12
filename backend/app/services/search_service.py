@@ -5,7 +5,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.schemas.image import SearchResponse
+from app.schemas.image import SearchBranchStatusRead, SearchResponse
 from app.services.ai_service import AiService
 from app.services.identity_search_service import IdentitySearchService
 from app.services.search_cache import SearchCaches
@@ -126,7 +126,27 @@ class SearchService:
             ai_response = self.ai_search.search(keyword, limit=limit, user_id=user_id)
             if ai_response is not None and not ai_response.fallback:
                 try:
-                    ai_response.search_understanding = await understanding_task
+                    understanding = await understanding_task
+                    ai_response.search_understanding = understanding
+                    route_explanation = (
+                        await self.orchestrator.explain_external_result_route(
+                            keyword=keyword,
+                            understanding=understanding,
+                            result_count=len(ai_response.results),
+                        )
+                    )
+                    if route_explanation.value:
+                        ai_response.route_explanation = route_explanation.value
+                    if ai_response.search_diagnostics is not None:
+                        ai_response.search_diagnostics.branches.append(
+                            SearchBranchStatusRead.model_validate(
+                                route_explanation.diagnostic,
+                                from_attributes=True,
+                            )
+                        )
+                        ai_response.search_diagnostics.total_duration_ms += (
+                            route_explanation.diagnostic.duration_ms
+                        )
                 except Exception:
                     logger.warning(
                         "AI Search results returned without selling-point explanation",

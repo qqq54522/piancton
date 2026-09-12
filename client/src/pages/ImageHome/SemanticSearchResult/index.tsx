@@ -54,7 +54,6 @@ const SemanticSearchResult = ({
   const refinementCount = activeRefinementCount(refinements);
   const intentTitle = searchIntentTitle(result.searchUnderstanding?.queryType);
   const routeSummary = buildRouteSummary({
-    keyword,
     matchedSellingPoints,
     routeExplanation: result.routeExplanation,
   });
@@ -169,13 +168,11 @@ const SemanticSearchResult = ({
 };
 
 interface RouteSummaryInput {
-  keyword: string;
   matchedSellingPoints: string[];
   routeExplanation?: string | null;
 }
 
-function buildRouteSummary({
-  keyword,
+export function buildRouteSummary({
   matchedSellingPoints,
   routeExplanation,
 }: RouteSummaryInput): { result: string; judgment: string; definition: string } | null {
@@ -186,7 +183,7 @@ function buildRouteSummary({
   return {
     result: `命中卖点：${sellingPointText}`,
     judgment: cleanRouteExplanation(routeExplanation)
-      || buildLocalRouteExplanation(keyword, sellingPointText),
+      || '实时判断暂未完成，请重新搜索。',
     definition: buildSellingPointDefinitions(matchedSellingPoints),
   };
 }
@@ -224,12 +221,6 @@ function cleanRouteExplanation(value?: string | null): string {
     .replace(/证明点\s*\d+[:：][^。]*。?/g, '')
     .replace(/[，,；; ]+$/g, '')
     .trim();
-}
-
-function buildLocalRouteExplanation(keyword: string, sellingPointText: string): string {
-  const query = keyword.trim();
-  const queryText = query ? `「${query}」` : '这句话';
-  return `${queryText}的有效信号不是单个关键词，而是整句话表达出的学习动作、目标结果和使用场景；这些信号与「${sellingPointText}」的核心能力一致，所以优先推荐该卖点下已确认的素材。`;
 }
 
 function buildSellingPointDefinitions(matchedSellingPoints: string[]): string {

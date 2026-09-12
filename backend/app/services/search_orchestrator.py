@@ -143,6 +143,21 @@ class AsyncSearchOrchestrator:
             concept_matches,
         )
 
+    async def explain_external_result_route(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        result_count: int,
+    ) -> SearchBranchResult[str]:
+        """Generate a fresh model judgment for an external recall response."""
+        return await self.result_recommendation.explain_route(
+            keyword=keyword,
+            understanding=understanding,
+            result_count=result_count,
+            deadline=SearchDeadline.from_timeout(self.total_timeout_seconds),
+        )
+
     async def search(
         self,
         keyword: str,

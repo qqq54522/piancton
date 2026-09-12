@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from app.ai.contracts import ModelCallResult
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import (
     BusinessConcept,
@@ -10,7 +13,11 @@ from app.models.image import ContentTag, Image
 from app.models.tag import Tag
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
-from app.schemas.ai import SearchConceptMatch, SearchUnderstanding
+from app.schemas.ai import (
+    SearchConceptMatch,
+    SearchRouteExplanationResult,
+    SearchUnderstanding,
+)
 from app.schemas.image import SearchResponse
 from app.services.asset_route_ordering import order_routed_assets
 from app.services.concept_search_recall import ConceptSearchRecallService
@@ -22,14 +29,42 @@ from app.services.volc_ai_search_client import VolcAiSearchClient
 
 
 class SuccessfulHomepageAiSearch:
-    def __init__(self):
+    def __init__(self, response: SearchResponse | None = None):
         self.calls: list[tuple[str, int, str]] = []
+        self.response = response
 
     def search(self, keyword: str, *, limit: int, user_id: str = ""):
         self.calls.append((keyword, limit, user_id))
+        if self.response is not None:
+            return self.response.model_copy(deep=True)
         return SearchResponse(
             results=[],
             match_summary=f"找到 0 张与“{keyword}”相关的图片",
+        )
+
+
+class RealtimeRouteExplanationAi:
+    provider = SimpleNamespace(configured=True)
+
+    def __init__(self):
+        self.calls: list[tuple[str, int]] = []
+
+    def explain_search_route(
+        self,
+        *,
+        keyword: str,
+        understanding,
+        result_count: int,
+        cancellation=None,
+    ):
+        del understanding, cancellation
+        self.calls.append((keyword, result_count))
+        return ModelCallResult(
+            SearchRouteExplanationResult(
+                explanation="实时判断：用户强调听不懂，因此命中动画精讲。",
+                generation_strategy="结合本次查询实时生成",
+            ),
+            (),
         )
 
 
@@ -228,6 +263,25 @@ def test_ai_search_results_keep_governed_selling_point_explanation(db_factory):
         for item in response.search_understanding.matched_business_concepts
     ] == ["动画精讲"]
     assert response.match_summary == "找到 0 张与“孩子听不懂老师讲课”相关的图片"
+
+
+def test_ai_search_generates_a_fresh_route_explanation_for_each_result_set(db_factory):
+    with db_factory() as db:
+        create_concept_image(db)
+        local_response = SearchService(db).search("孩子听不懂老师讲课", 10)
+        ai_search = SuccessfulHomepageAiSearch(local_response)
+        explanation_ai = RealtimeRouteExplanationAi()
+        response = SearchService(
+            db,
+            ai_service=explanation_ai,
+            ai_search=ai_search,
+        ).search("孩子听不懂老师讲课", 10)
+
+    assert explanation_ai.calls == [("孩子听不懂老师讲课", 1)]
+    assert response.route_explanation == "实时判断：用户强调听不懂，因此命中动画精讲。"
+    assert response.search_diagnostics is not None
+    assert response.search_diagnostics.branches[-1].source == "search_route_explanation"
+    assert response.search_diagnostics.branches[-1].status == "ok"
 
 
 def test_concept_recall_allocates_quota_for_each_matched_selling_point(db_factory):
