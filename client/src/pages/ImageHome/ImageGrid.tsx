@@ -3,7 +3,7 @@ import { ImageOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import EmptyState from '@client/src/components/EmptyState';
-import type { ImageItem } from '@client/src/types/api';
+import type { ImageItem, SearchInteractionSource } from '@client/src/types/api';
 import ImageCard from './ImageCard';
 
 const staggerVariants = {
@@ -25,6 +25,7 @@ interface ImageGridProps {
   layout?: 'grid' | 'masonry';
   withPresence?: boolean;
   animateGifPreview?: boolean;
+  interactionSource?: SearchInteractionSource;
 }
 
 const ImageGrid = ({
@@ -36,6 +37,7 @@ const ImageGrid = ({
   layout = 'grid',
   withPresence = false,
   animateGifPreview = true,
+  interactionSource,
 }: ImageGridProps) => {
   const [layoutRevision, setLayoutRevision] = useState(0);
   const imageSignature = useMemo(
@@ -92,7 +94,7 @@ const ImageGrid = ({
     );
   }
 
-  const items = images.map((image) => (
+  const items = images.map((image, index) => (
     <motion.div
       key={image.id}
       variants={itemVariants}
@@ -101,6 +103,8 @@ const ImageGrid = ({
     >
       <ImageCard
         image={image}
+        position={index + 1}
+        interactionSource={interactionSource}
         variant={layout}
         animateGifPreview={animateGifPreview}
         onImageLoad={layout === 'masonry' ? refreshLayout : undefined}

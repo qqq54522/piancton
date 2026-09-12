@@ -1,15 +1,21 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Images } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth, ROLE_SUBJECT } from '@client/src/lib/auth';
-import type { ImageItem } from '@client/src/types/api';
+import type {
+  ImageItem,
+  SearchInteractionAction,
+  SearchInteractionSource,
+} from '@client/src/types/api';
 import { Badge } from '@client/src/components/ui/badge';
 import { sendImageToAssetAgent } from '@client/src/features/assets/assetAgentEvents';
 import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
 import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 import { copyTextToClipboard } from '@client/src/lib/clipboard';
+import { recordSearchInteraction } from '@client/src/api/image';
 import RadialActionMenu from './RadialActionMenu';
 
 interface ImageCardProps {
@@ -18,6 +24,8 @@ interface ImageCardProps {
   overlay?: React.ReactNode;
   onImageLoad?: () => void;
   variant?: 'grid' | 'masonry';
+  position?: number;
+  interactionSource?: SearchInteractionSource;
 }
 
 const imageAspectRatio = (image: ImageItem) => {
@@ -32,15 +40,44 @@ const ImageCard = ({
   overlay,
   onImageLoad,
   variant = 'grid',
+  position,
+  interactionSource,
 }: ImageCardProps) => {
   const imageUrl = useImageUrl(previewUrlFor(image, { animateGif: animateGifPreview }));
   const { ability, isLoading } = useAuth();
   const isDesigner = !isLoading && ability.can('designer', ROLE_SUBJECT);
   const identityCode = image.identityCode;
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const exposureSent = useRef(false);
+  const track = useCallback((action: SearchInteractionAction) => {
+    if (!interactionSource) return;
+    void recordSearchInteraction({
+      keyword: '',
+      action,
+      resultImageId: image.id,
+      assetGroupId: image.assetGroupId,
+      position,
+      source: interactionSource,
+    }).catch(() => undefined);
+  }, [image.assetGroupId, image.id, interactionSource, position]);
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element || !interactionSource || exposureSent.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || exposureSent.current) return;
+      exposureSent.current = true;
+      track('exposure');
+      observer.disconnect();
+    }, { threshold: 0.35 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [interactionSource, track]);
 
   const copyIdentity = async () => {
     if (!identityCode) return;
     if (await copyTextToClipboard(identityCode)) {
+      track('copy_identity');
       toast.success('身份码已复制');
       return;
     }
@@ -52,6 +89,7 @@ const ImageCard = ({
       identityCode={identityCode}
       onCopyIdentity={identityCode ? copyIdentity : undefined}
       onSendToAgent={() => {
+        track('send_to_agent');
         sendImageToAssetAgent({
           imageId: image.id,
           assetGroupId: image.assetGroupId,
@@ -60,17 +98,21 @@ const ImageCard = ({
         });
       }}
       downloadHref={image.downloadUrl}
+      onDownload={() => track('download')}
       downloadLabel="下载当前图片"
     />
   );
 
   if (variant === 'masonry') {
     return (
-      <div className="group relative break-inside-avoid">
+      <div ref={cardRef} className="group relative break-inside-avoid">
         <Link
           to={`/image/${image.id}`}
           state={{ from: '/' }}
-          onClick={rememberImageHomeScroll}
+          onClick={() => {
+            track('open_detail');
+            rememberImageHomeScroll();
+          }}
           className="block overflow-hidden rounded-2xl bg-transparent transition duration-200 hover:-translate-y-0.5"
         >
           <div
@@ -116,11 +158,14 @@ const ImageCard = ({
   }
 
   return (
-    <div className="group relative flex h-full flex-col">
+    <div ref={cardRef} className="group relative flex h-full flex-col">
       <Link
         to={`/image/${image.id}`}
         state={{ from: '/' }}
-        onClick={rememberImageHomeScroll}
+        onClick={() => {
+          track('open_detail');
+          rememberImageHomeScroll();
+        }}
         className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
       >
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">

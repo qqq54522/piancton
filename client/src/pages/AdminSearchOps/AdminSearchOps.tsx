@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, MessageSquareText, MousePointerClick, Search, Users } from 'lucide-react';
+import { CheckCircle2, Gauge, MessageSquareText, MousePointerClick, Search, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { fetchSearchActivitySummary } from '@client/src/api/admin';
@@ -87,6 +87,7 @@ export default function AdminSearchOps() {
       ) : data ? (
         <>
           <SearchOverview data={data} />
+          <RecommendationEvaluationCard data={data} />
           <div className="mt-6 inline-flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
             {tabs.map((tab) => (
               <Button
@@ -109,6 +110,46 @@ export default function AdminSearchOps() {
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function RecommendationEvaluationCard({ data }: { data: SearchActivitySummary }) {
+  const evaluation = data.recommendationEvaluation;
+  const modeLabels = {
+    learning: '积累样本',
+    balanced: '平衡推荐',
+    personalized: '强化个性化',
+    explore: '增加探索',
+  } as const;
+  return (
+    <section className="surface-card mt-4 flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-secondary">
+          <Gauge className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold">推荐效果自动评估</h2>
+            <Badge variant="secondary">{modeLabels[evaluation.strategyMode]}</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">{evaluation.summary}</p>
+        </div>
+      </div>
+      <div className="grid shrink-0 grid-cols-3 gap-5 text-center text-xs text-muted-foreground">
+        <Metric label="猜你喜欢曝光" value={evaluation.exposureCount} />
+        <Metric label="推荐后操作率" value={`${Math.round(evaluation.clickThroughRate * 100)}%`} />
+        <Metric label="满意率" value={evaluation.feedbackCount ? `${Math.round(evaluation.satisfactionRate * 100)}%` : '待积累'} />
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <div className="text-base font-semibold text-foreground">{value}</div>
+      <div className="mt-0.5">{label}</div>
     </div>
   );
 }
@@ -180,7 +221,7 @@ function SearchesSection({ rows, topQueries }: { rows: SearchLogItem[]; topQueri
 function BehaviorSection({ rows }: { rows: SearchInteractionItem[] }) {
   return (
     <section className="surface-card overflow-hidden">
-      <SectionTitle title="搜索与 Agent 的素材行为" />
+      <SectionTitle title="搜索、猜你喜欢与 Agent 的素材行为" />
       {rows.length ? rows.map((row) => (
         <div
           key={row.id}
@@ -190,7 +231,11 @@ function BehaviorSection({ rows }: { rows: SearchInteractionItem[] }) {
           <UserCell username={row.actorUsername} role={row.actorRole} />
           <Badge variant="outline" className="h-fit w-fit">{interactionLabels[row.action] ?? row.action}</Badge>
           <span className="min-w-0 truncate">
-            {row.source === 'agent_chat' ? 'Agent 推荐' : row.keyword || '—'}
+            {row.source === 'agent_chat'
+              ? 'Agent 推荐'
+              : row.source === 'home_for_you'
+              ? '猜你喜欢'
+              : row.keyword || '—'}
           </span>
           {row.resultImageId ? (
             <Link className="text-xs font-medium text-foreground underline-offset-4 hover:underline" to={`/image/${row.resultImageId}`}>

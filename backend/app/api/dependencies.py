@@ -24,6 +24,7 @@ from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.business_concept_service import BusinessConceptService
 from app.services.embedding_index import EmbeddingIndexSync
+from app.services.home_recommendation_service import HomeRecommendationService
 from app.services.image_analysis_service import ImageAnalysisService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
@@ -338,6 +339,12 @@ def _build_ai_search_recommend_client() -> VolcAiSearchClient:
     )
 
 
+def _build_ai_search_home_recommend_client() -> VolcAiSearchClient:
+    client = _build_ai_search_recommend_client()
+    client.recommend_path = settings.ai_search_home_recommend_path.strip() or client.recommend_path
+    return client
+
+
 def _build_ai_search_index() -> VolcAiSearchIndexSync:
     public_base_url = (
         settings.ai_search_public_base_url or settings.public_base_url or _first_cors_origin()
@@ -372,6 +379,16 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
         ai_search_recommend_enabled=(
             settings.ai_search_enabled and settings.ai_search_recommend_enabled
         ),
+    )
+
+
+def get_home_recommendation_service(
+    db: Session = Depends(get_db),
+) -> HomeRecommendationService:
+    return HomeRecommendationService(
+        db,
+        ai_search_client=_build_ai_search_home_recommend_client(),
+        enabled=settings.ai_search_enabled and settings.ai_search_recommend_enabled,
     )
 
 

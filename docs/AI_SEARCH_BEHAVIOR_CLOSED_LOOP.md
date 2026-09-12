@@ -10,15 +10,20 @@ AI Search 搜索、开场和对话返回的图片 ID 必须回到 Piancton 数�
 
 图片详情页把入口分成两层：卖点关系形成“相似素材”，优先展示与当前图片支撑同一卖点的其它表达；PPT、官网、手机端大图、手机端小图、品牌手册和当前渠道则是各自独立的个性化推荐入口。火山 AI Search 详情页推荐场景携带当前业务账号 `user_id` 和父图片 `_id` 返回候选，Piancton 回查本地已发布图片和人工渠道事实后，将候选分别排进对应渠道入口，而不是额外显示一个笼统的“为你推荐”栏。没有足够行为或上游失败时，各渠道入口仍按本地渠道事实提供素材。同组其它尺寸仍在素材版本区选择，不属于相似推荐。
 
+业务首页原“全部渠道”入口显示为“猜你喜欢”。它不是一个新渠道，也不会缩小素材范围：页面仍可连续浏览全部已发布渠道，只是优先调用火山首页推荐场景，以当前业务账号 `user_id` 获取个人候选并排到前面；返回结果必须再次经过本地当前版本、发布状态和可读性校验，火山不可用时直接回退全渠道本地素材。PPT、官网、手机端等渠道入口继续保留，用于用户明确限定使用位置。“用户兴趣”只作为火山侧由行为形成的内部推荐信号，不新增单独页面或按钮；本项目不接入以图搜图。
+
+“猜你喜欢”的曝光、打开详情、下载、复制身份码、加入项目和发送 Agent 会继续进入同一业务行为 outbox，场景标识为 `home_for_you`。后台“搜索运营”按最近 30 天滚动评估猜你喜欢的曝光、正向动作、转化和既有搜索满意度；样本不足时保持探索，样本充分后只自动调整“个人候选占比、探索插入间隔、跨渠道多样性”。该策略不得自动修改六大体系、核心卖点、证明点、图片语义、人工 accepted 关系或任何数据集 ID。
+
 在当前应用的“推荐体验”中另建一个详情页推荐场景，继续关联现有物品数据集和现有用户行为数据集；发布后把控制台给出的场景 API 路径写入服务器 `.env`：
 
 ```dotenv
 AI_SEARCH_RECOMMEND_ENABLED=true
 AI_SEARCH_RECOMMEND_PATH=/api/v1/application/<application_id>/scene-xxxxxxxx
+AI_SEARCH_HOME_RECOMMEND_PATH=/api/v1/application/<application_id>/scene-yyyyyyyy
 AI_SEARCH_RECOMMEND_TIMEOUT_SECONDS=8
 ```
 
-这一步只增加推荐场景，不创建或更换数据集。路径未配置、接口超时或返回孤儿图片 ID 时，详情页继续正常显示本地三类推荐，只隐藏“为你推荐”。
+`AI_SEARCH_RECOMMEND_PATH` 用于详情页带父图片的推荐；`AI_SEARCH_HOME_RECOMMEND_PATH` 用于首页只带用户的猜你喜欢场景。若控制台暂时只发布一个兼容场景，首页路径留空会复用通用推荐路径。这个配置只增加推荐场景，不创建或更换数据集；路径未配置、接口超时或返回孤儿图片 ID 时，详情页和首页都继续显示本地素材。
 
 ## 火山控制台一次性配置
 
@@ -31,7 +36,7 @@ AI_SEARCH_RECOMMEND_TIMEOUT_SECONDS=8
 | `item_id` | String | 是 | 图片 ID，和物品数据集 `_id` 一致 |
 | `event_type` | String | 是 | `exposure`、`click`、`download`、`share`、`favorite`、`unfavorite` |
 | `event_timestamp` | Int64 | 是 | 毫秒时间戳 |
-| `event_scene` | String | 是 | `search_results`、`agent_chat`，或详情页卖点、画面、个性化及各渠道 `detail_*` 场景 |
+| `event_scene` | String | 是 | `search_results`、`home_for_you`、`agent_chat`，或详情页卖点、画面、个性化及各渠道 `detail_*` 场景 |
 | `source_action` | String | 否 | Piancton 原始动作 |
 | `search_log_id` | String | 否 | 首页搜索记录 ID |
 | `conversation_id` | String | 否 | Agent 会话 ID |

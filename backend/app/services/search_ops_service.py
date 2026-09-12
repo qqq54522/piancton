@@ -21,14 +21,15 @@ from app.schemas.search_ops import (
     AssetOperationsOverview,
     AssetOpsIssueRead,
     ConceptHealthItem,
-    SearchMetricItem,
     SearchActivitySummary,
+    SearchMetricItem,
     SearchOpsIssueRead,
     SearchOpsSummary,
     SearchPerformanceSummary,
     SourceLinkHealth,
     SourceLinkRecentItem,
 )
+from app.services.recommendation_strategy_service import RecommendationStrategyService
 from app.services.search_ops_serializers import feedback_read, interaction_read, log_read
 
 SOURCE_LINK_REVIEW_DAYS = 90
@@ -48,6 +49,7 @@ class SearchOpsService:
         self.ops = SearchOpsRepository(db)
         self.usage_events = UsageEventRepository(db)
         self.users = UsageUserRepository(db)
+        self.recommendation_strategy = RecommendationStrategyService(db)
 
     def activity_summary(
         self,
@@ -74,9 +76,7 @@ class SearchOpsService:
         total = len(logs)
         return SearchActivitySummary(
             total_searches=total,
-            search_user_count=len(
-                {item.actor_user_id for item in logs if item.actor_user_id}
-            ),
+            search_user_count=len({item.actor_user_id for item in logs if item.actor_user_id}),
             positive_feedback_count=sum(
                 1 for item in feedback_events if item.feedback_type == "relevant"
             ),
@@ -85,13 +85,7 @@ class SearchOpsService:
             ),
             feedback_response_rate=(
                 round(
-                    len(
-                        {
-                            item.search_log_id
-                            for item in feedback_events
-                            if item.search_log_id
-                        }
-                    )
+                    len({item.search_log_id for item in feedback_events if item.search_log_id})
                     / total
                     * 100,
                     1,
@@ -106,13 +100,15 @@ class SearchOpsService:
                 for item in feedback_events[:100]
             ],
             recent_logs=[
-                log_read(item, users_by_id.get(item.actor_user_id or ""))
-                for item in logs[:100]
+                log_read(item, users_by_id.get(item.actor_user_id or "")) for item in logs[:100]
             ],
             recent_interactions=[
                 interaction_read(item, users_by_id.get(item.user_id or ""))
                 for item in interaction_events[:100]
             ],
+            recommendation_evaluation=self.recommendation_strategy.evaluate(
+                window_days=30,
+            ).to_read(),
         )
 
     def summary(self, *, days: int = 7, limit: int = 2000) -> SearchOpsSummary:
@@ -132,11 +128,7 @@ class SearchOpsService:
         ]
         users_by_id = {user.id: user for user in self.users.list()}
         total = len(logs)
-        durations = sorted(
-            item.duration_ms
-            for item in logs
-            if item.duration_ms is not None
-        )
+        durations = sorted(item.duration_ms for item in logs if item.duration_ms is not None)
         return SearchOpsSummary(
             total_searches=total,
             search_user_count=len({item.actor_user_id for item in logs if item.actor_user_id}),
@@ -145,11 +137,7 @@ class SearchOpsService:
             timed_out_count=sum(1 for item in logs if item.timed_out),
             cache_hit_count=sum(1 for item in logs if item.cache_hit),
             reranker_used_count=sum(1 for item in logs if item.reranker_used),
-            average_duration_ms=(
-                round(sum(durations) / len(durations), 2)
-                if durations
-                else 0.0
-            ),
+            average_duration_ms=(round(sum(durations) / len(durations), 2) if durations else 0.0),
             p95_duration_ms=_percentile_95(durations),
             ai_understood_count=sum(1 for item in logs if item.normalized_query),
             top_queries=self._top_items(item.keyword for item in logs if item.keyword),
@@ -191,8 +179,7 @@ class SearchOpsService:
                 for item in feedback_events[:100]
             ],
             recent_logs=[
-                log_read(item, users_by_id.get(item.actor_user_id or ""))
-                for item in logs[:100]
+                log_read(item, users_by_id.get(item.actor_user_id or "")) for item in logs[:100]
             ],
             recent_interactions=[
                 interaction_read(item, users_by_id.get(item.user_id or ""))
@@ -218,31 +205,22 @@ class SearchOpsService:
             if image.deleted_at is None and image.is_current
         ]
         all_images = [
-            image
-            for group in groups
-            for image in group.images
-            if image.deleted_at is None
+            image for group in groups for image in group.images if image.deleted_at is None
         ]
 
         def has_business_relation(group) -> bool:
             return any(
-                link.review_status != "rejected"
-                and link.relation_role != "excludes"
+                link.review_status != "rejected" and link.relation_role != "excludes"
                 for link in group.concept_links
             )
 
         def has_search_phrase(group) -> bool:
-            return any(
-                phrase.review_status != "rejected"
-                for phrase in group.search_phrases
-            )
+            return any(phrase.review_status != "rejected" for phrase in group.search_phrases)
 
         no_download_groups = 0
         for group in groups:
             downloads = sum(
-                image.download_count
-                for image in group.images
-                if image.deleted_at is None
+                image.download_count for image in group.images if image.deleted_at is None
             )
             if downloads == 0:
                 no_download_groups += 1
@@ -262,14 +240,10 @@ class SearchOpsService:
             missing_business_relation_count=sum(
                 1 for group in groups if not has_business_relation(group)
             ),
-            missing_search_phrase_count=sum(
-                1 for group in groups if not has_search_phrase(group)
-            ),
+            missing_search_phrase_count=sum(1 for group in groups if not has_search_phrase(group)),
             missing_style_count=sum(1 for group in groups if not group.style_label),
             unset_scene_count=sum(1 for group in groups if group.is_scene_image is None),
-            missing_channel_count=sum(
-                1 for image in current_images if not image.channel
-            ),
+            missing_channel_count=sum(1 for image in current_images if not image.channel),
             total_download_count=self.ops.total_download_count(),
             unused_asset_group_count=no_download_groups,
         )
@@ -305,13 +279,9 @@ class SearchOpsService:
         source_link_review_before = datetime.now(timezone.utc) - timedelta(
             days=SOURCE_LINK_REVIEW_DAYS
         )
-        stale_unused_before = datetime.now(timezone.utc) - timedelta(
-            days=STALE_UNUSED_ASSET_DAYS
-        )
+        stale_unused_before = datetime.now(timezone.utc) - timedelta(days=STALE_UNUSED_ASSET_DAYS)
         for group in groups:
-            active_images = [
-                image for image in group.images if image.deleted_at is None
-            ]
+            active_images = [image for image in group.images if image.deleted_at is None]
             for image in active_images:
                 active_images_by_fingerprint[
                     (
@@ -335,14 +305,10 @@ class SearchOpsService:
                         )
                     ].append((group, image))
             has_relation = any(
-                link.review_status != "rejected"
-                and link.relation_role != "excludes"
+                link.review_status != "rejected" and link.relation_role != "excludes"
                 for link in group.concept_links
             )
-            has_phrase = any(
-                phrase.review_status != "rejected"
-                for phrase in group.search_phrases
-            )
+            has_phrase = any(phrase.review_status != "rejected" for phrase in group.search_phrases)
             if not group.source_links:
                 add(
                     group,
@@ -470,9 +436,7 @@ class SearchOpsService:
         groups = self.ops.published_asset_groups()
         links = [link for group in groups for link in group.source_links]
         review_before = datetime.now(timezone.utc) - timedelta(days=SOURCE_LINK_REVIEW_DAYS)
-        stale_links = [
-            link for link in links if _aware_datetime(link.updated_at) < review_before
-        ]
+        stale_links = [link for link in links if _aware_datetime(link.updated_at) < review_before]
         return SourceLinkHealth(
             total_links=len(links),
             groups_with_source_links=sum(1 for group in groups if group.source_links),
@@ -490,9 +454,7 @@ class SearchOpsService:
                     link_type=link.link_type,
                     url=link.url,
                     review_status=(
-                        "stale"
-                        if _aware_datetime(link.updated_at) < review_before
-                        else "ok"
+                        "stale" if _aware_datetime(link.updated_at) < review_before else "ok"
                     ),
                     updated_at=link.updated_at,
                 )
@@ -501,28 +463,17 @@ class SearchOpsService:
         )
 
     def _search_performance(self, logs: list[SearchLog]) -> SearchPerformanceSummary:
-        durations = sorted(
-            item.duration_ms
-            for item in logs
-            if item.duration_ms is not None
-        )
+        durations = sorted(item.duration_ms for item in logs if item.duration_ms is not None)
         total = len(logs)
         slow_logs = [
-            item
-            for item in logs
-            if item.duration_ms is not None and item.duration_ms >= 3000
+            item for item in logs if item.duration_ms is not None and item.duration_ms >= 3000
         ]
         model_work_unit_count = sum(
-            (1 if item.normalized_query else 0) + (1 if item.reranker_used else 0)
-            for item in logs
+            (1 if item.normalized_query else 0) + (1 if item.reranker_used else 0) for item in logs
         )
         return SearchPerformanceSummary(
             sample_count=total,
-            average_duration_ms=(
-                round(sum(durations) / len(durations), 2)
-                if durations
-                else 0.0
-            ),
+            average_duration_ms=(round(sum(durations) / len(durations), 2) if durations else 0.0),
             p50_duration_ms=_percentile(durations, 0.5),
             p95_duration_ms=_percentile_95(durations),
             p99_duration_ms=_percentile(durations, 0.99),
@@ -740,10 +691,7 @@ class SearchOpsService:
         search_counts: Counter[str] = Counter()
         for log in logs:
             for concept in concepts:
-                if (
-                    log.matched_concept == concept.name
-                    or log.normalized_query == concept.name
-                ):
+                if log.matched_concept == concept.name or log.normalized_query == concept.name:
                     search_counts[concept.id] += 1
 
         rows: list[ConceptHealthItem] = []
@@ -841,6 +789,7 @@ class SearchOpsService:
             SearchMetricItem(label=label, count=count)
             for label, count in Counter(values).most_common(10)
         ]
+
 
 def _percentile_95(values: list[int]) -> int:
     return _percentile(values, 0.95)

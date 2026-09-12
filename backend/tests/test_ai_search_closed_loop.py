@@ -5,12 +5,14 @@ import json
 import pytest
 
 from app.core.config import Settings
+from app.models.search_feedback import SearchFeedbackEvent
 from app.models.usage import AiSearchBehaviorEvent
 from app.models.user import User
 from app.services.ai_search_behavior_sync import (
     AiSearchBehaviorSyncService,
     resolve_ai_search_behavior_api_key,
 )
+from app.services.recommendation_strategy_service import RecommendationStrategyService
 from app.services.usage_analytics_service import UsageAnalyticsService
 from app.services.volc_ai_search_client import VolcAiSearchClient
 
@@ -242,6 +244,103 @@ def test_detail_recommendation_uses_parent_item_and_personalization(monkeypatch)
     }
 
 
+def test_homepage_recommendation_uses_user_without_parent_item(monkeypatch):
+    client = VolcAiSearchClient(
+        base_url="https://aisearch.example.com",
+        api_key="secret",
+        dataset_id="items-1",
+        recommend_path="/api/v1/application/app-1/scene-home",
+    )
+    request: dict = {}
+
+    def fake_post(path, payload):
+        request.update(path=path, payload=payload)
+        return {
+            "result": {
+                "recommendation_results": [
+                    {"item": {"_id": "image-2"}},
+                    {"fields": {"image_id": "image-3"}},
+                ]
+            }
+        }
+
+    monkeypatch.setattr(client, "_post_json", fake_post)
+
+    assert client.recommend_items(user_id="user-1", page_size=48) == [
+        "image-2",
+        "image-3",
+    ]
+    assert request == {
+        "path": "/api/v1/application/app-1/scene-home",
+        "payload": {
+            "user": {"_user_id": "user-1"},
+            "page_size": 48,
+            "disable_personalize": False,
+            "output_fields": ["image_id", "identity_code"],
+        },
+    }
+
+
+def test_recommendation_strategy_increases_exploration_after_weak_feedback(db_factory):
+    with db_factory() as db:
+        user = User(username="recommend-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+        analytics = UsageAnalyticsService(db)
+        for index in range(20):
+            analytics.record_search_interaction(
+                user,
+                search_log_id=None,
+                keyword="",
+                action="exposure",
+                result_image_id=f"image-{index}",
+                asset_group_id=None,
+                position=index + 1,
+                source="home_for_you",
+            )
+        for index in range(5):
+            db.add(
+                SearchFeedbackEvent(
+                    actor_user_id=user.id,
+                    keyword=f"query-{index}",
+                    feedback_type="not_relevant",
+                )
+            )
+        db.commit()
+
+        evaluation = RecommendationStrategyService(db).evaluate(user_id=user.id)
+
+    assert evaluation.exposure_count == 20
+    assert evaluation.feedback_count == 5
+    assert evaluation.strategy_mode == "explore"
+    assert evaluation.personalized_share == 0.5
+    assert evaluation.exploration_interval == 2
+
+
+def test_recommendation_strategy_ignores_internal_account_activity(db_factory):
+    with db_factory() as db:
+        admin = User(username="recommend-admin", password_hash="x", role="admin")
+        db.add(admin)
+        db.commit()
+        analytics = UsageAnalyticsService(db)
+        for index in range(20):
+            analytics.record_search_interaction(
+                admin,
+                search_log_id=None,
+                keyword="",
+                action="exposure",
+                result_image_id=f"internal-{index}",
+                asset_group_id=None,
+                position=index + 1,
+                source="home_for_you",
+            )
+
+        evaluation = RecommendationStrategyService(db).evaluate()
+
+    assert evaluation.exposure_count == 0
+    assert evaluation.strategy_mode == "learning"
+
+
 def test_search_interaction_is_durably_synced_to_behavior_dataset(db_factory):
     with db_factory() as db:
         user = User(username="behavior-user", password_hash="x", role="business")
@@ -295,6 +394,7 @@ def test_search_interaction_is_durably_synced_to_behavior_dataset(db_factory):
         "detail_website",
         "detail_ppt",
         "detail_personalized",
+        "home_for_you",
     ],
 )
 def test_detail_recommendation_interaction_keeps_its_scene(db_factory, scene):
@@ -368,8 +468,6 @@ def test_sync_defensively_skips_legacy_non_business_outbox_rows(db_factory):
         assert synced == 1
         assert [item["user_id"] for item in client.documents] == [business.id]
         admin_event = (
-            db.query(AiSearchBehaviorEvent)
-            .filter(AiSearchBehaviorEvent.user_id == admin.id)
-            .one()
+            db.query(AiSearchBehaviorEvent).filter(AiSearchBehaviorEvent.user_id == admin.id).one()
         )
         assert admin_event.status == "pending"

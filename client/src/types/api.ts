@@ -410,7 +410,36 @@ export type SearchInteractionSource =
   | 'detail_brand_manual'
   | 'detail_website'
   | 'detail_ppt'
-  | 'detail_personalized';
+  | 'detail_personalized'
+  | 'home_for_you';
+
+export type RecommendationStrategyMode =
+  | 'learning'
+  | 'balanced'
+  | 'personalized'
+  | 'explore';
+
+export interface RecommendationEvaluation {
+  windowDays: number;
+  exposureCount: number;
+  positiveActionCount: number;
+  conversionCount: number;
+  clickThroughRate: number;
+  conversionRate: number;
+  feedbackCount: number;
+  satisfactionRate: number;
+  strategyMode: RecommendationStrategyMode;
+  personalizedShare: number;
+  explorationInterval: number;
+  summary: string;
+  evaluatedAt: string;
+}
+
+export interface ForYouImageListResponse {
+  items: ImageItem[];
+  source: 'ai_search' | 'local_fallback';
+  evaluation: RecommendationEvaluation;
+}
 
 export interface SearchInteractionItem {
   id: string;
@@ -439,6 +468,7 @@ export interface SearchActivitySummary {
   recentFeedback: SearchFeedbackItem[];
   recentLogs: SearchLogItem[];
   recentInteractions: SearchInteractionItem[];
+  recommendationEvaluation: RecommendationEvaluation;
 }
 
 export interface SearchOpsIssue {

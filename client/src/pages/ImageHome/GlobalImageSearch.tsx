@@ -1,4 +1,4 @@
-import { ArrowUpDown, BriefcaseBusiness, Check, Film, LogOut, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUpDown, BriefcaseBusiness, Check, Film, LogOut, Plus, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -74,6 +74,9 @@ const GlobalImageSearch = ({
   const intentChannels = refinements.channel
     ? []
     : refinements.channelIntent?.candidateChannels ?? [];
+  const forYouSelected = showBusinessAccount
+    && !refinements.channel
+    && intentChannels.length === 0;
 
   const sceneSelected = refinements.scene === 'scene';
   const handleLogout = async () => {
@@ -171,7 +174,7 @@ const GlobalImageSearch = ({
             className={`relative h-10 shrink-0 px-0 text-sm font-semibold transition-colors after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full after:rounded-full after:transition-opacity ${refinements.channel || intentChannels.length > 0 ? 'text-muted-foreground after:bg-transparent hover:text-foreground' : 'text-foreground after:bg-foreground'}`}
             onClick={() => onChannelChange('')}
           >
-            全部渠道
+            {showBusinessAccount ? '猜你喜欢' : '全部渠道'}
           </button>
           {channelOptions.map((channel) => (
             <button
@@ -258,24 +261,31 @@ const GlobalImageSearch = ({
             </span>
             场景图
           </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="rounded-full bg-white">
-                <ArrowUpDown className="size-4" />
-                {sortBy === 'downloadCount' ? '下载较多' : '最近上传'}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 rounded-xl p-1.5">
-              <DropdownMenuItem className="justify-between rounded-lg" onClick={() => onSortByChange('createdAt')}>
-                <span>最近上传</span>
-                {sortBy === 'createdAt' && <Check className="size-4" />}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="justify-between rounded-lg" onClick={() => onSortByChange('downloadCount')}>
-                <span>下载较多</span>
-                {sortBy === 'downloadCount' && <Check className="size-4" />}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {forYouSelected ? (
+            <span className="inline-flex h-8 items-center gap-2 rounded-full border border-border bg-white px-3 text-xs font-medium text-foreground shadow-xs">
+              <Sparkles className="size-3.5" />
+              个性优先
+            </span>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-full bg-white">
+                  <ArrowUpDown className="size-4" />
+                  {sortBy === 'downloadCount' ? '下载较多' : '最近上传'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40 rounded-xl p-1.5">
+                <DropdownMenuItem className="justify-between rounded-lg" onClick={() => onSortByChange('createdAt')}>
+                  <span>最近上传</span>
+                  {sortBy === 'createdAt' && <Check className="size-4" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="justify-between rounded-lg" onClick={() => onSortByChange('downloadCount')}>
+                  <span>下载较多</span>
+                  {sortBy === 'downloadCount' && <Check className="size-4" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <button
             type="button"
             aria-label={agentOpen ? '收起 Piancton Agent' : '打开 Piancton Agent'}

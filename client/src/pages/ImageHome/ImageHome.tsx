@@ -7,6 +7,7 @@ import { Select } from '@client/src/components/ui/select';
 import { ROLE_SUBJECT, useAuth } from '@client/src/lib/auth';
 import { useImageBrowser } from '@client/src/features/images/useImageBrowser';
 import { useAnimatedGifPreview } from '@client/src/features/images/useAnimatedGifPreview';
+import { useForYouImages } from '@client/src/features/images/useForYouImages';
 import { takeImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 import type { BusinessConcept, BusinessFacetCatalog, ImageItem } from '@client/src/types/api';
 import GlobalImageSearch from './GlobalImageSearch';
@@ -81,12 +82,22 @@ const ImageHome = () => {
     uploadOpen,
   } = useImageBrowser();
   const showingTypedSearch = globalSearchSource === 'typed' && (Boolean(semanticResult) || Boolean(globalSearchKeyword));
+  const showingForYou = isBusiness
+    && !showingTypedSearch
+    && !hasManualSearchResult
+    && !searchRefinements.channel
+    && !searchRefinements.channelIntent;
+  const forYou = useForYouImages(showingForYou);
   const manualFilteredImages = hasManualSearchResult
     ? globalSearchImages
+    : showingForYou
+    ? mergeImages(forYou.data?.items ?? [], images)
     : images;
   const browsingImages = filterBrowseImages(manualFilteredImages, searchRefinements);
   const showingFilteredEmptyState = images.length > 0 && browsingImages.length === 0;
-  const browsingLoading = loading || (globalSearchLoading && !showingTypedSearch);
+  const browsingLoading = loading
+    || (globalSearchLoading && !showingTypedSearch)
+    || (showingForYou && forYou.isLoading);
   const searchUnavailable = Boolean(globalSearchError);
   const headerTopOffset = (isBusiness ? 0 : APP_HEADER_HEIGHT) + stickyHeaderHeight;
   const contentTopOffset = headerTopOffset + HOME_CONTENT_TOP_GAP;
@@ -259,6 +270,7 @@ const ImageHome = () => {
                   <>
                     <ImageGrid
                       images={browsingImages}
+                      interactionSource={showingForYou ? 'home_for_you' : undefined}
                       animateGifPreview={animatedGifPreview.enabled}
                       emptyText={showingFilteredEmptyState ? '暂时还没有素材哦' : hasManualSearchResult ? '暂时没有找到合适素材' : '素材库还是空的'}
                       emptyDescription={showingFilteredEmptyState
@@ -526,6 +538,15 @@ function useElementHeight(ref: RefObject<HTMLElement | null>): number {
   }, [ref]);
 
   return height;
+}
+
+function mergeImages(primary: ImageItem[], fallback: ImageItem[]): ImageItem[] {
+  const seen = new Set<string>();
+  return [...primary, ...fallback].filter((image) => {
+    if (seen.has(image.id)) return false;
+    seen.add(image.id);
+    return true;
+  });
 }
 
 function filterBrowseImages(

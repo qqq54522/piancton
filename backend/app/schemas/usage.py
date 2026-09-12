@@ -43,6 +43,7 @@ class SearchInteractionCreate(ApiModel):
         "detail_website",
         "detail_ppt",
         "detail_personalized",
+        "home_for_you",
     ] = "search_results"
     conversation_id: Optional[str] = None
 

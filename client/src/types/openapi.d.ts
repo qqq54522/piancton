@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/images/for-you": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List For You Images */
+        get: operations["list_for_you_images_api_images_for_you_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/images/channels": {
         parameters: {
             query?: never;
@@ -2939,6 +2956,17 @@ export interface components {
             /** Weight */
             weight: number;
         };
+        /** ForYouImageListResponse */
+        ForYouImageListResponse: {
+            /** Items */
+            items?: components["schemas"]["ImageRead"][];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "ai_search" | "local_fallback";
+            evaluation: components["schemas"]["RecommendationEvaluationRead"];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -3254,6 +3282,41 @@ export interface components {
              */
             modelName: string;
         };
+        /** RecommendationEvaluationRead */
+        RecommendationEvaluationRead: {
+            /** Windowdays */
+            windowDays: number;
+            /** Exposurecount */
+            exposureCount: number;
+            /** Positiveactioncount */
+            positiveActionCount: number;
+            /** Conversioncount */
+            conversionCount: number;
+            /** Clickthroughrate */
+            clickThroughRate: number;
+            /** Conversionrate */
+            conversionRate: number;
+            /** Feedbackcount */
+            feedbackCount: number;
+            /** Satisfactionrate */
+            satisfactionRate: number;
+            /**
+             * Strategymode
+             * @enum {string}
+             */
+            strategyMode: "learning" | "balanced" | "personalized" | "explore";
+            /** Personalizedshare */
+            personalizedShare: number;
+            /** Explorationinterval */
+            explorationInterval: number;
+            /** Summary */
+            summary: string;
+            /**
+             * Evaluatedat
+             * Format: date-time
+             */
+            evaluatedAt: string;
+        };
         /** RegisterRequest */
         RegisterRequest: {
             /** Username */
@@ -3383,6 +3446,7 @@ export interface components {
             recentLogs: components["schemas"]["SearchLogRead"][];
             /** Recentinteractions */
             recentInteractions: components["schemas"]["SearchInteractionRead"][];
+            recommendationEvaluation: components["schemas"]["RecommendationEvaluationRead"];
         };
         /** SearchBranchStatusRead */
         SearchBranchStatusRead: {
@@ -3545,7 +3609,7 @@ export interface components {
              * @default search_results
              * @enum {string}
              */
-            source: "search_results" | "agent_chat" | "detail_same_selling_point" | "detail_visual_similar" | "detail_same_channel" | "detail_current_channel" | "detail_mobile_large" | "detail_mobile_small" | "detail_brand_manual" | "detail_website" | "detail_ppt" | "detail_personalized";
+            source: "search_results" | "agent_chat" | "detail_same_selling_point" | "detail_visual_similar" | "detail_same_channel" | "detail_current_channel" | "detail_mobile_large" | "detail_mobile_small" | "detail_brand_manual" | "detail_website" | "detail_ppt" | "detail_personalized" | "home_for_you";
             /** Conversationid */
             conversationId?: string | null;
         };
@@ -4291,6 +4355,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_for_you_images_api_images_for_you_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForYouImageListResponse"];
                 };
             };
             /** @description Validation Error */

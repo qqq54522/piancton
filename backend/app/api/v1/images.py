@@ -16,6 +16,7 @@ from fastapi import (
 from app.api.dependencies import (
     get_audit_service,
     get_current_user,
+    get_home_recommendation_service,
     get_image_lifecycle_service,
     get_image_service,
     get_search_log_service,
@@ -38,7 +39,9 @@ from app.schemas.image import (
     SearchRequest,
     SearchResponse,
 )
+from app.schemas.recommendation import ForYouImageListResponse
 from app.services.audit_service import AuditService
+from app.services.home_recommendation_service import HomeRecommendationService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
 from app.services.search_log_service import SearchLogService
@@ -63,6 +66,15 @@ def list_images(
     service: ImageService = Depends(get_image_service),
 ):
     return service.list_images(keyword, channel, cursor, limit, sort_by)
+
+
+@router.get("/for-you", response_model=ForYouImageListResponse)
+def list_for_you_images(
+    limit: int = Query(default=48, ge=1, le=100),
+    user: User = Depends(require_roles("business")),
+    service: HomeRecommendationService = Depends(get_home_recommendation_service),
+):
+    return service.for_user(user_id=user.id, limit=limit)
 
 
 @router.get("/channels", response_model=ImageChannelOptions)

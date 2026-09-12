@@ -6,6 +6,7 @@ import type {
   ImageItem,
   ImageListParams,
   ImageListResponse,
+  ForYouImageListResponse,
   ImageTitleResolution,
   ProviderStatus,
   SearchFeedbackRequest,
@@ -21,6 +22,10 @@ import type {
 
 export async function fetchImages(params: ImageListParams): Promise<ImageListResponse> {
   return (await api.get('/api/images', { params })).data;
+}
+
+export async function fetchForYouImages(limit = 48): Promise<ForYouImageListResponse> {
+  return (await api.get('/api/images/for-you', { params: { limit } })).data;
 }
 
 export async function fetchImageChannels(): Promise<ImageChannelOptions> {

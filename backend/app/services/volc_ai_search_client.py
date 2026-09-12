@@ -265,22 +265,24 @@ class VolcAiSearchClient:
         self,
         *,
         user_id: str,
-        parent_item_id: str,
+        parent_item_id: str = "",
         page_size: int = 12,
         disable_personalize: bool = False,
     ) -> list[str]:
         """Return item ids from a configured AI Search recommendation scene."""
         if not self.recommend_configured:
             raise VolcAiSearchClientError("AI Search 推荐场景尚未配置完整")
+        payload: dict[str, Any] = {
+            "user": {"_user_id": user_id},
+            "page_size": max(1, min(page_size, 400)),
+            "disable_personalize": disable_personalize,
+            "output_fields": ["image_id", "identity_code"],
+        }
+        if parent_item_id.strip():
+            payload["parent_items"] = [{"_id": parent_item_id.strip()}]
         response = self._post_json(
             self.recommend_path,
-            {
-                "user": {"_user_id": user_id},
-                "parent_items": [{"_id": parent_item_id}],
-                "page_size": max(1, min(page_size, 400)),
-                "disable_personalize": disable_personalize,
-                "output_fields": ["image_id", "identity_code"],
-            },
+            payload,
         )
         return _extract_recommendation_item_ids(response)[:page_size]
 
@@ -380,9 +382,7 @@ class VolcAiSearchClient:
     ) -> dict[str, Any]:
         content: list[dict[str, Any]] = [{"type": "text", "text": query}]
         if image_url.strip():
-            content.append(
-                {"type": "image_url", "image_url": {"url": image_url.strip()}}
-            )
+            content.append({"type": "image_url", "image_url": {"url": image_url.strip()}})
         return {
             "session_id": session_id,
             "input_message": {"content": content},
@@ -587,10 +587,7 @@ def _extract_recommendation_queries(payload: dict[str, Any]) -> list[str]:
                         query = item.strip()
                     elif isinstance(item, dict):
                         query = str(
-                            item.get("query")
-                            or item.get("text")
-                            or item.get("keyword")
-                            or ""
+                            item.get("query") or item.get("text") or item.get("keyword") or ""
                         ).strip()
                     else:
                         query = ""

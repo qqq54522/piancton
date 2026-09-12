@@ -75,6 +75,21 @@ def test_usage_summary_is_admin_only(client):
     assert response.status_code == 403
 
 
+def test_for_you_feed_is_business_only_and_falls_back_to_all_channels(client):
+    business_headers = headers_for(client, "business", "business-password")
+
+    response = client.get("/api/images/for-you", headers=business_headers)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "local_fallback"
+    assert payload["evaluation"]["strategyMode"] == "learning"
+
+    admin_headers = headers_for(client, "admin", "admin-password")
+    forbidden = client.get("/api/images/for-you", headers=admin_headers)
+    assert forbidden.status_code == 403
+
+
 def test_search_interaction_is_linked_to_search_and_user(client):
     business_headers = headers_for(client, "business", "business-password")
     response = client.post(
@@ -106,3 +121,4 @@ def test_search_interaction_is_linked_to_search_and_user(client):
     assert interaction["keyword"] == "拍题精学"
     assert interaction["action"] == "open_detail"
     assert interaction["position"] == 2
+    assert payload["recommendationEvaluation"]["strategyMode"] == "learning"

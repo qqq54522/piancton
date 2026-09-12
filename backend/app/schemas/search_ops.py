@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal, Optional
 
 from app.schemas.base import ApiModel
+from app.schemas.recommendation import RecommendationEvaluationRead
 
 
 class SearchMetricItem(ApiModel):
@@ -92,6 +93,7 @@ class SearchActivitySummary(ApiModel):
     recent_feedback: list[SearchFeedbackRead]
     recent_logs: list[SearchLogRead]
     recent_interactions: list[SearchInteractionRead]
+    recommendation_evaluation: RecommendationEvaluationRead
 
 
 class SearchOpsIssueRead(ApiModel):
