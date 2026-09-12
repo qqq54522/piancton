@@ -92,14 +92,15 @@ class RelatedImageService:
         )
         used_ids.update(item.id for item in same_selling_point)
 
-        # Reserve personalized results before filling the broader local pools, so
-        # a small library does not make the AI Search section disappear entirely.
+        # Keep a broad personalized candidate pool. Business clients distribute
+        # these candidates into the PPT, website, mobile and brand entrances
+        # instead of rendering one generic "for you" shelf.
         personalized = self._personalized_images(
             image,
             user_id=user_id,
             enabled=personalize,
             excluded_ids=used_ids,
-            limit=per_section_limit,
+            limit=max(per_section_limit * 6, 48),
         )
         used_ids.update(item.id for item in personalized)
 

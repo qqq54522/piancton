@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -11,6 +11,7 @@ vi.mock('@client/src/api/image', () => ({
 }));
 
 import type { ImageDetail, ImageItem } from '@client/src/types/api';
+import { fetchImages } from '@client/src/api/image';
 import BusinessImageDetailRecommendations, {
   BusinessImageDetailSideRecommendations,
 } from './BusinessImageDetailRecommendations';
@@ -58,13 +59,17 @@ const detail = {
       title: '为你推荐',
       description: '由火山推荐持续调整。',
       source: 'ai_search',
-      images: [image('personalized', '个性化素材')],
+      images: [{ ...image('personalized', '个性化素材'), channel: 'PPT' }],
     },
   ],
 } satisfies ImageDetail;
 
 describe('BusinessImageDetailRecommendations', () => {
-  it('keeps the original business entrances and the new recommendation purposes separate', () => {
+  it('shows selling-point similarity and distributes personalization into channel entrances', async () => {
+    vi.mocked(fetchImages).mockResolvedValue({
+      items: [{ ...image('regular-ppt', '普通 PPT 素材'), channel: 'PPT' }],
+      hasMore: false,
+    });
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -77,7 +82,7 @@ describe('BusinessImageDetailRecommendations', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('相关素材推荐')).toBeTruthy();
+    expect(screen.getByText('相似素材')).toBeTruthy();
     expect(screen.getByText('同卖点素材')).toBeTruthy();
     expect(screen.getByText('PPT素材')).toBeTruthy();
     expect(screen.getByText('手机端大图素材')).toBeTruthy();
@@ -85,8 +90,16 @@ describe('BusinessImageDetailRecommendations', () => {
     expect(screen.getByText('品牌手册渠道')).toBeTruthy();
     expect(screen.getByText('官网渠道素材')).toBeTruthy();
     expect(screen.getByText('PPT 渠道素材')).toBeTruthy();
-    expect(screen.getByText('相似画面与主题')).toBeTruthy();
-    expect(screen.getByText('为你推荐')).toBeTruthy();
-    expect(screen.getByText('个性化素材')).toBeTruthy();
+    expect(screen.queryByText('相似画面与主题')).toBeNull();
+    expect(screen.queryByText('为你推荐')).toBeNull();
+    expect(screen.getAllByText('个性化素材')).toHaveLength(2);
+    await screen.findAllByText('普通 PPT 素材');
+
+    const pptSection = screen.getByRole('heading', { name: 'PPT 渠道素材' }).closest('section');
+    expect(pptSection).toBeTruthy();
+    const pptImageLinks = within(pptSection as HTMLElement)
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href')?.startsWith('/image/'));
+    expect(pptImageLinks[0]?.getAttribute('href')).toBe('/image/personalized');
   });
 });

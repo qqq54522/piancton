@@ -98,13 +98,15 @@ function useBusinessDetailRecommendationModules(detail: ImageDetail) {
   const currentChannels = splitChannelValue(detail.channel);
   const currentPrimaryChannel = currentChannels[0] ?? '';
   const sameSellingPoint = findSection(sections, 'same_selling_point');
-  const visualSimilar = findSection(sections, 'visual_similar');
   const personalized = findSection(sections, 'personalized');
+  const personalizedImageIds = new Set(
+    (personalized?.images ?? []).map((image) => image.id),
+  );
   const serverSameChannel = findSection(sections, 'same_channel');
-  const currentChannelImages = uniqueImages([
+  const currentChannelImages = prioritizePersonalized(uniqueImages([
     ...(serverSameChannel?.images ?? []),
     ...filterByChannels(imagePool, currentChannels),
-  ]).slice(0, 4);
+  ]), personalizedImageIds).slice(0, 4);
   const brandChannels = channelsFor(channelEntries, 'brand_manual');
   const mobileLargeChannels = channelsFor(channelEntries, 'mobile', 'large');
   const mobileSmallChannels = channelsFor(channelEntries, 'mobile', 'small');
@@ -120,6 +122,7 @@ function useBusinessDetailRecommendationModules(detail: ImageDetail) {
     currentPrimaryChannel,
     description: '适合手机端首屏、朋友圈长图或重点宣传位继续挑选。',
     imagePool,
+    personalizedImageIds,
     title: '手机端大图素材',
   });
   const mobileSmallModule = buildChannelModule({
@@ -131,6 +134,7 @@ function useBusinessDetailRecommendationModules(detail: ImageDetail) {
     currentPrimaryChannel,
     description: '适合手机端入口、列表小卡片或信息流位置继续挑选。',
     imagePool,
+    personalizedImageIds,
     title: '手机端小图素材',
   });
 
@@ -143,7 +147,6 @@ function useBusinessDetailRecommendationModules(detail: ImageDetail) {
       description: '同一使用位置下继续找，适合快速替换当前版位素材。',
       images: currentChannelImages,
     },
-    ...(personalized ? [sectionModule(personalized, 'detail_personalized')] : []),
     ...(mobileLargeModule ? [mobileLargeModule] : []),
     ...(mobileSmallModule ? [mobileSmallModule] : []),
     {
@@ -156,7 +159,10 @@ function useBusinessDetailRecommendationModules(detail: ImageDetail) {
       eventSource: 'detail_brand_manual',
       title: '品牌手册渠道',
       description: '适合沉淀标准口径和长期复用的规范素材。',
-      images: filterByChannels(imagePool, brandChannels).slice(0, 4),
+      images: prioritizePersonalized(
+        filterByChannels(imagePool, brandChannels),
+        personalizedImageIds,
+      ).slice(0, 4),
     },
   ];
 
@@ -167,29 +173,31 @@ function useBusinessDetailRecommendationModules(detail: ImageDetail) {
     ? {
         key: 'same-selling-point',
         eventSource: 'detail_same_selling_point',
-        title: '相关素材推荐',
+        title: '相似素材',
         description: sameSellingPoint?.description
-          ?? '优先推荐支撑同一卖点的其它表达，适合直接替换或继续比较。',
+          ?? '与当前素材支撑同一卖点，适合直接替换或继续比较。',
         images: sameSellingPoint?.images ?? [],
       }
     : {
         key: 'legacy-related',
         eventSource: 'detail_visual_similar',
-        title: '相关素材推荐',
+        title: '相似素材',
         description: '和当前素材业务关系更近，适合继续比较表达方式。',
         images: legacyRelatedImages.slice(0, 8),
       };
 
   const lowerModules: RecommendationModule[] = [
     primaryRelatedModule,
-    ...(visualSimilar ? [sectionModule(visualSimilar, 'detail_visual_similar')] : []),
     {
       browseChannelIntent: buildBrowseChannelIntent('website', websiteChannels, channelEntries),
       key: 'website',
       eventSource: 'detail_website',
       title: '官网渠道素材',
       description: '适合官网首屏、模块、列表或功能入口继续挑选。',
-      images: filterByChannels(imagePool, websiteChannels).slice(0, 6),
+      images: prioritizePersonalized(
+        filterByChannels(imagePool, websiteChannels),
+        personalizedImageIds,
+      ).slice(0, 6),
     },
     {
       browseChannelIntent: buildBrowseChannelIntent('ppt', pptChannels, channelEntries),
@@ -197,7 +205,10 @@ function useBusinessDetailRecommendationModules(detail: ImageDetail) {
       eventSource: 'detail_ppt',
       title: 'PPT 渠道素材',
       description: '适合汇报、讲解或销售材料中承接一页表达。',
-      images: filterByChannels(imagePool, pptChannels).slice(0, 6),
+      images: prioritizePersonalized(
+        filterByChannels(imagePool, pptChannels),
+        personalizedImageIds,
+      ).slice(0, 6),
     },
   ];
 
@@ -330,19 +341,6 @@ function findSection(
   return sections.find((section) => section.purpose === purpose);
 }
 
-function sectionModule(
-  section: ImageRecommendationSection,
-  eventSource: SearchInteractionSource,
-): RecommendationModule {
-  return {
-    key: section.purpose,
-    eventSource,
-    title: section.title,
-    description: section.description,
-    images: section.images ?? [],
-  };
-}
-
 function channelsFor(
   entries: ChannelIntentEntry[],
   family: Exclude<ChannelFamily, 'unknown'>,
@@ -370,6 +368,17 @@ function uniqueImages(images: ImageItem[]) {
     result.push(image);
   });
   return result;
+}
+
+function prioritizePersonalized(
+  images: ImageItem[],
+  personalizedImageIds: Set<string>,
+) {
+  if (personalizedImageIds.size === 0) return images;
+  return [...images].sort((left, right) => (
+    Number(personalizedImageIds.has(right.id))
+    - Number(personalizedImageIds.has(left.id))
+  ));
 }
 
 function buildBrowseChannelIntent(
@@ -405,6 +414,7 @@ function buildChannelModule({
   currentPrimaryChannel,
   description,
   imagePool,
+  personalizedImageIds,
   title,
 }: {
   key: string;
@@ -415,6 +425,7 @@ function buildChannelModule({
   currentPrimaryChannel: string;
   description: string;
   imagePool: ImageItem[];
+  personalizedImageIds: Set<string>;
   title: string;
 }): RecommendationModule | null {
   if (channels.length === 0 || channels.includes(currentPrimaryChannel)) return null;
@@ -424,7 +435,10 @@ function buildChannelModule({
     browseChannelIntent: buildBrowseChannelIntent(family, channels, channelEntries),
     title,
     description,
-    images: filterByChannels(imagePool, channels).slice(0, 4),
+    images: prioritizePersonalized(
+      filterByChannels(imagePool, channels),
+      personalizedImageIds,
+    ).slice(0, 4),
   };
 }
 
