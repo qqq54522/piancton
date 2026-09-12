@@ -34,6 +34,7 @@ from app.schemas.image import (
     ImageRead,
     ImageTitleResolution,
     ImageTitleUpdate,
+    SearchQueryRecommendations,
     SearchRequest,
     SearchResponse,
 )
@@ -70,6 +71,17 @@ def list_image_channels(
     service: ImageService = Depends(get_image_service),
 ):
     return service.list_channels()
+
+
+@router.get("/query-recommendations", response_model=SearchQueryRecommendations)
+def query_recommendations(
+    limit: int = Query(default=8, ge=1, le=20),
+    user: User = Depends(get_current_user),
+    service: SearchService = Depends(get_search_service),
+):
+    return SearchQueryRecommendations(
+        queries=service.query_recommendations(user_id=user.id, limit=limit)
+    )
 
 
 @router.post("/search", response_model=SearchResponse)

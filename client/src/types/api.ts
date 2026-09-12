@@ -44,6 +44,10 @@ export interface ImageChannelOptions {
   channels: string[];
 }
 
+export interface SearchQueryRecommendations {
+  queries: string[];
+}
+
 export interface UpdateImageTitleRequest {
   title: string;
 }

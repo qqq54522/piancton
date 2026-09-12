@@ -127,6 +127,23 @@ class VolcAiSearchService:
         response.match_summary = f"找到 {len(response.results)} 张与“{keyword}”相关的图片"
         return response
 
+    def query_recommendations(
+        self,
+        *,
+        user_id: str = "",
+        limit: int = 8,
+    ) -> list[str]:
+        if not self.configured:
+            return []
+        try:
+            return self.client.query_recommendations(
+                user_id=user_id,
+                page_size=max(1, min(limit, 20)),
+            )
+        except VolcAiSearchClientError:
+            logger.warning("AI Search query recommendation failed", exc_info=True)
+            return []
+
 
 def _fallback_response(keyword: str, diagnostic: SearchBranchDiagnostic) -> SearchResponse:
     return SearchResponse(

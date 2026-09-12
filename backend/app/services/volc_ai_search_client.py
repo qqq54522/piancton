@@ -161,6 +161,41 @@ class VolcAiSearchClient:
             item_ids=list(dict.fromkeys(item for item in item_ids if item)),
         )
 
+    def chat_opening(
+        self,
+        *,
+        session_id: str,
+        user_id: str = "",
+    ) -> VolcAiSearchChatResult:
+        """Load the opening configured for the AI Search application."""
+        answer_parts: list[str] = []
+        suggestions: list[str] = []
+        item_ids: list[str] = []
+        frames: list[dict[str, Any]] = []
+        for event in self.stream_chat_opening(
+            session_id=session_id,
+            user_id=user_id,
+        ):
+            if event.content:
+                answer_parts.append(event.content)
+            suggestions.extend(event.suggestions)
+            item_ids.extend(event.item_ids)
+            if event.response:
+                frames.append(event.response)
+        answer = "".join(answer_parts).strip()
+        suggestions = list(dict.fromkeys(item for item in suggestions if item))[:6]
+        item_ids = list(dict.fromkeys(item for item in item_ids if item))
+        if not any((answer, suggestions, item_ids)):
+            raise VolcAiSearchClientError("AI Search 对话开场未包含可用内容")
+        return VolcAiSearchChatResult(
+            session_id=session_id,
+            query="",
+            answer=answer,
+            response={"events": frames},
+            suggestions=suggestions,
+            item_ids=item_ids,
+        )
+
     def stream_chat_search(
         self,
         query: str,
@@ -184,6 +219,48 @@ class VolcAiSearchClient:
             enable_suggestions=enable_suggestions,
             image_url=image_url,
         )
+        yield from self._stream_chat_payload(payload, allow_content_before_reply=False)
+
+    def stream_chat_opening(
+        self,
+        *,
+        session_id: str,
+        user_id: str = "",
+    ) -> Iterator[VolcAiSearchStreamEvent]:
+        if not self.chat_search_configured:
+            raise VolcAiSearchClientError("AI Search 对话接口尚未配置完整")
+        payload = {
+            "session_id": session_id,
+            "user": {"_user_id": user_id},
+            "context": {"location": {}},
+            "opening_remarks": True,
+        }
+        yield from self._stream_chat_payload(payload, allow_content_before_reply=True)
+
+    def query_recommendations(
+        self,
+        *,
+        user_id: str = "",
+        page_size: int = 8,
+    ) -> list[str]:
+        """Return the application-level phrases used by the search placeholder."""
+        if not self.search_configured:
+            raise VolcAiSearchClientError("AI Search 搜索接口尚未配置完整")
+        response = self._post_json(
+            f"{self.search_path.rstrip('/')}/query_recommendation",
+            {
+                "user": {"_user_id": user_id},
+                "page_size": max(1, min(page_size, 20)),
+            },
+        )
+        return _extract_recommendation_queries(response)[:page_size]
+
+    def _stream_chat_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        allow_content_before_reply: bool,
+    ) -> Iterator[VolcAiSearchStreamEvent]:
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -223,7 +300,12 @@ class VolcAiSearchClient:
                         if step:
                             reply_started = _normalize_step(step) == "reply"
                         content = result.get("content")
-                        text = str(content) if reply_started and isinstance(content, str) else ""
+                        text = (
+                            str(content)
+                            if isinstance(content, str)
+                            and (reply_started or allow_content_before_reply)
+                            else ""
+                        )
                         suggestions = tuple(_extract_suggestions(result))
                         item_ids = tuple(_extract_chat_item_ids(result))
                         done = bool(result.get("stop_reason"))
@@ -419,6 +501,41 @@ def _extract_suggestions(payload: dict[str, Any]) -> list[str]:
         },
     )
     return list(dict.fromkeys(item.strip() for item in values if item.strip()))[:6]
+
+
+def _extract_recommendation_queries(payload: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+
+    def visit(value: Any, depth: int = 0) -> None:
+        if depth > 8:
+            return
+        if isinstance(value, dict):
+            for key in ("recommendation_queries", "recommendationQueries"):
+                items = value.get(key)
+                if not isinstance(items, list):
+                    continue
+                for item in items:
+                    if isinstance(item, str):
+                        query = item.strip()
+                    elif isinstance(item, dict):
+                        query = str(
+                            item.get("query")
+                            or item.get("text")
+                            or item.get("keyword")
+                            or ""
+                        ).strip()
+                    else:
+                        query = ""
+                    if query:
+                        values.append(query)
+            for item in value.values():
+                visit(item, depth + 1)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item, depth + 1)
+
+    visit(payload)
+    return list(dict.fromkeys(values))
 
 
 def _normalize_step(value: str) -> str:

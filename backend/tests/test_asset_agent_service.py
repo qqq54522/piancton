@@ -148,6 +148,38 @@ def test_asset_agent_native_stream_persists_ai_search_image_cards(db_factory):
     assert assistant.context_cards[0].image_url.endswith(f"/{image.id}/thumbnail")
 
 
+def test_asset_agent_new_session_uses_ai_search_opening_and_local_images(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-opening-user", password_hash="x", role="business")
+        group = AssetGroup(title="开场推荐素材", created_by="admin", publish_status="published")
+        image = Image(
+            title="开场同步考点图",
+            identity_code="PC-OPENING",
+            file_name="opening.png",
+            storage_key="opening.png",
+            thumbnail_storage_key="opening-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+            asset_group=group,
+            is_current=True,
+        )
+        db.add_all([user, group, image])
+        db.commit()
+        ai_search = _FakeAiSearchOpening(image.id)
+
+        session = AssetAgentService(
+            db,
+            _FailingProvider(),
+            ai_search_chat=ai_search,
+        ).create_session(user)
+
+    assert ai_search.last_user_id == user.id
+    assert session.messages[0].content == "这是火山控制台配置的开场白。"
+    assert session.messages[0].used_model is True
+    assert session.messages[0].context_cards[0].id == image.id
+    assert session.suggested_questions == ["帮我找一张同步考点图"]
+
+
 def test_asset_agent_passes_context_image_url_to_ai_search_chat(db_factory):
     with db_factory() as db:
         user = User(username="agent-ai-search-image-user", password_hash="x", role="business")
@@ -380,4 +412,26 @@ class _FakeAiSearchChat:
         yield VolcAiSearchStreamEvent(
             suggestions=("这个卖点适合什么素材？",),
             done=True,
+        )
+
+
+class _FakeAiSearchOpening(_FakeAiSearchChat):
+    def __init__(self, image_id: str):
+        self.image_id = image_id
+        self.last_user_id = ""
+
+    def chat_opening(
+        self,
+        *,
+        session_id: str,
+        user_id: str = "",
+    ) -> VolcAiSearchChatResult:
+        self.last_user_id = user_id
+        return VolcAiSearchChatResult(
+            session_id=session_id,
+            query="",
+            answer="这是火山控制台配置的开场白。",
+            response={},
+            suggestions=["帮我找一张同步考点图"],
+            item_ids=[self.image_id, "not-in-local-library"],
         )

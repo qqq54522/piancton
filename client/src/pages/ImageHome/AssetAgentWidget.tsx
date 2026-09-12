@@ -83,6 +83,8 @@ function AssetAgentWidgetInner({
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
   const [state, setState] = useState<AgentState>(() => stateFromSessions([createLocalSession()]));
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesViewportRef = useRef<HTMLDivElement | null>(null);
+  const followStreamRef = useRef(true);
   const askRef = useRef<((question?: string, sessionOverride?: AgentSession) => Promise<void>) | null>(null);
   const [markState, setMarkState] = useState<'idle' | 'thinking' | 'happy' | 'wake'>('idle');
   const activeSession = useMemo(
@@ -99,9 +101,11 @@ function AssetAgentWidgetInner({
   );
   const activeSessionId = activeSession.id;
   const activeMessageCount = activeSession.messages.length;
-  const isIntroOnly = activeSession.messages.length === 1
-    && activeSession.messages[0]?.role === 'assistant'
-    && activeSession.messages[0]?.content === DEFAULT_GREETING;
+  const activeMessageContentLength = activeSession.messages.reduce(
+    (total, message) => total + message.content.length + (message.reasoningContent?.length ?? 0),
+    0,
+  );
+  const isIntroOnly = !activeSession.messages.some((message) => message.role === 'user');
   const open = controlledOpen ?? internalOpen;
 
   const setOpenState = useCallback((nextOpen: boolean) => {
@@ -246,8 +250,18 @@ function AssetAgentWidgetInner({
 
   useEffect(() => {
     if (!open) return;
+    followStreamRef.current = true;
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
-  }, [activeSessionId, activeMessageCount, loading, open]);
+  }, [activeSessionId, open]);
+
+  useEffect(() => {
+    if (!open || !followStreamRef.current) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const viewport = messagesViewportRef.current;
+      if (viewport) viewport.scrollTop = viewport.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeMessageContentLength, activeMessageCount, loading, open]);
 
   useEffect(() => {
     return listenForAssetAgentImages((image) => {
@@ -307,6 +321,7 @@ function AssetAgentWidgetInner({
     }
 
     setLoadingSessionId(targetSession.id);
+    followStreamRef.current = true;
     const assistantMessageId = safeId();
     setState((current) => updateSession(current, targetSession.id, (session) => ({
       ...session,
@@ -502,13 +517,22 @@ function AssetAgentWidgetInner({
         </div>
       )}
 
-      <div className="compact-scrollbar flex-1 space-y-5 overflow-y-auto px-5 py-5">
+      <div
+        ref={messagesViewportRef}
+        className="compact-scrollbar flex-1 space-y-5 overflow-y-auto px-5 py-5"
+        onScroll={(event) => {
+          const viewport = event.currentTarget;
+          followStreamRef.current = (
+            viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80
+          );
+        }}
+      >
         {activeSession.messages.map((message, index) => {
           const previousUserMessage = activeSession.messages
             .slice(0, index)
             .reverse()
             .find((item) => item.role === 'user')?.content;
-          const isIntroMessage = message.role === 'assistant' && message.content === DEFAULT_GREETING;
+          const isIntroMessage = message.role === 'assistant' && index === 0;
           return (
           <div
             key={message.id}
@@ -527,7 +551,11 @@ function AssetAgentWidgetInner({
               ].join(' ')}
             >
               {isIntroMessage ? (
-                <AgentIntroCard onAsk={(question) => void ask(question)} />
+                <AgentIntroCard
+                  content={message.content || DEFAULT_GREETING}
+                  questions={activeSession.suggestedQuestions}
+                  onAsk={(question) => void ask(question)}
+                />
               ) : null}
               {message.role === 'assistant' && message.reasoningContent && (
                 <AgentAnalysisCard
@@ -604,8 +632,16 @@ function AssetAgentWidgetInner({
   );
 }
 
-function AgentIntroCard({ onAsk }: { onAsk: (question: string) => void }) {
-  const paragraphs = DEFAULT_GREETING.split('\n\n');
+function AgentIntroCard({
+  content,
+  questions,
+  onAsk,
+}: {
+  content: string;
+  questions: string[];
+  onAsk: (question: string) => void;
+}) {
+  const paragraphs = content.split('\n\n');
   return (
     <div className="space-y-4">
       <div className="space-y-3 text-sm leading-7 text-foreground">
@@ -620,7 +656,7 @@ function AgentIntroCard({ onAsk }: { onAsk: (question: string) => void }) {
         <span>试试这样问我</span>
       </div>
       <div className="space-y-2">
-        {DEFAULT_QUESTIONS.map((question) => (
+        {questions.slice(0, 4).map((question) => (
           <button
             key={question}
             type="button"

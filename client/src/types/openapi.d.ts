@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/images/query-recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Query Recommendations */
+        get: operations["query_recommendations_api_images_query_recommendations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/images/search": {
         parameters: {
             query?: never;
@@ -3749,6 +3766,11 @@ export interface components {
             /** Evidenceterms */
             evidenceTerms?: string[];
         };
+        /** SearchQueryRecommendations */
+        SearchQueryRecommendations: {
+            /** Queries */
+            queries?: string[];
+        };
         /** SearchRequest */
         SearchRequest: {
             /** Keyword */
@@ -4277,6 +4299,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageChannelOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    query_recommendations_api_images_query_recommendations_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchQueryRecommendations"];
                 };
             };
             /** @description Validation Error */

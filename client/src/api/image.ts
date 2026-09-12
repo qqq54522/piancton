@@ -10,6 +10,7 @@ import type {
   ProviderStatus,
   SearchFeedbackRequest,
   SearchInteractionAction,
+  SearchQueryRecommendations,
   SemanticSearchRequest,
   SemanticSearchResponse,
   TagWithCount,
@@ -23,6 +24,12 @@ export async function fetchImages(params: ImageListParams): Promise<ImageListRes
 
 export async function fetchImageChannels(): Promise<ImageChannelOptions> {
   return (await api.get('/api/images/channels')).data;
+}
+
+export async function fetchSearchQueryRecommendations(
+  limit = 8,
+): Promise<SearchQueryRecommendations> {
+  return (await api.get('/api/images/query-recommendations', { params: { limit } })).data;
 }
 
 export async function fetchImageDetail(id: string): Promise<ImageDetail> {

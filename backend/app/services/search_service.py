@@ -126,6 +126,16 @@ class SearchService:
             evidence_point_code,
         )
 
+    def query_recommendations(
+        self,
+        *,
+        user_id: str = "",
+        limit: int = 8,
+    ) -> list[str]:
+        if self.ai_search is None:
+            return []
+        return self.ai_search.query_recommendations(user_id=user_id, limit=limit)
+
     def search(
         self,
         keyword: str,

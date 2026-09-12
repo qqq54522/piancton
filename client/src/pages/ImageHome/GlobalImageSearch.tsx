@@ -16,6 +16,7 @@ import {
 import { Input } from '@client/src/components/ui/input';
 import { shouldIgnoreEnterForIme } from '@client/src/lib/ime';
 import { useAuth } from '@client/src/lib/auth';
+import { useSearchQueryRecommendations } from '@client/src/features/images/useSearchQueryRecommendations';
 import {
   type SceneImageFilter,
   type SearchRefinementOptions,
@@ -69,6 +70,7 @@ const GlobalImageSearch = ({
   const navigate = useNavigate();
   const channelOptions = useChannelOptions(refinementOptions.channels);
   const canAddChannel = !showBusinessAccount;
+  const { placeholder } = useSearchQueryRecommendations(input);
   const intentChannels = refinements.channel
     ? []
     : refinements.channelIntent?.candidateChannels ?? [];
@@ -93,7 +95,7 @@ const GlobalImageSearch = ({
           <Search className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-foreground/55" />
           <Input
             aria-label="搜索业务素材"
-            placeholder="搜索素材，或粘贴图片身份码"
+            placeholder={placeholder}
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={(event) => {

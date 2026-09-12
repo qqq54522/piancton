@@ -85,6 +85,10 @@ class ImageChannelOptions(ApiModel):
     channels: List[str] = Field(default_factory=list)
 
 
+class SearchQueryRecommendations(ApiModel):
+    queries: List[str] = Field(default_factory=list)
+
+
 class SearchRequest(ApiModel):
     keyword: str = Field(min_length=1, max_length=200)
     limit: int = Field(default=12, ge=1, le=200)

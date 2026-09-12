@@ -35,6 +35,7 @@ class _StreamResponse:
 
 class _StreamingHttpClient:
     frames: list[dict] = []
+    last_json: dict = {}
 
     def __init__(self, **_kwargs):
         pass
@@ -45,7 +46,8 @@ class _StreamingHttpClient:
     def __exit__(self, *_args):
         return None
 
-    def stream(self, *_args, **_kwargs):
+    def stream(self, *_args, **kwargs):
+        self.__class__.last_json = kwargs.get("json", {})
         return _StreamResponse(self.frames)
 
 
@@ -126,6 +128,79 @@ def test_chat_search_forwards_native_reply_and_item_citations(monkeypatch):
     assert result.answer == "这张更合适。"
     assert result.item_ids == ["image-before-reply", "image-cited"]
     assert result.suggestions == ["还想看哪些风格？"]
+
+
+def test_chat_opening_uses_application_configuration_and_keeps_recommended_items(
+    monkeypatch,
+):
+    _StreamingHttpClient.frames = [
+        {"result": {"content": "欢迎使用素材助手。"}},
+        {
+            "result": {
+                "payload": {
+                    "related_rec_items": [{"_id": "opening-image"}],
+                    "suggestions": ["帮我找同步考点的图片"],
+                },
+                "stop_reason": "stop",
+            }
+        },
+    ]
+    monkeypatch.setattr(
+        "app.services.volc_ai_search_client.httpx.Client",
+        _StreamingHttpClient,
+    )
+    client = VolcAiSearchClient(
+        base_url="https://aisearch.example.com",
+        api_key="secret",
+        dataset_id="items-1",
+        application_id="app-1",
+        chat_search_path="/chat_search",
+    )
+
+    result = client.chat_opening(session_id="session-1", user_id="user-1")
+
+    assert _StreamingHttpClient.last_json == {
+        "session_id": "session-1",
+        "user": {"_user_id": "user-1"},
+        "context": {"location": {}},
+        "opening_remarks": True,
+    }
+    assert result.answer == "欢迎使用素材助手。"
+    assert result.suggestions == ["帮我找同步考点的图片"]
+    assert result.item_ids == ["opening-image"]
+
+
+def test_query_recommendations_use_the_existing_search_scene(monkeypatch):
+    client = VolcAiSearchClient(
+        base_url="https://aisearch.example.com",
+        api_key="secret",
+        dataset_id="items-1",
+        application_id="app-1",
+        search_path="/api/v1/application/app-1/search/scene-1",
+    )
+    request: dict = {}
+
+    def fake_post(path, payload):
+        request.update(path=path, payload=payload)
+        return {
+            "result": {
+                "recommendation_queries": [
+                    {"query": "同步考点"},
+                    {"query": "AI 拍题精学"},
+                ]
+            }
+        }
+
+    monkeypatch.setattr(client, "_post_json", fake_post)
+
+    assert client.query_recommendations(user_id="user-1", page_size=4) == [
+        "同步考点",
+        "AI 拍题精学",
+    ]
+    assert request == {
+        "path": "/api/v1/application/app-1/search/scene-1/query_recommendation",
+        "payload": {"user": {"_user_id": "user-1"}, "page_size": 4},
+    }
 
 
 def test_search_interaction_is_durably_synced_to_behavior_dataset(db_factory):

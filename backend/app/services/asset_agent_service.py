@@ -95,7 +95,7 @@ class AssetAgentService:
         self._reset_user_sessions_for_today(user)
         sessions = self.sessions.list_for_user(user.id, limit=MAX_AGENT_SESSIONS)
         if not sessions:
-            sessions = [self._create_session(user)]
+            sessions = [self._create_session(user, use_ai_search_opening=True)]
         self.uow.commit()
         return AssetAgentSessionListResponse(
             sessions=[self._session_read(item) for item in sessions]
@@ -111,6 +111,7 @@ class AssetAgentService:
             user,
             title=payload.title if payload else None,
             context_images=payload.context_images if payload else [],
+            use_ai_search_opening=not bool(payload and payload.context_images),
         )
         self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
         self.uow.commit()
@@ -530,6 +531,7 @@ class AssetAgentService:
         *,
         title: str | None = None,
         context_images: list[AssetAgentImageContext] | None = None,
+        use_ai_search_opening: bool = False,
     ) -> AssetAgentSession:
         cleaned_context = _clean_context_images(context_images or [])
         session = AssetAgentSession(
@@ -546,7 +548,24 @@ class AssetAgentService:
             updated_at=_now(),
         )
         self.sessions.add(session)
-        self._add_message(session, role="assistant", content=DEFAULT_GREETING)
+        opening = (
+            self._try_ai_search_opening(user=user, session=session)
+            if use_ai_search_opening and not cleaned_context
+            else None
+        )
+        if opening is not None:
+            suggestions = _clean_suggestions(opening.suggestions) or _fallback_suggestions(False)
+            recommended_cards = self._recommended_image_cards(opening.item_ids)
+            session.suggested_questions_json = _json_dump(suggestions)
+            self._add_message(
+                session,
+                role="assistant",
+                content=opening.answer.strip() or DEFAULT_GREETING,
+                used_model=True,
+                context_cards=recommended_cards,
+            )
+        else:
+            self._add_message(session, role="assistant", content=DEFAULT_GREETING)
         for item in cleaned_context:
             self._add_message(session, role="system", content=f"已加入图片上下文：{item.title}")
         return session
@@ -831,6 +850,24 @@ class AssetAgentService:
                     context_images,
                     public_base_url=self.ai_search_public_base_url,
                 ),
+            )
+        except VolcAiSearchClientError:
+            return None
+
+    def _try_ai_search_opening(
+        self,
+        *,
+        user: User,
+        session: AssetAgentSession,
+    ) -> VolcAiSearchChatResult | None:
+        client = self.ai_search_chat
+        opening = getattr(client, "chat_opening", None) if client is not None else None
+        if not callable(opening) or not getattr(client, "chat_search_configured", False):
+            return None
+        try:
+            return cast(
+                VolcAiSearchChatResult,
+                opening(session_id=session.id, user_id=user.id),
             )
         except VolcAiSearchClientError:
             return None
@@ -1173,7 +1210,8 @@ def _agent_prompt() -> str:
 1. 像一个自然的业务顾问在聊天，不要重复固定开场，不要把每次回答写成同一套模板。
 2. 先给一句清楚判断，再按用户问题需要展开；可以解释判断依据，但不要写成内部推理报告。
 3. 段落标题可以自拟，也可以不用标题；不要固定使用“我先判断你现在要做什么”等机械标题。
-4. 不要暴露内部实现词：VikingDB、向量库、direct/related/fallback、置信度、分数、数据集 ID、Prompt、模型任务名。
+4. 不要暴露内部实现词：VikingDB、向量库、direct/related/fallback、置信度、分数、
+   数据集 ID、Prompt、模型任务名。
 5. 回答要中文、业务口吻、可落地，重点讲家长/孩子问题、卖点边界、素材适用性和可直接复用的话术。
 6. 当用户问“某个卖点怎么讲/怎么跟家长说/转成销售话术”时，优先参考这种形态：
    - 标题：“给家长的「卖点名」通俗版解释”
@@ -1306,7 +1344,9 @@ def _fallback_suggestions(has_context: bool) -> list[str]:
 
 def _fallback_business_answer(message: str) -> str:
     normalized = message.strip()
-    if "同步考点" in normalized and ("家长" in normalized or "话术" in normalized or "听懂" in normalized):
+    if "同步考点" in normalized and (
+        "家长" in normalized or "话术" in normalized or "听懂" in normalized
+    ):
         return (
             "## 给家长的「同步考点体系」通俗版解释\n\n"
             "你可以把它理解成：孩子在学校学到哪，洋葱就跟到哪；考试重点考什么，孩子就围绕什么学、练、巩固。\n\n"
@@ -1325,7 +1365,8 @@ def _fallback_business_answer(message: str) -> str:
     if "六大业务体系" in normalized:
         return (
             "## 洋葱六大业务体系怎么理解\n\n"
-            "可以先把六大体系看成六种不同的业务表达入口：有的负责讲清校内同步，有的负责解决学习方法，有的强调 AI 个性化，有的强调老师陪伴、规划和结果反馈。\n\n"
+            "可以先把六大体系看成六种不同的业务表达入口：有的负责讲清校内同步，"
+            "有的负责解决学习方法，有的强调 AI 个性化，有的强调老师陪伴、规划和结果反馈。\n\n"
             "你在做素材或销售沟通时，不需要一上来背体系名，先判断用户真实问题：是不会学、没效果、没人管、基础弱，还是想更高效提分。再把问题落到对应体系和核心卖点。"
         )
     if "学习没效果" in normalized or "没效果" in normalized:
@@ -1334,10 +1375,15 @@ def _fallback_business_answer(message: str) -> str:
             "先别急着解释功能，先承认家长的担心：孩子花了时间但没看到变化，通常不是“不努力”，而是问题没有被定位清楚。\n\n"
             "可以优先从学情诊断、同步考点、查漏补缺、错题复盘这类卖点切入：先找出孩子卡在哪里，再给到可执行的学习路径。"
         )
-    if "素材" in normalized and ("判断" in normalized or "对应" in normalized or "卖点" in normalized):
+    if "素材" in normalized and (
+        "判断" in normalized or "对应" in normalized or "卖点" in normalized
+    ):
         return (
             "## 判断素材对应核心卖点的简单方法\n\n"
-            "先看素材最想证明什么：如果画面强调孩子跟着题目一步步学懂，通常靠近同步考点或 AI 拍题精学；如果强调规划、陪伴和反馈，通常靠近老师督学或学情服务；如果强调一题多解、方法迁移，就更接近万能解法。\n\n"
+            "先看素材最想证明什么：如果画面强调孩子跟着题目一步步学懂，"
+            "通常靠近同步考点或 AI 拍题精学；如果强调规划、陪伴和反馈，"
+            "通常靠近老师督学或学情服务；如果强调一题多解、方法迁移，"
+            "就更接近万能解法。\n\n"
             "判断时优先看主表达，不要把一张图硬塞进多个卖点。辅助信息可以作为支持卖点记录下来。"
         )
     return (
