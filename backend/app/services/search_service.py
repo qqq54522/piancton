@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,8 @@ from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
 from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
 from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 from app.services.volc_ai_search_service import VolcAiSearchService
+
+logger = logging.getLogger(__name__)
 
 
 class SearchService:
@@ -114,9 +117,32 @@ class SearchService:
             self.ai_search is not None
             and not any([system_code, concept_code, proof_point_code, evidence_point_code])
         ):
+            understanding_task = asyncio.create_task(
+                self.orchestrator.understand_for_external_results(keyword)
+            )
+            # Let the external understanding branch dispatch its network work
+            # before the synchronous AI Search adapter hydrates result images.
+            await asyncio.sleep(0)
             ai_response = self.ai_search.search(keyword, limit=limit, user_id=user_id)
             if ai_response is not None and not ai_response.fallback:
+                try:
+                    ai_response.search_understanding = await understanding_task
+                except Exception:
+                    logger.warning(
+                        "AI Search results returned without selling-point explanation",
+                        exc_info=True,
+                    )
                 return ai_response
+            understanding_task.cancel()
+            try:
+                await understanding_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.warning(
+                    "AI Search explanation task failed during local fallback",
+                    exc_info=True,
+                )
         return await self.orchestrator.search(
             keyword,
             limit,

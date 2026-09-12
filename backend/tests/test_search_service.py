@@ -11,6 +11,7 @@ from app.models.tag import Tag
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
 from app.schemas.ai import SearchConceptMatch, SearchUnderstanding
+from app.schemas.image import SearchResponse
 from app.services.asset_route_ordering import order_routed_assets
 from app.services.concept_search_recall import ConceptSearchRecallService
 from app.services.database_search_recall import database_match_score
@@ -18,6 +19,18 @@ from app.services.related_image_service import RelatedImageService
 from app.services.search_models import ConceptMatch, SearchHit
 from app.services.search_service import SearchService
 from app.services.volc_ai_search_client import VolcAiSearchClient
+
+
+class SuccessfulHomepageAiSearch:
+    def __init__(self):
+        self.calls: list[tuple[str, int, str]] = []
+
+    def search(self, keyword: str, *, limit: int, user_id: str = ""):
+        self.calls.append((keyword, limit, user_id))
+        return SearchResponse(
+            results=[],
+            match_summary=f"找到 0 张与“{keyword}”相关的图片",
+        )
 
 
 def create_concept_image(
@@ -197,6 +210,24 @@ def test_search_reuses_versioned_business_phrase(db_factory):
 
     assert [item.image.id for item in response.results] == [image.id]
     assert any("动画精讲" in reason for reason in response.results[0].match_reasons)
+
+
+def test_ai_search_results_keep_governed_selling_point_explanation(db_factory):
+    with db_factory() as db:
+        create_concept_image(db)
+        ai_search = SuccessfulHomepageAiSearch()
+        response = SearchService(db, ai_search=ai_search).search(
+            "孩子听不懂老师讲课",
+            10,
+        )
+
+    assert ai_search.calls == [("孩子听不懂老师讲课", 10, "")]
+    assert response.search_understanding is not None
+    assert [
+        item.concept.rsplit(">", 1)[-1].strip()
+        for item in response.search_understanding.matched_business_concepts
+    ] == ["动画精讲"]
+    assert response.match_summary == "找到 0 张与“孩子听不懂老师讲课”相关的图片"
 
 
 def test_concept_recall_allocates_quota_for_each_matched_selling_point(db_factory):

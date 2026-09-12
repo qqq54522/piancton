@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 
+from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import SearchResponse
 from app.services.concept_search_recall import ConceptSearchRecallService
 from app.services.database_search_recall import DatabaseSearchRecallService
@@ -84,6 +85,62 @@ class AsyncSearchOrchestrator:
             external_branches=external_branches,
             ranking=ranking,
             candidate_limit=self.candidate_limit,
+        )
+
+    async def understand_for_external_results(
+        self,
+        keyword: str,
+    ) -> SearchUnderstanding | None:
+        """Resolve governed selling-point context without running a second recall.
+
+        AI Search owns homepage candidate retrieval, while Piancton's versioned
+        business catalog remains responsible for explaining the matched selling
+        point.  Reuse the existing understanding branch here so external recall
+        does not silently bypass the result explanation shown to business users.
+        """
+        deadline = SearchDeadline.from_timeout(self.total_timeout_seconds)
+        local_understanding = self.query_understanding.understand_locally(keyword)
+        concept_matches = merge_concept_matches(
+            self.concept_recall.match(keyword),
+            matches_from_understanding(local_understanding, self.concept_recall),
+        )
+        understanding_result, understanding_task = (
+            self.external_branches.start_understanding(
+                keyword,
+                local_understanding,
+                deadline=deadline,
+            )
+        )
+        if understanding_task is not None:
+            understanding_result = await understanding_task
+        assert understanding_result is not None
+
+        pure_vikingdb_required = self.external_branches.pure_vikingdb_knowledge_mode
+        understanding = self.external_branches.final_understanding(
+            keyword,
+            local_understanding,
+            understanding_result,
+            pure_vikingdb_required=pure_vikingdb_required,
+        )
+        model_understanding_succeeded = (
+            self.external_branches.understanding_succeeded(understanding_result)
+        )
+        if pure_vikingdb_required and not model_understanding_succeeded:
+            return None
+
+        understood_matches = matches_from_understanding(
+            understanding,
+            self.concept_recall,
+        )
+        concept_matches = (
+            understood_matches
+            if model_understanding_succeeded
+            else merge_concept_matches(concept_matches, understood_matches)
+        )
+        return self.query_understanding.present_recognized_concepts(
+            keyword,
+            understanding,
+            concept_matches,
         )
 
     async def search(
