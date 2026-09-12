@@ -103,7 +103,7 @@ function ScoredImageCard({
           rememberImageHomeScroll();
         }}
         aria-label={`就是这张：${selected.title}`}
-        className="block overflow-hidden bg-muted"
+        className="block overflow-hidden rounded-xl bg-muted"
         style={{ aspectRatio: imageAspectRatio(selected) }}
       >
         <img

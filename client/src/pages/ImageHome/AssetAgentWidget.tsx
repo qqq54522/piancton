@@ -303,6 +303,27 @@ function AssetAgentWidgetInner({
     }
   };
 
+  const removeContextImage = async (imageId: string) => {
+    if (!activeSession) return;
+    const target = activeSession;
+    const nextContext = target.contextImages.filter((image) => image.imageId !== imageId);
+    if (nextContext.length === target.contextImages.length) return;
+    setState((current) => updateSession(current, target.id, (session) => ({
+      ...session,
+      contextImages: nextContext,
+      updatedAt: Date.now(),
+    })));
+    if (isLocalSession(target.id)) return;
+    try {
+      const updated = await updateAssetAgentSessionContext(target.id, {
+        contextImages: nextContext.map(contextPayloadToApi),
+      });
+      setState((current) => upsertSession(current, sessionFromApi(updated), updated.id));
+    } catch (error) {
+      pushAssistantError(getApiError(error).message, target.id);
+    }
+  };
+
   const ask = async (question?: string, sessionOverride?: AgentSession) => {
     const message = (question ?? input).trim();
     const sourceSession = sessionOverride ?? activeSession;
@@ -487,10 +508,11 @@ function AssetAgentWidgetInner({
             </p>
             <button
               type="button"
-              className="text-[11px] text-muted-foreground hover:text-foreground"
+              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-white px-2 py-1 text-[11px] text-muted-foreground shadow-xs transition hover:text-foreground"
               onClick={() => void clearActiveContext()}
             >
-              清空
+              <X className="size-3" />
+              清空全部
             </button>
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -511,6 +533,15 @@ function AssetAgentWidgetInner({
                   <ImageIcon className="size-3" />
                 )}
                 <span className="truncate">{image.title}</span>
+                <button
+                  type="button"
+                  aria-label={`移除上下文图片：${image.title}`}
+                  title="从当前对话移除"
+                  onClick={() => void removeContextImage(image.imageId)}
+                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
               </span>
             ))}
           </div>
