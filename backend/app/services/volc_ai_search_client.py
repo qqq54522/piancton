@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -25,6 +26,17 @@ class VolcAiSearchChatResult:
     answer: str
     response: dict[str, Any]
     suggestions: list[str]
+    item_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class VolcAiSearchStreamEvent:
+    step: str = ""
+    content: str = ""
+    item_ids: tuple[str, ...] = ()
+    suggestions: tuple[str, ...] = ()
+    done: bool = False
+    response: dict[str, Any] | None = None
 
 
 class VolcAiSearchClient:
@@ -44,6 +56,7 @@ class VolcAiSearchClient:
         search_path: str = "",
         chat_search_path: str = "",
         chat_dataset_ids: str = "",
+        behavior_dataset_id: str = "",
         timeout_seconds: float = 8.0,
     ):
         self.base_url = base_url.rstrip("/")
@@ -57,6 +70,7 @@ class VolcAiSearchClient:
         self.chat_dataset_ids = _parse_dataset_ids(chat_dataset_ids) or (
             [self.dataset_id] if self.dataset_id else []
         )
+        self.behavior_dataset_id = behavior_dataset_id.strip()
         self.timeout_seconds = max(0.5, timeout_seconds)
 
     @property
@@ -116,48 +130,158 @@ class VolcAiSearchClient:
         enable_suggestions: bool = True,
         image_url: str = "",
     ) -> VolcAiSearchChatResult:
-        if not self.chat_search_configured:
-            raise VolcAiSearchClientError("AI Search 对话接口尚未配置完整")
-        content: list[dict[str, Any]] = [
-            {
-                "type": "text",
-                "text": query,
-            }
-        ]
-        if image_url.strip():
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": image_url.strip(),
-                    },
-                }
-            )
-        payload = {
-            "session_id": session_id,
-            "input_message": {
-                "content": content,
-            },
-            "user": {
-                "_user_id": user_id,
-            },
-            "search_param": {
-                "page_size": max(1, min(page_size, 50)),
-                "dataset_ids": dataset_ids or self.chat_dataset_ids,
-            },
-            "enable_suggestions": enable_suggestions,
-        }
-        response = self._post_json(self.chat_search_path, payload)
-        answer = _extract_chat_answer(response)
+        answer_parts: list[str] = []
+        suggestions: list[str] = []
+        item_ids: list[str] = []
+        frames: list[dict[str, Any]] = []
+        for event in self.stream_chat_search(
+            query,
+            session_id=session_id,
+            user_id=user_id,
+            dataset_ids=dataset_ids,
+            page_size=page_size,
+            enable_suggestions=enable_suggestions,
+            image_url=image_url,
+        ):
+            if event.content:
+                answer_parts.append(event.content)
+            suggestions.extend(event.suggestions)
+            item_ids.extend(event.item_ids)
+            if event.response:
+                frames.append(event.response)
+        answer = "".join(answer_parts).strip()
         if not answer:
             raise VolcAiSearchClientError("AI Search 对话返回未包含可用回答")
         return VolcAiSearchChatResult(
             session_id=session_id,
             query=query,
             answer=answer,
-            response=response,
-            suggestions=_extract_suggestions(response),
+            response={"events": frames},
+            suggestions=list(dict.fromkeys(item for item in suggestions if item))[:6],
+            item_ids=list(dict.fromkeys(item for item in item_ids if item)),
         )
+
+    def stream_chat_search(
+        self,
+        query: str,
+        *,
+        session_id: str,
+        user_id: str = "",
+        dataset_ids: list[str] | None = None,
+        page_size: int = 10,
+        enable_suggestions: bool = True,
+        image_url: str = "",
+    ) -> Iterator[VolcAiSearchStreamEvent]:
+        """Yield native ChatSearch frames instead of buffering and re-chunking text."""
+        if not self.chat_search_configured:
+            raise VolcAiSearchClientError("AI Search 对话接口尚未配置完整")
+        payload = self._chat_payload(
+            query,
+            session_id=session_id,
+            user_id=user_id,
+            dataset_ids=dataset_ids,
+            page_size=page_size,
+            enable_suggestions=enable_suggestions,
+            image_url=image_url,
+        )
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+        reply_started = False
+        try:
+            with httpx.Client(timeout=self.timeout_seconds, trust_env=False) as client:
+                with client.stream(
+                    "POST",
+                    f"{self.base_url}{self.chat_search_path}",
+                    headers=headers,
+                    json=payload,
+                ) as response:
+                    response.raise_for_status()
+                    for raw_line in response.iter_lines():
+                        line = raw_line.strip()
+                        if not line or line.startswith(("event:", ":")):
+                            continue
+                        if line.startswith("data:"):
+                            line = line[5:].strip()
+                        if not line or line == "[DONE]":
+                            continue
+                        try:
+                            frame = json.loads(line)
+                        except json.JSONDecodeError as exc:
+                            raise VolcAiSearchClientError(
+                                "AI Search 对话流包含无法解析的数据"
+                            ) from exc
+                        if not isinstance(frame, dict):
+                            continue
+                        result = frame.get("result")
+                        result = result if isinstance(result, dict) else frame
+                        step_info = result.get("step_info")
+                        step_info = step_info if isinstance(step_info, dict) else {}
+                        step = str(step_info.get("step") or "").strip()
+                        if step:
+                            reply_started = _normalize_step(step) == "reply"
+                        content = result.get("content")
+                        text = str(content) if reply_started and isinstance(content, str) else ""
+                        suggestions = tuple(_extract_suggestions(result))
+                        item_ids = tuple(_extract_chat_item_ids(result))
+                        done = bool(result.get("stop_reason"))
+                        if step or text or suggestions or item_ids or done:
+                            yield VolcAiSearchStreamEvent(
+                                step=step,
+                                content=text,
+                                item_ids=item_ids,
+                                suggestions=suggestions,
+                                done=done,
+                                response=frame,
+                            )
+        except httpx.HTTPStatusError as exc:
+            detail = _http_error_detail(exc.response)
+            raise VolcAiSearchClientError(
+                f"AI Search 返回异常状态：{exc.response.status_code}{detail}"
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise VolcAiSearchClientError("AI Search 对话调用超时") from exc
+        except httpx.HTTPError as exc:
+            raise VolcAiSearchClientError(f"AI Search 对话调用失败：{exc}") from exc
+
+    def write_behavior_events(self, events: list[dict[str, Any]]) -> dict[str, Any]:
+        if not (self.base_url and self.api_key and self.behavior_dataset_id):
+            raise VolcAiSearchClientError("AI Search 用户行为数据集尚未配置完整")
+        if not events:
+            return {"submitted": 0}
+        return self._post_json(
+            f"/api/v1/dataset/{self.behavior_dataset_id}/write",
+            {"fields": events},
+        )
+
+    def _chat_payload(
+        self,
+        query: str,
+        *,
+        session_id: str,
+        user_id: str,
+        dataset_ids: list[str] | None,
+        page_size: int,
+        enable_suggestions: bool,
+        image_url: str,
+    ) -> dict[str, Any]:
+        content: list[dict[str, Any]] = [{"type": "text", "text": query}]
+        if image_url.strip():
+            content.append(
+                {"type": "image_url", "image_url": {"url": image_url.strip()}}
+            )
+        return {
+            "session_id": session_id,
+            "input_message": {"content": content},
+            "user": {"_user_id": user_id},
+            "search_param": {
+                "page_size": max(1, min(page_size, 50)),
+                "dataset_ids": dataset_ids or self.chat_dataset_ids,
+            },
+            "enable_suggestions": enable_suggestions,
+        }
 
     def write_documents(self, documents: list[dict[str, Any]]) -> dict[str, Any]:
         if not self.configured:
@@ -295,6 +419,51 @@ def _extract_suggestions(payload: dict[str, Any]) -> list[str]:
         },
     )
     return list(dict.fromkeys(item.strip() for item in values if item.strip()))[:6]
+
+
+def _normalize_step(value: str) -> str:
+    return value.strip().lower().replace("_", " ").replace("-", " ")
+
+
+def _extract_chat_item_ids(payload: dict[str, Any]) -> list[str]:
+    ids: list[str] = []
+    citation = payload.get("citation")
+    citations = citation if isinstance(citation, list) else [citation]
+    for item in citations:
+        if not isinstance(item, dict) or item.get("type") not in {None, "item"}:
+            continue
+        item_id = str(item.get("_id") or item.get("item_id") or "").strip()
+        if item_id:
+            ids.append(item_id)
+
+    nested_sources: list[Any] = []
+    nested_payload = payload.get("payload")
+    if isinstance(nested_payload, dict):
+        nested_sources.extend(
+            nested_payload.get(key)
+            for key in ("related_rec_items", "search_results", "items", "results")
+        )
+        rec = nested_payload.get("rec")
+        if isinstance(rec, dict):
+            nested_sources.append(rec.get("rec_results"))
+    for source in nested_sources:
+        if not isinstance(source, list):
+            continue
+        for item in source:
+            if not isinstance(item, dict):
+                continue
+            display_fields = item.get("display_fields")
+            display_fields = display_fields if isinstance(display_fields, dict) else {}
+            item_id = str(
+                item.get("_id")
+                or item.get("item_id")
+                or display_fields.get("image_id")
+                or display_fields.get("_id")
+                or ""
+            ).strip()
+            if item_id:
+                ids.append(item_id)
+    return list(dict.fromkeys(ids))
 
 
 def _find_first_string(value: Any, *, preferred_keys: set[str], depth: int = 0) -> str:

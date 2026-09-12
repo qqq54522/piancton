@@ -9,6 +9,7 @@ interface RadialActionMenuProps {
   onCopyIdentity?: () => void;
   onSendToAgent: () => void;
   onToggleProjectBasket?: () => void;
+  onDownload?: () => void;
   downloadHref?: string;
   downloadLabel?: string;
   variantSelector?: ReactNode;
@@ -20,6 +21,7 @@ function RadialActionMenu({
   onCopyIdentity,
   onSendToAgent,
   onToggleProjectBasket,
+  onDownload,
   downloadHref,
   downloadLabel = '下载所选尺寸',
   variantSelector,
@@ -95,7 +97,10 @@ function RadialActionMenu({
               aria-label={action.label}
               title={action.label}
               className={cn('radial-action-menu__action', action.className)}
-              onClick={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDownload?.();
+              }}
             >
               <Icon className="size-4" />
               <span className="radial-action-menu__label">{action.displayLabel}</span>

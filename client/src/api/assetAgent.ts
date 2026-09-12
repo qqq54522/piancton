@@ -3,6 +3,7 @@ import { api } from './client';
 import type {
   AssetAgentChatRequest,
   AssetAgentChatResponse,
+  AssetAgentContextCard,
   AssetAgentSession,
   AssetAgentSessionContextUpdateRequest,
   AssetAgentSessionCreateRequest,
@@ -12,6 +13,7 @@ import type {
 type AssetAgentStreamEvent =
   | { type: 'reasoning_delta'; text: string }
   | { type: 'answer_delta'; text: string }
+  | { type: 'context_cards'; cards: AssetAgentContextCard[] }
   | { type: 'final'; response: AssetAgentChatResponse }
   | { type: 'error'; message: string };
 
@@ -134,6 +136,9 @@ function parseSseFrame(frame: string): AssetAgentStreamEvent | null {
   }
   if (eventName === 'answer_delta' && typeof data.text === 'string') {
     return { type: 'answer_delta', text: data.text };
+  }
+  if (eventName === 'context_cards' && Array.isArray(data.cards)) {
+    return { type: 'context_cards', cards: data.cards as AssetAgentContextCard[] };
   }
   if (eventName === 'final') {
     return { type: 'final', response: data as unknown as AssetAgentChatResponse };

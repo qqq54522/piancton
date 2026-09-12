@@ -29,6 +29,7 @@ class AssetAgentMessageRead(ApiModel):
     role: AssetAgentMessageRole
     content: str
     used_model: bool | None = None
+    context_cards: list["AssetAgentContextCard"] = Field(default_factory=list)
     created_at: datetime
 
 
@@ -62,6 +63,10 @@ class AssetAgentContextCard(ApiModel):
     title: str
     subtitle: str | None = None
     facts: list[str] = Field(default_factory=list)
+    image_url: str | None = None
+    download_url: str | None = None
+    identity_code: str | None = None
+    asset_group_id: str | None = None
 
 
 class AssetAgentChatResponse(ApiModel):

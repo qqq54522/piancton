@@ -45,6 +45,7 @@ class AssetAgentMessage(Base):
     )
     role: Mapped[str] = mapped_column(String(20), index=True)
     content: Mapped[str] = mapped_column(Text)
+    context_cards_json: Mapped[str] = mapped_column(Text, default="[]")
     used_model: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True

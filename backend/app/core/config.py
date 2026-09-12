@@ -114,6 +114,12 @@ class Settings(BaseSettings):
     ai_search_timeout_seconds: float = 8.0
     ai_search_page_size: int = 10
     ai_search_public_base_url: str = ""
+    ai_search_behavior_enabled: bool = False
+    ai_search_behavior_api_key: str = ""
+    ai_search_behavior_dataset_id: str = ""
+    ai_search_behavior_sync_interval_seconds: int = 30
+    ai_search_behavior_sync_batch_size: int = 100
+    ai_search_behavior_sync_startup_delay_seconds: int = 10
     reranker_base_url: str = ""
     reranker_api_key: str = ""
     reranker_model_name: str = ""

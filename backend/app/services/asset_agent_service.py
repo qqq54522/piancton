@@ -53,8 +53,11 @@ from app.services.volc_ai_search_client import (
 MAX_AGENT_SESSIONS = 20
 AGENT_RESET_TIMEZONE = ZoneInfo("Asia/Shanghai")
 DEFAULT_GREETING = (
-    "我是 Piancton Agent。你可以问我图片、卖点、六大体系、素材使用和销售话术；"
-    "如果把图片发给我，我会结合已确认的素材信息一起回答。"
+    "Hi，我是洋葱业务知识助手。\n\n"
+    "我可以帮你理解洋葱学园的业务体系、核心卖点、证明点和使用场景，"
+    "也可以把这些内容转成销售话术、家长沟通、素材方向、品牌文案、课程介绍或活动说明。\n\n"
+    "你可以直接问我：某个卖点是什么意思、家长问题怎么回答、素材适合表达哪个卖点，"
+    "或者某个场景该用什么卖点切入。"
 )
 
 
@@ -209,12 +212,20 @@ class AssetAgentService:
             context_images=context_images,
         )
         if external_chat is not None:
+            recommended_cards = self._recommended_image_cards(external_chat.item_ids)
+            response_cards = _merge_context_cards(context_cards, recommended_cards)
             suggestions = _clean_suggestions(external_chat.suggestions) or _fallback_suggestions(
                 bool(images or groups)
             )
             answer = external_chat.answer.strip()
             session.suggested_questions_json = _json_dump(suggestions)
-            self._add_message(session, role="assistant", content=answer, used_model=True)
+            self._add_message(
+                session,
+                role="assistant",
+                content=answer,
+                used_model=True,
+                context_cards=recommended_cards,
+            )
             self.sessions.save(session)
             self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
             self.uow.commit()
@@ -223,7 +234,7 @@ class AssetAgentService:
                 conversation_id=session.id,
                 session=self._session_read(session),
                 suggested_questions=suggestions,
-                context_cards=context_cards,
+                context_cards=response_cards,
                 used_model=True,
                 provider_attempts=[_ai_search_chat_attempt(status="ok")],
             )
@@ -324,49 +335,90 @@ class AssetAgentService:
                 context_cards = self._context_cards(images, groups) + concept_cards
                 context_text = self._context_text(images, groups)
 
-                yield _sse(
-                    "reasoning_delta",
-                    {"text": "我会先调用洋葱业务知识问答，基于卖点体系和素材库数据回答。\n"},
-                )
-                external_chat = self._try_ai_search_chat(
-                    user=user,
-                    session=session,
-                    message=message,
-                    context_text=context_text,
-                    context_images=context_images,
-                )
-                if external_chat is not None:
-                    answer = external_chat.answer.strip()
-                    suggestions = _clean_suggestions(
-                        external_chat.suggestions
-                    ) or _fallback_suggestions(bool(images or groups))
-                    for chunk in _chunk_text(answer):
-                        yield _sse("answer_delta", {"text": chunk})
-                    session.suggested_questions_json = _json_dump(suggestions)
-                    self._add_message(
-                        session,
-                        role="assistant",
-                        content=answer,
-                        used_model=True,
-                    )
-                    self.sessions.save(session)
-                    self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
-                    self.uow.commit()
-                    response = AssetAgentChatResponse(
-                        answer=answer,
-                        conversation_id=session.id,
-                        session=self._session_read(session),
-                        suggested_questions=suggestions,
-                        context_cards=context_cards,
-                        used_model=True,
-                        provider_attempts=[_ai_search_chat_attempt(status="ok")],
-                    )
-                    yield _sse("final", response.model_dump(mode="json", by_alias=True))
-                    return
+                client = self.ai_search_chat
+                if client is not None and getattr(client, "chat_search_configured", False):
+                    answer_parts: list[str] = []
+                    external_suggestions: list[str] = []
+                    external_item_ids: list[str] = []
+                    announced_steps: set[str] = set()
+                    try:
+                        self.db.flush()
+                        for upstream in client.stream_chat_search(
+                            _ai_search_chat_message(message, context_text),
+                            session_id=session.id,
+                            user_id=user.id,
+                            page_size=self.ai_search_chat_page_size,
+                            enable_suggestions=True,
+                            image_url=_first_image_url(
+                                context_images,
+                                public_base_url=self.ai_search_public_base_url,
+                            ),
+                        ):
+                            step_text = _visible_ai_search_step(upstream.step)
+                            if step_text and step_text not in announced_steps:
+                                announced_steps.add(step_text)
+                                yield _sse("reasoning_delta", {"text": f"{step_text}\n"})
+                            if upstream.content:
+                                answer_parts.append(upstream.content)
+                                yield _sse("answer_delta", {"text": upstream.content})
+                            external_suggestions.extend(upstream.suggestions)
+                            new_item_ids = [
+                                item_id
+                                for item_id in upstream.item_ids
+                                if item_id not in external_item_ids
+                            ]
+                            if new_item_ids:
+                                external_item_ids.extend(new_item_ids)
+                                live_cards = self._recommended_image_cards(external_item_ids)
+                                if live_cards:
+                                    yield _sse(
+                                        "context_cards",
+                                        {
+                                            "cards": [
+                                                card.model_dump(mode="json", by_alias=True)
+                                                for card in live_cards
+                                            ]
+                                        },
+                                    )
+                    except VolcAiSearchClientError:
+                        if answer_parts:
+                            raise
+                    answer = "".join(answer_parts).strip()
+                    if answer:
+                        recommended_cards = self._recommended_image_cards(external_item_ids)
+                        response_cards = _merge_context_cards(
+                            context_cards,
+                            recommended_cards,
+                        )
+                        suggestions = _clean_suggestions(
+                            external_suggestions
+                        ) or _fallback_suggestions(bool(images or groups or recommended_cards))
+                        session.suggested_questions_json = _json_dump(suggestions)
+                        self._add_message(
+                            session,
+                            role="assistant",
+                            content=answer,
+                            used_model=True,
+                            context_cards=recommended_cards,
+                        )
+                        self.sessions.save(session)
+                        self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
+                        self.uow.commit()
+                        response = AssetAgentChatResponse(
+                            answer=answer,
+                            conversation_id=session.id,
+                            session=self._session_read(session),
+                            suggested_questions=suggestions,
+                            context_cards=response_cards,
+                            used_model=True,
+                            provider_attempts=[_ai_search_chat_attempt(status="ok")],
+                        )
+                        yield _sse("final", response.model_dump(mode="json", by_alias=True))
+                        return
 
                 yield _sse(
                     "reasoning_delta",
-                    {"text": "我先判断这句话是在找图、问卖点，还是要销售话术。\n"},
+                    {"text": "我先把这个问题归到合适的业务场景，再组织回答。\n"},
                 )
                 understanding = self._route_business_understanding(message, images, groups)
                 if understanding:
@@ -377,8 +429,8 @@ class AssetAgentService:
                         "reasoning_delta",
                         {
                             "text": (
-                                "我没有拿到稳定的知识库/向量库卖点结论，接下来只按当前图片、素材上下文"
-                                "和项目卖点简表组织回答。\n"
+                                "这句话暂时没有明确落到某一个卖点。"
+                                "我会先按当前图片、素材上下文和卖点简表来回答。\n"
                             )
                         },
                     )
@@ -522,11 +574,15 @@ class AssetAgentService:
         role: AssetAgentMessageRole,
         content: str,
         used_model: bool | None = None,
+        context_cards: list[AssetAgentContextCard] | None = None,
     ) -> AssetAgentMessage:
         message = AssetAgentMessage(
             session=session,
             role=role,
             content=content,
+            context_cards_json=_json_dump(
+                [card.model_dump(mode="json", by_alias=True) for card in context_cards or []]
+            ),
             used_model=used_model,
             created_at=_now(),
         )
@@ -608,6 +664,10 @@ class AssetAgentService:
                     title=image.title,
                     subtitle=image.asset_group.title if image.asset_group else "单张图片",
                     facts=facts,
+                    image_url=f"/api/images/{image.id}/thumbnail",
+                    download_url=f"/api/images/{image.id}/download",
+                    identity_code=image.identity_code,
+                    asset_group_id=image.asset_group_id,
                 )
             )
 
@@ -622,6 +682,11 @@ class AssetAgentService:
                 )
             )
         return cards
+
+    def _recommended_image_cards(self, image_ids: list[str]) -> list[AssetAgentContextCard]:
+        images = self._load_images(image_ids)
+        cards = self._context_cards(images, [])
+        return [card for card in cards if card.kind == "image"][:8]
 
     def _concept_cards(self, groups: list[AssetGroup]) -> list[AssetAgentContextCard]:
         seen: set[str] = set()
@@ -711,15 +776,9 @@ class AssetAgentService:
         error: str,
     ) -> str:
         if not images and not groups:
-            return (
-                "这次模型没有成功返回，我先说明当前能做的事：\n\n"
-                "我可以先帮你判断一段话更像在找哪个核心卖点；如果你确认，我再继续按这个卖点去素材库找图。"
-                "我也可以解释六大体系、核心卖点边界，或帮销售把家长问题改成可直接回复的话术。\n\n"
-                "当前没有图片/素材候选上下文，所以我不会编造具体图片。"
-                f"\n\n本次模型暂不可用：{_clip(error, 120)}"
-            )
+            return _fallback_business_answer(message)
         lines = [
-            "这次模型没有成功返回，我先按素材库已有信息给你一个简版判断：",
+            "我先按素材库已有信息给你一个简版判断：",
             f"你的问题：{message}",
         ]
         for group in groups[:3]:
@@ -729,7 +788,6 @@ class AssetAgentService:
             lines.append(f"\n图片「{image.title}」")
             if image.image_summary:
                 lines.append(f"- {_clip(image.image_summary, 180)}")
-        lines.append(f"\n模型暂不可用：{_clip(error, 120)}")
         return "\n".join(lines)
 
     def _route_business_understanding(
@@ -783,11 +841,21 @@ def _now() -> datetime:
 
 
 def _ai_search_chat_message(message: str, context_text: str) -> str:
+    style_instructions = (
+        "以下为内部输出要求，请遵守但不要在回答中复述："
+        "像一个自然的业务顾问在聊天，先给清楚判断，再按问题展开；"
+        "不要使用固定开场、固定段落模板或“我先判断你现在要做什么”等机械标题；"
+        "不要暴露 VikingDB、向量分数、direct/relation、置信度、数据集 ID 等内部实现；"
+        "当用户问卖点解释或家长话术时，优先输出：通俗版解释、核心大白话、"
+        "它解决的具体问题、日常沟通参考话术、适配素材关键词；"
+        "如果生成推荐问题，请给 4 个。"
+    )
     if not context_text.strip():
-        return message
+        return "\n\n".join((message, style_instructions))
     return "\n\n".join(
         (
             message,
+            style_instructions,
             "当前用户还带了以下素材上下文。请只在确有依据时引用这些素材；"
             "如果问题与素材无关，优先按洋葱业务知识回答。",
             context_text,
@@ -819,6 +887,17 @@ def _ai_search_chat_attempt(*, status: str, error: str = "") -> dict[str, Any]:
         "duration_ms": None,
         "error": error,
     }
+
+
+def _visible_ai_search_step(step: str) -> str:
+    normalized = step.strip().lower().replace("_", " ").replace("-", " ")
+    if normalized == "tool call":
+        return "正在理解需求并调用素材检索"
+    if normalized == "get results":
+        return "正在筛选与问题最相关的素材"
+    if normalized == "reply":
+        return "已完成素材判断，正在组织回答"
+    return ""
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:
@@ -894,29 +973,27 @@ def _visible_reasoning_text(understanding: SearchUnderstanding) -> str:
     concepts = understanding.matched_business_concepts
     if understanding.query_type == "no_reliable_intent_search" or not concepts:
         return (
-            "我先走了一遍知识库/向量库判断，但没有得到可靠卖点。\n"
-            "所以这句话暂时不能直接进入某个卖点下找图；我会先按普通业务问题回答，"
-            "或者请你补充想找的场景、对象和用途。\n"
+            "这句话还缺少明确的对象、动作或使用场景。\n"
+            "所以我不会硬塞进某个卖点；可以先按普通业务问题回答，"
+            "也可以请你补一句想找的场景或用途。\n"
         )
     names = "、".join(item.concept for item in concepts)
     lines = [
-        f"我先把这句话交给知识库/向量库判断，当前更像命中：{names}。\n",
-        f"判断状态：{understanding.search_intent}\n",
+        f"我先把这句话归到：{names}。\n",
+        f"核心判断：{understanding.search_intent}\n",
     ]
     for index, concept in enumerate(concepts, start=1):
         lines.append(
-            f"{index}. {concept.concept}：{concept.reason or '由知识库/向量库卖点资料命中'}；"
-            f"置信度约 {concept.weight:.0%}。\n"
+            f"{index}. {concept.concept}：{concept.reason or '和当前卖点定义最接近'}。\n"
         )
     if len(concepts) == 1:
         lines.append(
-            "如果你是在找图，我会先按这个单一卖点继续组织下一步；"
-            "如果你确认，我再去素材库里找最贴合的图片。\n"
+            "如果你是在找图，下一步就按这个卖点去匹配素材；"
+            "如果你是在问话术，我会直接帮你整理成可对外讲的表达。\n"
         )
     else:
         lines.append(
-            "这句话不是单卖点，它同时出现多个独立信号；如果你是在找图，"
-            "我会先让你确认优先找哪一个卖点下的素材。\n"
+            "这句话里有多个独立信号；如果要找图，最好先确认优先表达哪一个卖点。\n"
         )
     return "".join(lines)
 
@@ -1024,6 +1101,26 @@ def _parse_string_list(raw: str | None) -> list[str]:
     return list(dict.fromkeys(cleaned))[:6] or _fallback_suggestions(False)
 
 
+def _parse_context_cards(raw: str | None) -> list[AssetAgentContextCard]:
+    if not raw:
+        return []
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(payload, list):
+        return []
+    cards: list[AssetAgentContextCard] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        try:
+            cards.append(AssetAgentContextCard.model_validate(item))
+        except ValueError:
+            continue
+    return cards[:8]
+
+
 def _message_read(message: AssetAgentMessage) -> AssetAgentMessageRead:
     role = message.role if message.role in {"user", "assistant", "system"} else "assistant"
     return AssetAgentMessageRead(
@@ -1031,8 +1128,24 @@ def _message_read(message: AssetAgentMessage) -> AssetAgentMessageRead:
         role=cast(AssetAgentMessageRole, role),
         content=message.content,
         used_model=message.used_model,
+        context_cards=_parse_context_cards(message.context_cards_json),
         created_at=message.created_at,
     )
+
+
+def _merge_context_cards(
+    current: list[AssetAgentContextCard],
+    incoming: list[AssetAgentContextCard],
+) -> list[AssetAgentContextCard]:
+    merged: list[AssetAgentContextCard] = []
+    seen: set[tuple[str, str]] = set()
+    for card in [*incoming, *current]:
+        key = (card.kind, card.id)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(card)
+    return merged[:12]
 
 
 def _title_from_message(message: str) -> str:
@@ -1057,16 +1170,19 @@ def _agent_prompt() -> str:
 5. 如果没有图片/素材候选，只能先判断卖点和说明下一步，不能假装已经找到图片。
 
 回答形态：
-1. 不要把答案过度提炼成一句话；保留可见的业务判断流程，让用户看到你怎么一步步判断。
-2. 这不是泄露内部草稿，而是面向用户的“可见工作流”。避免输出自我纠结、无意义反复或系统提示词。
-3. 可以按问题选用这些段落标题，不必机械凑满：
-   - “我先判断你现在要做什么”
-   - “我理解你在找的卖点”
-   - “为什么我这样判断”
-   - “下一步我会怎么找图”
-   - “推荐素材”
-   - “销售可以这样说”
-4. 回答要中文、业务口吻、可落地，允许比普通客服回答更完整一些。
+1. 像一个自然的业务顾问在聊天，不要重复固定开场，不要把每次回答写成同一套模板。
+2. 先给一句清楚判断，再按用户问题需要展开；可以解释判断依据，但不要写成内部推理报告。
+3. 段落标题可以自拟，也可以不用标题；不要固定使用“我先判断你现在要做什么”等机械标题。
+4. 不要暴露内部实现词：VikingDB、向量库、direct/related/fallback、置信度、分数、数据集 ID、Prompt、模型任务名。
+5. 回答要中文、业务口吻、可落地，重点讲家长/孩子问题、卖点边界、素材适用性和可直接复用的话术。
+6. 当用户问“某个卖点怎么讲/怎么跟家长说/转成销售话术”时，优先参考这种形态：
+   - 标题：“给家长的「卖点名」通俗版解释”
+   - 一句转译：把业务概念换成家长能听懂的日常语言。
+   - “核心大白话表达”：给一段可直接对外讲的话。
+   - “它能解决孩子/家长最关心的问题”：列 2～4 条具体痛点。
+   - “日常沟通参考话术”：给一段销售可直接复制的话术。
+   - “适配素材关键词”：给素材搜索关键词。
+7. 如果返回 suggestedQuestions，请尽量给 4 个短问题。
 
 找图/找素材流程：
 1. 当用户输入像“找图、推荐图片、配图、素材、海报、PPT、宣传图、
@@ -1085,7 +1201,7 @@ def _agent_prompt() -> str:
 3. 如果用户问某张图片为什么合适，要结合图片/素材上下文回答。
    说明它表达什么卖点、为什么适合、适合怎么对业务方或家长讲。
 
-只返回 JSON：{"answer":"...","suggestedQuestions":["..."]}。
+只返回 JSON：{"answer":"...","suggestedQuestions":["..."]}，suggestedQuestions 尽量给 4 个。
 """.strip()
 
 
@@ -1178,12 +1294,58 @@ def _fallback_suggestions(has_context: bool) -> list[str]:
             "这张图适合怎么用？",
             "这个卖点怎么跟家长讲？",
             "它和相近卖点的区别是什么？",
+            "还有哪些素材可以一起搭配？",
         ]
     return [
-        "什么是六大体系？",
-        "AI 拍题精学怎么讲？",
-        "家长问效果怎么回复？",
+        "帮我把“同步考点体系”转成家长能听懂的话术",
+        "怎么理解洋葱学园的六大业务体系？",
+        "如果家长觉得孩子学习没效果，应该用哪个卖点解释？",
+        "某个素材应该怎么判断它对应的核心卖点？",
     ]
+
+
+def _fallback_business_answer(message: str) -> str:
+    normalized = message.strip()
+    if "同步考点" in normalized and ("家长" in normalized or "话术" in normalized or "听懂" in normalized):
+        return (
+            "## 给家长的「同步考点体系」通俗版解释\n\n"
+            "你可以把它理解成：孩子在学校学到哪，洋葱就跟到哪；考试重点考什么，孩子就围绕什么学、练、巩固。\n\n"
+            "## 核心大白话表达\n\n"
+            "同步考点体系不是额外给孩子加一套学习任务，而是帮孩子把校内正在学、考试经常考、容易丢分的内容重新讲清楚、练扎实。\n\n"
+            "## 它能帮孩子解决 3 个家长最关心的问题\n\n"
+            "1. **听课听懂了，但做题不会**：把知识点和典型考法连起来，不只停留在“会听”。\n"
+            "2. **复习没有重点**：围绕同步知识和高频考点走，孩子知道先补哪里、练哪里。\n"
+            "3. **家长不知道怎么帮**：不用家长重新教一遍，系统会按知识点拆解、讲解和巩固。\n\n"
+            "## 日常沟通参考话术\n\n"
+            "可以这样跟家长说：洋葱不是让孩子脱离学校另学一套，而是紧跟校内进度，把课堂里的重点、考试里的常见考法，用孩子更容易理解的方式再讲一遍，再配合练习巩固。"
+            "孩子哪里没听懂、哪里做题卡住，就回到对应考点一步步补上。\n\n"
+            "## 适配素材关键词\n\n"
+            "同步校内、考点拆解、课堂重难点、典型题、查漏补缺、课后巩固、考试提分。"
+        )
+    if "六大业务体系" in normalized:
+        return (
+            "## 洋葱六大业务体系怎么理解\n\n"
+            "可以先把六大体系看成六种不同的业务表达入口：有的负责讲清校内同步，有的负责解决学习方法，有的强调 AI 个性化，有的强调老师陪伴、规划和结果反馈。\n\n"
+            "你在做素材或销售沟通时，不需要一上来背体系名，先判断用户真实问题：是不会学、没效果、没人管、基础弱，还是想更高效提分。再把问题落到对应体系和核心卖点。"
+        )
+    if "学习没效果" in normalized or "没效果" in normalized:
+        return (
+            "## 家长觉得学习没效果时怎么切入\n\n"
+            "先别急着解释功能，先承认家长的担心：孩子花了时间但没看到变化，通常不是“不努力”，而是问题没有被定位清楚。\n\n"
+            "可以优先从学情诊断、同步考点、查漏补缺、错题复盘这类卖点切入：先找出孩子卡在哪里，再给到可执行的学习路径。"
+        )
+    if "素材" in normalized and ("判断" in normalized or "对应" in normalized or "卖点" in normalized):
+        return (
+            "## 判断素材对应核心卖点的简单方法\n\n"
+            "先看素材最想证明什么：如果画面强调孩子跟着题目一步步学懂，通常靠近同步考点或 AI 拍题精学；如果强调规划、陪伴和反馈，通常靠近老师督学或学情服务；如果强调一题多解、方法迁移，就更接近万能解法。\n\n"
+            "判断时优先看主表达，不要把一张图硬塞进多个卖点。辅助信息可以作为支持卖点记录下来。"
+        )
+    return (
+        "我先按已有业务知识给你一个可继续展开的方向：\n\n"
+        "你可以问某个卖点怎么讲、两个卖点怎么区分，或把家长问题发来让我改成销售话术。"
+        "如果你是在找图，我会先帮你确认要表达的卖点，再按这个方向找素材。\n\n"
+        "当前没有图片/素材候选上下文，所以我不会编造具体图片。"
+    )
 
 
 def _unique(values: list[str]) -> list[str]:

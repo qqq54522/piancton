@@ -1,113 +1,251 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { CheckCircle2, MessageSquareText, MousePointerClick, Search, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-import { fetchSearchOpsSummary } from '@client/src/api/admin';
+import { fetchSearchActivitySummary } from '@client/src/api/admin';
 import { getApiError } from '@client/src/api/client';
-import { Button } from '@client/src/components/ui/button';
 import PageHeader from '@client/src/components/PageHeader';
-import {
-  AssetOperationsSection,
-  AssetGapsSection,
-  FeedbackArchiveSection,
-  FeedbackSection,
-  GovernanceSection,
-  IssuesSection,
-  ConceptHealthSection,
-  OverviewSection,
-  ReviewQueueSection,
-  SearchPerformanceSection,
-  SourceLinkHealthSection,
-} from './components/SearchOpsSections';
+import { Badge } from '@client/src/components/ui/badge';
+import { Button } from '@client/src/components/ui/button';
+import type {
+  SearchFeedbackItem,
+  SearchActivitySummary,
+  SearchInteractionItem,
+  SearchLogItem,
+  SearchMetricItem,
+} from '@client/src/types/api';
 
 const dayOptions = [7, 30, 90] as const;
-
 const tabs = [
-  { id: 'overview', label: '总览' },
-  { id: 'governance', label: '项目治理' },
-  { id: 'issues', label: '待处理问题' },
-  { id: 'review', label: 'AI 待审核' },
-  { id: 'health', label: '概念健康度' },
-  { id: 'assets', label: '素材资产' },
-  { id: 'sources', label: '源文件健康' },
-  { id: 'performance', label: '模型速度' },
-  { id: 'gaps', label: '素材缺口' },
-  { id: 'archive', label: '反馈归档' },
-  { id: 'records', label: '反馈记录' },
+  { id: 'searches', label: '搜索记录' },
+  { id: 'behavior', label: '搜索后行为' },
+  { id: 'feedback', label: '用户反馈' },
 ] as const;
-
 type TabId = (typeof tabs)[number]['id'];
+
+const roleLabels: Record<string, string> = {
+  admin: '管理员',
+  designer: '设计师',
+  business: '业务用户',
+};
+
+const interactionLabels: Record<string, string> = {
+  exposure: '看到图片',
+  open_detail: '打开图片',
+  download: '下载图片',
+  copy_identity: '复制身份码',
+  add_to_project: '加入项目夹',
+  remove_from_project: '移出项目夹',
+  send_to_agent: '发送到 Agent',
+};
+
+const feedbackLabels: Record<string, string> = {
+  relevant: '满意',
+  not_relevant: '不满意',
+  too_few_results: '结果太少',
+  need_different_style: '渠道或风格不对',
+  right_business_wrong_visual: '卖点对，画面不对',
+  right_visual_wrong_business: '画面对，卖点不对',
+  wrong_version: '版本或尺寸不对',
+  asset_request: '没有合适素材',
+};
 
 export default function AdminSearchOps() {
   const [days, setDays] = useState<(typeof dayOptions)[number]>(7);
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>('searches');
   const summary = useQuery({
     queryKey: ['search-ops-summary', days],
-    queryFn: () => fetchSearchOpsSummary(days),
+    queryFn: () => fetchSearchActivitySummary(days),
   });
   const data = summary.data;
 
   return (
-    <div className="page-shell">
+    <div className="page-shell max-w-[1500px]">
       <PageHeader
-        eyebrow="Search Operations"
         title="搜索运营"
-        description="从真实查询和业务反馈中发现搜索问题、待审核卖点关系与素材缺口。"
         actions={(
-        <div className="inline-flex w-fit overflow-hidden rounded-xl border border-border bg-card p-1">
-          {dayOptions.map((value) => (
-            <Button
-              key={value}
-              variant={days === value ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setDays(value)}
-            >
-              {value} 天
-            </Button>
-          ))}
-        </div>
+          <div className="inline-flex w-fit overflow-hidden rounded-xl border border-border bg-card p-1">
+            {dayOptions.map((value) => (
+              <Button
+                key={value}
+                variant={days === value ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setDays(value)}
+              >
+                {value} 天
+              </Button>
+            ))}
+          </div>
         )}
       />
 
-      <div className="mt-7 flex flex-wrap gap-1 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
-        {tabs.map((tab) => (
-          <Button
-            key={tab.id}
-            variant={activeTab === tab.id ? 'default' : 'ghost'}
-            size="sm"
-            className=""
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </Button>
-        ))}
-      </div>
-
       {summary.isLoading ? (
-        <p className="mt-6 text-sm text-muted-foreground">正在加载...</p>
+        <p className="mt-7 text-sm text-muted-foreground">正在加载…</p>
       ) : summary.isError ? (
-        <p className="mt-6 text-sm text-destructive">{getApiError(summary.error).message}</p>
+        <p className="mt-7 text-sm text-destructive">{getApiError(summary.error).message}</p>
       ) : data ? (
-        <div className="mt-7">
-          {activeTab === 'overview' && <OverviewSection data={data} />}
-          {activeTab === 'governance' && <GovernanceSection data={data} />}
-          {activeTab === 'issues' && <IssuesSection issues={data.searchIssues} />}
-          {activeTab === 'review' && <ReviewQueueSection items={data.aiReviewQueue} />}
-          {activeTab === 'health' && <ConceptHealthSection items={data.conceptHealth} />}
-          {activeTab === 'assets' && (
-            <AssetOperationsSection
-              overview={data.assetOperations}
-              issues={data.assetOpsIssues}
-            />
-          )}
-          {activeTab === 'sources' && <SourceLinkHealthSection data={data.sourceLinkHealth} />}
-          {activeTab === 'performance' && <SearchPerformanceSection data={data.searchPerformance} />}
-          {activeTab === 'gaps' && <AssetGapsSection items={data.assetGaps} />}
-          {activeTab === 'archive' && <FeedbackArchiveSection feedback={data.recentFeedback} />}
-          {activeTab === 'records' && (
-            <FeedbackSection feedback={data.recentFeedback} logs={data.recentLogs} />
-          )}
-        </div>
+        <>
+          <SearchOverview data={data} />
+          <div className="mt-6 inline-flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
+            {tabs.map((tab) => (
+              <Button
+                key={tab.id}
+                variant={activeTab === tab.id ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="mt-4">
+            {activeTab === 'searches' && (
+              <SearchesSection rows={data.recentLogs} topQueries={data.topQueries} />
+            )}
+            {activeTab === 'behavior' && <BehaviorSection rows={data.recentInteractions} />}
+            {activeTab === 'feedback' && <FeedbackSection rows={data.recentFeedback} />}
+          </div>
+        </>
       ) : null}
     </div>
   );
+}
+
+function SearchOverview({ data }: { data: SearchActivitySummary }) {
+  const items = [
+    { label: '搜索次数', value: data.totalSearches, icon: Search },
+    { label: '搜索用户', value: data.searchUserCount, icon: Users },
+    { label: '搜索后操作', value: data.interactionCount, icon: MousePointerClick },
+    { label: '反馈完成率', value: `${data.feedbackResponseRate}%`, icon: MessageSquareText },
+  ];
+  return (
+    <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div key={item.label} className="surface-card p-4">
+            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+              <span>{item.label}</span>
+              <Icon className="size-4" />
+            </div>
+            <div className="mt-2 text-2xl font-semibold">{item.value}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SearchesSection({ rows, topQueries }: { rows: SearchLogItem[]; topQueries: SearchMetricItem[] }) {
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="surface-card overflow-hidden">
+        <SectionTitle title="他们搜索了什么" />
+        {rows.length ? rows.map((row) => (
+          <div
+            key={row.id}
+            className="grid gap-2 border-b border-border/70 px-5 py-4 text-sm last:border-0 lg:grid-cols-[150px_150px_minmax(220px,1.6fr)_minmax(150px,1fr)_90px]"
+          >
+            <time className="text-xs text-muted-foreground">{formatTime(row.createdAt)}</time>
+            <UserCell username={row.actorUsername} role={row.actorRole} />
+            <div className="min-w-0">
+              <p className="font-medium text-foreground">{row.keyword}</p>
+              {row.normalizedQuery && row.normalizedQuery !== row.keyword && (
+                <p className="mt-1 truncate text-xs text-muted-foreground">理解为：{row.normalizedQuery}</p>
+              )}
+            </div>
+            <span className="text-muted-foreground">{row.matchedConcept || '未命中卖点'}</span>
+            <Badge variant={row.resultCount > 0 ? 'secondary' : 'outline'} className="h-fit w-fit">
+              {row.resultCount} 张
+            </Badge>
+          </div>
+        )) : <EmptyText text="暂无搜索记录" />}
+      </section>
+
+      <section className="surface-card h-fit overflow-hidden">
+        <SectionTitle title="常搜内容" />
+        {topQueries.length ? topQueries.map((item) => (
+          <div key={item.label} className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 text-sm last:border-0">
+            <span className="min-w-0 truncate">{item.label}</span>
+            <Badge variant="outline">{item.count}</Badge>
+          </div>
+        )) : <EmptyText text="暂无高频搜索" />}
+      </section>
+    </div>
+  );
+}
+
+function BehaviorSection({ rows }: { rows: SearchInteractionItem[] }) {
+  return (
+    <section className="surface-card overflow-hidden">
+      <SectionTitle title="搜索与 Agent 的素材行为" />
+      {rows.length ? rows.map((row) => (
+        <div
+          key={row.id}
+          className="grid gap-2 border-b border-border/70 px-5 py-4 text-sm last:border-0 md:grid-cols-[160px_160px_150px_minmax(220px,1fr)_120px]"
+        >
+          <time className="text-xs text-muted-foreground">{formatTime(row.createdAt)}</time>
+          <UserCell username={row.actorUsername} role={row.actorRole} />
+          <Badge variant="outline" className="h-fit w-fit">{interactionLabels[row.action] ?? row.action}</Badge>
+          <span className="min-w-0 truncate">
+            {row.source === 'agent_chat' ? 'Agent 推荐' : row.keyword || '—'}
+          </span>
+          {row.resultImageId ? (
+            <Link className="text-xs font-medium text-foreground underline-offset-4 hover:underline" to={`/image/${row.resultImageId}`}>
+              查看图片{row.position ? ` · 第 ${row.position} 位` : ''}
+            </Link>
+          ) : <span className="text-xs text-muted-foreground">—</span>}
+        </div>
+      )) : <EmptyText text="暂无搜索后行为记录" />}
+    </section>
+  );
+}
+
+function FeedbackSection({ rows }: { rows: SearchFeedbackItem[] }) {
+  return (
+    <section className="surface-card overflow-hidden">
+      <SectionTitle title="满意度与改进意见" />
+      {rows.length ? rows.map((row) => {
+        const positive = row.feedbackType === 'relevant';
+        return (
+          <div
+            key={row.id}
+            className="grid gap-2 border-b border-border/70 px-5 py-4 text-sm last:border-0 lg:grid-cols-[160px_150px_110px_minmax(180px,0.9fr)_minmax(240px,1.4fr)]"
+          >
+            <time className="text-xs text-muted-foreground">{formatTime(row.createdAt)}</time>
+            <UserCell username={row.actorUsername} role={row.actorRole} />
+            <Badge variant={positive ? 'secondary' : 'outline'} className="h-fit w-fit">
+              {positive && <CheckCircle2 className="mr-1 size-3" />}
+              {feedbackLabels[row.feedbackType] ?? row.feedbackType}
+            </Badge>
+            <span className="min-w-0 truncate font-medium">{row.keyword}</span>
+            <span className="text-muted-foreground">{row.note || '未填写改进意见'}</span>
+          </div>
+        );
+      }) : <EmptyText text="暂无用户反馈" />}
+    </section>
+  );
+}
+
+function SectionTitle({ title }: { title: string }) {
+  return <h2 className="border-b border-border bg-secondary/30 px-5 py-3 text-sm font-semibold">{title}</h2>;
+}
+
+function UserCell({ username, role }: { username?: string | null; role?: string | null }) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate font-medium">{username || '未知用户'}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{role ? roleLabels[role] ?? role : '—'}</p>
+    </div>
+  );
+}
+
+function EmptyText({ text }: { text: string }) {
+  return <div className="grid min-h-32 place-items-center text-sm text-muted-foreground">{text}</div>;
+}
+
+function formatTime(value: string) {
+  return new Date(value).toLocaleString('zh-CN');
 }

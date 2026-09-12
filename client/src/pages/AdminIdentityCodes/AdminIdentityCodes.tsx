@@ -52,9 +52,7 @@ export default function AdminIdentityCodes() {
   return (
     <div className="page-shell max-w-7xl">
       <PageHeader
-        eyebrow="Image Identity"
         title="身份码管理"
-        description="每张当前图片只对应一个身份码；图片删除后，身份码同步从这里移除。"
         actions={(
           <Button variant="outline" size="sm" onClick={() => query.refetch()} disabled={query.isFetching}>
             <RefreshCw className={query.isFetching ? 'size-4 animate-spin' : 'size-4'} />

@@ -81,12 +81,13 @@ function SearchResultGrid({
         animate="visible"
         variants={staggerVariants}
       >
-        {visibleItems.map((scored) => (
+        {visibleItems.map((scored, index) => (
           <ScoredImageCard
             key={scored.assetGroupId || scored.image.id}
             scored={scored}
             keyword={keyword}
             searchLogId={searchLogId}
+            position={index + 1}
             showSearchContext={showSearchContext}
             animateGifPreview={animateGifPreview}
             inProjectBasket={isInProjectBasket?.(scored.assetGroupId)}

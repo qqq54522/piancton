@@ -1,25 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ChevronDown,
   ChevronUp,
+  Copy,
+  Download,
   Image as ImageIcon,
   Loader2,
-  MessageSquare,
   Plus,
+  Search,
   Send,
-  Trash2,
+  Sparkles,
   X,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import {
   createAssetAgentSession,
-  deleteAssetAgentSession,
   listAssetAgentSessions,
   sendAssetAgentMessage,
   streamAssetAgentMessage,
   updateAssetAgentSessionContext,
 } from '@client/src/api/assetAgent';
 import { getApiError } from '@client/src/api/client';
+import { recordSearchInteraction } from '@client/src/api/image';
 import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
 import { Button } from '@client/src/components/ui/button';
 import {
@@ -28,12 +31,13 @@ import {
 } from '@client/src/features/assets/assetAgentEvents';
 import { clearLegacyAssetAgentStorage } from '@client/src/features/assets/assetAgentStorage';
 import { useAuth } from '@client/src/lib/auth';
+import { copyTextToClipboard } from '@client/src/lib/clipboard';
+import type { AssetAgentContextCard } from '@client/src/types/api';
 import {
   contextPayloadToApi,
   createLocalSession,
+  DEFAULT_GREETING,
   DEFAULT_QUESTIONS,
-  formatExpiry,
-  formatSessionTime,
   isLocalSession,
   responseMessage,
   safeId,
@@ -51,26 +55,33 @@ const AUTO_IMAGE_PROMPT = '请讲解这张图片，判断它适合表达什么�
 interface AssetAgentWidgetProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  topOffset?: number;
 }
 
-const AssetAgentWidget = ({ open, onOpenChange }: AssetAgentWidgetProps = {}) => {
+const AssetAgentWidget = ({ open, onOpenChange, topOffset = 0 }: AssetAgentWidgetProps = {}) => {
   const { user } = useAuth();
   if (!user) return null;
 
-  return <AssetAgentWidgetInner key={user.id} open={open} onOpenChange={onOpenChange} />;
+  return (
+    <AssetAgentWidgetInner
+      key={user.id}
+      open={open}
+      onOpenChange={onOpenChange}
+      topOffset={topOffset}
+    />
+  );
 };
 
 function AssetAgentWidgetInner({
   open: controlledOpen,
   onOpenChange,
+  topOffset = 0,
 }: AssetAgentWidgetProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [input, setInput] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
-  const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
   const [state, setState] = useState<AgentState>(() => stateFromSessions([createLocalSession()]));
-  const sessionMenuRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const askRef = useRef<((question?: string, sessionOverride?: AgentSession) => Promise<void>) | null>(null);
   const [markState, setMarkState] = useState<'idle' | 'thinking' | 'happy' | 'wake'>('idle');
@@ -86,12 +97,11 @@ function AssetAgentWidgetInner({
       message.role === 'assistant' && message.streaming
     )),
   );
-  const orbState = loading ? 'thinking' : markState;
-  const persistedSessionCount = state.sessions.filter((session) => !isLocalSession(session.id)).length;
-  const sessionCount = persistedSessionCount || state.sessions.length;
-  const isTemporarySession = isLocalSession(activeSession.id);
   const activeSessionId = activeSession.id;
   const activeMessageCount = activeSession.messages.length;
+  const isIntroOnly = activeSession.messages.length === 1
+    && activeSession.messages[0]?.role === 'assistant'
+    && activeSession.messages[0]?.content === DEFAULT_GREETING;
   const open = controlledOpen ?? internalOpen;
 
   const setOpenState = useCallback((nextOpen: boolean) => {
@@ -240,31 +250,6 @@ function AssetAgentWidgetInner({
   }, [activeSessionId, activeMessageCount, loading, open]);
 
   useEffect(() => {
-    if (!sessionMenuOpen) return undefined;
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Node
-        && sessionMenuRef.current
-        && !sessionMenuRef.current.contains(target)
-      ) {
-        setSessionMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSessionMenuOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [sessionMenuOpen]);
-
-  useEffect(() => {
     return listenForAssetAgentImages((image) => {
       void (async () => {
         const session = await addImageToSession(image);
@@ -274,39 +259,16 @@ function AssetAgentWidgetInner({
   }, [addImageToSession]);
 
   const createNewSession = async () => {
-    setSessionMenuOpen(false);
     setInput('');
     setMarkState('wake');
     window.setTimeout(() => setMarkState('idle'), 900);
+    const localSession = createLocalSession();
+    setState((current) => upsertSession(current, localSession, localSession.id));
     try {
       const created = await createAssetAgentSession();
       setState((current) => upsertSession(current, sessionFromApi(created), created.id));
     } catch (error) {
-      pushAssistantError(getApiError(error).message);
-    }
-  };
-
-  const removeActiveSession = async () => {
-    if (!activeSession) return;
-    const target = activeSession;
-    setSessionMenuOpen(false);
-    setInput('');
-    if (isLocalSession(target.id)) {
-      setState(stateFromSessions([createLocalSession()]));
-      return;
-    }
-
-    try {
-      await deleteAssetAgentSession(target.id);
-      const remaining = state.sessions.filter((session) => session.id !== target.id);
-      if (remaining.length > 0) {
-        setState(stateFromSessions(remaining, remaining[0].id));
-        return;
-      }
-      const created = await createAssetAgentSession();
-      setState(stateFromSessions([sessionFromApi(created)], created.id));
-    } catch (error) {
-      pushAssistantError(getApiError(error).message, target.id);
+      pushAssistantError(getApiError(error).message, localSession.id);
     }
   };
 
@@ -394,6 +356,18 @@ function AssetAgentWidgetInner({
           })));
           return;
         }
+        if (event.type === 'context_cards') {
+          setState((current) => updateSession(current, targetSession.id, (session) => ({
+            ...session,
+            messages: session.messages.map((item) => (
+              item.id === assistantMessageId
+                ? { ...item, contextCards: event.cards }
+                : item
+            )),
+            updatedAt: Date.now(),
+          })));
+          return;
+        }
         setState((current) => updateSession(current, targetSession.id, (session) => ({
           ...session,
           messages: session.messages.map((item) => (
@@ -402,6 +376,7 @@ function AssetAgentWidgetInner({
                 ...item,
                 content: item.content || event.response.answer,
                 usedModel: event.response.usedModel,
+                contextCards: event.response.contextCards,
                 streaming: false,
               }
               : item
@@ -457,137 +432,36 @@ function AssetAgentWidgetInner({
   });
 
   if (!open) {
-    return (
-      <div className="fixed bottom-8 right-6 z-50">
-        <button
-          type="button"
-          className="agent-launcher-glow inline-flex items-center gap-2 rounded-full border border-white/80 bg-card/90 px-3 py-2 shadow-2xl shadow-foreground/18 backdrop-blur transition-transform hover:-translate-y-1"
-          onClick={() => {
-            setMarkState('wake');
-            setOpenState(true);
-            window.setTimeout(() => setMarkState('idle'), 900);
-          }}
-          aria-label="打开 Piancton Agent"
-        >
-          <PianctonAgentMark size="md" state={markState} />
-          <span className="hidden pr-1 text-xs font-semibold text-foreground sm:inline">
-            Agent
-          </span>
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (
     <aside
-      className="fixed bottom-0 right-0 top-0 z-50 flex h-dvh w-full flex-col overflow-hidden border-l border-border/80 bg-card/95 shadow-2xl shadow-foreground/18 backdrop-blur-xl sm:w-[420px] lg:w-[440px]"
+      className="fixed bottom-0 right-0 z-50 flex w-full flex-col overflow-hidden border-l border-border/80 bg-card/95 shadow-2xl shadow-foreground/18 backdrop-blur-xl sm:w-[420px] lg:w-[440px]"
+      style={{
+        top: topOffset,
+        height: `calc(100dvh - ${topOffset}px)`,
+      }}
       aria-label="Piancton Agent 对话侧栏"
     >
-      <div className="border-b border-border/70 bg-gradient-to-br from-secondary/70 via-card to-card px-4 py-3.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <PianctonAgentMark size="md" state={orbState} />
-            <div>
-              <p className="text-sm font-semibold tracking-tight">Piancton Agent</p>
-              <p className="text-[11px] leading-4 text-muted-foreground">
-                {loading
-                  ? '正在理解素材上下文'
-                  : isTemporarySession
-                    ? '当前页面临时记录，未写入账号'
-                    : `${sessionCount} 条今日记录 · ${formatExpiry(activeSession.expiresAt)} 清空`}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 rounded-full"
-              onClick={() => void createNewSession()}
-              title="新建聊天记录"
-            >
-              <Plus className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 rounded-full"
-              onClick={() => setOpenState(false)}
-              title="收起"
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <div ref={sessionMenuRef} className="relative min-w-0 flex-1">
-            <button
-              type="button"
-              className="agent-session-select flex w-full items-center gap-2 px-3.5 text-left"
-              aria-haspopup="listbox"
-              aria-expanded={sessionMenuOpen}
-              onClick={() => setSessionMenuOpen((current) => !current)}
-            >
-              <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">
-                {activeSession.title} · {formatSessionTime(activeSession.updatedAt)}
-              </span>
-              {sessionMenuOpen ? (
-                <ChevronUp className="size-4 shrink-0 text-foreground" />
-              ) : (
-                <ChevronDown className="size-4 shrink-0 text-foreground" />
-              )}
-            </button>
-            {sessionMenuOpen && (
-              <div
-                className="agent-session-menu compact-scrollbar absolute left-0 right-0 top-[calc(100%+8px)] z-30 max-h-56 overflow-y-auto rounded-2xl border border-border/80 bg-card p-1.5 shadow-xl shadow-foreground/12"
-                role="listbox"
-              >
-                {state.sessions.map((session) => (
-                  <button
-                    key={session.id}
-                    type="button"
-                    role="option"
-                    aria-selected={session.id === activeSession.id}
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition hover:bg-secondary/70 data-[active=true]:bg-secondary"
-                    data-active={session.id === activeSession.id}
-                    onClick={() => {
-                      setState((current) => ({
-                        ...current,
-                        activeSessionId: session.id,
-                      }));
-                      setInput('');
-                      setSessionMenuOpen(false);
-                    }}
-                  >
-                    <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-medium text-foreground">
-                        {session.title}
-                      </span>
-                      <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                        {formatSessionTime(session.updatedAt)}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-9 rounded-full"
-            onClick={() => void removeActiveSession()}
-            title="删除当前聊天记录"
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
+      <div className="flex h-12 items-center justify-end gap-2 border-b border-border/60 bg-white px-4">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition hover:bg-secondary/70 hover:text-foreground"
+          onClick={() => void createNewSession()}
+        >
+          <Plus className="size-3.5" />
+          新对话
+        </button>
+        <button
+          type="button"
+          className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary/70 hover:text-foreground"
+          onClick={() => setOpenState(false)}
+          aria-label="收起 Piancton Agent"
+          title="收起"
+        >
+          <X className="size-4" />
+        </button>
       </div>
 
       {activeSession.contextImages.length > 0 && (
@@ -628,90 +502,68 @@ function AssetAgentWidgetInner({
         </div>
       )}
 
-      <div className="compact-scrollbar flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        {activeSession.messages.map((message) => (
+      <div className="compact-scrollbar flex-1 space-y-5 overflow-y-auto px-5 py-5">
+        {activeSession.messages.map((message, index) => {
+          const previousUserMessage = activeSession.messages
+            .slice(0, index)
+            .reverse()
+            .find((item) => item.role === 'user')?.content;
+          const isIntroMessage = message.role === 'assistant' && message.content === DEFAULT_GREETING;
+          return (
           <div
             key={message.id}
             className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
           >
             <div
               className={[
-                'max-w-[86%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-xs leading-5 shadow-sm',
+                'whitespace-pre-wrap',
                 message.role === 'user'
-                  ? 'bg-foreground text-background shadow-foreground/10'
+                  ? 'max-w-[82%] rounded-full bg-foreground px-4 py-2.5 text-[13px] leading-5 text-background shadow-sm shadow-foreground/10'
                   : message.role === 'system'
-                    ? 'bg-secondary text-muted-foreground'
-                    : 'border border-border/70 bg-[#f8f7f4] text-foreground',
+                    ? 'max-w-[92%] rounded-2xl bg-secondary px-3 py-2 text-[13px] leading-6 text-muted-foreground'
+                    : isIntroMessage
+                      ? 'w-full text-foreground'
+                      : 'w-full text-foreground',
               ].join(' ')}
             >
+              {isIntroMessage ? (
+                <AgentIntroCard onAsk={(question) => void ask(question)} />
+              ) : null}
               {message.role === 'assistant' && message.reasoningContent && (
-                <div className="mb-2 rounded-2xl border border-border/70 bg-white/75 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-                  <div className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
-                    <PianctonAgentMark
-                      size="sm"
-                      state={message.streaming ? 'thinking' : 'happy'}
-                      className="!size-4 shrink-0"
-                    />
-                    <span>{message.streaming ? '思考中…' : '已深度思考'}</span>
-                    {message.streaming && (
-                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-                  {message.reasoningContent}
-                </div>
+                <AgentAnalysisCard
+                  query={previousUserMessage}
+                  streaming={Boolean(message.streaming)}
+                />
               )}
-              <AgentMessageContent
-                content={message.content || (message.streaming ? '正在组织最终回答…' : '')}
-              />
-              {message.role === 'assistant' && message.usedModel === false && (
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  未调用到模型，已走本地兜底
-                </p>
+              {!isIntroMessage && (
+                <AgentMessageContent
+                  content={message.content || (message.streaming ? '正在生成回答内容…' : '')}
+                />
+              )}
+              {message.role === 'assistant' && message.contextCards && (
+                <AgentImageCards
+                  cards={message.contextCards}
+                  conversationId={activeSession.id}
+                />
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
         {loading && !hasStreamingAssistant && (
           <div className="flex justify-start">
-            <div className="agent-thinking-card w-[92%] rounded-[22px] border border-border/80 bg-white px-4 py-3.5 text-xs shadow-md shadow-foreground/8">
-              <div className="flex items-start gap-3">
-                <PianctonAgentMark size="sm" state="thinking" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-foreground">Agent 正在思考</p>
-                    <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-                  </div>
-                  <p className="mt-1 leading-5 text-muted-foreground">
-                    我会先判断你是在找图、问卖点还是要销售话术，再给出下一步。
-                  </p>
-                  <div className="mt-3 space-y-1.5">
-                    {[
-                      '判断当前需求：找图 / 解释 / 销售回复',
-                      '对照六大体系、核心卖点和素材事实',
-                      '组织成可确认、可继续推进的回答',
-                    ].map((step, index) => (
-                      <div
-                        key={step}
-                        className="agent-thinking-step flex items-center gap-2 rounded-full bg-secondary/70 px-2.5 py-1.5 text-[11px] text-muted-foreground"
-                        style={{ animationDelay: `${index * 180}ms` }}
-                      >
-                        <span className="size-1.5 rounded-full bg-foreground/40" />
-                        <span>{step}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            <div className="w-full">
+              <AgentAnalysisCard query={input} streaming />
             </div>
           </div>
         )}
-        {!loading && activeSession.suggestedQuestions.length > 0 && (
-          <div className="ml-auto w-[86%] space-y-1.5">
-            {activeSession.suggestedQuestions.slice(0, 3).map((question) => (
+        {!loading && !isIntroOnly && activeSession.suggestedQuestions.length > 0 && (
+          <div className="ml-auto w-[92%] space-y-2">
+            {activeSession.suggestedQuestions.slice(0, 4).map((question) => (
               <button
                 key={question}
                 type="button"
-                className="w-full rounded-xl border border-border/70 bg-white px-3 py-2 text-left text-[11px] leading-4 text-foreground shadow-sm transition hover:border-foreground/20 hover:bg-secondary/60"
+                className="w-full rounded-full border border-border/70 bg-white px-4 py-2.5 text-left text-[13px] leading-5 text-foreground transition hover:border-foreground/20 hover:bg-secondary/60"
                 onClick={() => void ask(question)}
               >
                 {question}
@@ -722,13 +574,13 @@ function AssetAgentWidgetInner({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-border/70 bg-card/95 px-4 py-3">
-        <div className="flex items-end gap-2">
+      <div className="border-t border-border/60 bg-white px-5 py-3">
+        <div className="flex items-center gap-2 rounded-[18px] border border-border bg-white px-3.5 py-2 shadow-sm transition focus-within:border-foreground/20 focus-within:ring-2 focus-within:ring-foreground/5">
           <textarea
             value={input}
-            rows={2}
+            rows={1}
             placeholder="问我：这张图怎么用、卖点怎么讲、销售怎么回复？"
-            className="min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-white px-3 py-2 text-xs outline-none transition focus:border-foreground/30 focus:shadow-sm"
+            className="min-h-9 max-h-28 flex-1 resize-none border-0 bg-transparent px-0 py-1.5 text-[15px] leading-6 outline-none placeholder:text-muted-foreground/90 focus:ring-0"
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
@@ -740,7 +592,7 @@ function AssetAgentWidgetInner({
           <Button
             type="button"
             size="icon"
-            className="size-10 rounded-full"
+            className="size-9 shrink-0 rounded-full"
             disabled={Boolean(loadingSessionId) || !input.trim()}
             onClick={() => void ask()}
           >
@@ -752,42 +604,266 @@ function AssetAgentWidgetInner({
   );
 }
 
+function AgentIntroCard({ onAsk }: { onAsk: (question: string) => void }) {
+  const paragraphs = DEFAULT_GREETING.split('\n\n');
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3 text-sm leading-7 text-foreground">
+        {paragraphs.map((paragraph, index) => (
+          <p key={paragraph} className={index === 0 ? 'text-base font-semibold leading-7' : undefined}>
+            {paragraph}
+          </p>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 pt-1 text-[13px] font-medium text-muted-foreground">
+        <Sparkles className="size-3.5" />
+        <span>试试这样问我</span>
+      </div>
+      <div className="space-y-2">
+        {DEFAULT_QUESTIONS.map((question) => (
+          <button
+            key={question}
+            type="button"
+            className="w-full rounded-full border border-border/80 bg-white px-4 py-2.5 text-left text-[13px] leading-5 text-foreground transition hover:border-foreground/20 hover:bg-secondary/60"
+            onClick={() => onAsk(question)}
+          >
+            {question}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AgentAnalysisCard({
+  query,
+  streaming,
+}: {
+  query?: string;
+  streaming: boolean;
+}) {
+  const trimmedQuery = _clipText(query?.trim() || '当前问题', 24);
+  const queryChips = [
+    trimmedQuery,
+    buildAnalysisFollowupChip(query || ''),
+  ].filter((item, index, values) => item && values.indexOf(item) === index);
+  const steps = [
+    '分析您的需求',
+    '查询符合需求的物品',
+    '整合多源信息，筛选精选内容',
+    '生成回复内容',
+  ];
+  return (
+    <div className="agent-thinking-card mb-3 rounded-2xl bg-[#f3f4f8] px-4 py-3 text-xs leading-5 text-muted-foreground">
+      <div className="mb-2 flex items-center justify-between gap-2 font-semibold text-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          {streaming ? (
+            <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+          ) : (
+            <PianctonAgentMark size="sm" state="happy" interactive={false} className="!size-4" />
+          )}
+          问题分析{streaming ? '中…' : '完成'}
+        </span>
+        <ChevronUp className="size-3.5 text-muted-foreground" />
+      </div>
+      <div className="space-y-1.5">
+        {steps.map((step, index) => (
+          <div key={step} className="flex items-start gap-2">
+            <span
+              className={[
+                'mt-1.5 size-1.5 shrink-0 rounded-full',
+                index < 2 || !streaming ? 'bg-foreground/45' : 'bg-border',
+              ].join(' ')}
+            />
+            <span>{step}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {queryChips.map((item) => (
+          <div
+            key={item}
+            className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs text-foreground shadow-sm"
+          >
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <Search className="size-3 shrink-0 text-muted-foreground" />
+              <span className="truncate">{item}</span>
+            </span>
+            <span className="text-muted-foreground">→</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function buildAnalysisFollowupChip(query: string) {
+  const normalized = query.trim();
+  if (!normalized) return '梳理业务知识与表达方式';
+  if (/家长|话术|沟通|听懂|转成/.test(normalized)) {
+    return '整理成家长能听懂的表达';
+  }
+  return `帮我把“${_clipText(normalized, 16)}”转成家长能听懂的话术`;
+}
+
 function AgentMessageContent({ content }: { content: string }) {
   const lines = content.split('\n');
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2 text-sm leading-7 text-foreground">
       {lines.map((rawLine, index) => {
         const line = rawLine.trim();
         const key = `${index}-${rawLine}`;
         if (!line) return <div key={key} className="h-1" />;
         if (/^#{1,3}\s+/.test(line)) {
           return (
-            <p key={key} className="pt-1 text-[13px] font-semibold text-foreground">
+            <p key={key} className="pt-1 text-base font-semibold leading-7 text-foreground">
               {renderInlineMarkdown(line.replace(/^#{1,3}\s+/, ''))}
             </p>
           );
         }
         if (/^[-*]\s+/.test(line)) {
           return (
-            <p key={key} className="pl-3 text-xs leading-5 before:mr-1 before:content-['•']">
+            <p key={key} className="pl-3 text-sm leading-7 before:mr-1 before:content-['•']">
               {renderInlineMarkdown(line.replace(/^[-*]\s+/, ''))}
             </p>
           );
         }
         if (/^\d+[.)、]\s*/.test(line)) {
           return (
-            <p key={key} className="text-xs leading-5">
+            <p key={key} className="text-sm leading-7">
               {renderInlineMarkdown(line)}
             </p>
           );
         }
         return (
-          <p key={key} className="text-xs leading-5">
+          <p key={key} className="text-sm leading-7">
             {renderInlineMarkdown(line)}
           </p>
         );
       })}
     </div>
+  );
+}
+
+function AgentImageCards({
+  cards,
+  conversationId,
+}: {
+  cards: AssetAgentContextCard[];
+  conversationId: string;
+}) {
+  const imageCards = cards.filter((card) => card.kind === 'image' && card.imageUrl).slice(0, 8);
+  if (imageCards.length === 0) return null;
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Agent 推荐素材">
+      {imageCards.map((card, index) => (
+        <AgentImageCard
+          key={card.id}
+          card={card}
+          conversationId={conversationId}
+          position={index + 1}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AgentImageCard({
+  card,
+  conversationId,
+  position,
+}: {
+  card: AssetAgentContextCard;
+  conversationId: string;
+  position: number;
+}) {
+  const cardRef = useRef<HTMLElement | null>(null);
+  const exposureSent = useRef(false);
+  const track = useCallback((action: 'exposure' | 'open_detail' | 'download' | 'copy_identity') => {
+    void recordSearchInteraction({
+      searchLogId: null,
+      keyword: '',
+      action,
+      resultImageId: card.id,
+      assetGroupId: card.assetGroupId,
+      position,
+      source: 'agent_chat',
+      conversationId,
+    }).catch(() => undefined);
+  }, [card.assetGroupId, card.id, conversationId, position]);
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element || exposureSent.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || exposureSent.current) return;
+      exposureSent.current = true;
+      track('exposure');
+      observer.disconnect();
+    }, { threshold: 0.45 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [track]);
+
+  const copyIdentity = async () => {
+    if (!card.identityCode) return;
+    if (await copyTextToClipboard(card.identityCode)) {
+      track('copy_identity');
+      toast.success('身份码已复制');
+    } else {
+      toast.error('复制失败');
+    }
+  };
+
+  return (
+    <article ref={cardRef} className="group overflow-hidden rounded-xl border border-border/70 bg-white shadow-sm">
+      <Link
+        to={`/image/${card.id}`}
+        className="block aspect-[4/3] overflow-hidden bg-secondary"
+        onClick={() => track('open_detail')}
+      >
+        <img
+          src={card.imageUrl || `/api/images/${card.id}/thumbnail`}
+          alt={card.title}
+          className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+          loading="lazy"
+          decoding="async"
+        />
+      </Link>
+      <div className="space-y-1.5 p-2.5">
+        <p className="line-clamp-2 text-[13px] font-medium leading-5 text-foreground">
+          {card.title}
+        </p>
+        {card.identityCode && (
+          <p className="text-[11px] text-muted-foreground">{card.identityCode}</p>
+        )}
+        <div className="flex items-center gap-1">
+          {card.identityCode && (
+            <button
+              type="button"
+              onClick={() => void copyIdentity()}
+              className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              aria-label={`复制 ${card.title} 的身份码`}
+              title="复制身份码"
+            >
+              <Copy className="size-3.5" />
+            </button>
+          )}
+          {card.downloadUrl && (
+            <a
+              href={card.downloadUrl}
+              download
+              onClick={() => track('download')}
+              className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              aria-label={`下载 ${card.title}`}
+              title="下载"
+            >
+              <Download className="size-3.5" />
+            </a>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -802,6 +878,10 @@ function renderInlineMarkdown(value: string) {
     }
     return part;
   });
+}
+
+function _clipText(value: string, maxLength: number) {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 }
 
 export default AssetAgentWidget;

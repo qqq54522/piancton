@@ -16,17 +16,23 @@ export function PianctonAgentMark({
   size = 'md',
   state = 'idle',
   variant = 'orb',
+  interactive = true,
   className,
 }: {
   size?: AgentMarkSize;
   state?: AgentMarkState;
   variant?: AgentMarkVariant;
+  interactive?: boolean;
   className?: string;
 }) {
   const markRef = useRef<HTMLSpanElement | null>(null);
   const [gaze, setGaze] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
+    if (!interactive) {
+      setGaze({ x: 0, y: 0 });
+      return undefined;
+    }
     const mark = markRef.current;
     if (!mark || typeof window === 'undefined') return undefined;
 
@@ -67,7 +73,7 @@ export function PianctonAgentMark({
       window.removeEventListener('blur', resetTarget);
       window.cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [interactive]);
 
   return (
     <span

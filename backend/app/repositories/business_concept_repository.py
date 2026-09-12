@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.asset import AssetConceptLink, AssetGroup
 from app.models.business_concept import (
     BusinessConcept,
     ConceptRelation,
     ConceptSearchPhrase,
     ConceptSystemLink,
 )
+from app.models.image import Image
 
 CONCEPT_LOAD_OPTIONS = (
     selectinload(BusinessConcept.system_links).selectinload(ConceptSystemLink.system_tag),
@@ -73,6 +75,35 @@ class BusinessConceptRepository:
         )
         by_id = {row.id: row for row in rows}
         return [by_id[concept_id] for concept_id in concept_ids if concept_id in by_id]
+
+    def list_assets(
+        self,
+        concept_id: str,
+        *,
+        limit: int = 200,
+    ) -> list[tuple[Image, str]]:
+        stmt = (
+            select(Image, AssetConceptLink.relation_role)
+            .join(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .join(
+                AssetConceptLink,
+                AssetConceptLink.asset_group_id == AssetGroup.id,
+            )
+            .where(
+                AssetConceptLink.concept_id == concept_id,
+                AssetConceptLink.review_status == "accepted",
+                AssetConceptLink.relation_role.in_(("expresses", "supports")),
+                AssetGroup.publish_status == "published",
+                Image.deleted_at.is_(None),
+                Image.is_current.is_(True),
+            )
+            .options(
+                selectinload(Image.asset_group).selectinload(AssetGroup.images),
+            )
+            .order_by(desc(Image.created_at), desc(Image.id))
+            .limit(limit)
+        )
+        return [(image, str(role)) for image, role in self.db.execute(stmt).all()]
 
     def get_phrase(self, concept_id: str, phrase_id: str) -> ConceptSearchPhrase | None:
         return self.db.scalar(

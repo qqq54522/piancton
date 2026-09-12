@@ -16,7 +16,7 @@ describe('assetAgentSessionModel', () => {
     expect(session.id.startsWith('local-')).toBe(true);
     expect(session.title).toBe('新对话');
     expect(session.messages).toHaveLength(1);
-    expect(session.suggestedQuestions).toHaveLength(3);
+    expect(session.suggestedQuestions).toHaveLength(4);
     expect(session.expiresAt).toBeGreaterThan(session.updatedAt);
   });
 
@@ -48,11 +48,12 @@ describe('assetAgentSessionModel', () => {
 
     expect(session.title).toBe('历史对话');
     expect(session.contextImages[0].imageId).toBe('image-1');
-    expect(session.suggestedQuestions).toHaveLength(3);
+    expect(session.suggestedQuestions).toHaveLength(4);
     expect(contextPayloadToApi(session.contextImages[0])).toEqual({
       imageId: 'image-1',
       assetGroupId: null,
       title: '课程同步',
+      imageUrl: null,
     });
   });
 

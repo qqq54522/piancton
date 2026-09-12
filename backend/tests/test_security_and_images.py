@@ -414,10 +414,17 @@ def test_search_ops_is_available_to_designer_but_not_business(client):
     designer = designer_headers(client)
     designer_summary = client.get("/api/admin/search-ops/summary", headers=designer)
     assert designer_summary.status_code == 200
+    designer_activity = client.get(
+        "/api/admin/search-ops/activity-summary",
+        headers=designer,
+    )
+    assert designer_activity.status_code == 200
 
     login(client, "business", "business-password")
     business_summary = client.get("/api/admin/search-ops/summary")
     assert business_summary.status_code == 403
+    business_activity = client.get("/api/admin/search-ops/activity-summary")
+    assert business_activity.status_code == 403
 
 
 def test_ai_not_configured_is_explicit(client):

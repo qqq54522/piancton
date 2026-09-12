@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { KeyRound, Plus, ShieldCheck, UserCheck, UserRoundCog } from 'lucide-react';
+import { Copy, KeyRound, Plus, ShieldCheck, UserCheck, UserRoundCog } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as adminApi from '@client/src/api/admin';
@@ -18,6 +18,7 @@ import {
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
 import { Select } from '@client/src/components/ui/select';
+import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import type { UserRole } from '@client/src/types/api';
 
 const roles: UserRole[] = ['business', 'designer', 'admin'];
@@ -61,14 +62,17 @@ export default function AdminUsers() {
     },
     onError: (error) => toast.error(getApiError(error).message),
   });
+  const copyUserIdentity = async (userId: string) => {
+    if (await copyTextToClipboard(userId)) {
+      toast.success('用户身份码已复制');
+      return;
+    }
+    toast.error('复制失败，请手动选择身份码');
+  };
 
   return (
     <div className="page-shell max-w-6xl">
-      <PageHeader
-        eyebrow="Administration"
-        title="用户与权限"
-        description="创建工作账号、分配角色，并在人员变化时及时停用访问权限。"
-      />
+      <PageHeader title="用户与权限" />
 
       <section className="surface-card mt-7 p-5 sm:p-6">
         <div className="flex items-start gap-3">
@@ -125,6 +129,19 @@ export default function AdminUsers() {
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{user.username}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground">{user.isActive ? '可正常登录' : '账号已停用'}</div>
+                <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="shrink-0">用户身份码</span>
+                  <code className="truncate font-mono text-[11px] text-foreground/70" title={user.id}>{user.id}</code>
+                  <button
+                    type="button"
+                    className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    aria-label={`复制 ${user.username} 的用户身份码`}
+                    title="复制用户身份码"
+                    onClick={() => void copyUserIdentity(user.id)}
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
             <Select

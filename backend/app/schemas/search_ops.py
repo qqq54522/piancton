@@ -11,6 +11,9 @@ class SearchMetricItem(ApiModel):
 
 class SearchLogRead(ApiModel):
     id: str
+    actor_user_id: Optional[str] = None
+    actor_username: Optional[str] = None
+    actor_role: Optional[str] = None
     keyword: str
     served_mode: str
     fallback: bool
@@ -50,6 +53,9 @@ class SearchFeedbackCreate(ApiModel):
 
 class SearchFeedbackRead(ApiModel):
     id: str
+    actor_user_id: Optional[str] = None
+    actor_username: Optional[str] = None
+    actor_role: Optional[str] = None
     search_log_id: Optional[str] = None
     keyword: str
     feedback_type: str
@@ -57,6 +63,35 @@ class SearchFeedbackRead(ApiModel):
     result_image_id: Optional[str] = None
     asset_group_id: Optional[str] = None
     created_at: datetime
+
+
+class SearchInteractionRead(ApiModel):
+    id: str
+    search_log_id: str
+    actor_user_id: Optional[str] = None
+    actor_username: Optional[str] = None
+    actor_role: Optional[str] = None
+    keyword: str
+    action: str
+    result_image_id: Optional[str] = None
+    asset_group_id: Optional[str] = None
+    position: Optional[int] = None
+    source: str = "search_results"
+    conversation_id: Optional[str] = None
+    created_at: datetime
+
+
+class SearchActivitySummary(ApiModel):
+    total_searches: int
+    search_user_count: int
+    positive_feedback_count: int
+    negative_feedback_count: int
+    feedback_response_rate: float
+    interaction_count: int
+    top_queries: list[SearchMetricItem]
+    recent_feedback: list[SearchFeedbackRead]
+    recent_logs: list[SearchLogRead]
+    recent_interactions: list[SearchInteractionRead]
 
 
 class SearchOpsIssueRead(ApiModel):
@@ -180,6 +215,7 @@ class SearchPerformanceSummary(ApiModel):
 
 class SearchOpsSummary(ApiModel):
     total_searches: int
+    search_user_count: int
     zero_result_count: int
     fallback_count: int
     timed_out_count: int
@@ -193,10 +229,15 @@ class SearchOpsSummary(ApiModel):
     top_normalized_queries: list[SearchMetricItem]
     top_matched_concepts: list[SearchMetricItem]
     feedback_count: int
+    positive_feedback_count: int
+    negative_feedback_count: int
+    feedback_response_rate: float
+    interaction_count: int
     feedback_by_type: list[SearchMetricItem]
     feedback_queries: list[SearchMetricItem]
     recent_feedback: list[SearchFeedbackRead]
     recent_logs: list[SearchLogRead]
+    recent_interactions: list[SearchInteractionRead]
     search_issues: list[SearchOpsIssueRead]
     ai_review_queue: list[AiConceptReviewQueueItem]
     concept_health: list[ConceptHealthItem]

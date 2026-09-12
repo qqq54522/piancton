@@ -9,6 +9,7 @@ import type {
   ImageTitleResolution,
   ProviderStatus,
   SearchFeedbackRequest,
+  SearchInteractionAction,
   SemanticSearchRequest,
   SemanticSearchResponse,
   TagWithCount,
@@ -100,6 +101,19 @@ export async function semanticSearch(
 
 export async function submitSearchFeedback(data: SearchFeedbackRequest): Promise<void> {
   await api.post('/api/search-feedback', data);
+}
+
+export async function recordSearchInteraction(data: {
+  searchLogId?: string | null;
+  keyword: string;
+  action: SearchInteractionAction;
+  resultImageId?: string | null;
+  assetGroupId?: string | null;
+  position?: number;
+  source?: 'search_results' | 'agent_chat';
+  conversationId?: string | null;
+}): Promise<void> {
+  await api.post('/api/usage/search-interaction', data);
 }
 
 export async function fetchProviderStatus(): Promise<ProviderStatus> {

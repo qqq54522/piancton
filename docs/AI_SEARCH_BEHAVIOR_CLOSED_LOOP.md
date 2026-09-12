@@ -1,0 +1,46 @@
+# 火山 AI Search 行为闭环上线说明
+
+Piancton 只会把**业务端账号**在首页搜索结果和 Agent 推荐图片上的真实行为写入本地 outbox，再由后台任务写入火山 AI Search 用户行为数据集。管理员和设计师的操作仍保留在本地运营日志中，但不会进入外部行为数据集。外部网络短暂失败只会把事件标为 `failed`，后续周期会继续重试。
+
+## 火山控制台一次性配置
+
+在当前 AI Search 应用中创建并绑定一个“用户行为数据集”。字段必须按以下名称和类型建立：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `event_id` | String | 是 | Piancton 行为事件 ID；字段名以字母开头，符合火山控制台建表规则 |
+| `user_id` | String | 是 | 业务端账号的用户身份码 |
+| `item_id` | String | 是 | 图片 ID，和物品数据集 `_id` 一致 |
+| `event_type` | String | 是 | `exposure`、`click`、`download`、`share`、`favorite`、`unfavorite` |
+| `event_timestamp` | Int64 | 是 | 毫秒时间戳 |
+| `event_scene` | String | 是 | `search_results` 或 `agent_chat` |
+| `source_action` | String | 否 | Piancton 原始动作 |
+| `search_log_id` | String | 否 | 首页搜索记录 ID |
+| `conversation_id` | String | 否 | Agent 会话 ID |
+| `position` | Int64 | 否 | 图片出现的位置 |
+
+一个 AI Search 应用只绑定一个用户行为数据集。创建后，在服务器 `.env` 增加：
+
+```dotenv
+AI_SEARCH_BEHAVIOR_ENABLED=true
+AI_SEARCH_BEHAVIOR_API_KEY=<控制台生成的实时写入 Key>
+AI_SEARCH_BEHAVIOR_DATASET_ID=<控制台中的用户行为数据集 ID>
+AI_SEARCH_BEHAVIOR_SYNC_INTERVAL_SECONDS=30
+AI_SEARCH_BEHAVIOR_SYNC_BATCH_SIZE=100
+AI_SEARCH_BEHAVIOR_SYNC_STARTUP_DELAY_SECONDS=10
+```
+
+实时写入 Key 与搜索/问答使用的 `AI_SEARCH_API_KEY` 分开保存，避免轮换其中一个 Key 时影响另一条链路。为了兼容已经部署的旧环境，未设置 `AI_SEARCH_BEHAVIOR_API_KEY` 时会暂时回退使用 `AI_SEARCH_API_KEY`，新部署应显式填写独立的实时写入 Key。
+
+`datasets/ai_search_behavior/sample.jsonl` 只用于查看字段格式；其中 `sample-user`、`sample-item` 是占位值，不得上传。首次创建数据集时可在本地临时生成 `datasets/ai_search_behavior/bootstrap.jsonl`，其中只放一条用于建立 Schema 的曝光记录：`user_id` 使用业务测试账号的用户身份码，`item_id` 使用已经在线上物品数据集中的图片 ID；该临时文件已被 Git 忽略，不得提交。行为事件唯一标识使用 `event_id`，不得使用会被火山建表校验拒绝的 `_id`；物品数据集本身的图片 `_id` 不受影响。这条技术初始化曝光不代表真实业务偏好；数据集创建后，后续只由 Piancton 实时写入真实业务账号的行为。真实事件中的 `item_id` 必须与物品数据集中的图片 `_id` 一致。
+
+重新构建并启动后，后台 worker 会自动同步。也可以人工检查或立即补发：
+
+```bash
+docker compose exec -T backend python -m scripts.sync_ai_search_behavior_events --dry-run
+docker compose exec -T backend python -m scripts.sync_ai_search_behavior_events
+```
+
+## 数据边界
+
+行为数据用于 AI Search 的个性化检索、物品热度和推荐训练。只有 `role=business` 的账号有资格进入外部行为数据集；管理员和设计师仅进入本地运营统计。行为数据不能修改本地图片、六大体系、核心卖点、证明点或人工审核关系；Piancton 数据库始终是业务事实源。

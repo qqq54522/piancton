@@ -67,6 +67,7 @@ pnpm-lock.yaml
 
 # Python
 backend/.venv/
+backend/.venv*/
 **/__pycache__/
 *.py[cod]
 backend/.env
@@ -82,3 +83,7 @@ data/*.db-*
 data/*.db.*
 storage/images/*
 !storage/images/.gitkeep
+outputs/
+reports/
+piancton-update-*.zip
+datasets/ai_search_behavior/bootstrap.jsonl

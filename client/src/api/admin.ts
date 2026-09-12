@@ -32,6 +32,7 @@ import type {
   RoutingSlot,
   RoutingSlotUpdate,
   AuditLog,
+  SearchActivitySummary,
   SearchOpsSummary,
   UsageAnalyticsSummary,
   User,
@@ -68,6 +69,10 @@ export async function fetchAuditLogs(): Promise<AuditLog[]> {
 
 export async function fetchSearchOpsSummary(days = 7): Promise<SearchOpsSummary> {
   return (await api.get('/api/admin/search-ops/summary', { params: { days } })).data;
+}
+
+export async function fetchSearchActivitySummary(days = 7): Promise<SearchActivitySummary> {
+  return (await api.get('/api/admin/search-ops/activity-summary', { params: { days } })).data;
 }
 
 export async function fetchUsageAnalyticsSummary(

@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import AdminConcepts from './AdminConcepts';
+
+const mocks = vi.hoisted(() => ({ fetchBusinessConceptAssets: vi.fn() }));
+vi.mock('@client/src/api/asset', () => ({
+  fetchBusinessConceptAssets: mocks.fetchBusinessConceptAssets,
+}));
 
 vi.mock('@client/src/features/assets/useBusinessConcepts', () => ({
   useBusinessConcepts: () => ({
@@ -42,14 +48,22 @@ vi.mock('@client/src/features/tags/useTags', () => ({
 
 describe('AdminConcepts', () => {
   it('uses systems on the left and shows selling points for the selected system', () => {
-    render(<MemoryRouter><AdminConcepts /></MemoryRouter>);
+    mocks.fetchBusinessConceptAssets.mockResolvedValue([]);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter><AdminConcepts /></MemoryRouter>
+      </QueryClientProvider>,
+    );
 
-    expect(screen.getByText('业务体系')).toBeTruthy();
-    expect(screen.getByText('同步校内')).toBeTruthy();
+    expect(screen.getByText('六大业务体系')).toBeTruthy();
+    expect(screen.getAllByText('同步校内').length).toBeGreaterThan(0);
     expect(screen.queryByText('专项培优')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /同步考点体系/ }));
     expect(screen.getByText('专项培优')).toBeTruthy();
-    expect(screen.queryByText('同步校内')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /专项培优/ }));
+    expect(screen.getAllByText('专项培优').length).toBeGreaterThan(1);
   });
 });

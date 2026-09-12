@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
+import { recordSearchInteraction } from '@client/src/api/image';
 import { Select } from '@client/src/components/ui/select';
 import { variantLabel } from '@client/src/features/assets/assetPresentation';
 import { sendImageToAssetAgent } from '@client/src/features/assets/assetAgentEvents';
@@ -10,7 +11,7 @@ import type { ProjectBasketItem } from '@client/src/features/assets/useProjectBa
 import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
 import { copyTextToClipboard } from '@client/src/lib/clipboard';
-import type { AssetImage, ScoredImageMatch } from '@client/src/types/api';
+import type { AssetImage, ScoredImageMatch, SearchInteractionAction } from '@client/src/types/api';
 import { itemVariants } from './constants';
 import RadialActionMenu from '../RadialActionMenu';
 import { resultRecommendedPoint } from './searchConceptPresentation';
@@ -19,6 +20,7 @@ interface ScoredImageCardProps {
   scored: ScoredImageMatch;
   keyword: string;
   searchLogId?: string | null;
+  position: number;
   showSearchContext: boolean;
   inProjectBasket?: boolean;
   animateGifPreview?: boolean;
@@ -27,8 +29,9 @@ interface ScoredImageCardProps {
 
 function ScoredImageCard({
   scored,
-  keyword: _keyword,
-  searchLogId: _searchLogId,
+  keyword,
+  searchLogId,
+  position,
   showSearchContext,
   inProjectBasket = false,
   animateGifPreview = true,
@@ -38,12 +41,49 @@ function ScoredImageCard({
     ? scored.availableVariants
     : [fallbackVariant(scored)];
   const [selectedId, setSelectedId] = useState(variants[0].id);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const lastExposureKey = useRef('');
   const selected = variants.find((item) => item.id === selectedId) ?? variants[0];
   const canSaveToProjectBasket = Boolean(scored.assetGroupId && onToggleProjectBasket);
   const identityCode = selected.identityCode || scored.image.identityCode;
+  const track = (action: SearchInteractionAction) => {
+    if (!searchLogId || !showSearchContext) return;
+    void recordSearchInteraction({
+      searchLogId,
+      keyword,
+      action,
+      resultImageId: selected.id,
+      assetGroupId: scored.assetGroupId,
+      position,
+    }).catch(() => undefined);
+  };
+  useEffect(() => {
+    const element = cardRef.current;
+    const exposureKey = `${searchLogId || ''}:${selected.id}`;
+    if (!element || !searchLogId || !showSearchContext || lastExposureKey.current === exposureKey) {
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || lastExposureKey.current === exposureKey) return;
+      lastExposureKey.current = exposureKey;
+      void recordSearchInteraction({
+        searchLogId,
+        keyword,
+        action: 'exposure',
+        resultImageId: selected.id,
+        assetGroupId: scored.assetGroupId,
+        position,
+        source: 'search_results',
+      }).catch(() => undefined);
+      observer.disconnect();
+    }, { threshold: 0.35 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [keyword, position, scored.assetGroupId, searchLogId, selected.id, showSearchContext]);
   const copyIdentity = async () => {
     if (!identityCode) return;
     if (await copyTextToClipboard(identityCode)) {
+      track('copy_identity');
       toast.success('身份码已复制');
       return;
     }
@@ -52,13 +92,17 @@ function ScoredImageCard({
 
   return (
     <motion.article
+      ref={cardRef}
       variants={itemVariants}
       className="group relative mb-4 break-inside-avoid rounded-xl border border-border bg-white shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-lg"
     >
       <Link
         to={`/image/${selected.id}`}
         state={{ from: '/' }}
-        onClick={rememberImageHomeScroll}
+        onClick={() => {
+          track('open_detail');
+          rememberImageHomeScroll();
+        }}
         aria-label={`就是这张：${selected.title}`}
         className="block overflow-hidden bg-muted"
         style={{ aspectRatio: imageAspectRatio(selected) }}
@@ -77,6 +121,7 @@ function ScoredImageCard({
         inProjectBasket={inProjectBasket}
         onCopyIdentity={identityCode ? copyIdentity : undefined}
         onSendToAgent={() => {
+          track('send_to_agent');
           sendImageToAssetAgent({
             imageId: selected.id,
             assetGroupId: scored.assetGroupId,
@@ -87,6 +132,7 @@ function ScoredImageCard({
         onToggleProjectBasket={canSaveToProjectBasket
           ? () => {
             if (!scored.assetGroupId || !onToggleProjectBasket) return;
+            track(inProjectBasket ? 'remove_from_project' : 'add_to_project');
             onToggleProjectBasket({
               assetGroupId: scored.assetGroupId,
               title: scored.assetTitle || scored.image.title,
@@ -95,6 +141,7 @@ function ScoredImageCard({
           }
           : undefined}
         downloadHref={selected.downloadUrl}
+        onDownload={() => track('download')}
         downloadLabel={variantLabel(selected)}
         variantSelector={variants.length > 1 ? (
           <Select

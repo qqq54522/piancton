@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
-from app.models.usage import UserUsageEvent
+from app.models.usage import AiSearchBehaviorEvent, UserUsageEvent
 from app.models.user import User
+from app.repositories.ai_search_behavior_repository import AiSearchBehaviorRepository
 from app.repositories.usage_repository import UsageEventRepository, UsageUserRepository
 from app.schemas.usage import (
     DailyUsageMetric,
@@ -30,6 +31,7 @@ class UsageRange:
 class UsageAnalyticsService:
     def __init__(self, db):
         self.events = UsageEventRepository(db)
+        self.behavior_events = AiSearchBehaviorRepository(db)
         self.users = UsageUserRepository(db)
         self.uow = UnitOfWork(db)
 
@@ -76,6 +78,63 @@ class UsageAnalyticsService:
             target_id=image_id,
             details={"requestId": request_id} if request_id else {},
         )
+
+    def record_search_interaction(
+        self,
+        user: User,
+        *,
+        search_log_id: str | None,
+        keyword: str,
+        action: str,
+        result_image_id: str | None,
+        asset_group_id: str | None,
+        position: int | None,
+        source: str = "search_results",
+        conversation_id: str | None = None,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        event = UserUsageEvent(
+            user_id=user.id,
+            event_type="search_interaction",
+            target_type="image",
+            target_id=result_image_id,
+            details_json=json.dumps(
+                {
+                    "searchLogId": search_log_id,
+                    "keyword": keyword.strip()[:200],
+                    "action": action,
+                    "assetGroupId": asset_group_id,
+                    "position": position,
+                    "source": source,
+                    "conversationId": conversation_id,
+                },
+                ensure_ascii=False,
+            ),
+            created_at=now,
+        )
+        self.events.add(event)
+        behavior_type = _behavior_type(action)
+        if user.role == "business" and result_image_id and behavior_type:
+            self.behavior_events.add(
+                AiSearchBehaviorEvent(
+                    source_event_id=event.id,
+                    user_id=user.id,
+                    item_id=result_image_id,
+                    event_type=behavior_type,
+                    event_timestamp=int(now.timestamp() * 1000),
+                    event_scene=source,
+                    details_json=json.dumps(
+                        {
+                            "source_action": action,
+                            "search_log_id": search_log_id or None,
+                            "conversation_id": conversation_id,
+                            "position": position,
+                        },
+                        ensure_ascii=False,
+                    ),
+                )
+            )
+        self.uow.commit()
 
     def record_event(
         self,
@@ -229,3 +288,15 @@ def _bounded_path(value: str) -> str:
     if not cleaned.startswith("/"):
         cleaned = f"/{cleaned}"
     return cleaned[:300]
+
+
+def _behavior_type(action: str) -> str:
+    return {
+        "exposure": "exposure",
+        "open_detail": "click",
+        "download": "download",
+        "copy_identity": "share",
+        "add_to_project": "favorite",
+        "remove_from_project": "unfavorite",
+        "send_to_agent": "share",
+    }.get(action, "")

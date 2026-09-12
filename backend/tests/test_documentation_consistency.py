@@ -87,6 +87,7 @@ def test_master_and_project_log_publish_the_same_current_phase():
     search_constants = _read("client/src/pages/ImageHome/SemanticSearchResult/constants.ts")
     upload_dialog = _read("client/src/pages/ImageHome/UploadDialog.tsx")
     concept_page = _read("client/src/pages/AdminConcepts/AdminConcepts.tsx")
+    concept_system_list = _read("client/src/pages/AdminConcepts/SystemList.tsx")
     semantic_profile_presentation = _read(
         "client/src/pages/ImageDetail/semanticProfilePresentation.ts"
     )
@@ -189,7 +190,9 @@ def test_master_and_project_log_publish_the_same_current_phase():
     assert "isSceneImage" in upload_dialog
     assert 'title="业务卖点管理"' in concept_page
     assert "业务体系" in concept_page
-    assert "下面是当前归属于这个业务体系的卖点" in concept_page
+    assert "六大业务体系" in concept_system_list
+    assert "fetchBusinessConceptAssets" in concept_page
+    assert "下面是当前归属于这个业务体系的卖点" not in concept_page
     assert "卖点管理" in layout
     assert "AI培训" not in concept_page
     assert "new Set" in concept_phrase_presentation

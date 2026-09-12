@@ -1,0 +1,3 @@
+{"event_id":"sample-exposure-001","user_id":"sample-user","item_id":"sample-item","event_type":"exposure","event_timestamp":1789142400000,"event_scene":"search_results","source_action":"exposure","search_log_id":"sample-search","position":1}
+{"event_id":"sample-click-001","user_id":"sample-user","item_id":"sample-item","event_type":"click","event_timestamp":1789142405000,"event_scene":"search_results","source_action":"open_detail","search_log_id":"sample-search","position":1}
+{"event_id":"sample-favorite-001","user_id":"sample-user","item_id":"sample-item","event_type":"favorite","event_timestamp":1789142410000,"event_scene":"agent_chat","source_action":"add_to_project","conversation_id":"sample-conversation","position":1}

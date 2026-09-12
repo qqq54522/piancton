@@ -11,7 +11,10 @@ from app.models.user import User
 from app.schemas.asset_agent import AssetAgentChatRequest
 from app.services import asset_agent_service
 from app.services.asset_agent_service import AssetAgentService
-from app.services.volc_ai_search_client import VolcAiSearchChatResult
+from app.services.volc_ai_search_client import (
+    VolcAiSearchChatResult,
+    VolcAiSearchStreamEvent,
+)
 from tests.conftest import login
 
 T = TypeVar("T")
@@ -100,8 +103,49 @@ def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
     assert response.answer == "这是火山 AI Search 的业务知识回答。"
     assert response.suggested_questions == ["这个卖点适合什么素材？"]
     assert response.provider_attempts[0]["provider"] == "volc_ai_search_chat"
-    assert ai_search.last_query == "同步考点体系怎么跟家长解释？"
+    assert ai_search.last_query.startswith("同步考点体系怎么跟家长解释？")
+    assert "内部输出要求" in ai_search.last_query
+    assert "不要暴露 VikingDB" in ai_search.last_query
     assert provider.called is False
+
+
+def test_asset_agent_native_stream_persists_ai_search_image_cards(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-stream-user", password_hash="x", role="business")
+        group = AssetGroup(title="推荐素材组", created_by="admin", publish_status="published")
+        image = Image(
+            title="同步考点推荐图",
+            identity_code="PC-STREAM",
+            file_name="stream.png",
+            storage_key="stream.png",
+            thumbnail_storage_key="stream-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+            asset_group=group,
+            is_current=True,
+        )
+        db.add_all([user, group, image])
+        db.commit()
+        ai_search = _FakeAiSearchChat()
+        ai_search.item_ids = [image.id]
+        service = AssetAgentService(db, _FailingProvider(), ai_search_chat=ai_search)
+        session = service.create_session(user)
+
+        frames = list(
+            service.chat_in_session_stream(
+                user,
+                session.id,
+                AssetAgentChatRequest(message="给我找一张同步考点的图片"),
+            )
+        )
+        refreshed = service.list_sessions(user).sessions[0]
+
+    assert any(frame.startswith("event: answer_delta") for frame in frames)
+    assert any(frame.startswith("event: context_cards") for frame in frames)
+    assistant = refreshed.messages[-1]
+    assert assistant.context_cards[0].id == image.id
+    assert assistant.context_cards[0].identity_code == "PC-STREAM"
+    assert assistant.context_cards[0].image_url.endswith(f"/{image.id}/thumbnail")
 
 
 def test_asset_agent_passes_context_image_url_to_ai_search_chat(db_factory):
@@ -289,6 +333,7 @@ class _FailingProvider:
 class _FakeAiSearchChat:
     last_query = ""
     last_image_url = ""
+    item_ids: list[str] = []
 
     @property
     def chat_search_configured(self) -> bool:
@@ -312,4 +357,27 @@ class _FakeAiSearchChat:
             answer="这是火山 AI Search 的业务知识回答。",
             response={"answer": "这是火山 AI Search 的业务知识回答。"},
             suggestions=["这个卖点适合什么素材？"],
+            item_ids=self.item_ids,
+        )
+
+    def stream_chat_search(
+        self,
+        query: str,
+        *,
+        session_id: str,
+        user_id: str = "",
+        page_size: int = 10,
+        enable_suggestions: bool = True,
+        image_url: str = "",
+    ):
+        self.last_query = query
+        self.last_image_url = image_url
+        yield VolcAiSearchStreamEvent(step="tool call")
+        yield VolcAiSearchStreamEvent(step="reply")
+        yield VolcAiSearchStreamEvent(content="这是火山 AI Search 的业务知识回答。")
+        if self.item_ids:
+            yield VolcAiSearchStreamEvent(item_ids=tuple(self.item_ids))
+        yield VolcAiSearchStreamEvent(
+            suggestions=("这个卖点适合什么素材？",),
+            done=True,
         )

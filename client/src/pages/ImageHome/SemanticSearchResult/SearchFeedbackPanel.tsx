@@ -1,15 +1,20 @@
-import { MessageSquare } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { type UseMutationResult } from '@tanstack/react-query';
+
 import { Button } from '@client/src/components/ui/button';
-import { Input } from '@client/src/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@client/src/components/ui/dialog';
 import type { SearchFeedbackType } from '@client/src/types/api';
-import { FEEDBACK_OPTIONS } from './constants';
 
 interface SearchFeedbackPanelProps {
   feedbackNote: string;
   feedbackMutation: UseMutationResult<void, Error, SearchFeedbackType>;
-  manualFilterOpen: boolean;
-  showBusinessAccount: boolean;
   submittedFeedback: SearchFeedbackType | null;
   onFeedbackNoteChange: (value: string) => void;
 }
@@ -17,63 +22,77 @@ interface SearchFeedbackPanelProps {
 function SearchFeedbackPanel({
   feedbackNote,
   feedbackMutation,
-  manualFilterOpen,
-  showBusinessAccount,
   submittedFeedback,
   onFeedbackNoteChange,
 }: SearchFeedbackPanelProps) {
-  const fixedLeftClassName = showBusinessAccount
-    ? manualFilterOpen
-      ? 'left-0 sm:left-[320px]'
-      : 'left-0'
-    : manualFilterOpen
-    ? 'left-0 sm:left-[400px]'
-    : 'left-0 sm:left-20';
+  const [selected, setSelected] = useState<SearchFeedbackType | null>(null);
+  const open = submittedFeedback === null;
 
   return (
-    <div className={`fixed bottom-0 right-0 z-40 border-t border-border bg-white px-4 py-3 transition-[left] duration-300 sm:px-6 lg:px-8 ${fixedLeftClassName}`}>
-      <div className="mx-auto w-full max-w-[1920px]">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MessageSquare className="size-4" />
-            <span>这次搜索结果是否满足需求？</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {FEEDBACK_OPTIONS.map((option) => (
-              <Button
-                key={option.type}
-                variant={submittedFeedback === option.type ? 'default' : 'outline'}
-                size="sm"
-                disabled={feedbackMutation.isPending}
-                onClick={() => feedbackMutation.mutate(option.type)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
+    <Dialog open={open} onOpenChange={() => undefined}>
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-md rounded-3xl border-border/80 p-6 sm:p-7"
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
+        <DialogHeader className="text-left">
+          <DialogTitle className="text-xl leading-7">这次搜索结果，你满意吗？</DialogTitle>
+          <DialogDescription className="leading-6">
+            你的选择会帮助我们继续优化推荐。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setSelected('relevant')}
+            className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-4 text-sm font-semibold transition ${
+              selected === 'relevant'
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-border bg-white hover:bg-secondary/70'
+            }`}
+          >
+            <ThumbsUp className="size-4" />满意
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelected('not_relevant')}
+            className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-4 text-sm font-semibold transition ${
+              selected === 'not_relevant'
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-border bg-white hover:bg-secondary/70'
+            }`}
+          >
+            <ThumbsDown className="size-4" />不满意
+          </button>
         </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input
+
+        <label className="grid gap-2">
+          <span className="text-sm font-medium">还有什么值得我们改进？</span>
+          <textarea
             value={feedbackNote}
             onChange={(event) => onFeedbackNoteChange(event.target.value)}
-            placeholder="可选：补充你想找的画面、风格或业务话术"
-            className="h-9 text-sm"
-            maxLength={200}
+            placeholder="可以写下想找的图片、渠道、风格或其它建议（可选）"
+            maxLength={500}
+            className="min-h-24 resize-none rounded-2xl border border-input bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!feedbackNote.trim() || feedbackMutation.isPending}
-            onClick={() => feedbackMutation.mutate('asset_request')}
-          >
-            提交说明
-          </Button>
-        </div>
-        {submittedFeedback && (
-          <p className="mt-2 text-xs text-emerald-600">已记录反馈，运营人员会在搜索运营里看到。</p>
+        </label>
+
+        {feedbackMutation.isError && (
+          <p className="text-sm text-destructive">提交失败，请再试一次。</p>
         )}
-      </div>
-    </div>
+
+        <Button
+          className="h-11 rounded-2xl"
+          disabled={!selected || feedbackMutation.isPending}
+          onClick={() => selected && feedbackMutation.mutate(selected)}
+        >
+          {feedbackMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+          提交反馈
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 

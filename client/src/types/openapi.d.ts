@@ -573,6 +573,23 @@ export interface paths {
         patch: operations["update_business_concept_api_business_concepts__concept_id__patch"];
         trace?: never;
     };
+    "/api/business-concepts/{concept_id}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Business Concept Assets */
+        get: operations["list_business_concept_assets_api_business_concepts__concept_id__assets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/business-concepts/{concept_id}/relations": {
         parameters: {
             query?: never;
@@ -1017,6 +1034,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/asset-agent/sessions/{session_id}/messages/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stream Asset Agent Message */
+        post: operations["stream_asset_agent_message_api_asset_agent_sessions__session_id__messages_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/asset-agent/sessions/{session_id}": {
         parameters: {
             query?: never;
@@ -1137,6 +1171,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/search-ops/activity-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Activity Summary */
+        get: operations["search_activity_summary_api_admin_search_ops_activity_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/search-ops/summary": {
         parameters: {
             query?: never;
@@ -1182,6 +1233,23 @@ export interface paths {
         put?: never;
         /** Record Page View */
         post: operations["record_page_view_api_usage_page_view_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usage/search-interaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Search Interaction */
+        post: operations["record_search_interaction_api_usage_search_interaction_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2107,6 +2175,14 @@ export interface components {
             subtitle?: string | null;
             /** Facts */
             facts?: string[];
+            /** Imageurl */
+            imageUrl?: string | null;
+            /** Downloadurl */
+            downloadUrl?: string | null;
+            /** Identitycode */
+            identityCode?: string | null;
+            /** Assetgroupid */
+            assetGroupId?: string | null;
         };
         /** AssetAgentImageContext */
         AssetAgentImageContext: {
@@ -2132,6 +2208,8 @@ export interface components {
             content: string;
             /** Usedmodel */
             usedModel?: boolean | null;
+            /** Contextcards */
+            contextCards?: components["schemas"]["AssetAgentContextCard"][];
             /**
              * Createdat
              * Format: date-time
@@ -2562,6 +2640,15 @@ export interface components {
              * @default true
              */
             auto_analyze: boolean;
+        };
+        /** BusinessConceptAssetRead */
+        BusinessConceptAssetRead: {
+            image: components["schemas"]["ImageRead"];
+            /**
+             * Relationrole
+             * @enum {string}
+             */
+            relationRole: "expresses" | "supports";
         };
         /** BusinessConceptCreate */
         BusinessConceptCreate: {
@@ -3234,6 +3321,29 @@ export interface components {
             /** Primaryevidencepointname */
             primaryEvidencePointName?: string | null;
         };
+        /** SearchActivitySummary */
+        SearchActivitySummary: {
+            /** Totalsearches */
+            totalSearches: number;
+            /** Searchusercount */
+            searchUserCount: number;
+            /** Positivefeedbackcount */
+            positiveFeedbackCount: number;
+            /** Negativefeedbackcount */
+            negativeFeedbackCount: number;
+            /** Feedbackresponserate */
+            feedbackResponseRate: number;
+            /** Interactioncount */
+            interactionCount: number;
+            /** Topqueries */
+            topQueries: components["schemas"]["SearchMetricItem"][];
+            /** Recentfeedback */
+            recentFeedback: components["schemas"]["SearchFeedbackRead"][];
+            /** Recentlogs */
+            recentLogs: components["schemas"]["SearchLogRead"][];
+            /** Recentinteractions */
+            recentInteractions: components["schemas"]["SearchInteractionRead"][];
+        };
         /** SearchBranchStatusRead */
         SearchBranchStatusRead: {
             /** Source */
@@ -3341,6 +3451,12 @@ export interface components {
         SearchFeedbackRead: {
             /** Id */
             id: string;
+            /** Actoruserid */
+            actorUserId?: string | null;
+            /** Actorusername */
+            actorUsername?: string | null;
+            /** Actorrole */
+            actorRole?: string | null;
             /** Searchlogid */
             searchLogId?: string | null;
             /** Keyword */
@@ -3364,10 +3480,80 @@ export interface components {
             /** Keyword */
             keyword: string;
         };
+        /** SearchInteractionCreate */
+        SearchInteractionCreate: {
+            /** Searchlogid */
+            searchLogId?: string | null;
+            /**
+             * Keyword
+             * @default
+             */
+            keyword: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "exposure" | "open_detail" | "download" | "copy_identity" | "add_to_project" | "remove_from_project" | "send_to_agent";
+            /** Resultimageid */
+            resultImageId?: string | null;
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /** Position */
+            position?: number | null;
+            /**
+             * Source
+             * @default search_results
+             * @enum {string}
+             */
+            source: "search_results" | "agent_chat";
+            /** Conversationid */
+            conversationId?: string | null;
+        };
+        /** SearchInteractionRead */
+        SearchInteractionRead: {
+            /** Id */
+            id: string;
+            /** Searchlogid */
+            searchLogId: string;
+            /** Actoruserid */
+            actorUserId?: string | null;
+            /** Actorusername */
+            actorUsername?: string | null;
+            /** Actorrole */
+            actorRole?: string | null;
+            /** Keyword */
+            keyword: string;
+            /** Action */
+            action: string;
+            /** Resultimageid */
+            resultImageId?: string | null;
+            /** Assetgroupid */
+            assetGroupId?: string | null;
+            /** Position */
+            position?: number | null;
+            /**
+             * Source
+             * @default search_results
+             */
+            source: string;
+            /** Conversationid */
+            conversationId?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
         /** SearchLogRead */
         SearchLogRead: {
             /** Id */
             id: string;
+            /** Actoruserid */
+            actorUserId?: string | null;
+            /** Actorusername */
+            actorUsername?: string | null;
+            /** Actorrole */
+            actorRole?: string | null;
             /** Keyword */
             keyword: string;
             /** Servedmode */
@@ -3453,6 +3639,8 @@ export interface components {
         SearchOpsSummary: {
             /** Totalsearches */
             totalSearches: number;
+            /** Searchusercount */
+            searchUserCount: number;
             /** Zeroresultcount */
             zeroResultCount: number;
             /** Fallbackcount */
@@ -3479,6 +3667,14 @@ export interface components {
             topMatchedConcepts: components["schemas"]["SearchMetricItem"][];
             /** Feedbackcount */
             feedbackCount: number;
+            /** Positivefeedbackcount */
+            positiveFeedbackCount: number;
+            /** Negativefeedbackcount */
+            negativeFeedbackCount: number;
+            /** Feedbackresponserate */
+            feedbackResponseRate: number;
+            /** Interactioncount */
+            interactionCount: number;
             /** Feedbackbytype */
             feedbackByType: components["schemas"]["SearchMetricItem"][];
             /** Feedbackqueries */
@@ -3487,6 +3683,8 @@ export interface components {
             recentFeedback: components["schemas"]["SearchFeedbackRead"][];
             /** Recentlogs */
             recentLogs: components["schemas"]["SearchLogRead"][];
+            /** Recentinteractions */
+            recentInteractions: components["schemas"]["SearchInteractionRead"][];
             /** Searchissues */
             searchIssues: components["schemas"]["SearchOpsIssueRead"][];
             /** Aireviewqueue */
@@ -5260,6 +5458,39 @@ export interface operations {
             };
         };
     };
+    list_business_concept_assets_api_business_concepts__concept_id__assets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                concept_id: string;
+            };
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessConceptAssetRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_concept_relation_api_business_concepts__concept_id__relations_post: {
         parameters: {
             query?: never;
@@ -6250,6 +6481,46 @@ export interface operations {
             };
         };
     };
+    stream_asset_agent_message_api_asset_agent_sessions__session_id__messages_stream_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetAgentChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_asset_agent_session_api_asset_agent_sessions__session_id__delete: {
         parameters: {
             query?: never;
@@ -6537,6 +6808,39 @@ export interface operations {
             };
         };
     };
+    search_activity_summary_api_admin_search_ops_activity_summary_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchActivitySummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_ops_summary_api_admin_search_ops_summary_get: {
         parameters: {
             query?: {
@@ -6623,6 +6927,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PageViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_search_interaction_api_usage_search_interaction_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchInteractionCreate"];
             };
         };
         responses: {

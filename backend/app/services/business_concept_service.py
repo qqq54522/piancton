@@ -10,12 +10,14 @@ from app.repositories.business_concept_repository import BusinessConceptReposito
 from app.repositories.tag_repository import TagRepository
 from app.schemas.business_concept import (
     BusinessConceptCreate,
+    BusinessConceptAssetRead,
     BusinessConceptRead,
     BusinessConceptUpdate,
     ConceptRelationCreate,
     ConceptRelationRead,
 )
 from app.services.business_concept_serializers import concept_to_read, relation_to_read
+from app.services.serializers import image_to_read
 from app.services.unit_of_work import UnitOfWork
 
 
@@ -35,6 +37,16 @@ class BusinessConceptService:
 
     def get(self, concept_id: str) -> BusinessConceptRead:
         return concept_to_read(self._get(concept_id))
+
+    def list_assets(self, concept_id: str) -> list[BusinessConceptAssetRead]:
+        self._get(concept_id)
+        return [
+            BusinessConceptAssetRead(
+                image=image_to_read(image),
+                relation_role=relation_role,
+            )
+            for image, relation_role in self.concepts.list_assets(concept_id)
+        ]
 
     def create(self, payload: BusinessConceptCreate) -> BusinessConceptRead:
         if self.concepts.get_by_code(payload.code):

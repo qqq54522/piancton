@@ -221,6 +221,11 @@ export interface BusinessConcept {
   searchPhrases: ConceptSearchPhrase[];
 }
 
+export interface BusinessConceptAsset {
+  image: ImageItem;
+  relationRole: 'expresses' | 'supports';
+}
+
 export interface ProofPointFacet {
   code: string;
   conceptCode: string;
@@ -333,6 +338,9 @@ export interface SearchMetricItem {
 
 export interface SearchLogItem {
   id: string;
+  actorUserId?: string | null;
+  actorUsername?: string | null;
+  actorRole?: string | null;
   keyword: string;
   servedMode: string;
   fallback: boolean;
@@ -364,6 +372,9 @@ export type SearchFeedbackType =
 
 export interface SearchFeedbackItem {
   id: string;
+  actorUserId?: string | null;
+  actorUsername?: string | null;
+  actorRole?: string | null;
   searchLogId?: string | null;
   keyword: string;
   feedbackType: SearchFeedbackType | string;
@@ -371,6 +382,44 @@ export interface SearchFeedbackItem {
   resultImageId?: string | null;
   assetGroupId?: string | null;
   createdAt: string;
+}
+
+export type SearchInteractionAction =
+  | 'exposure'
+  | 'open_detail'
+  | 'download'
+  | 'copy_identity'
+  | 'add_to_project'
+  | 'remove_from_project'
+  | 'send_to_agent';
+
+export interface SearchInteractionItem {
+  id: string;
+  searchLogId: string;
+  actorUserId?: string | null;
+  actorUsername?: string | null;
+  actorRole?: string | null;
+  keyword: string;
+  action: SearchInteractionAction | string;
+  resultImageId?: string | null;
+  assetGroupId?: string | null;
+  position?: number | null;
+  source?: 'search_results' | 'agent_chat' | string;
+  conversationId?: string | null;
+  createdAt: string;
+}
+
+export interface SearchActivitySummary {
+  totalSearches: number;
+  searchUserCount: number;
+  positiveFeedbackCount: number;
+  negativeFeedbackCount: number;
+  feedbackResponseRate: number;
+  interactionCount: number;
+  topQueries: SearchMetricItem[];
+  recentFeedback: SearchFeedbackItem[];
+  recentLogs: SearchLogItem[];
+  recentInteractions: SearchInteractionItem[];
 }
 
 export interface SearchOpsIssue {
@@ -503,6 +552,7 @@ export interface SearchFeedbackRequest {
 
 export interface SearchOpsSummary {
   totalSearches: number;
+  searchUserCount: number;
   zeroResultCount: number;
   fallbackCount: number;
   timedOutCount: number;
@@ -516,10 +566,15 @@ export interface SearchOpsSummary {
   topNormalizedQueries: SearchMetricItem[];
   topMatchedConcepts: SearchMetricItem[];
   feedbackCount: number;
+  positiveFeedbackCount: number;
+  negativeFeedbackCount: number;
+  feedbackResponseRate: number;
+  interactionCount: number;
   feedbackByType: SearchMetricItem[];
   feedbackQueries: SearchMetricItem[];
   recentFeedback: SearchFeedbackItem[];
   recentLogs: SearchLogItem[];
+  recentInteractions: SearchInteractionItem[];
   searchIssues: SearchOpsIssue[];
   aiReviewQueue: AiConceptReviewQueueItem[];
   conceptHealth: ConceptHealthItem[];
@@ -697,6 +752,7 @@ export interface AssetAgentMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   usedModel?: boolean | null;
+  contextCards?: AssetAgentContextCard[];
   createdAt: string;
 }
 
@@ -730,6 +786,10 @@ export interface AssetAgentContextCard {
   title: string;
   subtitle?: string | null;
   facts: string[];
+  imageUrl?: string | null;
+  downloadUrl?: string | null;
+  identityCode?: string | null;
+  assetGroupId?: string | null;
 }
 
 export interface AssetAgentChatResponse {

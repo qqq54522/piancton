@@ -302,6 +302,7 @@ def _build_ai_search_client() -> VolcAiSearchClient:
         search_path=settings.ai_search_search_path,
         chat_search_path=settings.ai_search_chat_path,
         chat_dataset_ids=settings.ai_search_chat_dataset_ids,
+        behavior_dataset_id=settings.ai_search_behavior_dataset_id,
         timeout_seconds=settings.ai_search_timeout_seconds,
     )
 
@@ -315,6 +316,7 @@ def _build_ai_search_chat_client() -> VolcAiSearchClient:
         search_path=settings.ai_search_search_path,
         chat_search_path=settings.ai_search_chat_path,
         chat_dataset_ids=settings.ai_search_chat_dataset_ids,
+        behavior_dataset_id=settings.ai_search_behavior_dataset_id,
         timeout_seconds=settings.ai_search_chat_timeout_seconds,
     )
 

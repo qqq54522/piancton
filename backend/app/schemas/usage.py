@@ -5,12 +5,33 @@ from typing import Literal, Optional
 
 from app.schemas.base import ApiModel
 
-UsageEventType = Literal["login", "page_view", "download"]
+UsageEventType = Literal["login", "page_view", "download", "search_interaction"]
+
+SearchInteractionAction = Literal[
+    "exposure",
+    "open_detail",
+    "download",
+    "copy_identity",
+    "add_to_project",
+    "remove_from_project",
+    "send_to_agent",
+]
 
 
 class PageViewCreate(ApiModel):
     path: str
     title: Optional[str] = None
+
+
+class SearchInteractionCreate(ApiModel):
+    search_log_id: Optional[str] = None
+    keyword: str = ""
+    action: SearchInteractionAction
+    result_image_id: Optional[str] = None
+    asset_group_id: Optional[str] = None
+    position: Optional[int] = None
+    source: Literal["search_results", "agent_chat"] = "search_results"
+    conversation_id: Optional[str] = None
 
 
 class UsageTotals(ApiModel):

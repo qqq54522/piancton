@@ -14,6 +14,7 @@ from app.models.search_log import SearchLog
 from app.repositories.search_feedback_repository import SearchFeedbackRepository
 from app.repositories.search_log_repository import SearchLogRepository
 from app.repositories.search_ops_repository import SearchOpsRepository
+from app.repositories.usage_repository import UsageEventRepository, UsageUserRepository
 from app.schemas.search_ops import (
     AiConceptReviewQueueItem,
     AssetGapItem,
@@ -21,13 +22,14 @@ from app.schemas.search_ops import (
     AssetOpsIssueRead,
     ConceptHealthItem,
     SearchMetricItem,
+    SearchActivitySummary,
     SearchOpsIssueRead,
     SearchOpsSummary,
     SearchPerformanceSummary,
     SourceLinkHealth,
     SourceLinkRecentItem,
 )
-from app.services.search_ops_serializers import feedback_read, log_read
+from app.services.search_ops_serializers import feedback_read, interaction_read, log_read
 
 SOURCE_LINK_REVIEW_DAYS = 90
 STALE_UNUSED_ASSET_DAYS = 45
@@ -44,12 +46,91 @@ class SearchOpsService:
         self.logs = SearchLogRepository(db)
         self.feedback = SearchFeedbackRepository(db)
         self.ops = SearchOpsRepository(db)
+        self.usage_events = UsageEventRepository(db)
+        self.users = UsageUserRepository(db)
+
+    def activity_summary(
+        self,
+        *,
+        days: int = 7,
+        limit: int = 2000,
+    ) -> SearchActivitySummary:
+        """Return only the user-search data needed by the daily operations page."""
+        bounded_days = max(1, min(days, 90))
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(days=bounded_days)
+        logs = self.logs.list_since(since, limit=limit)
+        feedback_events = self.feedback.list_since(since, limit=limit)
+        interaction_events = [
+            event
+            for event in self.usage_events.list_between(
+                start_at=since,
+                end_at=now + timedelta(seconds=1),
+                limit=limit,
+            )
+            if event.event_type == "search_interaction"
+        ]
+        users_by_id = {user.id: user for user in self.users.list()}
+        total = len(logs)
+        return SearchActivitySummary(
+            total_searches=total,
+            search_user_count=len(
+                {item.actor_user_id for item in logs if item.actor_user_id}
+            ),
+            positive_feedback_count=sum(
+                1 for item in feedback_events if item.feedback_type == "relevant"
+            ),
+            negative_feedback_count=sum(
+                1 for item in feedback_events if item.feedback_type != "relevant"
+            ),
+            feedback_response_rate=(
+                round(
+                    len(
+                        {
+                            item.search_log_id
+                            for item in feedback_events
+                            if item.search_log_id
+                        }
+                    )
+                    / total
+                    * 100,
+                    1,
+                )
+                if total
+                else 0.0
+            ),
+            interaction_count=len(interaction_events),
+            top_queries=self._top_items(item.keyword for item in logs if item.keyword),
+            recent_feedback=[
+                feedback_read(item, users_by_id.get(item.actor_user_id or ""))
+                for item in feedback_events[:100]
+            ],
+            recent_logs=[
+                log_read(item, users_by_id.get(item.actor_user_id or ""))
+                for item in logs[:100]
+            ],
+            recent_interactions=[
+                interaction_read(item, users_by_id.get(item.user_id or ""))
+                for item in interaction_events[:100]
+            ],
+        )
 
     def summary(self, *, days: int = 7, limit: int = 2000) -> SearchOpsSummary:
         bounded_days = max(1, min(days, 90))
-        since = datetime.now(timezone.utc) - timedelta(days=bounded_days)
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(days=bounded_days)
         logs = self.logs.list_since(since, limit=limit)
         feedback_events = self.feedback.list_since(since, limit=limit)
+        interaction_events = [
+            event
+            for event in self.usage_events.list_between(
+                start_at=since,
+                end_at=now + timedelta(seconds=1),
+                limit=limit,
+            )
+            if event.event_type == "search_interaction"
+        ]
+        users_by_id = {user.id: user for user in self.users.list()}
         total = len(logs)
         durations = sorted(
             item.duration_ms
@@ -58,6 +139,7 @@ class SearchOpsService:
         )
         return SearchOpsSummary(
             total_searches=total,
+            search_user_count=len({item.actor_user_id for item in logs if item.actor_user_id}),
             zero_result_count=sum(1 for item in logs if item.result_count == 0),
             fallback_count=sum(1 for item in logs if item.fallback),
             timed_out_count=sum(1 for item in logs if item.timed_out),
@@ -81,6 +163,23 @@ class SearchOpsService:
                 item.matched_concept for item in logs if item.matched_concept
             ),
             feedback_count=len(feedback_events),
+            positive_feedback_count=sum(
+                1 for item in feedback_events if item.feedback_type == "relevant"
+            ),
+            negative_feedback_count=sum(
+                1 for item in feedback_events if item.feedback_type != "relevant"
+            ),
+            feedback_response_rate=(
+                round(
+                    len({item.search_log_id for item in feedback_events if item.search_log_id})
+                    / total
+                    * 100,
+                    1,
+                )
+                if total
+                else 0.0
+            ),
+            interaction_count=len(interaction_events),
             feedback_by_type=self._top_items(
                 item.feedback_type for item in feedback_events if item.feedback_type
             ),
@@ -88,9 +187,17 @@ class SearchOpsService:
                 item.keyword for item in feedback_events if item.keyword
             ),
             recent_feedback=[
-                feedback_read(item) for item in feedback_events[:50]
+                feedback_read(item, users_by_id.get(item.actor_user_id or ""))
+                for item in feedback_events[:100]
             ],
-            recent_logs=[log_read(item) for item in logs[:50]],
+            recent_logs=[
+                log_read(item, users_by_id.get(item.actor_user_id or ""))
+                for item in logs[:100]
+            ],
+            recent_interactions=[
+                interaction_read(item, users_by_id.get(item.user_id or ""))
+                for item in interaction_events[:100]
+            ],
             search_issues=self._search_issues(logs, feedback_events),
             ai_review_queue=self._ai_review_queue(),
             concept_health=self._concept_health(logs),

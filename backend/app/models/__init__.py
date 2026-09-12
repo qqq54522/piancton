@@ -22,7 +22,7 @@ from app.models.image import (
 from app.models.search_feedback import SearchFeedbackEvent
 from app.models.search_log import SearchLog
 from app.models.tag import Tag
-from app.models.usage import UserUsageEvent
+from app.models.usage import AiSearchBehaviorEvent, UserUsageEvent
 from app.models.user import AuditLog, LoginThrottle, User, UserSession
 
 __all__ = [
@@ -48,6 +48,7 @@ __all__ = [
     "SearchLog",
     "SearchFeedbackEvent",
     "UserUsageEvent",
+    "AiSearchBehaviorEvent",
     "User",
     "UserSession",
     "LoginThrottle",

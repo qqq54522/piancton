@@ -172,10 +172,10 @@ const ImageHome = () => {
   }, [isDesigner, setUploadOpen]);
 
   return (
-    <div className={`pb-8 transition-[padding] duration-300 ease-out ${agentPanelOpen ? 'lg:pr-[440px]' : ''}`}>
+    <div className="pb-8">
       <div
         ref={stickyHeaderRef}
-        className={`fixed right-0 top-0 z-40 border-b border-border/60 bg-white transition-[left,right] duration-300 ease-out ${agentPanelOpen ? 'lg:right-[440px]' : ''} ${!isBusiness ? 'left-20' : 'left-0'} ${isBusiness ? 'px-4 py-4 sm:px-6 lg:px-8' : 'px-4 pb-4 pt-3 sm:px-6 lg:px-8'}`}
+        className={`fixed right-0 top-0 z-40 border-b border-border/60 bg-white ${!isBusiness ? 'left-20' : 'left-0'} ${isBusiness ? 'px-4 py-4 sm:px-6 lg:px-8' : 'px-4 pb-4 pt-3 sm:px-6 lg:px-8'}`}
       >
         <div className="mx-auto w-full max-w-[1920px]">
           <GlobalImageSearch
@@ -187,12 +187,14 @@ const ImageHome = () => {
             showBusinessAccount={isBusiness}
             manualFilterOpen={manualFilterOpen}
             animateGifPreview={animatedGifPreview.enabled}
+            agentOpen={agentPanelOpen}
             onInputChange={setGlobalSearchInput}
             onChannelChange={setSelectedChannel}
             onSceneChange={setSelectedScene}
             onSortByChange={setSortBy}
             onManualFilterOpenChange={setManualFilterOpen}
             onAnimateGifPreviewChange={animatedGifPreview.setEnabled}
+            onAgentOpenChange={setAgentPanelOpen}
             onClear={clearGlobalSearch}
             onSearch={executeGlobalSearch}
           />
@@ -200,19 +202,20 @@ const ImageHome = () => {
       </div>
 
       <div className="w-full px-0" style={{ paddingTop: contentTopOffset }}>
-        <div className="flex items-start gap-0 max-sm:flex-col">
-          <ManualFilterRail
-            open={manualFilterOpen}
-            isBusiness={isBusiness}
-            stickyTop={headerTopOffset}
-            selectedConceptCode={selectedConceptCode}
-            selectedProofPointCode={selectedProofPointCode}
-            businessConcepts={businessConcepts}
-            businessFacets={businessFacets}
-            onConceptChange={selectConcept}
-            onProofPointChange={selectProofPoint}
-          />
-          <div className={`min-w-0 flex-1 px-4 transition-[margin] duration-300 sm:px-6 lg:px-8 ${manualFilterOpen ? 'sm:ml-[320px]' : ''}`}>
+        <div className={`transition-[padding] duration-300 ease-out ${agentPanelOpen ? 'lg:pr-[440px]' : ''}`}>
+          <div className="flex items-start gap-0 max-sm:flex-col">
+            <ManualFilterRail
+              open={manualFilterOpen}
+              isBusiness={isBusiness}
+              stickyTop={headerTopOffset}
+              selectedConceptCode={selectedConceptCode}
+              selectedProofPointCode={selectedProofPointCode}
+              businessConcepts={businessConcepts}
+              businessFacets={businessFacets}
+              onConceptChange={selectConcept}
+              onProofPointChange={selectProofPoint}
+            />
+            <div className={`min-w-0 flex-1 px-4 transition-[margin] duration-300 sm:px-6 lg:px-8 ${manualFilterOpen ? 'sm:ml-[320px]' : ''}`}>
             {searchUnavailable ? (
               <SearchErrorState
                 canRetry={Boolean(globalSearchKeyword || selectedConceptCode || selectedProofPointCode)}
@@ -228,7 +231,6 @@ const ImageHome = () => {
                   result={semanticResult}
                   refinements={searchRefinements}
                   showSearchContext={globalSearchSource === 'typed'}
-                  manualFilterOpen={manualFilterOpen}
                   showBusinessAccount={isBusiness}
                   animateGifPreview={animatedGifPreview.enabled}
                   onClear={clearGlobalSearch}
@@ -285,6 +287,7 @@ const ImageHome = () => {
                 )}
               </section>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -294,7 +297,11 @@ const ImageHome = () => {
         onOpenChange={setUploadOpen}
         onSuccess={handleUploadSuccess}
       />
-      <AssetAgentWidget open={agentPanelOpen} onOpenChange={setAgentPanelOpen} />
+      <AssetAgentWidget
+        open={agentPanelOpen}
+        onOpenChange={setAgentPanelOpen}
+        topOffset={stickyHeaderHeight}
+      />
     </div>
   );
 };

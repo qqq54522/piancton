@@ -6,6 +6,7 @@ import type {
   AssetSourceLinkType,
   BusinessFacetCatalog,
   BusinessConcept,
+  BusinessConceptAsset,
 } from '@client/src/types/api';
 
 export type AssetRelationRole = AssetConceptLink['relationRole'];
@@ -16,6 +17,12 @@ export async function fetchAssetGroup(id: string): Promise<AssetGroup> {
 
 export async function fetchBusinessConcepts(): Promise<BusinessConcept[]> {
   return (await api.get('/api/business-concepts')).data;
+}
+
+export async function fetchBusinessConceptAssets(
+  conceptId: string,
+): Promise<BusinessConceptAsset[]> {
+  return (await api.get(`/api/business-concepts/${conceptId}/assets`)).data;
 }
 
 export async function fetchBusinessFacets(): Promise<BusinessFacetCatalog> {

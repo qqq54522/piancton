@@ -1,5 +1,6 @@
 import type {
   AssetAgentChatResponse,
+  AssetAgentContextCard,
   AssetAgentImageContext,
   AssetAgentSession as ApiAssetAgentSession,
 } from '@client/src/types/api';
@@ -14,6 +15,7 @@ export interface ChatMessage {
   usedModel?: boolean | null;
   reasoningContent?: string;
   streaming?: boolean;
+  contextCards?: AssetAgentContextCard[];
 }
 
 export interface AgentSession {
@@ -33,18 +35,23 @@ export interface AgentState {
 }
 
 export const DEFAULT_QUESTIONS = [
-  '这张图适合表达哪个核心卖点？',
-  '这个卖点怎么跟家长讲？',
-  '还能推荐哪些相近素材方向？',
+  '帮我把“同步考点体系”转成家长能听懂的话术',
+  '怎么理解洋葱学园的六大业务体系？',
+  '如果家长觉得孩子学习没效果，应该用哪个卖点解释？',
+  '某个素材应该怎么判断它对应的核心卖点？',
 ] as const;
 
 export const MAX_SESSIONS = 20;
 export const LOCAL_SESSION_PREFIX = 'local-';
 export const DEFAULT_GREETING =
-  'Hi，我是洋葱业务知识助手。你可以问我业务体系、核心卖点、证明点、家长沟通和素材方向；把图片发给我，我会结合图片和知识库判断它适合表达什么卖点。';
+  'Hi，我是洋葱业务知识助手。\n\n我可以帮你理解洋葱学园的业务体系、核心卖点、证明点和使用场景，也可以把这些内容转成销售话术、家长沟通、素材方向、品牌文案、课程介绍或活动说明。\n\n你可以直接问我：某个卖点是什么意思、家长问题怎么回答、素材适合表达哪个卖点，或者某个场景该用什么卖点切入。';
 
 const LEGACY_DEFAULT_GREETING =
   '我是素材库 Agent。你可以把图片发给我，我会按已确认的卖点和素材信息帮你解释。';
+const LEGACY_PIANCTON_DEFAULT_GREETING =
+  '我是 Piancton Agent。你可以问我图片、卖点、六大体系、素材使用和销售话术；如果把图片发给我，我会结合已确认的素材信息一起回答。';
+const LEGACY_BUSINESS_DEFAULT_GREETING =
+  'Hi，我是洋葱业务知识助手。你可以问我业务体系、核心卖点、证明点、家长沟通和素材方向；把图片发给我，我会结合图片和知识库判断它适合表达什么卖点。';
 const LEGACY_DEFAULT_QUESTIONS = [
   '这张图适合讲哪个卖点？',
   '帮我用家长能听懂的话解释',
@@ -63,6 +70,7 @@ export function responseMessage(response: AssetAgentChatResponse): ChatMessage {
     role: 'assistant',
     content: `${response.answer}${suffix}`,
     usedModel: response.usedModel,
+    contextCards: response.contextCards,
   };
 }
 
@@ -95,6 +103,7 @@ export function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
       role: message.role,
       content: normalizeLegacyDefaultMessage(message.content),
       usedModel: message.usedModel,
+      contextCards: message.contextCards ?? [],
     })),
     contextImages: session.contextImages.map(contextApiToPayload),
     suggestedQuestions: normalizedSuggestedQuestions(session.suggestedQuestions).length > 0
@@ -107,7 +116,13 @@ export function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
 }
 
 function normalizeLegacyDefaultMessage(content: string): string {
-  return content === LEGACY_DEFAULT_GREETING ? DEFAULT_GREETING : content;
+  return (
+    content === LEGACY_DEFAULT_GREETING
+    || content === LEGACY_PIANCTON_DEFAULT_GREETING
+    || content === LEGACY_BUSINESS_DEFAULT_GREETING
+  )
+    ? DEFAULT_GREETING
+    : content;
 }
 
 function normalizedSuggestedQuestions(questions: string[]): string[] {

@@ -4,6 +4,7 @@ from typing import List, Literal, Optional
 from pydantic import Field
 
 from app.schemas.base import ApiModel
+from app.schemas.image import ImageRead
 
 
 class ConceptSystemLinkInput(ApiModel):
@@ -77,6 +78,11 @@ class BusinessConceptRead(ApiModel):
     search_phrases: List[ConceptSearchPhraseRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+class BusinessConceptAssetRead(ApiModel):
+    image: ImageRead
+    relation_role: Literal["expresses", "supports"]
 
 
 class ConceptRelationCreate(ApiModel):

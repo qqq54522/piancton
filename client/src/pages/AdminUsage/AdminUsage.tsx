@@ -46,9 +46,7 @@ export default function AdminUsage() {
   return (
     <div className="page-shell max-w-7xl">
       <PageHeader
-        eyebrow="Usage Analytics"
         title="使用统计"
-        description="按用户查看登录、访问和下载使用量，保留今日与区间维度。"
         actions={(
           <div className="inline-flex w-fit overflow-hidden rounded-xl border border-border bg-card p-1">
             {dayOptions.map((value) => (

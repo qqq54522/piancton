@@ -73,3 +73,36 @@ def test_usage_summary_is_admin_only(client):
     response = client.get("/api/admin/usage/summary", headers=business_headers)
 
     assert response.status_code == 403
+
+
+def test_search_interaction_is_linked_to_search_and_user(client):
+    business_headers = headers_for(client, "business", "business-password")
+    response = client.post(
+        "/api/usage/search-interaction",
+        headers=business_headers,
+        json={
+            "searchLogId": "search-log-1",
+            "keyword": "拍题精学",
+            "action": "open_detail",
+            "resultImageId": "image-1",
+            "assetGroupId": "asset-1",
+            "position": 2,
+        },
+    )
+    assert response.status_code == 204
+
+    admin_headers = headers_for(client, "admin", "admin-password")
+    summary = client.get(
+        "/api/admin/search-ops/activity-summary",
+        headers=admin_headers,
+        params={"days": 1},
+    )
+    assert summary.status_code == 200
+    payload = summary.json()
+    assert payload["interactionCount"] == 1
+    interaction = payload["recentInteractions"][0]
+    assert interaction["searchLogId"] == "search-log-1"
+    assert interaction["actorUsername"] == "business"
+    assert interaction["keyword"] == "拍题精学"
+    assert interaction["action"] == "open_detail"
+    assert interaction["position"] == 2

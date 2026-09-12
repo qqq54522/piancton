@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
 import { Button } from '@client/src/components/ui/button';
+import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,12 +32,14 @@ interface GlobalImageSearchProps {
   showBusinessAccount: boolean;
   manualFilterOpen: boolean;
   animateGifPreview: boolean;
+  agentOpen: boolean;
   onInputChange: (value: string) => void;
   onChannelChange: (value: string) => void;
   onSceneChange: (value: SceneImageFilter) => void;
   onSortByChange: (value: 'createdAt' | 'downloadCount') => void;
   onManualFilterOpenChange: (open: boolean) => void;
   onAnimateGifPreviewChange: (value: boolean) => void;
+  onAgentOpenChange: (open: boolean) => void;
   onClear: () => void;
   onSearch: (value?: string) => void;
 }
@@ -49,12 +52,14 @@ const GlobalImageSearch = ({
   showBusinessAccount,
   manualFilterOpen,
   animateGifPreview,
+  agentOpen,
   onInputChange,
   onChannelChange,
   onSceneChange,
   onSortByChange,
   onManualFilterOpenChange,
   onAnimateGifPreviewChange,
+  onAgentOpenChange,
   onClear,
   onSearch,
 }: GlobalImageSearchProps) => {
@@ -269,6 +274,21 @@ const GlobalImageSearch = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <button
+            type="button"
+            aria-label={agentOpen ? '收起 Piancton Agent' : '打开 Piancton Agent'}
+            aria-pressed={agentOpen}
+            onClick={() => onAgentOpenChange(!agentOpen)}
+            className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-3 pr-4 text-sm font-semibold transition-colors ${agentOpen ? 'border-foreground bg-foreground text-background shadow-sm' : 'border-border bg-white text-foreground shadow-xs hover:bg-[#f1f1ef]'}`}
+          >
+            <PianctonAgentMark
+              size="sm"
+              state={agentOpen ? 'wake' : 'idle'}
+              interactive={false}
+              className="!size-7"
+            />
+            Agent
+          </button>
         </div>
       </div>
     </section>

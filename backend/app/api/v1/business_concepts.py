@@ -4,10 +4,12 @@ from app.api.dependencies import (
     get_business_concept_service,
     get_current_user,
     require_admin,
+    require_admin_role,
 )
 from app.models.user import User
 from app.schemas.business_concept import (
     BusinessConceptCreate,
+    BusinessConceptAssetRead,
     BusinessConceptRead,
     BusinessConceptUpdate,
     ConceptRelationCreate,
@@ -34,6 +36,15 @@ def get_business_concept(
     service: BusinessConceptService = Depends(get_business_concept_service),
 ):
     return service.get(concept_id)
+
+
+@router.get("/{concept_id}/assets", response_model=list[BusinessConceptAssetRead])
+def list_business_concept_assets(
+    concept_id: str,
+    _: User = Depends(require_admin_role),
+    service: BusinessConceptService = Depends(get_business_concept_service),
+):
+    return service.list_assets(concept_id)
 
 
 @router.post("", response_model=BusinessConceptRead, status_code=status.HTTP_201_CREATED)

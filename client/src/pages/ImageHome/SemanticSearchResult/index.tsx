@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 
@@ -21,7 +21,6 @@ interface SemanticSearchResultProps {
   result: SemanticSearchResponse;
   refinements: SearchRefinements;
   showSearchContext: boolean;
-  manualFilterOpen: boolean;
   showBusinessAccount: boolean;
   animateGifPreview: boolean;
   onClear: () => void;
@@ -33,7 +32,6 @@ const SemanticSearchResult = ({
   result,
   refinements,
   showSearchContext,
-  manualFilterOpen,
   showBusinessAccount,
   animateGifPreview,
   onClear,
@@ -72,6 +70,11 @@ const SemanticSearchResult = ({
       setFeedbackNote('');
     },
   });
+
+  useEffect(() => {
+    setFeedbackNote('');
+    setSubmittedFeedback(null);
+  }, [keyword, result.searchLogId]);
 
   return (
     <div className="mt-6">
@@ -152,12 +155,11 @@ const SemanticSearchResult = ({
         </div>
       ) : null}
 
-      {showSearchContext && !result.fallback && (
+      {showSearchContext && showBusinessAccount && (
         <SearchFeedbackPanel
+          key={result.searchLogId ?? keyword}
           feedbackNote={feedbackNote}
           feedbackMutation={feedbackMutation}
-          manualFilterOpen={manualFilterOpen}
-          showBusinessAccount={showBusinessAccount}
           submittedFeedback={submittedFeedback}
           onFeedbackNoteChange={setFeedbackNote}
         />

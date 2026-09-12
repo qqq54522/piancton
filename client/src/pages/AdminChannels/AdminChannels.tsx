@@ -41,11 +41,7 @@ export default function AdminChannels() {
 
   return (
     <div className="page-shell">
-      <PageHeader
-        eyebrow="Channel Intent Language"
-        title="场景与渠道管理"
-        description="维护素材会被用在哪里，以及业务方可能怎么说这些渠道；搜索时会和卖点意图并行识别。"
-      />
+      <PageHeader title="场景与渠道管理" />
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="surface-card p-3">
@@ -88,9 +84,6 @@ export default function AdminChannels() {
                   <Badge variant="secondary">{familyLabel(selected.family)}</Badge>
                   <Badge variant="outline">{sizeLabel(selected.size)}</Badge>
                 </div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  这些话术会帮助搜索框理解用户说的是哪个渠道；只说“手机端/官网”时仍会保留大图和小图两个候选。
-                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button

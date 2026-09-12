@@ -74,11 +74,7 @@ export default function Trash() {
 
   return (
     <div className="page-shell">
-      <PageHeader
-        eyebrow="Recovery"
-        title="素材回收站"
-        description="误删素材可以恢复；只有确认不再需要时才执行永久删除。"
-      />
+      <PageHeader title="素材回收站" />
       {trash.isLoading ? (
         <p className="mt-8 text-sm text-muted-foreground">正在加载...</p>
       ) : trash.isError ? (

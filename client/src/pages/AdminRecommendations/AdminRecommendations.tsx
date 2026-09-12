@@ -58,11 +58,7 @@ export default function AdminRecommendations() {
 
   return (
     <div className="page-shell">
-      <PageHeader
-        eyebrow="Result Recommendation Copy"
-        title="结果推荐语"
-        description="维护每个卖点在搜索结果卡片里的人工推荐文案；卡片只展示当前搜索命中的卖点。"
-      />
+      <PageHeader title="结果推荐语" />
 
       <div className="mt-6 rounded-2xl border border-border bg-white">
         <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
