@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@client/src/api/image', () => ({
+  fetchImages: vi.fn().mockResolvedValue({ items: [], hasMore: false }),
+  recordSearchInteraction: vi.fn().mockResolvedValue(undefined),
+}));
 
 import type { ImageDetail, ImageItem } from '@client/src/types/api';
 import BusinessImageDetailRecommendations, {
@@ -29,6 +35,7 @@ const image = (id: string, title: string): ImageItem => ({
 
 const detail = {
   ...image('source', '当前图片'),
+  channel: 'PPT',
   relatedImages: [],
   analysisRuns: [],
   recommendationSections: [
@@ -38,6 +45,13 @@ const detail = {
       description: '与当前素材支撑同一卖点，适合换一种表达。',
       source: 'business_relations',
       images: [image('same-point', '同卖点素材')],
+    },
+    {
+      purpose: 'visual_similar',
+      title: '相似画面与主题',
+      description: '画面接近。',
+      source: 'semantic_profile',
+      images: [image('visual', '相似画面素材')],
     },
     {
       purpose: 'personalized',
@@ -50,16 +64,28 @@ const detail = {
 } satisfies ImageDetail;
 
 describe('BusinessImageDetailRecommendations', () => {
-  it('keeps recommendation purposes visibly separate', () => {
+  it('keeps the original business entrances and the new recommendation purposes separate', () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     render(
-      <MemoryRouter>
-        <BusinessImageDetailRecommendations detail={detail} />
-        <BusinessImageDetailSideRecommendations detail={detail} />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <BusinessImageDetailRecommendations detail={detail} />
+          <BusinessImageDetailSideRecommendations detail={detail} />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
-    expect(screen.getByText('同卖点可替换')).toBeTruthy();
+    expect(screen.getByText('相关素材推荐')).toBeTruthy();
     expect(screen.getByText('同卖点素材')).toBeTruthy();
+    expect(screen.getByText('PPT素材')).toBeTruthy();
+    expect(screen.getByText('手机端大图素材')).toBeTruthy();
+    expect(screen.getByText('手机端小图素材')).toBeTruthy();
+    expect(screen.getByText('品牌手册渠道')).toBeTruthy();
+    expect(screen.getByText('官网渠道素材')).toBeTruthy();
+    expect(screen.getByText('PPT 渠道素材')).toBeTruthy();
+    expect(screen.getByText('相似画面与主题')).toBeTruthy();
     expect(screen.getByText('为你推荐')).toBeTruthy();
     expect(screen.getByText('个性化素材')).toBeTruthy();
   });

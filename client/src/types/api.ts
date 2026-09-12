@@ -404,6 +404,12 @@ export type SearchInteractionSource =
   | 'detail_same_selling_point'
   | 'detail_visual_similar'
   | 'detail_same_channel'
+  | 'detail_current_channel'
+  | 'detail_mobile_large'
+  | 'detail_mobile_small'
+  | 'detail_brand_manual'
+  | 'detail_website'
+  | 'detail_ppt'
   | 'detail_personalized';
 
 export interface SearchInteractionItem {

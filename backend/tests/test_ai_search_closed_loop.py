@@ -282,7 +282,22 @@ def test_search_interaction_is_durably_synced_to_behavior_dataset(db_factory):
         }
 
 
-def test_detail_recommendation_interaction_keeps_its_scene(db_factory):
+@pytest.mark.parametrize(
+    "scene",
+    [
+        "detail_same_selling_point",
+        "detail_visual_similar",
+        "detail_same_channel",
+        "detail_current_channel",
+        "detail_mobile_large",
+        "detail_mobile_small",
+        "detail_brand_manual",
+        "detail_website",
+        "detail_ppt",
+        "detail_personalized",
+    ],
+)
+def test_detail_recommendation_interaction_keeps_its_scene(db_factory, scene):
     with db_factory() as db:
         user = User(username="detail-rec-user", password_hash="x", role="business")
         db.add(user)
@@ -296,13 +311,13 @@ def test_detail_recommendation_interaction_keeps_its_scene(db_factory):
             result_image_id="image-2",
             asset_group_id="asset-2",
             position=1,
-            source="detail_same_selling_point",
+            source=scene,
         )
 
         pending = db.query(AiSearchBehaviorEvent).one()
 
     assert pending.event_type == "exposure"
-    assert pending.event_scene == "detail_same_selling_point"
+    assert pending.event_scene == scene
 
 
 @pytest.mark.parametrize("role", ["admin", "designer"])
