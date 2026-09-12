@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi.responses import FileResponse, StreamingResponse
 
-from app.api.dependencies import get_asset_agent_service, require_csrf, require_roles
+from app.api.dependencies import (
+    get_asset_agent_service,
+    get_asset_agent_temporary_image_service,
+    require_csrf,
+    require_roles,
+)
 from app.core.errors import ForbiddenError
 from app.models.user import User
 from app.schemas.asset_agent import (
@@ -11,8 +16,12 @@ from app.schemas.asset_agent import (
     AssetAgentSessionCreateRequest,
     AssetAgentSessionListResponse,
     AssetAgentSessionRead,
+    AssetAgentTemporaryImageRead,
 )
 from app.services.asset_agent_service import AssetAgentService
+from app.services.asset_agent_temporary_image_service import (
+    AssetAgentTemporaryImageService,
+)
 
 router = APIRouter(prefix="/asset-agent", tags=["asset-agent"])
 
@@ -21,6 +30,54 @@ def require_asset_agent_user(user: User = Depends(require_csrf)) -> User:
     if user.role not in {"admin", "designer", "business"}:
         raise ForbiddenError()
     return user
+
+
+@router.post(
+    "/temporary-images",
+    response_model=AssetAgentTemporaryImageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_asset_agent_temporary_image(
+    file: UploadFile = File(...),
+    user: User = Depends(require_asset_agent_user),
+    service: AssetAgentTemporaryImageService = Depends(
+        get_asset_agent_temporary_image_service
+    ),
+):
+    return service.create(
+        file.file,
+        owner_id=user.id,
+        filename=file.filename or "临时图片",
+    )
+
+
+@router.get("/temporary-images/{temporary_image_token}")
+def get_asset_agent_temporary_image(
+    temporary_image_token: str,
+    service: AssetAgentTemporaryImageService = Depends(
+        get_asset_agent_temporary_image_service
+    ),
+):
+    image = service.public_file(temporary_image_token)
+    return FileResponse(
+        image.path,
+        media_type=image.media_type,
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@router.delete(
+    "/temporary-images/{temporary_image_token}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_asset_agent_temporary_image(
+    temporary_image_token: str,
+    user: User = Depends(require_asset_agent_user),
+    service: AssetAgentTemporaryImageService = Depends(
+        get_asset_agent_temporary_image_service
+    ),
+):
+    service.delete(temporary_image_token, owner_id=user.id)
 
 
 @router.get("/sessions", response_model=AssetAgentSessionListResponse)

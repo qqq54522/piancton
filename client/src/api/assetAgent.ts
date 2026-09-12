@@ -8,6 +8,7 @@ import type {
   AssetAgentSessionContextUpdateRequest,
   AssetAgentSessionCreateRequest,
   AssetAgentSessionListResponse,
+  AssetAgentTemporaryImage,
 } from '@client/src/types/api';
 
 type AssetAgentStreamEvent =
@@ -49,6 +50,22 @@ export async function updateAssetAgentSessionContext(
 
 export async function deleteAssetAgentSession(sessionId: string): Promise<void> {
   await api.delete(`/api/asset-agent/sessions/${sessionId}`);
+}
+
+export async function uploadAssetAgentTemporaryImage(
+  file: File,
+): Promise<AssetAgentTemporaryImage> {
+  const body = new FormData();
+  body.append('file', file);
+  return (
+    await api.post('/api/asset-agent/temporary-images', body, {
+      timeout: 60_000,
+    })
+  ).data;
+}
+
+export async function deleteAssetAgentTemporaryImage(token: string): Promise<void> {
+  await api.delete(`/api/asset-agent/temporary-images/${token}`);
 }
 
 export async function sendAssetAgentMessage(

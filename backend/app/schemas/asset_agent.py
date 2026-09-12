@@ -8,6 +8,7 @@ from pydantic import Field
 from app.schemas.base import ApiModel
 
 AssetAgentMessageRole = Literal["user", "assistant", "system"]
+AssetAgentResponseMode = Literal["balanced", "fast"]
 
 
 class AssetAgentChatRequest(ApiModel):
@@ -15,6 +16,20 @@ class AssetAgentChatRequest(ApiModel):
     image_ids: list[str] = Field(default_factory=list, max_length=10)
     asset_group_ids: list[str] = Field(default_factory=list, max_length=10)
     conversation_id: str | None = Field(default=None, max_length=80)
+    temporary_image_token: str | None = Field(
+        default=None,
+        min_length=24,
+        max_length=80,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    )
+    response_mode: AssetAgentResponseMode = "balanced"
+
+
+class AssetAgentTemporaryImageRead(ApiModel):
+    token: str
+    title: str
+    preview_url: str
+    expires_at: datetime
 
 
 class AssetAgentImageContext(ApiModel):

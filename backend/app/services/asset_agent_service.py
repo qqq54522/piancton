@@ -38,10 +38,14 @@ from app.schemas.asset_agent import (
     AssetAgentMessageRead,
     AssetAgentMessageRole,
     AssetAgentModelResponse,
+    AssetAgentResponseMode,
     AssetAgentSessionContextUpdateRequest,
     AssetAgentSessionCreateRequest,
     AssetAgentSessionListResponse,
     AssetAgentSessionRead,
+)
+from app.services.asset_agent_temporary_image_service import (
+    AssetAgentTemporaryImageService,
 )
 from app.services.unit_of_work import UnitOfWork
 from app.services.volc_ai_search_client import (
@@ -77,6 +81,7 @@ class AssetAgentService:
         ai_search_chat: VolcAiSearchClient | None = None,
         ai_search_chat_page_size: int = 10,
         ai_search_public_base_url: str = "",
+        temporary_images: AssetAgentTemporaryImageService | None = None,
     ):
         self.db = db
         self.provider = provider
@@ -84,6 +89,7 @@ class AssetAgentService:
         self.ai_search_chat = ai_search_chat
         self.ai_search_chat_page_size = max(1, min(ai_search_chat_page_size, 50))
         self.ai_search_public_base_url = ai_search_public_base_url.rstrip("/")
+        self.temporary_images = temporary_images
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
@@ -178,6 +184,19 @@ class AssetAgentService:
         return self.chat_stream(user, payload)
 
     def chat(self, user: User, payload: AssetAgentChatRequest) -> AssetAgentChatResponse:
+        temporary_image_url = self._temporary_image_url(user, payload)
+        try:
+            return self._chat(user, payload, temporary_image_url=temporary_image_url)
+        finally:
+            self._delete_temporary_image(user, payload)
+
+    def _chat(
+        self,
+        user: User,
+        payload: AssetAgentChatRequest,
+        *,
+        temporary_image_url: str = "",
+    ) -> AssetAgentChatResponse:
         message = payload.message.strip()
         if not message:
             raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
@@ -211,6 +230,8 @@ class AssetAgentService:
             message=message,
             context_text=context_text,
             context_images=context_images,
+            temporary_image_url=temporary_image_url,
+            response_mode=payload.response_mode,
         )
         if external_chat is not None:
             recommended_cards = self._recommended_image_cards(external_chat.item_ids)
@@ -241,7 +262,10 @@ class AssetAgentService:
             )
 
         understanding = self._route_business_understanding(message, images, groups)
-        prompt = _agent_prompt()
+        prompt = _agent_prompt(
+            response_mode=payload.response_mode,
+            has_temporary_image=bool(temporary_image_url),
+        )
         input_text = "\n\n".join(
             item
             for item in (
@@ -251,6 +275,10 @@ class AssetAgentService:
                 if understanding
                 else "",
                 f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
+                "用户本轮上传了临时图片，但外部图像问答通道未返回结果。"
+                "不要假装已经看见图片，应明确说明暂时无法可靠识别并请用户重试。"
+                if temporary_image_url
+                else "",
                 f"项目启用卖点简表：\n{self._catalog_text(groups)}",
             )
             if item
@@ -282,7 +310,13 @@ class AssetAgentService:
                 if isinstance(error_attempts, (list, tuple))
                 else ()
             )
-            answer = self._fallback_answer(message, images, groups, error=str(exc))
+            answer = self._fallback_answer(
+                message,
+                images,
+                groups,
+                error=str(exc),
+                has_temporary_image=bool(temporary_image_url),
+            )
             suggestions = _fallback_suggestions(bool(images or groups))
             used_model = False
 
@@ -309,6 +343,7 @@ class AssetAgentService:
         message = payload.message.strip()
         if not message:
             raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
+        temporary_image_url = self._temporary_image_url(user, payload)
 
         def events() -> Iterator[str]:
             session: AssetAgentSession | None = None
@@ -345,12 +380,21 @@ class AssetAgentService:
                     try:
                         self.db.flush()
                         for upstream in client.stream_chat_search(
-                            _ai_search_chat_message(message, context_text),
+                            _ai_search_chat_message(
+                                message,
+                                context_text,
+                                response_mode=payload.response_mode,
+                                has_temporary_image=bool(temporary_image_url),
+                            ),
                             session_id=session.id,
                             user_id=user.id,
-                            page_size=self.ai_search_chat_page_size,
+                            page_size=_chat_page_size(
+                                self.ai_search_chat_page_size,
+                                payload.response_mode,
+                            ),
                             enable_suggestions=True,
-                            image_url=_first_image_url(
+                            image_url=temporary_image_url
+                            or _first_image_url(
                                 context_images,
                                 public_base_url=self.ai_search_public_base_url,
                             ),
@@ -436,7 +480,10 @@ class AssetAgentService:
                         },
                     )
 
-                prompt = _agent_prompt()
+                prompt = _agent_prompt(
+                    response_mode=payload.response_mode,
+                    has_temporary_image=bool(temporary_image_url),
+                )
                 input_text = "\n\n".join(
                     item
                     for item in (
@@ -446,6 +493,10 @@ class AssetAgentService:
                         if understanding
                         else "",
                         f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
+                        "用户本轮上传了临时图片，但外部图像问答通道未返回结果。"
+                        "不要假装已经看见图片，应明确说明暂时无法可靠识别并请用户重试。"
+                        if temporary_image_url
+                        else "",
                         f"项目启用卖点简表：\n{self._catalog_text(groups)}",
                     )
                     if item
@@ -476,7 +527,13 @@ class AssetAgentService:
                         if isinstance(error_attempts, (list, tuple))
                         else ()
                     )
-                    answer = self._fallback_answer(message, images, groups, error=str(exc))
+                    answer = self._fallback_answer(
+                        message,
+                        images,
+                        groups,
+                        error=str(exc),
+                        has_temporary_image=bool(temporary_image_url),
+                    )
                     suggestions = _fallback_suggestions(bool(images or groups))
                     used_model = False
 
@@ -508,6 +565,8 @@ class AssetAgentService:
             except Exception as exc:
                 self.uow.rollback()
                 yield _sse("error", {"message": _clip(str(exc) or exc.__class__.__name__, 200)})
+            finally:
+                self._delete_temporary_image(user, payload)
 
         return events()
 
@@ -793,7 +852,14 @@ class AssetAgentService:
         groups: list[AssetGroup],
         *,
         error: str,
+        has_temporary_image: bool = False,
     ) -> str:
+        if has_temporary_image:
+            return (
+                "这张临时图片本轮没有被可靠识别，我不能在没看清内容时替它硬套卖点。"
+                "请保留原问题并重新上传一次；识别成功后，我会只按图片可见内容和项目已确认的"
+                "六大体系、核心卖点来回答。"
+            )
         if not images and not groups:
             return _fallback_business_answer(message)
         lines = [
@@ -834,6 +900,8 @@ class AssetAgentService:
         message: str,
         context_text: str,
         context_images: list[AssetAgentImageContext],
+        temporary_image_url: str = "",
+        response_mode: AssetAgentResponseMode = "balanced",
     ) -> VolcAiSearchChatResult | None:
         client = self.ai_search_chat
         if client is None or not getattr(client, "chat_search_configured", False):
@@ -841,18 +909,53 @@ class AssetAgentService:
         self.db.flush()
         try:
             return client.chat_search(
-                _ai_search_chat_message(message, context_text),
+                _ai_search_chat_message(
+                    message,
+                    context_text,
+                    response_mode=response_mode,
+                    has_temporary_image=bool(temporary_image_url),
+                ),
                 session_id=session.id,
                 user_id=user.id,
-                page_size=self.ai_search_chat_page_size,
+                page_size=_chat_page_size(self.ai_search_chat_page_size, response_mode),
                 enable_suggestions=True,
-                image_url=_first_image_url(
+                image_url=temporary_image_url
+                or _first_image_url(
                     context_images,
                     public_base_url=self.ai_search_public_base_url,
                 ),
             )
         except VolcAiSearchClientError:
             return None
+
+    def _temporary_image_url(
+        self,
+        user: User,
+        payload: AssetAgentChatRequest,
+    ) -> str:
+        token = payload.temporary_image_token
+        if not token:
+            return ""
+        if self.temporary_images is None:
+            raise AppError(
+                "temporary_image_unavailable",
+                "临时问图服务暂不可用，请稍后重试",
+                status_code=503,
+            )
+        return self.temporary_images.public_url_for_owner(token, owner_id=user.id)
+
+    def _delete_temporary_image(
+        self,
+        user: User,
+        payload: AssetAgentChatRequest,
+    ) -> None:
+        token = payload.temporary_image_token
+        if not token or self.temporary_images is None:
+            return
+        try:
+            self.temporary_images.delete(token, owner_id=user.id)
+        except AppError:
+            pass
 
     def _try_ai_search_opening(
         self,
@@ -877,7 +980,13 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _ai_search_chat_message(message: str, context_text: str) -> str:
+def _ai_search_chat_message(
+    message: str,
+    context_text: str,
+    *,
+    response_mode: AssetAgentResponseMode = "balanced",
+    has_temporary_image: bool = False,
+) -> str:
     style_instructions = (
         "以下为内部输出要求，请遵守但不要在回答中复述："
         "先识别用户具体在问什么，像一个自然的业务顾问直接回答这个问题；"
@@ -889,17 +998,45 @@ def _ai_search_chat_message(message: str, context_text: str) -> str:
         "如果生成推荐问题，请给 4 个不重复的可选下一步，"
         "覆盖背景、卖点详解、找图、家长话术中与当前问题有关的方向。"
     )
+    mode_instructions = (
+        "当前为快速模式：优先直接给结论，只保留必要依据和下一步，避免不必要展开。"
+        if response_mode == "fast"
+        else "当前为均衡模式：兼顾结论、必要依据和可执行建议，但不要堆砌固定模板。"
+    )
+    image_instructions = (
+        "用户本轮上传了一张临时图片。请先依据图片可见内容回答；"
+        "需要判断业务体系或卖点时，只能使用项目已确认知识，无法确认就明确说不确定。"
+        if has_temporary_image
+        else ""
+    )
     if not context_text.strip():
-        return "\n\n".join((message, style_instructions))
+        return "\n\n".join(
+            item
+            for item in (
+                message,
+                style_instructions,
+                mode_instructions,
+                image_instructions,
+            )
+            if item
+        )
     return "\n\n".join(
-        (
+        item
+        for item in (
             message,
             style_instructions,
+            mode_instructions,
+            image_instructions,
             "当前用户还带了以下素材上下文。请只在确有依据时引用这些素材；"
             "如果问题与素材无关，优先按洋葱业务知识回答。",
             context_text,
         )
+        if item
     )
+
+
+def _chat_page_size(configured: int, response_mode: AssetAgentResponseMode) -> int:
+    return min(configured, 4) if response_mode == "fast" else configured
 
 
 def _first_image_url(
@@ -1194,8 +1331,12 @@ def _title_from_message(message: str) -> str:
     return f"{cleaned[:16]}…" if len(cleaned) > 16 else cleaned
 
 
-def _agent_prompt() -> str:
-    return """
+def _agent_prompt(
+    *,
+    response_mode: AssetAgentResponseMode = "balanced",
+    has_temporary_image: bool = False,
+) -> str:
+    base_prompt = """
 你是“Piancton 通用业务 Agent”，服务对象包括销售、市场、运营、教研、设计、客服和管理团队。
 你不是分开的图片助手、卖点助手或销售助手，而是同一个统一业务机器人。
 你要帮助内部成员理解图片使用、卖点体系、业务边界、素材表达和对外沟通，但不默认用户是销售。
@@ -1246,6 +1387,19 @@ def _agent_prompt() -> str:
 
 只返回 JSON：{"answer":"...","suggestedQuestions":["..."]}，suggestedQuestions 尽量给 4 个。
 """.strip()
+    mode_prompt = (
+        "\n\n本轮为快速模式：用尽可能短的回答先给结论，只保留必要依据；"
+        "不得为了速度放松事实边界。"
+        if response_mode == "fast"
+        else "\n\n本轮为均衡模式：兼顾结论、必要依据和可执行建议，不套固定模板。"
+    )
+    image_prompt = (
+        "\n\n用户本轮上传了临时图片，但当前本地模型通道没有收到图片像素。"
+        "不得声称已经看见或识别该图片；应明确请用户重试临时问图。"
+        if has_temporary_image
+        else ""
+    )
+    return f"{base_prompt}{mode_prompt}{image_prompt}"
 
 
 def _group_facts(group: AssetGroup) -> list[str]:

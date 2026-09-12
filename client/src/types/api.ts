@@ -787,6 +787,15 @@ export interface AssetAgentChatRequest {
   imageIds?: string[];
   assetGroupIds?: string[];
   conversationId?: string | null;
+  temporaryImageToken?: string | null;
+  responseMode?: 'balanced' | 'fast';
+}
+
+export interface AssetAgentTemporaryImage {
+  token: string;
+  title: string;
+  previewUrl: string;
+  expiresAt: string;
 }
 
 export interface AssetAgentImageContext {

@@ -8,6 +8,7 @@ import {
   titleFromMessage,
   updateSession,
   normalizeAgentText,
+  shouldSendAgentMessage,
 } from './assetAgentSessionModel';
 
 describe('assetAgentSessionModel', () => {
@@ -60,6 +61,15 @@ describe('assetAgentSessionModel', () => {
 
   it('renders escaped line breaks from configured AI Search openings', () => {
     expect(normalizeAgentText('Hi\\n\\n我可以帮你')).toBe('Hi\n\n我可以帮你');
+  });
+
+  it('keeps Enter for new lines and sends only with the command shortcut', () => {
+    expect(shouldSendAgentMessage({ key: 'Enter', metaKey: false, ctrlKey: false }))
+      .toBe(false);
+    expect(shouldSendAgentMessage({ key: 'Enter', metaKey: true, ctrlKey: false }))
+      .toBe(true);
+    expect(shouldSendAgentMessage({ key: 'Enter', metaKey: false, ctrlKey: true }))
+      .toBe(true);
   });
 
   it('keeps the selected session stable while sorting by activity', () => {

@@ -132,6 +132,14 @@ export function normalizeAgentText(content: string): string {
     .replace(/\\t/g, '  ');
 }
 
+export function shouldSendAgentMessage(event: {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+}): boolean {
+  return event.key === 'Enter' && (event.metaKey || event.ctrlKey);
+}
+
 function normalizedSuggestedQuestions(questions: string[]): string[] {
   if (
     questions.length === LEGACY_DEFAULT_QUESTIONS.length

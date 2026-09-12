@@ -1,8 +1,13 @@
 from collections.abc import Callable
 from datetime import datetime, timezone
+from io import BytesIO
 from typing import Any, TypeVar
 
+import pytest
+from PIL import Image as PillowImage
+
 from app.ai.contracts import ModelCallResult, ModelRequest
+from app.core.errors import NotFoundError
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase, ConceptSystemLink
 from app.models.image import Image
@@ -11,6 +16,9 @@ from app.models.user import User
 from app.schemas.asset_agent import AssetAgentChatRequest
 from app.services import asset_agent_service
 from app.services.asset_agent_service import AssetAgentService
+from app.services.asset_agent_temporary_image_service import (
+    AssetAgentTemporaryImageService,
+)
 from app.services.volc_ai_search_client import (
     VolcAiSearchChatResult,
     VolcAiSearchStreamEvent,
@@ -211,6 +219,79 @@ def test_asset_agent_passes_context_image_url_to_ai_search_chat(db_factory):
     assert ai_search.last_image_url == f"http://example.test/api/images/{image.id}/thumbnail"
 
 
+def test_asset_agent_temporary_image_is_used_once_and_fast_mode_is_bounded(
+    db_factory,
+    tmp_path,
+):
+    with db_factory() as db:
+        user = User(username="agent-temporary-image-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+        temporary_images = AssetAgentTemporaryImageService(
+            tmp_path / "agent-temporary",
+            public_base_url="http://example.test",
+            max_upload_bytes=20 * 1024 * 1024,
+            max_image_pixels=1_000_000,
+            max_long_image_pixels=2_000_000,
+            long_image_min_aspect_ratio=3.0,
+        )
+        uploaded = temporary_images.create(
+            BytesIO(_png_bytes()),
+            owner_id=user.id,
+            filename="不会分类的图片.png",
+        )
+        ai_search = _FakeAiSearchChat()
+
+        response = AssetAgentService(
+            db,
+            _FailingProvider(),
+            ai_search_chat=ai_search,
+            ai_search_chat_page_size=10,
+            temporary_images=temporary_images,
+        ).chat(
+            user,
+            AssetAgentChatRequest(
+                message="这张图表达什么卖点？",
+                temporary_image_token=uploaded.token,
+                response_mode="fast",
+            ),
+        )
+
+    assert response.used_model is True
+    assert ai_search.last_image_url == uploaded.preview_url
+    assert ai_search.last_page_size == 4
+    assert "当前为快速模式" in ai_search.last_query
+    assert "用户本轮上传了一张临时图片" in ai_search.last_query
+    with pytest.raises(NotFoundError):
+        temporary_images.public_file(uploaded.token)
+
+
+def test_asset_agent_temporary_image_endpoint_is_ephemeral(client):
+    csrf = login(client, "business", "business-password")
+    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
+
+    uploaded = client.post(
+        "/api/asset-agent/temporary-images",
+        files={"file": ("question.png", _png_bytes(), "image/png")},
+        headers=headers,
+    )
+
+    assert uploaded.status_code == 201
+    payload = uploaded.json()
+    assert payload["title"] == "question"
+    assert payload["previewUrl"].endswith(payload["token"])
+    fetched = client.get(f"/api/asset-agent/temporary-images/{payload['token']}")
+    assert fetched.status_code == 200
+    assert fetched.headers["content-type"] == "image/png"
+
+    deleted = client.delete(
+        f"/api/asset-agent/temporary-images/{payload['token']}",
+        headers=headers,
+    )
+    assert deleted.status_code == 204
+    assert client.get(f"/api/asset-agent/temporary-images/{payload['token']}").status_code == 404
+
+
 def test_asset_agent_sessions_are_user_private_even_for_admin(client):
     business_csrf = login(client, "business", "business-password")
     business_headers = {"X-CSRF-Token": business_csrf, "Origin": "http://localhost:5173"}
@@ -366,6 +447,7 @@ class _FakeAiSearchChat:
     last_query = ""
     last_image_url = ""
     item_ids: list[str] = []
+    last_page_size = 0
 
     @property
     def chat_search_configured(self) -> bool:
@@ -383,6 +465,7 @@ class _FakeAiSearchChat:
     ) -> VolcAiSearchChatResult:
         self.last_query = query
         self.last_image_url = image_url
+        self.last_page_size = page_size
         return VolcAiSearchChatResult(
             session_id=session_id,
             query=query,
@@ -404,6 +487,7 @@ class _FakeAiSearchChat:
     ):
         self.last_query = query
         self.last_image_url = image_url
+        self.last_page_size = page_size
         yield VolcAiSearchStreamEvent(step="tool call")
         yield VolcAiSearchStreamEvent(step="reply")
         yield VolcAiSearchStreamEvent(content="这是火山 AI Search 的业务知识回答。")
@@ -435,3 +519,9 @@ class _FakeAiSearchOpening(_FakeAiSearchChat):
             suggestions=["帮我找一张同步考点图"],
             item_ids=[self.image_id, "not-in-local-library"],
         )
+
+
+def _png_bytes() -> bytes:
+    output = BytesIO()
+    PillowImage.new("RGB", (8, 8), "white").save(output, format="PNG")
+    return output.getvalue()

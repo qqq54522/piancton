@@ -140,6 +140,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/images/query-completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Query Completions */
+        get: operations["query_completions_api_images_query_completions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/images/search": {
         parameters: {
             query?: never;
@@ -1011,6 +1028,41 @@ export interface paths {
         /** Diagnose External Search Chain */
         post: operations["diagnose_external_search_chain_api_admin_api_center_external_connections_search_chain_diagnose_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-agent/temporary-images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Asset Agent Temporary Image */
+        post: operations["upload_asset_agent_temporary_image_api_asset_agent_temporary_images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/asset-agent/temporary-images/{temporary_image_token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Asset Agent Temporary Image */
+        get: operations["get_asset_agent_temporary_image_api_asset_agent_temporary_images__temporary_image_token__get"];
+        put?: never;
+        post?: never;
+        /** Delete Asset Agent Temporary Image */
+        delete: operations["delete_asset_agent_temporary_image_api_asset_agent_temporary_images__temporary_image_token__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2172,6 +2224,14 @@ export interface components {
             assetGroupIds?: string[];
             /** Conversationid */
             conversationId?: string | null;
+            /** Temporaryimagetoken */
+            temporaryImageToken?: string | null;
+            /**
+             * Responsemode
+             * @default balanced
+             * @enum {string}
+             */
+            responseMode: "balanced" | "fast";
         };
         /** AssetAgentChatResponse */
         AssetAgentChatResponse: {
@@ -2294,6 +2354,20 @@ export interface components {
              * Format: date-time
              */
             updatedAt: string;
+        };
+        /** AssetAgentTemporaryImageRead */
+        AssetAgentTemporaryImageRead: {
+            /** Token */
+            token: string;
+            /** Title */
+            title: string;
+            /** Previewurl */
+            previewUrl: string;
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
         };
         /** AssetBusinessClassificationUpdate */
         AssetBusinessClassificationUpdate: {
@@ -2648,6 +2722,14 @@ export interface components {
              * @default true
              */
             auto_analyze: boolean;
+        };
+        /** Body_upload_asset_agent_temporary_image_api_asset_agent_temporary_images_post */
+        Body_upload_asset_agent_temporary_image_api_asset_agent_temporary_images_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
         };
         /** Body_upload_image_api_images_upload_post */
         Body_upload_image_api_images_upload_post: {
@@ -4435,6 +4517,40 @@ export interface operations {
     query_recommendations_api_images_query_recommendations_get: {
         parameters: {
             query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchQueryRecommendations"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    query_completions_api_images_query_completions_get: {
+        parameters: {
+            query: {
+                query: string;
                 limit?: number;
             };
             header?: never;
@@ -6495,6 +6611,109 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApiSearchChainDiagnosticResult"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_asset_agent_temporary_image_api_asset_agent_temporary_images_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_asset_agent_temporary_image_api_asset_agent_temporary_images_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAgentTemporaryImageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_asset_agent_temporary_image_api_asset_agent_temporary_images__temporary_image_token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                temporary_image_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_asset_agent_temporary_image_api_asset_agent_temporary_images__temporary_image_token__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                temporary_image_token: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

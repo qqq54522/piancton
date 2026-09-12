@@ -16,6 +16,9 @@ from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
 from app.services.api_center_service import ApiCenterService
 from app.services.asset_agent_service import AssetAgentService
+from app.services.asset_agent_temporary_image_service import (
+    AssetAgentTemporaryImageService,
+)
 from app.services.asset_identity_admin_service import AssetIdentityAdminService
 from app.services.asset_identity_service import AssetIdentityService
 from app.services.asset_relation_service import AssetRelationService
@@ -587,6 +590,20 @@ def get_asset_agent_service(
         ai_search_public_base_url=(
             settings.ai_search_public_base_url or settings.public_base_url or _first_cors_origin()
         ),
+        temporary_images=get_asset_agent_temporary_image_service(),
+    )
+
+
+def get_asset_agent_temporary_image_service() -> AssetAgentTemporaryImageService:
+    return AssetAgentTemporaryImageService(
+        settings.storage_dir / ".agent-temporary",
+        public_base_url=(
+            settings.ai_search_public_base_url or settings.public_base_url or _first_cors_origin()
+        ),
+        max_upload_bytes=settings.max_upload_bytes,
+        max_image_pixels=settings.max_image_pixels,
+        max_long_image_pixels=settings.max_long_image_pixels,
+        long_image_min_aspect_ratio=settings.long_image_min_aspect_ratio,
     )
 
 

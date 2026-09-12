@@ -105,7 +105,7 @@ class LocalStorageProvider:
                 with PillowImage.open(temp_path) as image:
                     image_format = image.format or ""
                     width, height = image.size
-                    _validate_image_pixels(
+                    validate_image_pixels(
                         width,
                         height,
                         max_pixels,
@@ -261,7 +261,7 @@ def _create_preview_thumbnail(source: Path, target: Path, thumbnail_max_size: in
         )
 
 
-def _validate_image_pixels(
+def validate_image_pixels(
     width: int,
     height: int,
     max_pixels: int,

@@ -16,10 +16,12 @@ import { toast } from 'sonner';
 
 import {
   createAssetAgentSession,
+  deleteAssetAgentTemporaryImage,
   listAssetAgentSessions,
   sendAssetAgentMessage,
   streamAssetAgentMessage,
   updateAssetAgentSessionContext,
+  uploadAssetAgentTemporaryImage,
 } from '@client/src/api/assetAgent';
 import { getApiError } from '@client/src/api/client';
 import { recordSearchInteraction } from '@client/src/api/image';
@@ -43,6 +45,7 @@ import {
   responseMessage,
   safeId,
   sessionFromApi,
+  shouldSendAgentMessage,
   stateFromSessions,
   titleFromMessage,
   updateSession,
@@ -52,6 +55,15 @@ import {
 } from './assetAgentSessionModel';
 
 const AUTO_IMAGE_PROMPT = '请讲解这张图片，判断它适合表达什么业务体系和核心卖点，并给出可以怎么使用。';
+const TEMPORARY_IMAGE_PROMPT = '请分析这张图片，说明它表达的内容、可能对应的业务体系和核心卖点；无法确认的部分请明确说明。';
+const TEMPORARY_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+type AgentResponseMode = 'balanced' | 'fast';
+
+interface PendingTemporaryImage {
+  file: File;
+  previewUrl: string;
+}
 
 interface AssetAgentWidgetProps {
   open?: boolean;
@@ -80,11 +92,16 @@ function AssetAgentWidgetInner({
 }: AssetAgentWidgetProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [pendingImage, setPendingImage] = useState<PendingTemporaryImage | null>(null);
+  const [responseMode, setResponseMode] = useState<AgentResponseMode>('balanced');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
   const [state, setState] = useState<AgentState>(() => stateFromSessions([createLocalSession()]));
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesViewportRef = useRef<HTMLDivElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingImageRef = useRef<PendingTemporaryImage | null>(null);
   const followStreamRef = useRef(true);
   const askRef = useRef<((question?: string, sessionOverride?: AgentSession) => Promise<void>) | null>(null);
   const [markState, setMarkState] = useState<'idle' | 'thinking' | 'happy' | 'wake'>('idle');
@@ -108,6 +125,14 @@ function AssetAgentWidgetInner({
   );
   const isIntroOnly = !activeSession.messages.some((message) => message.role === 'user');
   const open = controlledOpen ?? internalOpen;
+
+  const clearPendingImage = useCallback(() => {
+    const current = pendingImageRef.current;
+    if (current) URL.revokeObjectURL(current.previewUrl);
+    pendingImageRef.current = null;
+    setPendingImage(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  }, []);
 
   const setOpenState = useCallback((nextOpen: boolean) => {
     if (controlledOpen === undefined) {
@@ -204,6 +229,15 @@ function AssetAgentWidgetInner({
   }, [activeSession]);
 
   useEffect(() => {
+    pendingImageRef.current = pendingImage;
+  }, [pendingImage]);
+
+  useEffect(() => () => {
+    const current = pendingImageRef.current;
+    if (current) URL.revokeObjectURL(current.previewUrl);
+  }, []);
+
+  useEffect(() => {
     if (loading) {
       setMarkState('thinking');
       return undefined;
@@ -275,6 +309,7 @@ function AssetAgentWidgetInner({
 
   const createNewSession = async () => {
     setInput('');
+    clearPendingImage();
     setMarkState('wake');
     window.setTimeout(() => setMarkState('idle'), 900);
     const localSession = createLocalSession();
@@ -285,6 +320,20 @@ function AssetAgentWidgetInner({
     } catch (error) {
       pushAssistantError(getApiError(error).message, localSession.id);
     }
+  };
+
+  const selectTemporaryImage = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > TEMPORARY_IMAGE_MAX_BYTES) {
+      toast.error('临时问图不能超过 10MB');
+      if (imageInputRef.current) imageInputRef.current.value = '';
+      return;
+    }
+    const previous = pendingImageRef.current;
+    if (previous) URL.revokeObjectURL(previous.previewUrl);
+    const next = { file, previewUrl: URL.createObjectURL(file) };
+    pendingImageRef.current = next;
+    setPendingImage(next);
   };
 
   const clearActiveContext = async () => {
@@ -326,19 +375,28 @@ function AssetAgentWidgetInner({
   };
 
   const ask = async (question?: string, sessionOverride?: AgentSession) => {
-    const message = (question ?? input).trim();
+    const imageForRequest = pendingImageRef.current;
+    const message = (question ?? input).trim() || (imageForRequest ? TEMPORARY_IMAGE_PROMPT : '');
     const sourceSession = sessionOverride ?? activeSession;
-    if (!message || loadingSessionId || initialLoading || !sourceSession) return;
+    if (
+      !message
+      || loadingSessionId
+      || uploadingImage
+      || initialLoading
+      || !sourceSession
+    ) return;
     let targetSession = sourceSession;
 
     if (!question) setInput('');
     setMarkState('thinking');
+    if (imageForRequest) setUploadingImage(true);
     try {
       if (isLocalSession(targetSession.id)) {
         targetSession = await ensureServerSession(targetSession.contextImages);
       }
     } catch (error) {
       pushAssistantError(getApiError(error).message, targetSession.id);
+      setUploadingImage(false);
       return;
     }
 
@@ -361,7 +419,12 @@ function AssetAgentWidgetInner({
       ],
       updatedAt: Date.now(),
     })));
+    let uploadedToken = '';
     try {
+      const temporaryImage = imageForRequest
+        ? await uploadAssetAgentTemporaryImage(imageForRequest.file)
+        : null;
+      uploadedToken = temporaryImage?.token ?? '';
       const payload = {
         message,
         imageIds: targetSession.contextImages.map((image) => image.imageId),
@@ -369,6 +432,8 @@ function AssetAgentWidgetInner({
           .map((image) => image.assetGroupId)
           .filter((value): value is string => Boolean(value)),
         conversationId: targetSession.id,
+        temporaryImageToken: temporaryImage?.token ?? null,
+        responseMode,
       };
       await streamAssetAgentMessage(targetSession.id, payload, (event) => {
         if (event.type === 'error') {
@@ -426,12 +491,24 @@ function AssetAgentWidgetInner({
       });
       setMarkState('happy');
       window.setTimeout(() => setMarkState('idle'), 1400);
+      if (imageForRequest) clearPendingImage();
     } catch (error) {
+      if (uploadedToken) {
+        try {
+          await deleteAssetAgentTemporaryImage(uploadedToken);
+        } catch {
+          // The backend normally consumes it; expiry cleanup covers interrupted requests.
+        }
+      }
       setState((current) => updateSession(current, targetSession.id, (session) => ({
         ...session,
         messages: session.messages.filter((item) => item.id !== assistantMessageId),
       })));
       try {
+        const fallbackTemporaryImage = imageForRequest
+          ? await uploadAssetAgentTemporaryImage(imageForRequest.file)
+          : null;
+        uploadedToken = fallbackTemporaryImage?.token ?? '';
         const response = await sendAssetAgentMessage(targetSession.id, {
           message,
           imageIds: targetSession.contextImages.map((image) => image.imageId),
@@ -439,6 +516,8 @@ function AssetAgentWidgetInner({
             .map((image) => image.assetGroupId)
             .filter((value): value is string => Boolean(value)),
           conversationId: targetSession.id,
+          temporaryImageToken: fallbackTemporaryImage?.token ?? null,
+          responseMode,
         });
         setState((current) => updateSession(current, targetSession.id, (session) => ({
           ...session,
@@ -451,15 +530,25 @@ function AssetAgentWidgetInner({
             : [...DEFAULT_QUESTIONS],
           updatedAt: Date.now(),
         })));
+        if (imageForRequest) clearPendingImage();
       } catch (fallbackError) {
         const messageText = fallbackError instanceof Error
           ? fallbackError.message
           : getApiError(error).message;
         pushAssistantError(messageText, targetSession.id);
+      } finally {
+        if (uploadedToken) {
+          try {
+            await deleteAssetAgentTemporaryImage(uploadedToken);
+          } catch {
+            // The backend normally consumes it; expiry cleanup covers interrupted requests.
+          }
+        }
       }
       setMarkState('wake');
       window.setTimeout(() => setMarkState('idle'), 900);
     } finally {
+      setUploadingImage(false);
       setLoadingSessionId(null);
     }
   };
@@ -635,7 +724,71 @@ function AssetAgentWidgetInner({
       </div>
 
       <div className="border-t border-border/60 bg-white px-5 py-3">
-        <div className="flex items-center gap-2 rounded-[18px] border border-border bg-white px-3.5 py-2 shadow-sm transition focus-within:border-foreground/20 focus-within:ring-2 focus-within:ring-foreground/5">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div
+            className="inline-flex rounded-full bg-secondary/70 p-0.5 text-[11px]"
+            aria-label="回答模式"
+          >
+            {(['balanced', 'fast'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={[
+                  'rounded-full px-2.5 py-1 font-medium transition',
+                  responseMode === mode
+                    ? 'bg-white text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                ].join(' ')}
+                onClick={() => setResponseMode(mode)}
+                title={mode === 'balanced' ? '结论、依据和建议更完整' : '更快给出简洁结论'}
+              >
+                {mode === 'balanced' ? '均衡' : '快速'}
+              </button>
+            ))}
+          </div>
+          <span className="text-[10px] text-muted-foreground">Enter 换行 · ⌘/Ctrl+Enter 发送</span>
+        </div>
+        {pendingImage && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-border/70 bg-secondary/35 p-2">
+            <img
+              src={pendingImage.previewUrl}
+              alt="待提问图片预览"
+              className="size-12 rounded-lg object-cover"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-foreground">{pendingImage.file.name}</p>
+              <p className="text-[10px] text-muted-foreground">仅用于本次问答，不进入素材库</p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white hover:text-foreground"
+              onClick={clearPendingImage}
+              disabled={uploadingImage}
+              aria-label="移除待提问图片"
+              title="移除图片"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+        <div className="flex items-end gap-2 rounded-[18px] border border-border bg-white px-2.5 py-2 shadow-sm transition focus-within:border-foreground/20 focus-within:ring-2 focus-within:ring-foreground/5">
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(event) => selectTemporaryImage(event.target.files?.[0])}
+          />
+          <button
+            type="button"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={Boolean(loadingSessionId) || uploadingImage}
+            aria-label="上传图片提问"
+            title="上传一张临时图片提问"
+          >
+            <ImageIcon className="size-4" />
+          </button>
           <textarea
             value={input}
             rows={1}
@@ -643,7 +796,7 @@ function AssetAgentWidgetInner({
             className="min-h-9 max-h-28 flex-1 resize-none border-0 bg-transparent px-0 py-1.5 text-[15px] leading-6 outline-none placeholder:text-muted-foreground/90 focus:ring-0"
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
+              if (shouldSendAgentMessage(event)) {
                 event.preventDefault();
                 void ask();
               }
@@ -653,10 +806,18 @@ function AssetAgentWidgetInner({
             type="button"
             size="icon"
             className="size-9 shrink-0 rounded-full"
-            disabled={Boolean(loadingSessionId) || !input.trim()}
+            disabled={
+              Boolean(loadingSessionId)
+              || uploadingImage
+              || (!input.trim() && !pendingImage)
+            }
             onClick={() => void ask()}
           >
-            <Send className="size-4" />
+            {uploadingImage ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
           </Button>
         </div>
       </div>
