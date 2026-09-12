@@ -218,7 +218,7 @@ class AssetAgentService:
             suggestions = _clean_suggestions(external_chat.suggestions) or _fallback_suggestions(
                 bool(images or groups)
             )
-            answer = external_chat.answer.strip()
+            answer = _normalize_agent_text(external_chat.answer)
             session.suggested_questions_json = _json_dump(suggestions)
             self._add_message(
                 session,
@@ -272,7 +272,7 @@ class AssetAgentService:
             attempts = call.attempts
             raw = call.value
             result = AssetAgentModelResponse.model_validate(raw)
-            answer = result.answer.strip()
+            answer = _normalize_agent_text(result.answer)
             suggestions = _clean_suggestions(result.suggested_questions)
             used_model = True
         except (ModelProviderNotConfigured, ModelProviderError, ValueError) as exc:
@@ -384,7 +384,7 @@ class AssetAgentService:
                     except VolcAiSearchClientError:
                         if answer_parts:
                             raise
-                    answer = "".join(answer_parts).strip()
+                    answer = _normalize_agent_text("".join(answer_parts))
                     if answer:
                         recommended_cards = self._recommended_image_cards(external_item_ids)
                         response_cards = _merge_context_cards(
@@ -466,7 +466,7 @@ class AssetAgentService:
                     )
                     attempts = call.attempts
                     result = AssetAgentModelResponse.model_validate(call.value)
-                    answer = result.answer.strip()
+                    answer = _normalize_agent_text(result.answer)
                     suggestions = _clean_suggestions(result.suggested_questions)
                     used_model = True
                 except (ModelProviderNotConfigured, ModelProviderError, ValueError) as exc:
@@ -560,7 +560,7 @@ class AssetAgentService:
             self._add_message(
                 session,
                 role="assistant",
-                content=opening.answer.strip() or DEFAULT_GREETING,
+                content=_normalize_agent_text(opening.answer) or DEFAULT_GREETING,
                 used_model=True,
                 context_cards=recommended_cards,
             )
@@ -880,12 +880,14 @@ def _now() -> datetime:
 def _ai_search_chat_message(message: str, context_text: str) -> str:
     style_instructions = (
         "以下为内部输出要求，请遵守但不要在回答中复述："
-        "像一个自然的业务顾问在聊天，先给清楚判断，再按问题展开；"
+        "先识别用户具体在问什么，像一个自然的业务顾问直接回答这个问题；"
         "不要使用固定开场、固定段落模板或“我先判断你现在要做什么”等机械标题；"
         "不要暴露 VikingDB、向量分数、direct/relation、置信度、数据集 ID 等内部实现；"
-        "当用户问卖点解释或家长话术时，优先输出：通俗版解释、核心大白话、"
-        "它解决的具体问题、日常沟通参考话术、适配素材关键词；"
-        "如果生成推荐问题，请给 4 个。"
+        "只有用户明确说‘家长、销售、话术、怎么讲’时，才输出家长沟通或销售话术；"
+        "问属于什么体系/卖点时就只直答体系、卖点和必要边界；"
+        "问找图时才检索素材，无已确认适配图时明确说暂无合适素材；"
+        "如果生成推荐问题，请给 4 个不重复的可选下一步，"
+        "覆盖背景、卖点详解、找图、家长话术中与当前问题有关的方向。"
     )
     if not context_text.strip():
         return "\n\n".join((message, style_instructions))
@@ -1196,7 +1198,7 @@ def _agent_prompt() -> str:
     return """
 你是“Piancton 通用业务 Agent”，服务对象包括销售、市场、运营、教研、设计、客服和管理团队。
 你不是分开的图片助手、卖点助手或销售助手，而是同一个统一业务机器人。
-你要帮助内部成员理解图片使用、卖点体系、业务边界、素材表达和对外沟通话术。
+你要帮助内部成员理解图片使用、卖点体系、业务边界、素材表达和对外沟通，但不默认用户是销售。
 
 事实边界：
 1. 必须优先使用“已发送图片/素材上下文”和“项目启用卖点简表”里的事实。
@@ -1212,15 +1214,18 @@ def _agent_prompt() -> str:
 3. 段落标题可以自拟，也可以不用标题；不要固定使用“我先判断你现在要做什么”等机械标题。
 4. 不要暴露内部实现词：VikingDB、向量库、direct/related/fallback、置信度、分数、
    数据集 ID、Prompt、模型任务名。
-5. 回答要中文、业务口吻、可落地，重点讲家长/孩子问题、卖点边界、素材适用性和可直接复用的话术。
-6. 当用户问“某个卖点怎么讲/怎么跟家长说/转成销售话术”时，优先参考这种形态：
+5. 回答要中文、业务口吻、可落地，只围绕当前问题必要的卖点边界、素材适用性或表达方式展开。
+6. 如果用户只问“属于什么卖点/体系”，第一句直接给出体系和全部直接卖点，
+   再补充必要判断依据，不转成家长话术。
+7. 只有当用户明确问“某个卖点怎么讲/怎么跟家长说/转成销售话术”时，才参考这种形态：
    - 标题：“给家长的「卖点名」通俗版解释”
    - 一句转译：把业务概念换成家长能听懂的日常语言。
    - “核心大白话表达”：给一段可直接对外讲的话。
    - “它能解决孩子/家长最关心的问题”：列 2～4 条具体痛点。
    - “日常沟通参考话术”：给一段销售可直接复制的话术。
    - “适配素材关键词”：给素材搜索关键词。
-7. 如果返回 suggestedQuestions，请尽量给 4 个短问题。
+8. 如果返回 suggestedQuestions，请给 4 个不重复的短问题，
+   把背景、卖点详解、找图、家长话术作为可选下一步，而不是当前回答的固定内容。
 
 找图/找素材流程：
 1. 当用户输入像“找图、推荐图片、配图、素材、海报、PPT、宣传图、
@@ -1330,15 +1335,15 @@ def _fallback_suggestions(has_context: bool) -> list[str]:
     if has_context:
         return [
             "这张图适合怎么用？",
-            "这个卖点怎么跟家长讲？",
+            "它的核心卖点和体系是什么？",
             "它和相近卖点的区别是什么？",
-            "还有哪些素材可以一起搭配？",
+            "帮我找表达同一卖点的其他素材",
         ]
     return [
-        "帮我把“同步考点体系”转成家长能听懂的话术",
-        "怎么理解洋葱学园的六大业务体系？",
-        "如果家长觉得孩子学习没效果，应该用哪个卖点解释？",
-        "某个素材应该怎么判断它对应的核心卖点？",
+        "洋葱拍题精学属于什么体系和卖点？",
+        "详细讲讲这个卖点的背景和边界",
+        "帮我找能表达这个卖点的图片",
+        "这个卖点需要时怎么转成家长话术？",
     ]
 
 
@@ -1404,6 +1409,15 @@ def _unique(values: list[str]) -> list[str]:
         seen.add(item)
         cleaned.append(item)
     return cleaned
+
+
+def _normalize_agent_text(value: str) -> str:
+    return (
+        value.strip()
+        .replace("\\r\\n", "\n")
+        .replace("\\n", "\n")
+        .replace("\\t", "  ")
+    )
 
 
 def _clip(value: str | None, limit: int) -> str:

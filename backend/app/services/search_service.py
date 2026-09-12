@@ -5,11 +5,14 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from app.repositories.image_repository import ImageRepository
+from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import SearchBranchStatusRead, SearchResponse
 from app.services.ai_service import AiService
 from app.services.identity_search_service import IdentitySearchService
 from app.services.search_cache import SearchCaches
 from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
+from app.services.search_models import SearchHit
 from app.services.search_service_components import build_search_components
 from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
 from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
@@ -101,6 +104,7 @@ class SearchService:
         self.query_understanding = components.query_understanding
         self.orchestrator = components.orchestrator
         self.identity_search = IdentitySearchService(db)
+        self.images = ImageRepository(db)
         self.ai_search = ai_search
 
     async def search_async(
@@ -127,7 +131,15 @@ class SearchService:
             if ai_response is not None and not ai_response.fallback:
                 try:
                     understanding = await understanding_task
-                    ai_response.search_understanding = understanding
+                    ai_response = self._govern_external_response(
+                        keyword=keyword,
+                        response=ai_response,
+                        understanding=understanding,
+                        limit=limit,
+                    )
+                    ai_response.route_explanation = _understanding_route_explanation(
+                        understanding
+                    )
                     route_explanation = (
                         await self.orchestrator.explain_external_result_route(
                             keyword=keyword,
@@ -135,8 +147,10 @@ class SearchService:
                             result_count=len(ai_response.results),
                         )
                     )
-                    if route_explanation.value:
-                        ai_response.route_explanation = route_explanation.value
+                    ai_response.route_explanation = (
+                        route_explanation.value
+                        or _understanding_route_explanation(understanding)
+                    )
                     if ai_response.search_diagnostics is not None:
                         ai_response.search_diagnostics.branches.append(
                             SearchBranchStatusRead.model_validate(
@@ -172,6 +186,58 @@ class SearchService:
             evidence_point_code,
         )
 
+    def _govern_external_response(
+        self,
+        *,
+        keyword: str,
+        response: SearchResponse,
+        understanding: SearchUnderstanding | None,
+        limit: int,
+    ) -> SearchResponse:
+        response.search_understanding = understanding
+        images = self.images.get_many_by_ids(
+            [item.image.id for item in response.results]
+        )
+        images_by_id = {image.id: image for image in images}
+        hits = [
+            SearchHit(
+                image=images_by_id[item.image.id],
+                score=item.final_score,
+                reasons=tuple(item.match_reasons),
+            )
+            for item in response.results
+            if item.image.id in images_by_id
+        ]
+        outcome = self.orchestrator.route_external_results(
+            keyword=keyword,
+            understanding=understanding,
+            hits=hits,
+        )
+        if not outcome.active_matches:
+            return response
+
+        governed = self.orchestrator.ranking.build_response(
+            keyword=keyword,
+            hits=outcome.hits[:limit],
+            search_mode=response.search_mode,
+            fallback=False,
+            search_understanding=understanding,
+            search_diagnostics=response.search_diagnostics,
+            query_concept_matches=list(outcome.active_matches),
+        )
+        concept_names = "、".join(item.name for item in outcome.active_matches)
+        if governed.results:
+            governed.match_summary = (
+                f"已识别卖点：{concept_names}；"
+                f"找到 {len(governed.results)} 张已确认匹配的图片"
+            )
+        else:
+            governed.match_summary = (
+                f"已识别卖点：{concept_names}，"
+                "但素材库暂未找到已确认匹配的图片"
+            )
+        return governed
+
     def query_recommendations(
         self,
         *,
@@ -181,6 +247,11 @@ class SearchService:
         if self.ai_search is None:
             return []
         return self.ai_search.query_recommendations(user_id=user_id, limit=limit)
+
+    def query_completions(self, query: str, *, limit: int = 8) -> list[str]:
+        if self.ai_search is None:
+            return []
+        return self.ai_search.query_completions(query, limit=limit)
 
     def search(
         self,
@@ -207,3 +278,28 @@ class SearchService:
                 )
             )
         raise RuntimeError("异步上下文请调用 SearchService.search_async")
+
+
+def _understanding_route_explanation(
+    understanding: SearchUnderstanding | None,
+) -> str | None:
+    if understanding is None:
+        return None
+    matches = [
+        item
+        for item in understanding.matched_business_concepts
+        if item.relation == "direct"
+    ]
+    if not matches:
+        return None
+    names = [item.concept.rsplit(">", 1)[-1].strip() for item in matches]
+    reasons = list(
+        dict.fromkeys(item.reason.strip() for item in matches if item.reason.strip())
+    )
+    prefix = (
+        f"本次需求同时涉及{'、'.join(names)}"
+        if len(names) > 1
+        else f"本次需求命中{names[0]}"
+    )
+    detail = f"：{'；'.join(reasons[:3])}" if reasons else ""
+    return f"{prefix}{detail}。"[:500]

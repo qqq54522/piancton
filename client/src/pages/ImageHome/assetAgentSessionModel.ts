@@ -35,10 +35,10 @@ export interface AgentState {
 }
 
 export const DEFAULT_QUESTIONS = [
-  '帮我把“同步考点体系”转成家长能听懂的话术',
-  '怎么理解洋葱学园的六大业务体系？',
-  '如果家长觉得孩子学习没效果，应该用哪个卖点解释？',
-  '某个素材应该怎么判断它对应的核心卖点？',
+  '洋葱拍题精学属于什么体系和卖点？',
+  '详细讲讲这个卖点的背景和边界',
+  '帮我找能表达这个卖点的图片',
+  '这个卖点需要时怎么转成家长话术？',
 ] as const;
 
 export const MAX_SESSIONS = 20;
@@ -68,7 +68,7 @@ export function responseMessage(response: AssetAgentChatResponse): ChatMessage {
   return {
     id: safeId(),
     role: 'assistant',
-    content: `${response.answer}${suffix}`,
+    content: normalizeAgentText(`${response.answer}${suffix}`),
     usedModel: response.usedModel,
     contextCards: response.contextCards,
   };
@@ -101,7 +101,7 @@ export function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
     messages: session.messages.map((message) => ({
       id: message.id,
       role: message.role,
-      content: normalizeLegacyDefaultMessage(message.content),
+      content: normalizeLegacyDefaultMessage(normalizeAgentText(message.content)),
       usedModel: message.usedModel,
       contextCards: message.contextCards ?? [],
     })),
@@ -123,6 +123,13 @@ function normalizeLegacyDefaultMessage(content: string): string {
   )
     ? DEFAULT_GREETING
     : content;
+}
+
+export function normalizeAgentText(content: string): string {
+  return content
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '  ');
 }
 
 function normalizedSuggestedQuestions(questions: string[]): string[] {

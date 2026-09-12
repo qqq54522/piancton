@@ -124,7 +124,9 @@ class VolcAiSearchService:
                 }
             ],
         )
-        response.match_summary = f"找到 {len(response.results)} 张与“{keyword}”相关的图片"
+        response.match_summary = result.summary or (
+            f"找到 {len(response.results)} 张与“{keyword}”相关的图片"
+        )
         return response
 
     def query_recommendations(
@@ -142,6 +144,15 @@ class VolcAiSearchService:
             )
         except VolcAiSearchClientError:
             logger.warning("AI Search query recommendation failed", exc_info=True)
+            return []
+
+    def query_completions(self, query: str, *, limit: int = 8) -> list[str]:
+        if not self.configured or not query.strip():
+            return []
+        try:
+            return self.client.query_completions(query)[: max(1, min(limit, 20))]
+        except VolcAiSearchClientError:
+            logger.warning("AI Search query completion failed", exc_info=True)
             return []
 
 

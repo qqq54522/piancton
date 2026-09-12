@@ -38,6 +38,15 @@ export async function fetchSearchQueryRecommendations(
   return (await api.get('/api/images/query-recommendations', { params: { limit } })).data;
 }
 
+export async function fetchSearchQueryCompletions(
+  query: string,
+  limit = 8,
+): Promise<SearchQueryRecommendations> {
+  return (await api.get('/api/images/query-completions', {
+    params: { query, limit },
+  })).data;
+}
+
 export async function fetchImageDetail(id: string): Promise<ImageDetail> {
   return (await api.get(`/api/images/${id}`)).data;
 }

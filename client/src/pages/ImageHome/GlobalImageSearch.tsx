@@ -66,11 +66,12 @@ const GlobalImageSearch = ({
 }: GlobalImageSearchProps) => {
   const [addingChannel, setAddingChannel] = useState(false);
   const [draftChannel, setDraftChannel] = useState('');
+  const [completionOpen, setCompletionOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const channelOptions = useChannelOptions(refinementOptions.channels);
   const canAddChannel = !showBusinessAccount;
-  const { placeholder } = useSearchQueryRecommendations(input);
+  const { placeholder, completions } = useSearchQueryRecommendations(input);
   const intentChannels = refinements.channel
     ? []
     : refinements.channelIntent?.candidateChannels ?? [];
@@ -100,10 +101,18 @@ const GlobalImageSearch = ({
             aria-label="搜索业务素材"
             placeholder={placeholder}
             value={input}
-            onChange={(event) => onInputChange(event.target.value)}
+            onChange={(event) => {
+              setCompletionOpen(true);
+              onInputChange(event.target.value);
+            }}
+            onFocus={() => setCompletionOpen(true)}
+            onBlur={() => setCompletionOpen(false)}
             onKeyDown={(event) => {
               if (shouldIgnoreEnterForIme(event)) return;
-              if (event.key === 'Enter') onSearch();
+              if (event.key === 'Enter') {
+                setCompletionOpen(false);
+                onSearch();
+              }
             }}
             className="h-14 rounded-[22px] border-transparent bg-[#f1f1ef] pl-12 pr-32 text-base shadow-none transition-colors hover:bg-[#ececea] focus-visible:border-transparent focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-foreground/10 md:text-base"
           />
@@ -119,11 +128,35 @@ const GlobalImageSearch = ({
           )}
           <button
             type="button"
-            onClick={() => onSearch()}
+            onClick={() => {
+              setCompletionOpen(false);
+              onSearch();
+            }}
             className="absolute right-2 top-1/2 z-10 flex h-10 -translate-y-1/2 items-center rounded-[18px] bg-foreground px-4 text-sm font-semibold text-background shadow-sm transition hover:bg-foreground/88 active:translate-y-[calc(-50%+1px)]"
           >
             搜索
           </button>
+          {completionOpen && input.trim().length >= 2 && completions.length > 0 && (
+            <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-2xl border border-border/70 bg-white py-2 shadow-xl shadow-foreground/10">
+              <p className="px-4 pb-1 text-[11px] font-medium text-muted-foreground">搜索联想</p>
+              {completions.map((completion) => (
+                <button
+                  key={completion}
+                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground/80 transition hover:bg-secondary/70 hover:text-foreground"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setCompletionOpen(false);
+                    onInputChange(completion);
+                    onSearch(completion);
+                  }}
+                >
+                  <Search className="size-4 shrink-0 text-muted-foreground" />
+                  <span>{completion}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {showBusinessAccount && (
           <DropdownMenu>
@@ -174,7 +207,7 @@ const GlobalImageSearch = ({
             className={`relative h-10 shrink-0 px-0 text-sm font-semibold transition-colors after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full after:rounded-full after:transition-opacity ${refinements.channel || intentChannels.length > 0 ? 'text-muted-foreground after:bg-transparent hover:text-foreground' : 'text-foreground after:bg-foreground'}`}
             onClick={() => onChannelChange('')}
           >
-            {showBusinessAccount ? '猜你喜欢' : '全部渠道'}
+            猜你喜欢
           </button>
           {channelOptions.map((channel) => (
             <button

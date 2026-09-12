@@ -17,6 +17,7 @@ class VolcAiSearchResult:
     query: str
     response: dict[str, Any]
     matches: list[dict[str, Any]]
+    summary: str = ""
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,7 @@ class VolcAiSearchClient:
             query=query,
             response=response,
             matches=_extract_matches(response),
+            summary=_extract_search_summary(response),
         )
 
     def chat_search(
@@ -260,6 +262,19 @@ class VolcAiSearchClient:
             },
         )
         return _extract_recommendation_queries(response)[:page_size]
+
+    def query_completions(self, query: str) -> list[str]:
+        """Complete a typed prefix with the current AI Search scene."""
+        query = query.strip()
+        if not query:
+            return []
+        if not self.search_configured:
+            raise VolcAiSearchClientError("AI Search 搜索接口尚未配置完整")
+        response = self._post_json(
+            f"{self.search_path.rstrip('/')}/query_completion",
+            {"query": query},
+        )
+        return _extract_completion_queries(response)
 
     def recommend_items(
         self,
@@ -601,6 +616,68 @@ def _extract_recommendation_queries(payload: dict[str, Any]) -> list[str]:
 
     visit(payload)
     return list(dict.fromkeys(values))
+
+
+def _extract_completion_queries(payload: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+
+    def visit(value: Any, depth: int = 0) -> None:
+        if depth > 8:
+            return
+        if isinstance(value, dict):
+            suggestions = value.get("suggestions")
+            if isinstance(suggestions, list):
+                for item in suggestions:
+                    if isinstance(item, str):
+                        suggestion = item.strip()
+                    elif isinstance(item, dict):
+                        suggestion = str(
+                            item.get("suggestion")
+                            or item.get("query")
+                            or item.get("text")
+                            or ""
+                        ).strip()
+                    else:
+                        suggestion = ""
+                    if suggestion:
+                        values.append(suggestion)
+            for item in value.values():
+                visit(item, depth + 1)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item, depth + 1)
+
+    visit(payload)
+    return list(dict.fromkeys(values))
+
+
+def _extract_search_summary(payload: dict[str, Any]) -> str:
+    preferred_keys = (
+        "search_summary",
+        "searchSummary",
+        "match_summary",
+        "matchSummary",
+        "summary",
+    )
+
+    def visit(value: Any, depth: int = 0) -> str:
+        if depth > 5 or not isinstance(value, dict):
+            return ""
+        for key in preferred_keys:
+            item = value.get(key)
+            if isinstance(item, str) and item.strip():
+                return item
+        # Search summaries are response metadata. Do not descend into result
+        # lists, where an item's own image summary could be mistaken for it.
+        for item in value.values():
+            if isinstance(item, dict):
+                nested = visit(item, depth + 1)
+                if nested:
+                    return nested
+        return ""
+
+    value = visit(payload)
+    return " ".join(value.split()).strip() if value else ""
 
 
 def _normalize_step(value: str) -> str:

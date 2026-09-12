@@ -262,7 +262,9 @@ def test_ai_search_results_keep_governed_selling_point_explanation(db_factory):
         item.concept.rsplit(">", 1)[-1].strip()
         for item in response.search_understanding.matched_business_concepts
     ] == ["动画精讲"]
-    assert response.match_summary == "找到 0 张与“孩子听不懂老师讲课”相关的图片"
+    assert response.match_summary == (
+        "已识别卖点：动画精讲，但素材库暂未找到已确认匹配的图片"
+    )
 
 
 def test_ai_search_generates_a_fresh_route_explanation_for_each_result_set(db_factory):
@@ -282,6 +284,32 @@ def test_ai_search_generates_a_fresh_route_explanation_for_each_result_set(db_fa
     assert response.search_diagnostics is not None
     assert response.search_diagnostics.branches[-1].source == "search_route_explanation"
     assert response.search_diagnostics.branches[-1].status == "ok"
+
+
+def test_ai_search_drops_unrelated_candidates_for_a_multi_selling_point_route(
+    db_factory,
+):
+    with db_factory() as db:
+        unrelated = create_concept_image(db)
+        create_concept(db, code="photo_guided_learning", name="AI拍题精学")
+        create_concept(db, code="transfer_practice", name="举一反三")
+        db.commit()
+        unrelated_response = SearchService(db).search("孩子听不懂老师讲课", 10)
+        assert [item.image.id for item in unrelated_response.results] == [unrelated.id]
+
+        response = SearchService(
+            db,
+            ai_search=SuccessfulHomepageAiSearch(unrelated_response),
+            vikingdb_knowledge_router=FixedVikingRouter(["AI拍题精学", "举一反三"]),
+        ).search("洋葱拍题精学能让孩子学一题会一类", 10)
+
+    assert response.results == []
+    assert response.search_understanding is not None
+    assert response.search_understanding.query_type == "multi_business_intent_search"
+    assert "AI拍题精学、举一反三" in response.match_summary
+    assert "暂未找到已确认匹配的图片" in response.match_summary
+    assert response.route_explanation is not None
+    assert "AI拍题精学、举一反三" in response.route_explanation
 
 
 def test_concept_recall_allocates_quota_for_each_matched_selling_point(db_factory):

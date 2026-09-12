@@ -16,9 +16,11 @@ from app.services.search_concept_context import (
 from app.services.search_diagnostics_service import SearchDiagnosticsService
 from app.services.search_external_branches import SearchExternalBranches
 from app.services.search_models import (
+    ConceptRouteOutcome,
     SearchBranchDiagnostic,
     SearchBranchResult,
     SearchDeadline,
+    SearchHit,
 )
 from app.services.search_orchestrator_helpers import (
     concept_hits as recall_concept_hits,
@@ -156,6 +158,25 @@ class AsyncSearchOrchestrator:
             understanding=understanding,
             result_count=result_count,
             deadline=SearchDeadline.from_timeout(self.total_timeout_seconds),
+        )
+
+    def route_external_results(
+        self,
+        *,
+        keyword: str,
+        understanding: SearchUnderstanding | None,
+        hits: list[SearchHit],
+    ) -> ConceptRouteOutcome:
+        """Apply Piancton's accepted selling-point relationships to AI Search hits."""
+        concept_matches = matches_from_understanding(
+            understanding,
+            self.concept_recall,
+        )
+        return self.ranking.route_confirmed_concepts(
+            hits,
+            concept_matches,
+            keyword=keyword,
+            understanding=understanding,
         )
 
     async def search(

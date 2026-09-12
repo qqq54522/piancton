@@ -183,7 +183,11 @@ export function buildRouteSummary({
   return {
     result: `命中卖点：${sellingPointText}`,
     judgment: cleanRouteExplanation(routeExplanation)
-      || '实时判断暂未完成，请重新搜索。',
+      || (
+        matchedSellingPoints.length > 1
+          ? `本次需求同时涉及${sellingPointText}，结果已按这些卖点的人工确认关系进行准入。`
+          : `本次需求命中${sellingPointText}，结果已按该卖点的人工确认关系进行准入。`
+      ),
     definition: buildSellingPointDefinitions(matchedSellingPoints),
   };
 }

@@ -96,6 +96,18 @@ def query_recommendations(
     )
 
 
+@router.get("/query-completions", response_model=SearchQueryRecommendations)
+def query_completions(
+    query: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=8, ge=1, le=20),
+    _: User = Depends(get_current_user),
+    service: SearchService = Depends(get_search_service),
+):
+    return SearchQueryRecommendations(
+        queries=service.query_completions(query, limit=limit)
+    )
+
+
 @router.post("/search", response_model=SearchResponse)
 async def semantic_search(
     payload: SearchRequest,

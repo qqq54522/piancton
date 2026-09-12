@@ -14,12 +14,14 @@ describe('buildRouteSummary', () => {
     );
   });
 
-  it('does not present a static template as a completed real-time judgment', () => {
+  it('falls back to the governed route instead of asking the user to retry', () => {
     const summary = buildRouteSummary({
       matchedSellingPoints: ['动画精讲'],
       routeExplanation: null,
     });
 
-    expect(summary?.judgment).toBe('实时判断暂未完成，请重新搜索。');
+    expect(summary?.judgment).toBe(
+      '本次需求命中动画精讲，结果已按该卖点的人工确认关系进行准入。',
+    );
   });
 });

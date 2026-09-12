@@ -205,6 +205,62 @@ def test_query_recommendations_use_the_existing_search_scene(monkeypatch):
     }
 
 
+def test_query_completions_use_the_existing_search_scene(monkeypatch):
+    client = VolcAiSearchClient(
+        base_url="https://aisearch.example.com",
+        api_key="secret",
+        dataset_id="items-1",
+        application_id="app-1",
+        search_path="/api/v1/application/app-1/search/scene-1",
+    )
+    request: dict = {}
+
+    def fake_post(path, payload):
+        request.update(path=path, payload=payload)
+        return {
+            "result": {
+                "suggestions": [
+                    {"suggestion": "洋葱拍题精学"},
+                    {"suggestion": "洋葱拍题精学学一题会一类"},
+                ]
+            }
+        }
+
+    monkeypatch.setattr(client, "_post_json", fake_post)
+
+    assert client.query_completions("洋葱拍题") == [
+        "洋葱拍题精学",
+        "洋葱拍题精学学一题会一类",
+    ]
+    assert request == {
+        "path": "/api/v1/application/app-1/search/scene-1/query_completion",
+        "payload": {"query": "洋葱拍题"},
+    }
+
+
+def test_search_exposes_the_configured_search_summary(monkeypatch):
+    client = VolcAiSearchClient(
+        base_url="https://aisearch.example.com",
+        api_key="secret",
+        dataset_id="items-1",
+        search_path="/api/v1/application/app-1/search/scene-1",
+    )
+    monkeypatch.setattr(
+        client,
+        "_post_json",
+        lambda *_args: {
+            "result": {
+                "search_summary": "  经过语义理解，找到与拍题精学相关的素材。  ",
+                "items": [{"_id": "image-1", "summary": "不应当读取物品摘要"}],
+            }
+        },
+    )
+
+    result = client.search("拍题精学")
+
+    assert result.summary == "经过语义理解，找到与拍题精学相关的素材。"
+
+
 def test_detail_recommendation_uses_parent_item_and_personalization(monkeypatch):
     client = VolcAiSearchClient(
         base_url="https://aisearch.example.com",

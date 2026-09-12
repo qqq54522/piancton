@@ -39,6 +39,7 @@ import {
   DEFAULT_GREETING,
   DEFAULT_QUESTIONS,
   isLocalSession,
+  normalizeAgentText,
   responseMessage,
   safeId,
   sessionFromApi,
@@ -384,7 +385,7 @@ function AssetAgentWidgetInner({
                   ? `${item.reasoningContent ?? ''}${event.text}`
                   : item.reasoningContent,
                 content: event.type === 'answer_delta'
-                  ? `${item.content}${event.text}`
+                  ? normalizeAgentText(`${item.content}${event.text}`)
                   : item.content,
               };
             }),
@@ -410,7 +411,7 @@ function AssetAgentWidgetInner({
             item.id === assistantMessageId
               ? {
                 ...item,
-                content: item.content || event.response.answer,
+                content: item.content || normalizeAgentText(event.response.answer),
                 usedModel: event.response.usedModel,
                 contextCards: event.response.contextCards,
                 streaming: false,
@@ -573,17 +574,17 @@ function AssetAgentWidgetInner({
               className={[
                 'whitespace-pre-wrap',
                 message.role === 'user'
-                  ? 'max-w-[82%] rounded-full bg-foreground px-4 py-2.5 text-[13px] leading-5 text-background shadow-sm shadow-foreground/10'
+                  ? 'max-w-[82%] rounded-2xl bg-foreground px-4 py-2.5 text-[13px] leading-5 text-background shadow-sm shadow-foreground/10'
                   : message.role === 'system'
                     ? 'max-w-[92%] rounded-2xl bg-secondary px-3 py-2 text-[13px] leading-6 text-muted-foreground'
                     : isIntroMessage
-                      ? 'w-full text-foreground'
-                      : 'w-full text-foreground',
+                      ? 'w-full text-foreground/78'
+                      : 'w-full text-foreground/78',
               ].join(' ')}
             >
               {isIntroMessage ? (
                 <AgentIntroCard
-                  content={message.content || DEFAULT_GREETING}
+                  content={normalizeAgentText(message.content || DEFAULT_GREETING)}
                   questions={activeSession.suggestedQuestions}
                   onAsk={(question) => void ask(question)}
                 />
@@ -596,7 +597,7 @@ function AssetAgentWidgetInner({
               )}
               {!isIntroMessage && (
                 <AgentMessageContent
-                  content={message.content || (message.streaming ? '正在生成回答内容…' : '')}
+                  content={normalizeAgentText(message.content || (message.streaming ? '正在生成回答内容…' : ''))}
                 />
               )}
               {message.role === 'assistant' && message.contextCards && (
@@ -675,9 +676,9 @@ function AgentIntroCard({
   const paragraphs = content.split('\n\n');
   return (
     <div className="space-y-4">
-      <div className="space-y-3 text-sm leading-7 text-foreground">
+      <div className="space-y-3 text-sm leading-7 text-foreground/78">
         {paragraphs.map((paragraph, index) => (
-          <p key={paragraph} className={index === 0 ? 'text-base font-semibold leading-7' : undefined}>
+          <p key={paragraph} className={index === 0 ? 'text-base font-semibold leading-7 text-foreground/90' : undefined}>
             {paragraph}
           </p>
         ))}
@@ -770,20 +771,23 @@ function buildAnalysisFollowupChip(query: string) {
   if (/家长|话术|沟通|听懂|转成/.test(normalized)) {
     return '整理成家长能听懂的表达';
   }
-  return `帮我把“${_clipText(normalized, 16)}”转成家长能听懂的话术`;
+  if (/找图|图片|素材|配图/.test(normalized)) {
+    return '先确认卖点，再检索已适配素材';
+  }
+  return `直接回答“${_clipText(normalized, 18)}”`;
 }
 
 function AgentMessageContent({ content }: { content: string }) {
   const lines = content.split('\n');
   return (
-    <div className="space-y-2 text-sm leading-7 text-foreground">
+    <div className="space-y-2 text-sm leading-7 text-inherit">
       {lines.map((rawLine, index) => {
         const line = rawLine.trim();
         const key = `${index}-${rawLine}`;
         if (!line) return <div key={key} className="h-1" />;
         if (/^#{1,3}\s+/.test(line)) {
           return (
-            <p key={key} className="pt-1 text-base font-semibold leading-7 text-foreground">
+            <p key={key} className="pt-1 text-base font-semibold leading-7 text-inherit">
               {renderInlineMarkdown(line.replace(/^#{1,3}\s+/, ''))}
             </p>
           );

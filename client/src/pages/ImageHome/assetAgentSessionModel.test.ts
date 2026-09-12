@@ -7,6 +7,7 @@ import {
   stateFromSessions,
   titleFromMessage,
   updateSession,
+  normalizeAgentText,
 } from './assetAgentSessionModel';
 
 describe('assetAgentSessionModel', () => {
@@ -55,6 +56,10 @@ describe('assetAgentSessionModel', () => {
       title: '课程同步',
       imageUrl: null,
     });
+  });
+
+  it('renders escaped line breaks from configured AI Search openings', () => {
+    expect(normalizeAgentText('Hi\\n\\n我可以帮你')).toBe('Hi\n\n我可以帮你');
   });
 
   it('keeps the selected session stable while sorting by activity', () => {
