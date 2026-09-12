@@ -14,7 +14,6 @@ import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import type { AssetImage, ScoredImageMatch, SearchInteractionAction } from '@client/src/types/api';
 import { itemVariants } from './constants';
 import RadialActionMenu from '../RadialActionMenu';
-import { resultRecommendedPoint } from './searchConceptPresentation';
 
 interface ScoredImageCardProps {
   scored: ScoredImageMatch;
@@ -160,7 +159,7 @@ function ScoredImageCard({
       {showSearchContext && (
         <div className="border-t border-border/70 bg-white px-3.5 py-3">
           <p className="break-words text-[11px] font-semibold leading-5 text-muted-foreground">
-            卖点：{resultRecommendedPoint(scored)}
+            {selected.title}
           </p>
         </div>
       )}
