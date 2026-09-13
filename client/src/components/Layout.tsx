@@ -9,6 +9,7 @@ import {
   LibraryBig,
   LogOut,
   Menu,
+  MessageSquarePlus,
   Palette,
   ScrollText,
   Search,
@@ -23,6 +24,8 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
 import { Button } from '@client/src/components/ui/button';
+import FeedbackDialog from '@client/src/components/FeedbackDialog';
+import NewUserWelcomeDialog from '@client/src/components/NewUserWelcomeDialog';
 import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
 import {
   DropdownMenu,
@@ -90,7 +93,8 @@ const SidebarActionItem = ({
 
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const { user, logout, completeOnboarding } = useAuth();
   const navigate = useNavigate();
   usePageViewTracking();
   const isDesigner = user?.role === 'designer';
@@ -172,6 +176,10 @@ const Layout = () => {
                   <span className="block text-xs font-semibold">{user?.username}</span>
                   <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">当前身份：{roleLabel}</span>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => setFeedbackOpen(true)}>
+                  <MessageSquarePlus className="size-4" />提交反馈
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={handleLogout}>
                   <LogOut className="size-4" />退出并切换账号
@@ -271,9 +279,21 @@ const Layout = () => {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <RoleIcon className="size-4" />{user?.username} · {roleLabel}
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  <LogOut className="size-4" />切换账号
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setFeedbackOpen(true);
+                    }}
+                  >
+                    <MessageSquarePlus className="size-4" />反馈
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleLogout}>
+                    <LogOut className="size-4" />切换账号
+                  </Button>
+                </div>
               </div>
             </div>
           </nav>
@@ -285,6 +305,11 @@ const Layout = () => {
       <main className={`min-h-0 flex-1 ${!isBusiness ? 'sm:pl-20' : ''}`}>
         <Outlet />
       </main>
+      <NewUserWelcomeDialog
+        open={isBusiness && user?.onboardingCompletedAt === null}
+        onComplete={completeOnboarding}
+      />
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </div>
   );
 };

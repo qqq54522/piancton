@@ -42,6 +42,7 @@ class UserRead(ApiModel):
     username: str
     role: Role
     is_active: bool
+    onboarding_completed_at: datetime | None
     created_at: datetime
 
 

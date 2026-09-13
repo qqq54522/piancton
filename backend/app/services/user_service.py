@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy.exc import IntegrityError
 
 from app.core.errors import AppError, ConflictError, NotFoundError
@@ -51,6 +53,14 @@ class UserService:
         if values.get("is_active") is False:
             self.sessions.delete_for_user(user.id)
         self.uow.commit()
+        return UserRead.model_validate(user)
+
+    def complete_onboarding(self, user_id: str) -> UserRead:
+        user = self._get(user_id)
+        if user.onboarding_completed_at is None:
+            user.onboarding_completed_at = datetime.now(timezone.utc)
+            self.users.save(user)
+            self.uow.commit()
         return UserRead.model_validate(user)
 
     def reset_password(self, user_id: str, password: str) -> None:

@@ -35,8 +35,8 @@ const interactionLabels: Record<string, string> = {
   open_detail: '打开图片',
   download: '下载图片',
   copy_identity: '复制身份码',
-  add_to_project: '加入项目夹',
-  remove_from_project: '移出项目夹',
+  add_to_project: '加入多选导出（历史）',
+  remove_from_project: '移出多选导出（历史）',
   send_to_agent: '发送到 Agent',
 };
 

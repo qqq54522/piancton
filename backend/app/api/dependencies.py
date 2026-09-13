@@ -16,6 +16,7 @@ from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
 from app.services.api_center_service import ApiCenterService
 from app.services.asset_agent_service import AssetAgentService
+from app.services.asset_collection_service import AssetCollectionService
 from app.services.asset_agent_temporary_image_service import (
     AssetAgentTemporaryImageService,
 )
@@ -407,6 +408,12 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
         vector_index=VikingDBVectorIndexSync.from_settings(),
         ai_search_index=_build_ai_search_index(),
     )
+
+
+def get_asset_collection_service(
+    db: Session = Depends(get_db),
+) -> AssetCollectionService:
+    return AssetCollectionService(db)
 
 
 def get_asset_identity_service(db: Session = Depends(get_db)) -> AssetIdentityService:

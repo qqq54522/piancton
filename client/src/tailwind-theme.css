@@ -1062,8 +1062,8 @@
   top: -8px;
   right: -22px;
   z-index: 30;
-  width: 220px;
-  height: 174px;
+  width: 260px;
+  height: 236px;
   pointer-events: none;
   opacity: 0;
   transform: scale(0.92);
@@ -1083,8 +1083,8 @@
   position: absolute;
   top: 8px;
   left: 20px;
-  width: 150px;
-  height: 150px;
+  width: 205px;
+  height: 205px;
   border: 1px solid hsl(222 18% 28% / 0.2);
   border-left-color: transparent;
   border-radius: 999px;
@@ -1155,31 +1155,54 @@
 }
 
 .radial-action-menu__action--agent {
-  --action-left: 42px;
-  --action-top: 122px;
+  --action-left: 72px;
+  --action-top: 194px;
   transition-delay: 20ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--basket {
-  --action-left: 0px;
-  --action-top: 72px;
+  --action-left: 15px;
+  --action-top: 151px;
   transition-delay: 45ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--copy {
-  --action-left: 28px;
-  --action-top: 24px;
+  --action-left: 75px;
+  --action-top: 13px;
   transition-delay: 70ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--download {
-  --action-left: 126px;
+  --action-left: 172px;
   --action-top: 0px;
   transition-delay: 95ms;
   transform: scale(0.62);
+}
+
+.radial-action-menu__action--like {
+  --action-left: 0px;
+  --action-top: 96px;
+  transition-delay: 55ms;
+  transform: scale(0.62);
+}
+
+.radial-action-menu__action--board {
+  --action-left: 22px;
+  --action-top: 46px;
+  transition-delay: 65ms;
+  transform: scale(0.62);
+}
+
+.radial-action-menu__action--active {
+  background: hsl(350 82% 96% / 0.95);
+  color: hsl(350 72% 46%);
+}
+
+.radial-action-menu__action--active svg {
+  fill: currentColor;
 }
 
 .group:hover .radial-action-menu__action--agent,
@@ -1206,6 +1229,15 @@
   transform: scale(1);
 }
 
+.group:hover .radial-action-menu__action--like,
+.group:focus-within .radial-action-menu__action--like,
+.radial-action-menu:focus-within .radial-action-menu__action--like,
+.group:hover .radial-action-menu__action--board,
+.group:focus-within .radial-action-menu__action--board,
+.radial-action-menu:focus-within .radial-action-menu__action--board {
+  transform: scale(1);
+}
+
 .radial-action-menu[data-action-count="3"] .radial-action-menu__action--copy {
   --action-left: 28px;
   --action-top: 24px;
@@ -1221,9 +1253,41 @@
   --action-top: 92px;
 }
 
+.radial-action-menu[data-action-count="3"],
+.radial-action-menu[data-action-count="4"] {
+  width: 220px;
+  height: 174px;
+}
+
+.radial-action-menu[data-action-count="3"] .radial-action-menu__orbit,
+.radial-action-menu[data-action-count="4"] .radial-action-menu__orbit {
+  width: 150px;
+  height: 150px;
+}
+
+.radial-action-menu[data-action-count="4"] .radial-action-menu__action--copy {
+  --action-left: 32px;
+  --action-top: 24px;
+}
+
+.radial-action-menu[data-action-count="4"] .radial-action-menu__action--download {
+  --action-left: 134px;
+  --action-top: 0px;
+}
+
+.radial-action-menu[data-action-count="4"] .radial-action-menu__action--basket {
+  --action-left: 20px;
+  --action-top: 78px;
+}
+
+.radial-action-menu[data-action-count="4"] .radial-action-menu__action--agent {
+  --action-left: 78px;
+  --action-top: 130px;
+}
+
 .radial-action-menu__variant {
   position: absolute;
-  top: 92px;
+  top: 126px;
   right: 0;
   opacity: 0;
   transform: translateY(-4px);
@@ -1268,6 +1332,11 @@
   }
 
   .radial-action-menu__action--download {
+    transform: scale(1);
+  }
+
+  .radial-action-menu__action--like,
+  .radial-action-menu__action--board {
     transform: scale(1);
   }
 }

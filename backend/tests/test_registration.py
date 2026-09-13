@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from sqlalchemy import select
 
@@ -17,6 +19,7 @@ def test_register_then_login_with_business_permissions(client, db_factory):
     assert response.json()["username"] == "new-user"
     assert response.json()["role"] == "business"
     assert response.json()["isActive"] is True
+    assert response.json()["onboardingCompletedAt"] is None
     assert "password" not in response.text.lower()
     assert client.get("/api/auth/me").status_code == 401
     with db_factory() as db:
@@ -28,7 +31,30 @@ def test_register_then_login_with_business_permissions(client, db_factory):
         assert audit is not None
         assert audit.actor_user_id == user.id
     csrf = login(client, "new-user", "new-password")
-    assert client.get("/api/auth/me").status_code == 200
+    me_response = client.get("/api/auth/me")
+    assert me_response.status_code == 200
+    assert me_response.json()["onboardingCompletedAt"] is None
+    assert client.post("/api/auth/onboarding/complete").status_code == 403
+    completed = client.post(
+        "/api/auth/onboarding/complete",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert completed.status_code == 200
+    assert completed.json()["onboardingCompletedAt"] is not None
+    completed_at = completed.json()["onboardingCompletedAt"]
+    repeated = client.post(
+        "/api/auth/onboarding/complete",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert repeated.status_code == 200
+    completed_datetime = datetime.fromisoformat(completed_at.replace("Z", "+00:00")).replace(
+        tzinfo=None
+    )
+    repeated_datetime = datetime.fromisoformat(
+        repeated.json()["onboardingCompletedAt"].replace("Z", "+00:00")
+    ).replace(tzinfo=None)
+    assert repeated_datetime == completed_datetime
+    assert client.get("/api/auth/me").json()["onboardingCompletedAt"] is not None
     assert client.get("/api/images").status_code == 200
     assert client.get("/api/admin/users").status_code == 403
     assert client.post("/api/images/upload", headers={"X-CSRF-Token": csrf}).status_code == 403

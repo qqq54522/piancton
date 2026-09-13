@@ -1,6 +1,6 @@
 # 火山 AI Search 行为闭环上线说明
 
-Piancton 只会把**业务端账号**在首页搜索结果和 Agent 推荐图片上的真实行为写入本地 outbox，再由后台任务写入火山 AI Search 用户行为数据集。管理员和设计师的操作仍保留在本地运营日志中，但不会进入外部行为数据集。外部网络短暂失败只会把事件标为 `failed`，后续周期会继续重试。
+Piancton 只会把**业务端账号**在首页、搜索结果、图片详情、Agent 推荐以及喜欢/收藏操作中的真实行为写入本地 outbox，再由后台任务写入火山 AI Search 用户行为数据集。管理员和设计师的操作仍保留在本地运营日志中，但不会进入外部行为数据集。外部网络短暂失败只会把事件标为 `failed`，后续周期会继续重试。
 
 ## 同一 AI Search 应用的搜、推、问
 
@@ -12,7 +12,15 @@ AI Search 搜索、开场和对话返回的图片 ID 必须回到 Piancton 数�
 
 业务首页原“全部渠道”入口显示为“猜你喜欢”。它不是一个新渠道，也不会缩小素材范围：页面仍可连续浏览全部已发布渠道，只是优先调用火山首页推荐场景，以当前业务账号 `user_id` 获取个人候选并排到前面；返回结果必须再次经过本地当前版本、发布状态和可读性校验，火山不可用时直接回退全渠道本地素材。PPT、官网、手机端等渠道入口继续保留，用于用户明确限定使用位置。“用户兴趣”只作为火山侧由行为形成的内部推荐信号，不新增单独页面或按钮；本项目不接入以图搜图。
 
-“猜你喜欢”的曝光、打开详情、下载、复制身份码、加入项目和发送 Agent 会继续进入同一业务行为 outbox，场景标识为 `home_for_you`。后台“搜索运营”按最近 30 天滚动评估猜你喜欢的曝光、正向动作、转化和既有搜索满意度；样本不足时保持探索，样本充分后只自动调整“个人候选占比、探索插入间隔、跨渠道多样性”。该策略不得自动修改六大体系、核心卖点、证明点、图片语义、人工 accepted 关系或任何数据集 ID。
+“猜你喜欢”的曝光、打开详情、下载、复制身份码和发送 Agent 会继续进入同一业务行为 outbox，场景标识为 `home_for_you`。后台“搜索运营”按最近 30 天滚动评估猜你喜欢的曝光、正向动作、转化和既有搜索满意度；样本不足时保持探索，样本充分后只自动调整“个人候选占比、探索插入间隔、跨渠道多样性”。该策略不得自动修改六大体系、核心卖点、证明点、图片语义、人工 accepted 关系或任何数据集 ID。
+
+## 我的喜欢、收藏画板与多选导出
+
+业务账号头像菜单提供“我的喜欢”和“我的收藏”。“我的喜欢”是当前用户不分组的私有列表；“我的收藏”由当前用户自己创建私有画板，同一素材可以加入多个画板。两者都只保存现有用户、`asset_group` 与可选图片版本之间的关系，不复制图片文件，也不为每个用户创建独立表或独立数据集。图片仍由现有对象存储保存唯一文件，用户关系、权限和画板名称保存在现有 PostgreSQL。
+
+喜欢和画板收藏共用同一份偏好状态：同一业务用户对同一素材第一次执行“喜欢”或加入第一个画板时产生一条 `favorite`；之后再加入其它画板不会重复加权；只有当该素材既不在“我的喜欢”也不在任何画板时，才产生一条 `unfavorite`。这样可以让火山推荐学习真实兴趣，又不会因为用户整理多个画板而虚增偏好强度。
+
+原浏览器本地“项目夹”更名为“多选导出”。它只用于临时勾选多张图片并批量下载，不是长期收藏，不写入 `favorite` 或 `unfavorite`，也不会影响猜你喜欢。旧版本已经产生的 `add_to_project` / `remove_from_project` 记录仅作为历史运营日志保留。
 
 在当前应用的“推荐体验”中另建一个详情页推荐场景，继续关联现有物品数据集和现有用户行为数据集；发布后把控制台给出的场景 API 路径写入服务器 `.env`：
 
@@ -36,7 +44,7 @@ AI_SEARCH_RECOMMEND_TIMEOUT_SECONDS=8
 | `item_id` | String | 是 | 图片 ID，和物品数据集 `_id` 一致 |
 | `event_type` | String | 是 | `exposure`、`click`、`download`、`share`、`favorite`、`unfavorite` |
 | `event_timestamp` | Int64 | 是 | 毫秒时间戳 |
-| `event_scene` | String | 是 | `search_results`、`home_for_you`、`agent_chat`，或详情页卖点、画面、个性化及各渠道 `detail_*` 场景 |
+| `event_scene` | String | 是 | `search_results`、`home_for_you`、`agent_chat`、`library_browse`、`my_likes`、`my_collections`，或详情页卖点、画面、个性化及各渠道 `detail_*` 场景 |
 | `source_action` | String | 否 | Piancton 原始动作 |
 | `search_log_id` | String | 否 | 首页搜索记录 ID |
 | `conversation_id` | String | 否 | Agent 会话 ID |
@@ -63,6 +71,8 @@ AI_SEARCH_BEHAVIOR_SYNC_STARTUP_DELAY_SECONDS=10
 docker compose exec -T backend python -m scripts.sync_ai_search_behavior_events --dry-run
 docker compose exec -T backend python -m scripts.sync_ai_search_behavior_events
 ```
+
+部署包含用户喜欢和收藏画板版本时，需要让 Alembic 升级到 `20260913_0038`。该迁移只新增用户关系表和索引，不移动或复制对象存储中的图片，也不需要重新导入物品、知识或行为数据集。
 
 ## 数据边界
 

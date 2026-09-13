@@ -19,3 +19,7 @@ export async function logout(): Promise<void> {
 export async function me(): Promise<User> {
   return (await api.get('/api/auth/me')).data;
 }
+
+export async function completeOnboarding(): Promise<User> {
+  return (await api.post('/api/auth/onboarding/complete')).data;
+}

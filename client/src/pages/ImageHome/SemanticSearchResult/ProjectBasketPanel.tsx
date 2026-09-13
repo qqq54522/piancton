@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, FolderOpen, X } from 'lucide-react';
+import { CheckSquare, Download, X } from 'lucide-react';
 
 import { exportAssetGroups } from '@client/src/api/asset';
 import { Button } from '@client/src/components/ui/button';
@@ -34,11 +34,11 @@ function ProjectBasketPanel({ items, onRemove, onClear }: ProjectBasketPanelProp
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f1f1ef] text-foreground">
-            <FolderOpen className="size-4" />
+            <CheckSquare className="size-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">项目夹</p>
-            <p className="text-xs text-muted-foreground">已选 {items.length} 组素材，可批量导出</p>
+            <p className="text-sm font-semibold text-foreground">多选导出</p>
+            <p className="text-xs text-muted-foreground">已选 {items.length} 组素材</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -64,7 +64,7 @@ function ProjectBasketPanel({ items, onRemove, onClear }: ProjectBasketPanelProp
             type="button"
             className="inline-flex max-w-[220px] shrink-0 items-center gap-1.5 rounded-full border border-border bg-[#f7f7f5] px-3 py-1.5 text-xs text-foreground"
             onClick={() => onRemove(item.assetGroupId)}
-            title="从项目夹移除"
+            title="从多选导出移除"
           >
             <span className="truncate">{item.title}</span>
             <X className="size-3 shrink-0 text-muted-foreground" />

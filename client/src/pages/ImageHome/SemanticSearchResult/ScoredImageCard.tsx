@@ -7,6 +7,7 @@ import { recordSearchInteraction } from '@client/src/api/image';
 import { Select } from '@client/src/components/ui/select';
 import { variantLabel } from '@client/src/features/assets/assetPresentation';
 import { sendImageToAssetAgent } from '@client/src/features/assets/assetAgentEvents';
+import { useAssetCollections } from '@client/src/features/assets/AssetCollectionsProvider';
 import type { ProjectBasketItem } from '@client/src/features/assets/useProjectBasket';
 import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
@@ -45,6 +46,7 @@ function ScoredImageCard({
   const selected = variants.find((item) => item.id === selectedId) ?? variants[0];
   const canSaveToProjectBasket = Boolean(scored.assetGroupId && onToggleProjectBasket);
   const identityCode = selected.identityCode || scored.image.identityCode;
+  const collections = useAssetCollections();
   const track = (action: SearchInteractionAction) => {
     if (!searchLogId || !showSearchContext) return;
     void recordSearchInteraction({
@@ -128,10 +130,32 @@ function ScoredImageCard({
             imageUrl: previewUrlFor(selected, { animateGif: animateGifPreview }),
           });
         }}
+        liked={collections.isLiked(scored.assetGroupId)}
+        onToggleLike={collections.enabled && scored.assetGroupId
+          ? () => collections.toggleLike({
+            assetGroupId: scored.assetGroupId!,
+            imageId: selected.id,
+            title: scored.assetTitle || selected.title,
+            source: 'search_results',
+            position,
+            searchLogId,
+            keyword,
+          })
+          : undefined}
+        onAddToBoard={collections.enabled && scored.assetGroupId
+          ? () => collections.openBoardPicker({
+            assetGroupId: scored.assetGroupId!,
+            imageId: selected.id,
+            title: scored.assetTitle || selected.title,
+            source: 'search_results',
+            position,
+            searchLogId,
+            keyword,
+          })
+          : undefined}
         onToggleProjectBasket={canSaveToProjectBasket
           ? () => {
             if (!scored.assetGroupId || !onToggleProjectBasket) return;
-            track(inProjectBasket ? 'remove_from_project' : 'add_to_project');
             onToggleProjectBasket({
               assetGroupId: scored.assetGroupId,
               title: scored.assetTitle || scored.image.title,

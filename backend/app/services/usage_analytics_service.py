@@ -296,7 +296,5 @@ def _behavior_type(action: str) -> str:
         "open_detail": "click",
         "download": "download",
         "copy_identity": "share",
-        "add_to_project": "favorite",
-        "remove_from_project": "unfavorite",
         "send_to_agent": "share",
     }.get(action, "")

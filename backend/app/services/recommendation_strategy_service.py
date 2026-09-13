@@ -22,13 +22,13 @@ POSITIVE_ACTIONS = {
     "open_detail",
     "download",
     "copy_identity",
-    "add_to_project",
+    "favorite",
     "send_to_agent",
 }
 CONVERSION_ACTIONS = {
     "download",
     "copy_identity",
-    "add_to_project",
+    "favorite",
     "send_to_agent",
 }
 
@@ -84,7 +84,7 @@ class RecommendationStrategyService:
         )
         recommendation_actions: list[str] = []
         for event in events:
-            if event.event_type != "search_interaction":
+            if event.event_type not in {"search_interaction", "asset_collection"}:
                 continue
             if event.user_id not in business_user_ids:
                 continue
@@ -93,7 +93,10 @@ class RecommendationStrategyService:
             details = _json_dict(event.details_json)
             if details.get("source") != HOME_RECOMMENDATION_SOURCE:
                 continue
-            recommendation_actions.append(str(details.get("action") or ""))
+            action = str(details.get("action") or "")
+            if event.event_type == "asset_collection":
+                action = str(details.get("preferenceTransition") or "")
+            recommendation_actions.append(action)
 
         feedback = [
             item

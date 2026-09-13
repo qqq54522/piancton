@@ -5,6 +5,7 @@ from app.api.v1 import (
     ai,
     api_center,
     asset_agent,
+    asset_collections,
     asset_identity,
     assets,
     auth,
@@ -27,6 +28,7 @@ api_router.include_router(tags.router)
 api_router.include_router(ai.router)
 api_router.include_router(api_center.router)
 api_router.include_router(asset_agent.router)
+api_router.include_router(asset_collections.router)
 api_router.include_router(asset_identity.router)
 api_router.include_router(admin.router)
 api_router.include_router(search_ops.router)

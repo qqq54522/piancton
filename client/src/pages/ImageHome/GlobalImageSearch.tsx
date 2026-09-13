@@ -1,9 +1,10 @@
-import { ArrowUpDown, BriefcaseBusiness, Check, Film, LogOut, Plus, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { ArrowUpDown, BriefcaseBusiness, Check, Film, FolderHeart, Heart, LogOut, MessageSquarePlus, Plus, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
 import { Button } from '@client/src/components/ui/button';
+import FeedbackDialog from '@client/src/components/FeedbackDialog';
 import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
 import {
   DropdownMenu,
@@ -67,6 +68,7 @@ const GlobalImageSearch = ({
   const [addingChannel, setAddingChannel] = useState(false);
   const [draftChannel, setDraftChannel] = useState('');
   const [completionOpen, setCompletionOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const channelOptions = useChannelOptions(refinementOptions.channels);
@@ -179,6 +181,16 @@ const GlobalImageSearch = ({
                 <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">当前身份：业务用户</span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => navigate('/my-likes')}>
+                <Heart className="size-4" />我的喜欢
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => navigate('/my-collections')}>
+                <FolderHeart className="size-4" />我的收藏
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => setFeedbackOpen(true)}>
+                <MessageSquarePlus className="size-4" />提交反馈
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={handleLogout}>
                 <LogOut className="size-4" />退出并切换账号
               </DropdownMenuItem>
@@ -186,6 +198,8 @@ const GlobalImageSearch = ({
           </DropdownMenu>
         )}
       </div>
+
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div

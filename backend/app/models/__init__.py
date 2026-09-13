@@ -6,6 +6,11 @@ from app.models.api_provider import (
     ModelRoutingSlot,
 )
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
+from app.models.asset_collection import (
+    AssetCollectionBoard,
+    AssetCollectionBoardItem,
+    UserAssetLike,
+)
 from app.models.asset_agent import AssetAgentMessage, AssetAgentSession
 from app.models.business_concept import (
     BusinessConcept,
@@ -30,6 +35,9 @@ __all__ = [
     "AssetGroup",
     "AssetConceptLink",
     "AssetSearchPhrase",
+    "UserAssetLike",
+    "AssetCollectionBoard",
+    "AssetCollectionBoardItem",
     "AssetAgentSession",
     "AssetAgentMessage",
     "ModelApiCredential",

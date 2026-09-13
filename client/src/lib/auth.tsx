@@ -20,6 +20,7 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  completeOnboarding: () => Promise<void>;
   ability: { can: (action: string, subject?: string) => boolean };
 }
 
@@ -49,6 +50,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       } finally {
         setUser(null);
       }
+    },
+    completeOnboarding: async () => {
+      const updatedUser = await authApi.completeOnboarding();
+      setUser(updatedUser);
     },
     ability: {
       can: (action, subject) => {
@@ -94,6 +99,11 @@ export function AdminRoute() {
 
 export function DesignerRoute() {
   return <RoleRoute minRole="designer" />;
+}
+
+export function BusinessRoute() {
+  const { user } = useAuth();
+  return user?.role === 'business' ? <Outlet /> : <Navigate to="/" replace />;
 }
 
 function RoleRoute({ minRole }: { minRole: UserRole }) {

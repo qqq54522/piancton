@@ -103,3 +103,11 @@ def logout(
 @router.get("/me", response_model=UserRead)
 def me(user: User = Depends(get_current_user)):
     return UserRead.model_validate(user)
+
+
+@router.post("/onboarding/complete", response_model=UserRead)
+def complete_onboarding(
+    user: User = Depends(require_csrf),
+    service: UserService = Depends(get_user_service),
+):
+    return service.complete_onboarding(user.id)

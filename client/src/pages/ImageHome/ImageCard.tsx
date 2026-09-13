@@ -11,6 +11,7 @@ import type {
 } from '@client/src/types/api';
 import { Badge } from '@client/src/components/ui/badge';
 import { sendImageToAssetAgent } from '@client/src/features/assets/assetAgentEvents';
+import { useAssetCollections } from '@client/src/features/assets/AssetCollectionsProvider';
 import { previewUrlFor } from '@client/src/features/images/imagePreview';
 import { useImageUrl } from '@client/src/hooks/useImageUrl';
 import { rememberImageHomeScroll } from '@client/src/features/images/searchNavigationState';
@@ -47,6 +48,7 @@ const ImageCard = ({
   const { ability, isLoading } = useAuth();
   const isDesigner = !isLoading && ability.can('designer', ROLE_SUBJECT);
   const identityCode = image.identityCode;
+  const collections = useAssetCollections();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const exposureSent = useRef(false);
   const track = useCallback((action: SearchInteractionAction) => {
@@ -97,6 +99,25 @@ const ImageCard = ({
           imageUrl: previewUrlFor(image, { animateGif: animateGifPreview }),
         });
       }}
+      liked={collections.isLiked(image.assetGroupId)}
+      onToggleLike={collections.enabled && image.assetGroupId
+        ? () => collections.toggleLike({
+          assetGroupId: image.assetGroupId!,
+          imageId: image.id,
+          title: image.title,
+          source: interactionSource || 'library_browse',
+          position,
+        })
+        : undefined}
+      onAddToBoard={collections.enabled && image.assetGroupId
+        ? () => collections.openBoardPicker({
+          assetGroupId: image.assetGroupId!,
+          imageId: image.id,
+          title: image.title,
+          source: interactionSource || 'library_browse',
+          position,
+        })
+        : undefined}
       downloadHref={image.downloadUrl}
       onDownload={() => track('download')}
       downloadLabel="下载当前图片"

@@ -41,6 +41,47 @@ export interface ImageListResponse {
   hasMore: boolean;
 }
 
+export interface AssetSaveContext {
+  imageId?: string | null;
+  source?: string;
+  position?: number | null;
+  searchLogId?: string | null;
+  keyword?: string;
+}
+
+export interface SavedAsset {
+  assetGroupId: string;
+  title: string;
+  savedAt: string;
+  image: ImageItem;
+}
+
+export interface SavedAssetListResponse {
+  items: SavedAsset[];
+  nextCursor?: string | null;
+  hasMore: boolean;
+}
+
+export interface AssetCollectionBoard {
+  id: string;
+  name: string;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssetCollectionSummary {
+  likedAssetGroupIds: string[];
+  likedCount: number;
+  boards: AssetCollectionBoard[];
+}
+
+export interface AssetCollectionMembership {
+  assetGroupId: string;
+  liked: boolean;
+  boardIds: string[];
+}
+
 export interface ImageChannelOptions {
   channels: string[];
 }

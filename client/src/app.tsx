@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import Layout from './components/Layout';
-import { AdminRoute, DesignerRoute, ProtectedRoute } from './lib/auth';
+import { AdminRoute, BusinessRoute, DesignerRoute, ProtectedRoute } from './lib/auth';
 
 
 const AdminUsers = lazy(() => import('./pages/AdminUsers/AdminUsers'));
@@ -16,6 +16,8 @@ const AdminSearchOps = lazy(() => import('./pages/AdminSearchOps/AdminSearchOps'
 const ImageDetail = lazy(() => import('./pages/ImageDetail/ImageDetail'));
 const ImageHome = lazy(() => import('./pages/ImageHome/ImageHome'));
 const Login = lazy(() => import('./pages/Login/Login'));
+const MyLikes = lazy(() => import('./pages/MyLikes/MyLikes'));
+const MyCollections = lazy(() => import('./pages/MyCollections/MyCollections'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 const Trash = lazy(() => import('./pages/Trash/Trash'));
 
@@ -33,6 +35,11 @@ const RoutesComponent = () => (
         <Route element={<Layout />}>
           <Route index element={<ImageHome />} />
           <Route path="image/:id" element={<ImageDetail />} />
+          <Route element={<BusinessRoute />}>
+            <Route path="my-likes" element={<MyLikes />} />
+            <Route path="my-collections" element={<MyCollections />} />
+            <Route path="my-collections/:boardId" element={<MyCollections />} />
+          </Route>
           <Route element={<DesignerRoute />}>
             <Route path="trash" element={<Trash />} />
             <Route path="search-ops" element={<AdminSearchOps />} />

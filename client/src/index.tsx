@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RoutesComponent from './app';
 import { Toaster } from '@client/src/components/ui/sonner';
 import { AuthProvider } from '@client/src/lib/auth';
+import { AssetCollectionsProvider } from '@client/src/features/assets/AssetCollectionsProvider';
 import { PRODUCT_NAME } from '@client/src/lib/branding';
 import './index.css';
 
@@ -21,6 +22,7 @@ const MainApp = () => (
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+      <AssetCollectionsProvider>
       <ErrorBoundary
         fallbackRender={({ error, resetErrorBoundary }) => (
           <main className="grid min-h-screen place-items-center p-6">
@@ -39,6 +41,7 @@ const MainApp = () => (
         <RoutesComponent />
         {createPortal(<Toaster />, document.body)}
       </ErrorBoundary>
+      </AssetCollectionsProvider>
       </AuthProvider>
     </QueryClientProvider>
   </BrowserRouter>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const STORAGE_KEY = 'piancton:project-basket';
+const STORAGE_KEY = 'piancton:export-selection';
+const LEGACY_STORAGE_KEY = 'piancton:project-basket';
 
 export interface ProjectBasketItem {
   assetGroupId: string;
@@ -22,6 +23,7 @@ export function useProjectBasket() {
   const persist = useCallback((next: ProjectBasketItem[]) => {
     setItems(next);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   }, []);
 
   const add = useCallback((item: ProjectBasketItem) => {
@@ -55,7 +57,8 @@ export function useProjectBasket() {
 
 function readBasket(): ProjectBasketItem[] {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+      ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];

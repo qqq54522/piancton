@@ -1,14 +1,17 @@
 import type { ReactNode } from 'react';
-import { Bot, Check, Copy, Download, FolderPlus } from 'lucide-react';
+import { Bot, Check, Copy, Download, FolderHeart, FolderPlus, Heart } from 'lucide-react';
 
 import { cn } from '@client/src/lib/utils';
 
 interface RadialActionMenuProps {
   identityCode?: string | null;
   inProjectBasket?: boolean;
+  liked?: boolean;
   onCopyIdentity?: () => void;
   onSendToAgent: () => void;
   onToggleProjectBasket?: () => void;
+  onToggleLike?: () => void;
+  onAddToBoard?: () => void;
   onDownload?: () => void;
   downloadHref?: string;
   downloadLabel?: string;
@@ -18,9 +21,12 @@ interface RadialActionMenuProps {
 function RadialActionMenu({
   identityCode,
   inProjectBasket = false,
+  liked = false,
   onCopyIdentity,
   onSendToAgent,
   onToggleProjectBasket,
+  onToggleLike,
+  onAddToBoard,
   onDownload,
   downloadHref,
   downloadLabel = '下载所选尺寸',
@@ -35,11 +41,31 @@ function RadialActionMenu({
       onClick: onSendToAgent,
       className: 'radial-action-menu__action--agent',
     },
+    ...(onToggleLike
+      ? [{
+        key: 'like',
+        label: liked ? '从我的喜欢移除' : '加入我的喜欢',
+        displayLabel: liked ? '已喜欢' : '喜欢',
+        icon: Heart,
+        onClick: onToggleLike,
+        className: cn('radial-action-menu__action--like', liked && 'radial-action-menu__action--active'),
+      }]
+      : []),
+    ...(onAddToBoard
+      ? [{
+        key: 'board',
+        label: '收藏到画板',
+        displayLabel: '收藏到画板',
+        icon: FolderHeart,
+        onClick: onAddToBoard,
+        className: 'radial-action-menu__action--board',
+      }]
+      : []),
     ...(onToggleProjectBasket
       ? [{
         key: 'basket',
-        label: inProjectBasket ? '从项目夹移除' : '加入项目夹',
-        displayLabel: inProjectBasket ? '移出项目夹' : '加入项目夹',
+        label: inProjectBasket ? '从多选导出移除' : '加入多选导出',
+        displayLabel: inProjectBasket ? '移出多选' : '加入多选',
         icon: inProjectBasket ? Check : FolderPlus,
         onClick: onToggleProjectBasket,
         className: 'radial-action-menu__action--basket',
