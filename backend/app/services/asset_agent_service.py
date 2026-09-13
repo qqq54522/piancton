@@ -56,6 +56,9 @@ from app.services.volc_ai_search_client import (
 
 MAX_AGENT_SESSIONS = 20
 AGENT_RESET_TIMEZONE = ZoneInfo("Asia/Shanghai")
+MAX_AGENT_HISTORY_MESSAGES = 24
+MAX_AGENT_HISTORY_CHARS = 12_000
+MAX_AGENT_HISTORY_MESSAGE_CHARS = 1_200
 DEFAULT_GREETING = (
     "Hi，我是洋葱业务知识助手。\n\n"
     "我可以帮你理解洋葱学园的业务体系、核心卖点、证明点和使用场景，"
@@ -203,6 +206,7 @@ class AssetAgentService:
 
         self._reset_user_sessions_for_today(user)
         session = self._session_for_chat(user, payload)
+        conversation_history = _conversation_history_text(session.messages)
         payload_context = self._context_from_ids(payload.image_ids)
         if payload_context:
             session.context_images_json = _json_dump(
@@ -228,6 +232,7 @@ class AssetAgentService:
             user=user,
             session=session,
             message=message,
+            conversation_history=conversation_history,
             context_text=context_text,
             context_images=context_images,
             temporary_image_url=temporary_image_url,
@@ -271,6 +276,9 @@ class AssetAgentService:
             for item in (
                 f"用户问题：{message}",
                 f"当前对话ID：{session.id}",
+                f"同一会话最近对话：\n{conversation_history}"
+                if conversation_history
+                else "",
                 f"知识库/向量库卖点判断：\n{_understanding_text(understanding)}"
                 if understanding
                 else "",
@@ -350,6 +358,7 @@ class AssetAgentService:
             try:
                 self._reset_user_sessions_for_today(user)
                 session = self._session_for_chat(user, payload)
+                conversation_history = _conversation_history_text(session.messages)
                 payload_context = self._context_from_ids(payload.image_ids)
                 if payload_context:
                     session.context_images_json = _json_dump(
@@ -383,6 +392,7 @@ class AssetAgentService:
                             _ai_search_chat_message(
                                 message,
                                 context_text,
+                                conversation_history=conversation_history,
                                 response_mode=payload.response_mode,
                                 has_temporary_image=bool(temporary_image_url),
                             ),
@@ -489,6 +499,9 @@ class AssetAgentService:
                     for item in (
                         f"用户问题：{message}",
                         f"当前对话ID：{session.id}",
+                        f"同一会话最近对话：\n{conversation_history}"
+                        if conversation_history
+                        else "",
                         f"知识库/向量库卖点判断：\n{_understanding_text(understanding)}"
                         if understanding
                         else "",
@@ -675,6 +688,7 @@ class AssetAgentService:
             session.messages,
             key=lambda item: (_datetime_sort_key(item.created_at), item.id),
         )
+        memory_used_chars, memory_usage_ratio = _conversation_memory_usage(messages)
         return AssetAgentSessionRead(
             id=session.id,
             title=session.title,
@@ -682,6 +696,9 @@ class AssetAgentService:
             context_images=self._session_context(session),
             suggested_questions=_parse_string_list(session.suggested_questions_json),
             expires_at=session.expires_at,
+            memory_used_chars=memory_used_chars,
+            memory_limit_chars=MAX_AGENT_HISTORY_CHARS,
+            memory_usage_ratio=memory_usage_ratio,
             created_at=session.created_at,
             updated_at=session.updated_at,
         )
@@ -898,6 +915,7 @@ class AssetAgentService:
         user: User,
         session: AssetAgentSession,
         message: str,
+        conversation_history: str,
         context_text: str,
         context_images: list[AssetAgentImageContext],
         temporary_image_url: str = "",
@@ -912,6 +930,7 @@ class AssetAgentService:
                 _ai_search_chat_message(
                     message,
                     context_text,
+                    conversation_history=conversation_history,
                     response_mode=response_mode,
                     has_temporary_image=bool(temporary_image_url),
                 ),
@@ -984,6 +1003,7 @@ def _ai_search_chat_message(
     message: str,
     context_text: str,
     *,
+    conversation_history: str = "",
     response_mode: AssetAgentResponseMode = "balanced",
     has_temporary_image: bool = False,
 ) -> str:
@@ -1009,17 +1029,6 @@ def _ai_search_chat_message(
         if has_temporary_image
         else ""
     )
-    if not context_text.strip():
-        return "\n\n".join(
-            item
-            for item in (
-                message,
-                style_instructions,
-                mode_instructions,
-                image_instructions,
-            )
-            if item
-        )
     return "\n\n".join(
         item
         for item in (
@@ -1027,9 +1036,16 @@ def _ai_search_chat_message(
             style_instructions,
             mode_instructions,
             image_instructions,
+            "以下是同一会话最近几轮对话。请用它理解‘它、这个、刚才提到的卖点’等追问，"
+            "延续已经确认的上下文；如果本轮明确改变话题，以本轮问题为准。"
+            if conversation_history
+            else "",
+            conversation_history,
             "当前用户还带了以下素材上下文。请只在确有依据时引用这些素材；"
-            "如果问题与素材无关，优先按洋葱业务知识回答。",
-            context_text,
+            "如果问题与素材无关，优先按洋葱业务知识回答。"
+            if context_text.strip()
+            else "",
+            context_text if context_text.strip() else "",
         )
         if item
     )
@@ -1208,6 +1224,54 @@ def _datetime_sort_key(value: datetime) -> float:
     return value.timestamp()
 
 
+def _conversation_history_text(messages: list[AssetAgentMessage]) -> str:
+    lines = _conversation_memory_lines(messages)
+    selected: list[str] = []
+    used_chars = 0
+    for line in reversed(lines[-MAX_AGENT_HISTORY_MESSAGES:]):
+        separator_chars = 1 if selected else 0
+        if used_chars + separator_chars + len(line) > MAX_AGENT_HISTORY_CHARS:
+            break
+        selected.append(line)
+        used_chars += separator_chars + len(line)
+    return "\n".join(reversed(selected))
+
+
+def _conversation_memory_lines(messages: list[AssetAgentMessage]) -> list[str]:
+    ordered = sorted(
+        (
+            item
+            for item in messages
+            if item.role in {"user", "assistant"} and item.content.strip()
+        ),
+        key=lambda item: (_datetime_sort_key(item.created_at), item.id),
+    )
+    first_user_index = next(
+        (index for index, item in enumerate(ordered) if item.role == "user"),
+        None,
+    )
+    if first_user_index is None:
+        return []
+    return [
+        f"{'用户' if item.role == 'user' else '助手'}："
+        f"{_clip(item.content, MAX_AGENT_HISTORY_MESSAGE_CHARS)}"
+        for item in ordered[first_user_index:]
+    ]
+
+
+def _conversation_memory_usage(
+    messages: list[AssetAgentMessage],
+) -> tuple[int, float]:
+    lines = _conversation_memory_lines(messages)
+    if not lines:
+        return 0, 0.0
+    raw_chars = sum(len(line) for line in lines) + max(0, len(lines) - 1)
+    if len(lines) > MAX_AGENT_HISTORY_MESSAGES:
+        raw_chars = MAX_AGENT_HISTORY_CHARS
+    used_chars = min(raw_chars, MAX_AGENT_HISTORY_CHARS)
+    return used_chars, round(used_chars / MAX_AGENT_HISTORY_CHARS, 4)
+
+
 def _json_dump(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
@@ -1343,11 +1407,13 @@ def _agent_prompt(
 
 事实边界：
 1. 必须优先使用“已发送图片/素材上下文”和“项目启用卖点简表”里的事实。
-2. 如果输入里有“知识库/向量库卖点判断”，它是当前卖点裁决结果。
+2. “同一会话最近对话”用于理解“它、这个、刚才那个卖点”等连续追问；
+   如果本轮明确改变话题，以本轮问题为准，不能把上一话题硬套进来。
+3. 如果输入里有“知识库/向量库卖点判断”，它是当前卖点裁决结果。
    不要推翻它，只能围绕它解释和追问。
-3. 对项目没有确认的信息，不要编造；要说“当前项目资料未确认”。
-4. 不要编造图片、素材名称、素材数量、学校案例、效果数据或产品能力。
-5. 如果没有图片/素材候选，只能先判断卖点和说明下一步，不能假装已经找到图片。
+4. 对项目没有确认的信息，不要编造；要说“当前项目资料未确认”。
+5. 不要编造图片、素材名称、素材数量、学校案例、效果数据或产品能力。
+6. 如果没有图片/素材候选，只能先判断卖点和说明下一步，不能假装已经找到图片。
 
 回答形态：
 1. 像一个自然的业务顾问在聊天，不要重复固定开场，不要把每次回答写成同一套模板。

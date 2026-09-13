@@ -862,6 +862,9 @@ export interface AssetAgentSession {
   contextImages: AssetAgentImageContext[];
   suggestedQuestions: string[];
   expiresAt: string;
+  memoryUsedChars: number;
+  memoryLimitChars: number;
+  memoryUsageRatio: number;
   createdAt: string;
   updatedAt: string;
 }

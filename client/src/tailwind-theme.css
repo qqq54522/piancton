@@ -1094,10 +1094,10 @@
 .radial-action-menu {
   position: absolute;
   top: -8px;
-  right: -22px;
+  right: -14px;
   z-index: 30;
-  width: 260px;
-  height: 236px;
+  width: 220px;
+  height: 220px;
   pointer-events: none;
   opacity: 0;
   transform: scale(0.92);
@@ -1108,17 +1108,16 @@
 .group:hover .radial-action-menu,
 .group:focus-within .radial-action-menu,
 .radial-action-menu:focus-within {
-  pointer-events: auto;
   opacity: 1;
   transform: scale(1);
 }
 
 .radial-action-menu__orbit {
   position: absolute;
-  top: 8px;
+  top: 10px;
   left: 20px;
-  width: 205px;
-  height: 205px;
+  width: 176px;
+  height: 176px;
   border: 1px solid hsl(222 18% 28% / 0.2);
   border-left-color: transparent;
   border-radius: 999px;
@@ -1189,43 +1188,43 @@
 }
 
 .radial-action-menu__action--agent {
-  --action-left: 72px;
-  --action-top: 194px;
+  --action-left: 96px;
+  --action-top: 180px;
   transition-delay: 20ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--basket {
-  --action-left: 15px;
-  --action-top: 151px;
+  --action-left: 60px;
+  --action-top: 144px;
   transition-delay: 45ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--copy {
-  --action-left: 75px;
-  --action-top: 13px;
+  --action-left: 96px;
+  --action-top: 36px;
   transition-delay: 70ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--download {
-  --action-left: 172px;
+  --action-left: 142px;
   --action-top: 0px;
   transition-delay: 95ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--like {
-  --action-left: 0px;
-  --action-top: 96px;
+  --action-left: 44px;
+  --action-top: 108px;
   transition-delay: 55ms;
   transform: scale(0.62);
 }
 
 .radial-action-menu__action--board {
-  --action-left: 22px;
-  --action-top: 46px;
+  --action-left: 60px;
+  --action-top: 72px;
   transition-delay: 65ms;
   transform: scale(0.62);
 }
@@ -1337,7 +1336,6 @@
 
 @media (hover: none), (pointer: coarse) {
   .radial-action-menu {
-    pointer-events: auto;
     opacity: 1;
     transform: none;
   }

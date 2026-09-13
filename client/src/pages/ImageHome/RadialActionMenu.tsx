@@ -95,7 +95,7 @@ function RadialActionMenu({
 
   return (
     <div
-      className="radial-action-menu"
+      className="radial-action-menu pointer-events-none"
       aria-label="图片快捷操作"
       data-action-count={actions.length}
       onClick={(event) => event.stopPropagation()}
@@ -107,7 +107,7 @@ function RadialActionMenu({
           type: 'button' as const,
           'aria-label': action.label,
           title: action.label,
-          className: cn('radial-action-menu__action', action.className),
+          className: cn('radial-action-menu__action pointer-events-auto', action.className),
           onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
             event.preventDefault();
             event.stopPropagation();
@@ -122,7 +122,7 @@ function RadialActionMenu({
               href={action.href}
               aria-label={action.label}
               title={action.label}
-              className={cn('radial-action-menu__action', action.className)}
+              className={cn('radial-action-menu__action pointer-events-auto', action.className)}
               onClick={(event) => {
                 event.stopPropagation();
                 onDownload?.();
@@ -143,7 +143,7 @@ function RadialActionMenu({
       })}
       {variantSelector && (
         <div
-          className="radial-action-menu__variant"
+          className="radial-action-menu__variant pointer-events-auto"
           onClick={(event) => event.stopPropagation()}
         >
           {variantSelector}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   contextPayloadToApi,
+  conversationMemoryUsage,
   createLocalSession,
   sessionFromApi,
   stateFromSessions,
@@ -19,7 +20,7 @@ describe('assetAgentSessionModel', () => {
     expect(session.title).toBe('新对话');
     expect(session.messages).toHaveLength(1);
     expect(session.suggestedQuestions).toHaveLength(4);
-    expect(session.expiresAt).toBeGreaterThan(session.updatedAt);
+    expect(session.memoryUsageRatio).toBe(0);
   });
 
   it('normalizes API sessions and context payloads', () => {
@@ -43,19 +44,48 @@ describe('assetAgentSessionModel', () => {
         },
       ],
       suggestedQuestions: [],
+      memoryUsedChars: 120,
+      memoryLimitChars: 12000,
+      memoryUsageRatio: 0.01,
       createdAt: '2026-08-26T00:00:00Z',
       updatedAt: '2026-08-26T00:01:00Z',
-      expiresAt: '2026-08-27T00:01:00Z',
+      expiresAt: '2026-08-27T00:00:00Z',
     });
 
     expect(session.title).toBe('历史对话');
     expect(session.contextImages[0].imageId).toBe('image-1');
     expect(session.suggestedQuestions).toHaveLength(4);
+    expect(session.memoryUsageRatio).toBe(0.01);
     expect(contextPayloadToApi(session.contextImages[0])).toEqual({
       imageId: 'image-1',
       assetGroupId: null,
       title: '课程同步',
       imageUrl: null,
+    });
+  });
+
+  it('measures only the active conversation after the first user message', () => {
+    const usage = conversationMemoryUsage([
+      { id: 'greeting', role: 'assistant', content: '很长的开场白'.repeat(100) },
+      { id: 'user', role: 'user', content: '先介绍拍题精学' },
+      { id: 'assistant', role: 'assistant', content: '它属于拍题精学卖点' },
+    ], 100);
+
+    expect(usage.usedChars).toBeGreaterThan(0);
+    expect(usage.usedChars).toBeLessThan(100);
+    expect(usage.ratio).toBe(usage.usedChars / 100);
+  });
+
+  it('reports a full window after the controlled message limit is reached', () => {
+    const messages = Array.from({ length: 25 }, (_, index) => ({
+      id: `message-${index}`,
+      role: index % 2 === 0 ? 'user' as const : 'assistant' as const,
+      content: `第 ${index + 1} 条消息`,
+    }));
+
+    expect(conversationMemoryUsage(messages, 12000)).toEqual({
+      usedChars: 12000,
+      ratio: 1,
     });
   });
 

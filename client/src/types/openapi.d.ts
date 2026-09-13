@@ -2618,6 +2618,12 @@ export interface components {
              * Format: date-time
              */
             expiresAt: string;
+            /** Memoryusedchars */
+            memoryUsedChars: number;
+            /** Memorylimitchars */
+            memoryLimitChars: number;
+            /** Memoryusageratio */
+            memoryUsageRatio: number;
             /**
              * Createdat
              * Format: date-time

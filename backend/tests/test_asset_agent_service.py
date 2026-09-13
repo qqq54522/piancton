@@ -117,6 +117,93 @@ def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
     assert provider.called is False
 
 
+def test_asset_agent_ai_search_receives_recent_history_for_manual_followup(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-history-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+
+        ai_search = _FakeAiSearchChat()
+        service = AssetAgentService(db, _FailingProvider(), ai_search_chat=ai_search)
+        session = service.create_session(user)
+
+        first = service.chat_in_session(
+            user,
+            session.id,
+            AssetAgentChatRequest(message="洋葱拍题精学解决什么问题？"),
+        )
+        frames = list(
+            service.chat_in_session_stream(
+                user,
+                session.id,
+                AssetAgentChatRequest(message="那它属于哪个体系？"),
+            )
+        )
+        refreshed = service.list_sessions(user).sessions[0]
+
+    assert first.conversation_id == session.id
+    assert refreshed.id == session.id
+    assert any(frame.startswith("event: final") for frame in frames)
+    assert "以下是同一会话最近几轮对话" in ai_search.last_query
+    assert "用户：洋葱拍题精学解决什么问题？" in ai_search.last_query
+    assert "助手：这是火山 AI Search 的业务知识回答。" in ai_search.last_query
+    assert ai_search.last_query.startswith("那它属于哪个体系？")
+
+
+def test_asset_agent_local_model_receives_recent_history_for_manual_followup(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-local-history-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+
+        provider = _RecordingProvider()
+        service = AssetAgentService(db, provider)
+        session = service.create_session(user)
+        service.chat_in_session(
+            user,
+            session.id,
+            AssetAgentChatRequest(message="先介绍一下 AI 定制班。"),
+        )
+        response = service.chat_in_session(
+            user,
+            session.id,
+            AssetAgentChatRequest(message="它和真人督学有什么区别？"),
+        )
+
+    assert response.conversation_id == session.id
+    assert "同一会话最近对话" in provider.last_request.input_text
+    assert "用户：先介绍一下 AI 定制班。" in provider.last_request.input_text
+    assert "助手：这张图可以用来解释 AI 定制班。" in provider.last_request.input_text
+
+
+def test_asset_agent_memory_window_keeps_recent_messages_and_reports_full(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-memory-cap-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+
+        service = AssetAgentService(db, _RecordingProvider())
+        created = service.create_session(user)
+        session = service.sessions.get_for_user(user.id, created.id)
+        assert session is not None
+        for index in range(30):
+            service._add_message(
+                session,
+                role="user" if index % 2 == 0 else "assistant",
+                content=f"memory-message-{index}-" + ("记忆" * 300),
+            )
+        service.uow.commit()
+
+        history = asset_agent_service._conversation_history_text(session.messages)
+        snapshot = service._session_read(session)
+
+    assert "memory-message-0-" not in history
+    assert "memory-message-29-" in history
+    assert len(history) <= asset_agent_service.MAX_AGENT_HISTORY_CHARS
+    assert snapshot.memory_used_chars == asset_agent_service.MAX_AGENT_HISTORY_CHARS
+    assert snapshot.memory_usage_ratio == 1.0
+
+
 def test_asset_agent_native_stream_persists_ai_search_image_cards(db_factory):
     with db_factory() as db:
         user = User(username="agent-stream-user", password_hash="x", role="business")
@@ -344,7 +431,10 @@ def test_asset_agent_sessions_are_user_private_even_for_admin(client):
     assert [item["id"] for item in still_owned.json()["sessions"]] == [session_id]
 
 
-def test_asset_agent_resets_user_memory_at_local_midnight(db_factory, monkeypatch):
+def test_asset_agent_resets_all_user_memory_at_local_midnight(
+    db_factory,
+    monkeypatch,
+):
     before_midnight = datetime(2026, 8, 26, 15, 50, tzinfo=timezone.utc)
     after_midnight = datetime(2026, 8, 26, 16, 1, tzinfo=timezone.utc)
 
@@ -354,13 +444,26 @@ def test_asset_agent_resets_user_memory_at_local_midnight(db_factory, monkeypatc
         db.commit()
 
         monkeypatch.setattr(asset_agent_service, "_now", lambda: before_midnight)
-        service = AssetAgentService(db, _RecordingProvider())
+        provider = _RecordingProvider()
+        service = AssetAgentService(db, provider)
         first = service.create_session(user, None)
-        second = service.chat(
+        first_reply = service.chat_in_session(
             user,
-            AssetAgentChatRequest(message="今天的素材解释"),
+            first.id,
+            AssetAgentChatRequest(message="第一个窗口的今日记忆"),
         ).session
-        assert second is not None
+        assert first_reply is not None
+        assert first_reply.id == first.id
+        assert first_reply.memory_used_chars > 0
+        assert first_reply.memory_limit_chars == asset_agent_service.MAX_AGENT_HISTORY_CHARS
+
+        second = service.create_session(user, None)
+        second_reply = service.chat_in_session(
+            user,
+            second.id,
+            AssetAgentChatRequest(message="第二个窗口的今日记忆"),
+        ).session
+        assert second_reply is not None
         assert len(service.list_sessions(user).sessions) == 2
 
         monkeypatch.setattr(asset_agent_service, "_now", lambda: after_midnight)
@@ -370,7 +473,10 @@ def test_asset_agent_resets_user_memory_at_local_midnight(db_factory, monkeypatc
         assert fresh.sessions[0].id not in {first.id, second.id}
         assert fresh.sessions[0].title == "新对话"
         assert [message.role for message in fresh.sessions[0].messages] == ["assistant"]
+        assert fresh.sessions[0].memory_used_chars == 0
         assert fresh.sessions[0].expires_at > after_midnight
+        assert service.sessions.get_for_user(user.id, first.id) is None
+        assert service.sessions.get_for_user(user.id, second.id) is None
 
         response = service.chat_in_session(
             user,
@@ -379,11 +485,9 @@ def test_asset_agent_resets_user_memory_at_local_midnight(db_factory, monkeypatc
         )
 
         assert response.session is not None
-        assert response.conversation_id != first.id
-        roles = [message.role for message in response.session.messages]
-        assert roles.count("user") == 1
-        assert roles.count("assistant") == 2
-        assert all("今天的素材解释" not in message.content for message in response.session.messages)
+        assert response.conversation_id not in {first.id, second.id}
+        assert "第一个窗口的今日记忆" not in provider.last_request.input_text
+        assert "第二个窗口的今日记忆" not in provider.last_request.input_text
 
 
 class _RecordingProvider:

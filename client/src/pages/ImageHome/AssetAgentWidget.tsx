@@ -37,6 +37,7 @@ import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import type { AssetAgentContextCard } from '@client/src/types/api';
 import {
   contextPayloadToApi,
+  conversationMemoryUsage,
   createLocalSession,
   DEFAULT_GREETING,
   DEFAULT_QUESTIONS,
@@ -123,6 +124,11 @@ function AssetAgentWidgetInner({
     (total, message) => total + message.content.length + (message.reasoningContent?.length ?? 0),
     0,
   );
+  const activeMemory = useMemo(
+    () => conversationMemoryUsage(activeSession.messages, activeSession.memoryLimitChars),
+    [activeSession.memoryLimitChars, activeSession.messages],
+  );
+  const activeMemoryPercent = Math.min(100, Math.round(activeMemory.ratio * 100));
   const isIntroOnly = !activeSession.messages.some((message) => message.role === 'user');
   const open = controlledOpen ?? internalOpen;
 
@@ -571,6 +577,7 @@ function AssetAgentWidgetInner({
       aria-label="Piancton Agent 对话侧栏"
     >
       <div className="flex h-12 items-center justify-end gap-2 border-b border-border/60 bg-white px-4">
+        <AgentMemoryIndicator percent={activeMemoryPercent} />
         <button
           type="button"
           className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition hover:bg-secondary/70 hover:text-foreground"
@@ -822,6 +829,56 @@ function AssetAgentWidgetInner({
         </div>
       </div>
     </aside>
+  );
+}
+
+function AgentMemoryIndicator({ percent }: { percent: number }) {
+  const normalized = Math.max(0, Math.min(100, percent));
+  const circumference = 2 * Math.PI * 10;
+  const dashOffset = circumference * (1 - normalized / 100);
+  const colorClass = normalized >= 90
+    ? 'text-destructive'
+    : normalized >= 70
+      ? 'text-amber-500'
+      : 'text-foreground/70';
+  const title = normalized >= 90
+    ? `今日对话记忆已使用 ${normalized}%，建议点击“新对话”开启新的记忆窗口；每天 00:00 会清空所有 Agent 对话`
+    : `今日对话记忆已使用 ${normalized}%；每天 00:00 会清空所有 Agent 对话`;
+
+  return (
+    <div
+      className={`mr-auto inline-flex items-center gap-1.5 text-[11px] font-medium ${colorClass}`}
+      role="status"
+      aria-label={title}
+      title={title}
+    >
+      <span className="relative inline-flex size-8 items-center justify-center" aria-hidden="true">
+        <svg viewBox="0 0 28 28" className="absolute inset-0 size-8 -rotate-90">
+          <circle
+            cx="14"
+            cy="14"
+            r="10"
+            fill="none"
+            stroke="currentColor"
+            strokeOpacity="0.14"
+            strokeWidth="2.5"
+          />
+          <circle
+            cx="14"
+            cy="14"
+            r="10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+          />
+        </svg>
+        <span className="relative text-[9px] tabular-nums">{normalized}</span>
+      </span>
+      <span>今日记忆</span>
+    </div>
   );
 }
 

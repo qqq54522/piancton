@@ -26,7 +26,9 @@ export interface AgentSession {
   suggestedQuestions: string[];
   createdAt: number;
   updatedAt: number;
-  expiresAt: number;
+  memoryUsedChars: number;
+  memoryLimitChars: number;
+  memoryUsageRatio: number;
 }
 
 export interface AgentState {
@@ -42,6 +44,9 @@ export const DEFAULT_QUESTIONS = [
 ] as const;
 
 export const MAX_SESSIONS = 20;
+export const DEFAULT_MEMORY_LIMIT_CHARS = 12_000;
+export const MEMORY_MESSAGE_LIMIT = 24;
+export const MEMORY_MESSAGE_CHAR_LIMIT = 1_200;
 export const LOCAL_SESSION_PREFIX = 'local-';
 export const DEFAULT_GREETING =
   'Hi，我是洋葱业务知识助手。\n\n我可以帮你理解洋葱学园的业务体系、核心卖点、证明点和使用场景，也可以把这些内容转成销售话术、家长沟通、素材方向、品牌文案、课程介绍或活动说明。\n\n你可以直接问我：某个卖点是什么意思、家长问题怎么回答、素材适合表达哪个卖点，或者某个场景该用什么卖点切入。';
@@ -90,28 +95,65 @@ export function createLocalSession(message = DEFAULT_GREETING): AgentSession {
     suggestedQuestions: [...DEFAULT_QUESTIONS],
     createdAt: now,
     updatedAt: now,
-    expiresAt: nextLocalMidnightMs(now),
+    memoryUsedChars: 0,
+    memoryLimitChars: DEFAULT_MEMORY_LIMIT_CHARS,
+    memoryUsageRatio: 0,
   };
 }
 
 export function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
+  const messages = session.messages.map((message) => ({
+    id: message.id,
+    role: message.role,
+    content: normalizeLegacyDefaultMessage(normalizeAgentText(message.content)),
+    usedModel: message.usedModel,
+    contextCards: message.contextCards ?? [],
+  }));
+  const memoryLimitChars = positiveNumber(
+    session.memoryLimitChars,
+    DEFAULT_MEMORY_LIMIT_CHARS,
+  );
+  const localMemory = conversationMemoryUsage(messages, memoryLimitChars);
   return {
     id: session.id,
     title: session.title || '历史对话',
-    messages: session.messages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      content: normalizeLegacyDefaultMessage(normalizeAgentText(message.content)),
-      usedModel: message.usedModel,
-      contextCards: message.contextCards ?? [],
-    })),
+    messages,
     contextImages: session.contextImages.map(contextApiToPayload),
     suggestedQuestions: normalizedSuggestedQuestions(session.suggestedQuestions).length > 0
       ? normalizedSuggestedQuestions(session.suggestedQuestions)
       : [...DEFAULT_QUESTIONS],
     createdAt: dateToMillis(session.createdAt),
     updatedAt: dateToMillis(session.updatedAt),
-    expiresAt: dateToMillis(session.expiresAt),
+    memoryUsedChars: nonNegativeNumber(session.memoryUsedChars, localMemory.usedChars),
+    memoryLimitChars,
+    memoryUsageRatio: boundedRatio(session.memoryUsageRatio, localMemory.ratio),
+  };
+}
+
+export function conversationMemoryUsage(
+  messages: ChatMessage[],
+  limitChars = DEFAULT_MEMORY_LIMIT_CHARS,
+): { usedChars: number; ratio: number } {
+  const eligible = messages.filter((message) => (
+    (message.role === 'user' || message.role === 'assistant') && message.content.trim()
+  ));
+  const firstUserIndex = eligible.findIndex((message) => message.role === 'user');
+  if (firstUserIndex < 0) return { usedChars: 0, ratio: 0 };
+
+  const lines = eligible.slice(firstUserIndex).map((message) => {
+    const clipped = message.content.length > MEMORY_MESSAGE_CHAR_LIMIT
+      ? `${message.content.slice(0, MEMORY_MESSAGE_CHAR_LIMIT - 1)}…`
+      : message.content;
+    return `${message.role === 'user' ? '用户' : '助手'}：${clipped}`;
+  });
+  const normalizedLimit = positiveNumber(limitChars, DEFAULT_MEMORY_LIMIT_CHARS);
+  const rawChars = lines.length > MEMORY_MESSAGE_LIMIT
+    ? normalizedLimit
+    : lines.reduce((total, line) => total + line.length, Math.max(0, lines.length - 1));
+  const usedChars = Math.min(rawChars, normalizedLimit);
+  return {
+    usedChars,
+    ratio: usedChars / normalizedLimit,
   };
 }
 
@@ -239,15 +281,6 @@ export function formatSessionTime(value: number): string {
   });
 }
 
-export function formatExpiry(value: number): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '今日 24:00';
-  return `${date.toLocaleDateString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-  })} 00:00`;
-}
-
 export function isLocalSession(sessionId: string): boolean {
   return sessionId.startsWith(LOCAL_SESSION_PREFIX);
 }
@@ -264,8 +297,15 @@ function dateToMillis(value: string): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
-function nextLocalMidnightMs(now: number): number {
-  const date = new Date(now);
-  date.setHours(24, 0, 0, 0);
-  return date.getTime();
+function positiveNumber(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function nonNegativeNumber(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function boundedRatio(value: number | undefined, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(1, value));
 }
