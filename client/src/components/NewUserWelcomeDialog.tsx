@@ -25,23 +25,23 @@ interface NewUserWelcomeDialogProps {
 
 const welcomeCards = [
   {
-    title: '把业务需求变成可用素材',
+    title: '把业务需求变成可用的卖点图',
     description:
-      '卖点智库把业务体系、核心卖点和已确认素材连接起来。直接描述你要表达的内容，就能更快找到真正适合使用的卖点图。',
+      '直接用日常语言描述你想表达的内容。卖点智库会先理解需求对应的业务卖点，再从已确认素材中优先找到真正适用的图片；如果库里暂时没有合适素材，也会如实告诉你。',
     icon: LibraryBig,
     accent: 'bg-amber-50 text-amber-800',
   },
   {
-    title: '顶部找图，右侧继续问',
+    title: '顶部直接找图，右侧深入理解',
     description:
-      '找素材时使用顶部搜索栏；想了解卖点、判断一张图怎么用，或继续追问业务问题时，打开右侧 Piancton Agent。',
+      '已经知道要找什么时，优先使用顶部搜索，例如“新疆合作案例”。当需求需要语义理解、卖点判断，或你还想继续追问时，使用右侧 Agent；它会先理解你的需求，再结合卖点帮你回答或找图。',
     icon: Search,
     accent: 'bg-sky-50 text-sky-800',
   },
   {
     title: '喜欢随手留，收藏按画板整理',
     description:
-      '“喜欢”集中保存你常用的图片；“收藏”可以新建画板，按项目、渠道或使用场景整理素材，之后从头像菜单随时找回。',
+      '常用图片可以点“喜欢”，之后从头像里的“我的喜欢”快速找回。需要分类时，再收藏到画板；你可以按项目、渠道或使用场景建立多个独立素材集。',
     icon: Heart,
     accent: 'bg-rose-50 text-rose-800',
   },
@@ -85,8 +85,8 @@ export default function NewUserWelcomeDialog({
             </span>
           </div>
           <DialogTitle className="text-2xl tracking-tight sm:text-3xl">欢迎来到卖点智库</DialogTitle>
-          <DialogDescription className="max-w-2xl text-sm leading-6 sm:text-base">
-            用一分钟认识三个最常用的入口，之后就可以直接开始找图。
+          <DialogDescription className="max-w-3xl text-sm leading-6 sm:text-base">
+            卖点智库基于公司的六大业务体系与核心卖点，帮你更快找到适合业务需求的素材。不熟悉这些体系和卖点也没关系：打开右侧 Agent 直接提问，就能了解相关背景、卖点含义和适用场景。
           </DialogDescription>
         </DialogHeader>
 
@@ -102,17 +102,23 @@ export default function NewUserWelcomeDialog({
               <h2 className="mt-5 text-base font-semibold tracking-tight">{title}</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
               {index === 1 && (
-                <div className="mt-4 flex items-center gap-2 text-xs font-medium text-foreground/75">
-                  <Search className="size-3.5" />搜索素材
-                  <span className="text-border">·</span>
-                  <BotMessageSquare className="size-3.5" />理解与追问
+                <div className="mt-4 space-y-2 rounded-xl bg-secondary/60 p-3 text-xs font-medium text-foreground/75">
+                  <div className="flex items-center gap-2">
+                    <Search className="size-3.5" />目标明确：顶部搜索
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <BotMessageSquare className="size-3.5" />需要理解或追问：Agent
+                  </div>
                 </div>
               )}
               {index === 2 && (
-                <div className="mt-4 flex items-center gap-2 text-xs font-medium text-foreground/75">
-                  <Heart className="size-3.5" />我的喜欢
-                  <span className="text-border">·</span>
-                  <FolderHeart className="size-3.5" />我的收藏
+                <div className="mt-4 space-y-2 rounded-xl bg-secondary/60 p-3 text-xs font-medium text-foreground/75">
+                  <div className="flex items-center gap-2">
+                    <Heart className="size-3.5" />喜欢：快速找回常用图片
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FolderHeart className="size-3.5" />收藏：按画板分类整理
+                  </div>
                 </div>
               )}
             </article>
@@ -121,7 +127,7 @@ export default function NewUserWelcomeDialog({
 
         <div className="mx-6 rounded-2xl bg-secondary/70 px-5 py-4 sm:mx-8">
           <p className="text-sm leading-6 text-foreground/80">
-            卖点智库目前仍处于内测阶段。我们会结合真实使用行为持续优化搜索与推荐，也难免有不完善之处，感谢你的理解和共建。遇到问题或有新的想法，请点击头像中的“提交反馈”告诉我们；提交时尽量留下联系人，方便我们快速确认并跟进。
+            卖点智库目前处于内测阶段，搜索和推荐仍在持续优化。你的真实使用和反馈会帮助我们更快发现问题、改进体验。遇到问题或有任何想法，请点击头像里的“提交反馈”；提交时尽量留下联系人，方便我们尽快与你确认并跟进。感谢你的理解与共建。
           </p>
         </div>
 
