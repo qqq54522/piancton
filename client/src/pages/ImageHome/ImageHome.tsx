@@ -14,7 +14,7 @@ import GlobalImageSearch from './GlobalImageSearch';
 import AssetAgentWidget from './AssetAgentWidget';
 import ImageGrid from './ImageGrid';
 import SemanticSearchResult from './SemanticSearchResult';
-import UploadDialog from './UploadDialog';
+import UploadDialog, { type UploadMode } from './UploadDialog';
 import type { ImageChannelIntent } from './channelIntent';
 import { channelValueIncludes } from './channelValue';
 
@@ -33,6 +33,7 @@ interface ImageHomeLocationState {
   browseChannel?: string;
   browseChannelIntent?: ImageChannelIntent | null;
   openUpload?: boolean;
+  uploadMode?: UploadMode;
 }
 
 const ImageHome = () => {
@@ -41,6 +42,7 @@ const ImageHome = () => {
   const navigate = useNavigate();
   const [manualFilterOpen, setManualFilterOpen] = useState(false);
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState<UploadMode>('single');
   const animatedGifPreview = useAnimatedGifPreview();
   const consumedLocationStateKeyRef = useRef<string | null>(null);
   const stickyHeaderRef = useRef<HTMLDivElement>(null);
@@ -141,7 +143,10 @@ const ImageHome = () => {
 
     let consumedState = false;
     if (locationState.openUpload) {
-      if (isDesigner) setUploadOpen(true);
+      if (isDesigner) {
+        setUploadMode(locationState.uploadMode ?? 'single');
+        setUploadOpen(true);
+      }
       consumedState = true;
     }
 
@@ -175,8 +180,11 @@ const ImageHome = () => {
   ]);
 
   useEffect(() => {
-    const openUpload = () => {
-      if (isDesigner) setUploadOpen(true);
+    const openUpload = (event: Event) => {
+      if (!isDesigner) return;
+      const detail = (event as CustomEvent<{ mode?: UploadMode }>).detail;
+      setUploadMode(detail?.mode ?? 'single');
+      setUploadOpen(true);
     };
     window.addEventListener('piancton:open-upload', openUpload);
     return () => window.removeEventListener('piancton:open-upload', openUpload);
@@ -305,6 +313,7 @@ const ImageHome = () => {
       </div>
 
       <UploadDialog
+        initialMode={uploadMode}
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         onSuccess={handleUploadSuccess}

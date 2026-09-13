@@ -27,6 +27,9 @@ class User(Base):
     onboarding_completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    announcements_read_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=utcnow
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     sessions: Mapped[list["UserSession"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -67,9 +70,7 @@ class AuditLog(Base):
     target_type: Mapped[str] = mapped_column(String(50), index=True)
     target_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     details_json: Mapped[str] = mapped_column(Text, default="{}")
-    request_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    request_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )

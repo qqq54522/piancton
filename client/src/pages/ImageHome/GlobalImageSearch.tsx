@@ -1,4 +1,4 @@
-import { ArrowUpDown, BriefcaseBusiness, Check, Film, FolderHeart, Heart, LogOut, MessageSquarePlus, Plus, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { ArrowUpDown, Bell, BriefcaseBusiness, Check, Film, FolderHeart, Heart, LogOut, MessageSquarePlus, Plus, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,6 +7,7 @@ import { Button } from '@client/src/components/ui/button';
 import FeedbackDialog from '@client/src/components/FeedbackDialog';
 import HorizontalScrollRail from '@client/src/components/HorizontalScrollRail';
 import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
+import UnreadAnnouncementBadge from '@client/src/components/UnreadAnnouncementBadge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ import { Input } from '@client/src/components/ui/input';
 import { shouldIgnoreEnterForIme } from '@client/src/lib/ime';
 import { useAuth } from '@client/src/lib/auth';
 import { useSearchQueryRecommendations } from '@client/src/features/images/useSearchQueryRecommendations';
+import { useAnnouncementUnreadCount } from '@client/src/features/announcements/useAnnouncements';
 import {
   type SceneImageFilter,
   type SearchRefinementOptions,
@@ -75,6 +77,8 @@ const GlobalImageSearch = ({
   const channelOptions = useChannelOptions(refinementOptions.channels);
   const canAddChannel = !showBusinessAccount;
   const { placeholder, completions } = useSearchQueryRecommendations(input);
+  const unreadAnnouncements = useAnnouncementUnreadCount(showBusinessAccount);
+  const unreadCount = unreadAnnouncements.data?.unreadCount ?? 0;
   const intentChannels = refinements.channel
     ? []
     : refinements.channelIntent?.candidateChannels ?? [];
@@ -166,7 +170,7 @@ const GlobalImageSearch = ({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border/70 bg-white shadow-xs transition-colors hover:bg-[#f1f1ef]"
+                className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border/70 bg-white shadow-xs transition-colors hover:bg-[#f1f1ef]"
                 aria-label="打开账号菜单"
               >
                 <Avatar className="size-9 border border-border bg-[#f1f1ef]">
@@ -174,6 +178,7 @@ const GlobalImageSearch = ({
                     <BriefcaseBusiness className="size-4" />
                   </AvatarFallback>
                 </Avatar>
+                <UnreadAnnouncementBadge count={unreadCount} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
@@ -187,6 +192,14 @@ const GlobalImageSearch = ({
               </DropdownMenuItem>
               <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => navigate('/my-collections')}>
                 <FolderHeart className="size-4" />我的收藏
+              </DropdownMenuItem>
+              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => navigate('/my-messages')}>
+                <Bell className="size-4" />我的信息
+                {unreadCount > 0 && (
+                  <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => setFeedbackOpen(true)}>
                 <MessageSquarePlus className="size-4" />提交反馈

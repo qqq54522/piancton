@@ -1,3 +1,4 @@
+from app.models.announcement import Announcement
 from app.models.api_provider import (
     ApiCenterSetting,
     ModelApiCredential,
@@ -6,12 +7,12 @@ from app.models.api_provider import (
     ModelRoutingSlot,
 )
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
+from app.models.asset_agent import AssetAgentMessage, AssetAgentSession
 from app.models.asset_collection import (
     AssetCollectionBoard,
     AssetCollectionBoardItem,
     UserAssetLike,
 )
-from app.models.asset_agent import AssetAgentMessage, AssetAgentSession
 from app.models.business_concept import (
     BusinessConcept,
     ConceptRelation,
@@ -32,6 +33,7 @@ from app.models.user import AuditLog, LoginThrottle, User, UserSession
 
 __all__ = [
     "ApiCenterSetting",
+    "Announcement",
     "AssetGroup",
     "AssetConceptLink",
     "AssetSearchPhrase",

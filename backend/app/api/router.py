@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     admin,
     ai,
+    announcements,
     api_center,
     asset_agent,
     asset_collections,
@@ -20,6 +21,8 @@ from app.api.v1 import (
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
+api_router.include_router(announcements.router)
+api_router.include_router(announcements.admin_router)
 api_router.include_router(images.router)
 api_router.include_router(assets.router)
 api_router.include_router(business_concepts.router)

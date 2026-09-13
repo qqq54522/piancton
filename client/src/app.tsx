@@ -13,11 +13,13 @@ const AdminIdentityCodes = lazy(() => import('./pages/AdminIdentityCodes/AdminId
 const AdminChannels = lazy(() => import('./pages/AdminChannels/AdminChannels'));
 const AdminConcepts = lazy(() => import('./pages/AdminConcepts/AdminConcepts'));
 const AdminSearchOps = lazy(() => import('./pages/AdminSearchOps/AdminSearchOps'));
+const AdminAnnouncements = lazy(() => import('./pages/AdminAnnouncements/AdminAnnouncements'));
 const ImageDetail = lazy(() => import('./pages/ImageDetail/ImageDetail'));
 const ImageHome = lazy(() => import('./pages/ImageHome/ImageHome'));
 const Login = lazy(() => import('./pages/Login/Login'));
 const MyLikes = lazy(() => import('./pages/MyLikes/MyLikes'));
 const MyCollections = lazy(() => import('./pages/MyCollections/MyCollections'));
+const MyMessages = lazy(() => import('./pages/MyMessages/MyMessages'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 const Trash = lazy(() => import('./pages/Trash/Trash'));
 
@@ -39,11 +41,13 @@ const RoutesComponent = () => (
             <Route path="my-likes" element={<MyLikes />} />
             <Route path="my-collections" element={<MyCollections />} />
             <Route path="my-collections/:boardId" element={<MyCollections />} />
+            <Route path="my-messages" element={<MyMessages />} />
           </Route>
           <Route element={<DesignerRoute />}>
             <Route path="trash" element={<Trash />} />
             <Route path="search-ops" element={<AdminSearchOps />} />
             <Route path="admin/search-ops" element={<AdminSearchOps />} />
+            <Route path="announcements/manage" element={<AdminAnnouncements />} />
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="admin/users" element={<AdminUsers />} />

@@ -14,12 +14,13 @@ from app.repositories.api_center_repository import ApiCenterRepository
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.services.ai_knowledge_service import AiKnowledgeService
 from app.services.ai_service import AiService
+from app.services.announcement_service import AnnouncementService
 from app.services.api_center_service import ApiCenterService
 from app.services.asset_agent_service import AssetAgentService
-from app.services.asset_collection_service import AssetCollectionService
 from app.services.asset_agent_temporary_image_service import (
     AssetAgentTemporaryImageService,
 )
+from app.services.asset_collection_service import AssetCollectionService
 from app.services.asset_identity_admin_service import AssetIdentityAdminService
 from app.services.asset_identity_service import AssetIdentityService
 from app.services.asset_relation_service import AssetRelationService
@@ -631,6 +632,12 @@ def get_search_ai_service(
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(db)
+
+
+def get_announcement_service(
+    db: Session = Depends(get_db),
+) -> AnnouncementService:
+    return AnnouncementService(db)
 
 
 def get_usage_analytics_service(

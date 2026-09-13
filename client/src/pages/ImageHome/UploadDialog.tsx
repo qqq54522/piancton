@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ImagePlus, Info, Loader2, Plus, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ImagePlus, Images, Info, Loader2, Plus, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as assetApi from '@client/src/api/asset';
@@ -22,14 +22,19 @@ import { useImageTitleResolution } from '@client/src/features/images/useImageTit
 import UploadAssetPicker from './UploadAssetPicker';
 import { addCustomChannel, useChannelOptions } from './channelOptions';
 import { joinChannelValues } from './channelValue';
+import { mergeUploadFiles, runUploadBatch, titleForUpload } from './uploadBatch';
+
+export type UploadMode = 'single' | 'batch';
 
 interface UploadDialogProps {
+  initialMode?: UploadMode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
+const UploadDialog = ({ initialMode = 'single', open, onOpenChange, onSuccess }: UploadDialogProps) => {
+  const [mode, setMode] = useState<UploadMode>(initialMode);
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -41,6 +46,11 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
   const [supportConceptIds, setSupportConceptIds] = useState<string[]>([]);
   const [debouncedTitle, setDebouncedTitle] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    completed: number;
+    currentFileName: string;
+    total: number;
+  } | null>(null);
   const concepts = useBusinessConcepts(open);
   const remoteChannels = useImageChannelOptions(open);
   const channelOptions = useChannelOptions(remoteChannels.data?.channels ?? []);
@@ -66,6 +76,10 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     return () => window.clearTimeout(timer);
   }, [requestedTitle]);
 
+  useEffect(() => {
+    if (open) setMode(initialMode);
+  }, [initialMode, open]);
+
   useEffect(() => () => {
     previews.forEach((item) => URL.revokeObjectURL(item.url));
   }, [previews]);
@@ -81,6 +95,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     setPrimaryConceptId('');
     setSupportConceptIds([]);
     setDebouncedTitle('');
+    setUploadProgress(null);
   };
   const close = () => {
     reset();
@@ -93,18 +108,35 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
     setDraftChannel('');
     setAddingChannel(false);
   };
+  const selectFiles = (selected: File[]) => {
+    setFiles((current) => (
+      mode === 'batch'
+        ? mergeUploadFiles(current, selected)
+        : selected.slice(0, 1)
+    ));
+  };
+  const changeMode = (nextMode: UploadMode) => {
+    if (uploading || nextMode === mode) return;
+    if (nextMode === 'single' && files.length > 1) {
+      toast.error('已选择多张图片，请先移除到只剩一张再切换单张上传');
+      return;
+    }
+    if (nextMode === 'batch') {
+      setTitle('');
+      setStyleLabel('');
+      setIsSceneImage(false);
+    }
+    setMode(nextMode);
+  };
 
   const submit = async () => {
     if (!files.length) return toast.error('请选择图片');
     if (selectedChannels.length === 0) return toast.error('请先选择使用渠道');
     setUploading(true);
+    setUploadProgress({ completed: 0, currentFileName: files[0].name, total: files.length });
     try {
-      const automaticRenames: string[] = [];
-      const identityCodes: string[] = [];
-      for (const [index, file] of files.entries()) {
-        const fileTitle = files.length === 1 && title.trim()
-          ? title.trim()
-          : file.name.replace(/\.[^.]+$/, '') || `图片 ${index + 1}`;
+      const result = await runUploadBatch(files, async (file, index) => {
+        const fileTitle = titleForUpload(file, index, files.length, title);
         const image = await imageApi.uploadImage({
           file,
           title: fileTitle,
@@ -113,23 +145,49 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
           isSceneImage,
           autoAnalyze: false,
         });
-        if (image.title !== fileTitle.trim().slice(0, 255)) {
-          automaticRenames.push(image.title);
-        }
-        if (image.identityCode) identityCodes.push(image.identityCode);
+        let relationError: string | null = null;
         if (image.assetGroupId && (primaryConceptId || supportConceptIds.length > 0)) {
-          await assetApi.replaceAssetConceptRelations(image.assetGroupId, [
-            ...(primaryConceptId
-              ? [{ conceptId: primaryConceptId, relationRole: 'expresses' as const }]
-              : []),
-            ...supportConceptIds.map((id) => ({
-              conceptId: id,
-              relationRole: 'supports' as const,
-            })),
-          ]);
+          try {
+            await assetApi.replaceAssetConceptRelations(image.assetGroupId, [
+              ...(primaryConceptId
+                ? [{ conceptId: primaryConceptId, relationRole: 'expresses' as const }]
+                : []),
+              ...supportConceptIds.map((id) => ({
+                conceptId: id,
+                relationRole: 'supports' as const,
+              })),
+            ]);
+          } catch (error) {
+            relationError = getApiError(error).message;
+          }
         }
+        return { fileTitle, image, relationError };
+      }, ({ completed, currentFile, total }) => {
+        setUploadProgress({ completed, currentFileName: currentFile.name, total });
+      });
+      const automaticRenames = result.successes
+        .filter(({ value }) => value.image.title !== value.fileTitle.trim().slice(0, 255))
+        .map(({ value }) => value.image.title);
+      const identityCodes = result.successes
+        .map(({ value }) => value.image.identityCode)
+        .filter((value): value is string => Boolean(value));
+      const relationFailures = result.successes.filter(({ value }) => value.relationError);
+      const uploadedCount = result.successes.length;
+      if (uploadedCount > 0) onSuccess();
+
+      if (result.failures.length > 0) {
+        setFiles(result.failures.map(({ file }) => file));
+        const firstError = getApiError(result.failures[0].error).message;
+        toast.error(
+          `已成功 ${uploadedCount} 张，失败 ${result.failures.length} 张；失败图片已保留，可直接重试。${firstError ? `首个错误：${firstError}` : ''}`,
+        );
+        if (relationFailures.length > 0) {
+          toast.warning(`${relationFailures.length} 张图片已发布，但卖点关系写入失败，请在素材详情补充`);
+        }
+        return;
       }
-      const baseMessage = `已上传 ${files.length} 张主图`;
+
+      const baseMessage = `已上传 ${uploadedCount} 张主图`;
       const renameMessage = automaticRenames.length
         ? `；重名素材已自动保存为 ${automaticRenames.slice(0, 3).join('、')}${automaticRenames.length > 3 ? ` 等 ${automaticRenames.length} 个名称` : ''}`
         : '';
@@ -137,12 +195,13 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
         ? `；身份码 ${identityCodes[0]}`
         : '；每张图片已自动分配身份码';
       toast.success(`${baseMessage}${renameMessage}${codeMessage}`);
-      onSuccess();
+      if (relationFailures.length > 0) {
+        toast.warning(`${relationFailures.length} 张图片已发布，但卖点关系写入失败，请在素材详情补充`);
+      }
       close();
-    } catch (error) {
-      toast.error(getApiError(error).message);
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -153,15 +212,41 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
         className="grid max-h-[92vh] w-[calc(100%-1.25rem)] max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-0 p-0"
       >
         <DialogHeader className="border-b border-border/80 px-5 py-4 pr-14 sm:px-6 sm:py-5">
-          <div className="flex items-start gap-3">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
             <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f1f1ef] text-foreground">
-              <ImagePlus className="size-5" />
+              {mode === 'batch' ? <Images className="size-5" /> : <ImagePlus className="size-5" />}
             </div>
             <div>
-              <DialogTitle className="text-xl tracking-tight">上传主图</DialogTitle>
+              <DialogTitle className="text-xl tracking-tight">
+                {mode === 'batch' ? '批量上传主图' : '上传单张主图'}
+              </DialogTitle>
               <DialogDescription className="mt-1.5 leading-5">
-                选择图片、渠道和卖点关系，一次完成发布。
+                {mode === 'batch'
+                  ? '一次选择多张图片，统一设置渠道和卖点关系。'
+                  : '上传一张主图，并补充它的业务筛选信息。'}
               </DialogDescription>
+            </div>
+            </div>
+            <div className="inline-flex w-fit rounded-xl bg-secondary p-1" aria-label="上传方式">
+              <button
+                type="button"
+                disabled={uploading}
+                aria-pressed={mode === 'single'}
+                className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${mode === 'single' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => changeMode('single')}
+              >
+                <Upload className="size-3.5" />单张上传
+              </button>
+              <button
+                type="button"
+                disabled={uploading}
+                aria-pressed={mode === 'batch'}
+                className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${mode === 'batch' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => changeMode('batch')}
+              >
+                <Images className="size-3.5" />批量上传
+              </button>
             </div>
           </div>
         </DialogHeader>
@@ -176,15 +261,31 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
               </div>
             </div>
             <UploadAssetPicker
+              disabled={uploading}
               files={files}
+              multiple={mode === 'batch'}
               previews={previews}
-              onSelect={setFiles}
+              onSelect={selectFiles}
               onRemove={(file) => setFiles((items) => items.filter((item) => item !== file))}
             />
-            {files.length > 1 && (
+            {mode === 'batch' && (
               <div className="mt-3 flex gap-2 rounded-xl border border-border/80 bg-[#f7f7f5] px-3 py-2.5 text-xs leading-5 text-foreground/70">
                 <Info className="mt-0.5 size-3.5 shrink-0" />
-                右侧渠道、场景图和卖点会应用到本次选中的全部图片；图片名称默认使用各自文件名。
+                整批图片共用右侧渠道和卖点，名称自动取各自文件名。如果图片卖点不同，请分成多批上传。
+              </div>
+            )}
+            {uploadProgress && (
+              <div className="mt-3 rounded-xl border border-border bg-white px-3 py-3" role="status" aria-live="polite">
+                <div className="flex items-center justify-between gap-3 text-xs font-medium text-foreground">
+                  <span className="truncate">正在上传：{uploadProgress.currentFileName}</span>
+                  <span className="shrink-0">{uploadProgress.completed}/{uploadProgress.total}</span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-foreground transition-[width]"
+                    style={{ width: `${Math.round((uploadProgress.completed / uploadProgress.total) * 100)}%` }}
+                  />
+                </div>
               </div>
             )}
             {fileRiskHints.length > 0 && (
@@ -212,7 +313,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
             </div>
 
             <div className="space-y-5">
-              {files.length <= 1 && (
+              {mode === 'single' && (
                 <label className="block">
                   <span className="field-label">素材名称</span>
                   <Input
@@ -319,7 +420,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                     </div>
                     <span className="field-hint">每张主图至少选择一个适用渠道；可多选，新增渠道会同步出现在首页筛选里。</span>
                   </div>
-                  <label className="block">
+                  {mode === 'single' && <label className="block">
                     <span className="field-label">画面风格</span>
                     <Input
                       value={styleLabel}
@@ -329,8 +430,8 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                       onChange={(event) => setStyleLabel(event.target.value)}
                     />
                     <span className="field-hint">可选，用于业务端按画面风格继续缩小结果。</span>
-                  </label>
-                  <div className="flex items-center gap-3">
+                  </label>}
+                  {mode === 'single' && <div className="flex items-center gap-3">
                     <span className="field-label mb-0">场景图</span>
                     <button
                       type="button"
@@ -343,7 +444,7 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
                     >
                       <span className={`absolute left-1 size-5 rounded-full bg-white shadow-sm transition-transform ${isSceneImage ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
-                  </div>
+                  </div>}
                 </div>
               </div>
 
@@ -369,12 +470,17 @@ const UploadDialog = ({ open, onOpenChange, onSuccess }: UploadDialogProps) => {
 
         <DialogFooter className="border-t border-border/80 bg-card px-5 py-4 sm:px-6">
           <div className="mr-auto hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-            <CheckCircle2 className="size-4 text-success" />选择图片和使用渠道即可发布
+            <CheckCircle2 className="size-4 text-success" />
+            {mode === 'batch' ? '选择多张图片和使用渠道即可整批发布' : '选择图片和使用渠道即可发布'}
           </div>
           <Button variant="outline" onClick={close} disabled={uploading}>取消</Button>
           <Button onClick={submit} disabled={uploading || !files.length || selectedChannels.length === 0} className="min-w-28 bg-foreground text-background hover:bg-foreground/88">
             {uploading && <Loader2 className="size-4 animate-spin" />}
-            {uploading ? '正在上传' : files.length > 1 ? `发布 ${files.length} 张` : '上传并发布'}
+            {uploading
+              ? `正在上传 ${uploadProgress?.completed ?? 0}/${files.length}`
+              : mode === 'batch'
+              ? `批量发布 ${files.length} 张`
+              : '上传并发布'}
           </Button>
         </DialogFooter>
       </DialogContent>

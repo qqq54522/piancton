@@ -4,11 +4,13 @@ import {
   FileClock,
   Fingerprint,
   BarChart3,
+  Images,
   KeyRound,
   LayoutGrid,
   LibraryBig,
   LogOut,
   Menu,
+  Megaphone,
   MessageSquarePlus,
   Palette,
   ScrollText,
@@ -69,26 +71,30 @@ const SidebarNavItem = ({ to, label, icon: Icon, end }: SidebarNavItemProps) => 
   </NavLink>
 );
 
-const SidebarActionItem = ({
-  label,
-  icon: Icon,
-  onClick,
-}: {
-  label: string;
-  icon: LucideIcon;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    className="sidebar-nav-pill group relative flex size-12 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-    aria-label={label}
-    onClick={onClick}
-  >
-    <Icon className="size-5" />
-    <span className="pointer-events-none absolute left-[58px] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-xl bg-foreground px-3 py-2 text-sm font-semibold text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-      {label}
-    </span>
-  </button>
+const SidebarUploadMenu = ({ onSelect }: { onSelect: (mode: 'single' | 'batch') => void }) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <button
+        type="button"
+        className="sidebar-nav-pill group relative flex size-12 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+        aria-label="上传素材"
+      >
+        <Upload className="size-5" />
+        <span className="pointer-events-none absolute left-[58px] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-xl bg-foreground px-3 py-2 text-sm font-semibold text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          上传素材
+        </span>
+      </button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="start" side="right" className="w-52 rounded-xl p-1.5">
+      <DropdownMenuLabel className="px-2.5 py-2 text-xs text-muted-foreground">选择上传方式</DropdownMenuLabel>
+      <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => onSelect('single')}>
+        <Upload className="size-4" />上传单张主图
+      </DropdownMenuItem>
+      <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => onSelect('batch')}>
+        <Images className="size-4" />批量上传主图
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 const Layout = () => {
@@ -109,6 +115,7 @@ const Layout = () => {
     { to: '/admin/concepts', label: '卖点管理', icon: LibraryBig, show: user?.role === 'admin' },
     { to: '/admin/channels', label: '渠道管理', icon: Tags, show: user?.role === 'admin' },
     { to: searchOpsPath, label: '搜索运营', icon: Search, show: canViewSearchOps },
+    { to: '/announcements/manage', label: '公告管理', icon: Megaphone, show: canManageAssets },
     { to: '/admin/api-center', label: 'API 中心', icon: KeyRound, show: user?.role === 'admin' },
     { to: '/admin/usage', label: '使用统计', icon: BarChart3, show: user?.role === 'admin' },
     { to: '/admin/identity-codes', label: '身份码管理', icon: Fingerprint, show: user?.role === 'admin' },
@@ -122,9 +129,9 @@ const Layout = () => {
     navigate('/login', { replace: true });
   };
 
-  const handleOpenUpload = () => {
-    navigate('/', { state: { openUpload: true } });
-    window.dispatchEvent(new Event('piancton:open-upload'));
+  const handleOpenUpload = (mode: 'single' | 'batch' = 'single') => {
+    navigate('/', { state: { openUpload: true, uploadMode: mode } });
+    window.dispatchEvent(new CustomEvent('piancton:open-upload', { detail: { mode } }));
   };
 
   return (
@@ -141,7 +148,7 @@ const Layout = () => {
 
             <nav className="flex flex-1 flex-col items-center gap-3" aria-label="主导航">
               {canManageAssets && (
-                <SidebarActionItem label="上传主图" icon={Upload} onClick={handleOpenUpload} />
+                <SidebarUploadMenu onSelect={handleOpenUpload} />
               )}
               {navItems.filter((item) => item.show).map((item) => (
                 <SidebarNavItem
@@ -233,6 +240,11 @@ const Layout = () => {
                   <Search className="size-4" />搜索运营
                 </NavLink>
               )}
+              {canManageAssets && (
+                <NavLink to="/announcements/manage" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
+                  <Megaphone className="size-4" />公告管理
+                </NavLink>
+              )}
               {user?.role === 'admin' && (
                 <NavLink to="/admin/api-center" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
                   <KeyRound className="size-4" />API 中心
@@ -258,11 +270,23 @@ const Layout = () => {
                   type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    handleOpenUpload();
+                    handleOpenUpload('single');
                   }}
                   className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground"
                 >
                   <Upload className="size-4" />上传主图
+                </button>
+              )}
+              {canManageAssets && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleOpenUpload('batch');
+                  }}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground"
+                >
+                  <Images className="size-4" />批量上传主图
                 </button>
               )}
               {canManageAssets && (

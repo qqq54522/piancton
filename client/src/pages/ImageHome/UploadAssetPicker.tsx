@@ -1,3 +1,4 @@
+import { useState, type DragEvent } from 'react';
 import { FileImage, Images, Upload, X } from 'lucide-react';
 
 interface PreviewItem {
@@ -6,22 +7,57 @@ interface PreviewItem {
 }
 
 interface UploadAssetPickerProps {
+  disabled?: boolean;
   files: File[];
+  multiple?: boolean;
   previews: PreviewItem[];
   onSelect: (files: File[]) => void;
   onRemove: (file: File) => void;
 }
 
-export default function UploadAssetPicker({ files, previews, onSelect, onRemove }: UploadAssetPickerProps) {
+export default function UploadAssetPicker({
+  disabled = false,
+  files,
+  multiple = false,
+  previews,
+  onSelect,
+  onRemove,
+}: UploadAssetPickerProps) {
+  const [dragging, setDragging] = useState(false);
+  const acceptFiles = (selected: File[]) => {
+    if (disabled) return;
+    onSelect(multiple ? selected : selected.slice(0, 1));
+  };
+  const handleDrop = (event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    acceptFiles(Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith('image/')));
+  };
+
   if (!files.length) {
     return (
-      <label className="group flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-foreground/15 bg-card px-6 text-center transition hover:border-foreground/35 hover:bg-[#f7f7f5]">
+      <label
+        className={`group flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed px-6 text-center transition ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-foreground/35 hover:bg-[#f7f7f5]'} ${dragging ? 'border-foreground bg-[#f7f7f5]' : 'border-foreground/15 bg-card'}`}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          if (!disabled) setDragging(true);
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={handleDrop}
+      >
         <div className="flex size-12 items-center justify-center rounded-2xl bg-[#f1f1ef] text-foreground transition-transform group-hover:scale-105">
           <Upload className="size-5" />
         </div>
-        <span className="mt-4 text-sm font-semibold text-foreground">选择主图</span>
+        <span className="mt-4 text-sm font-semibold text-foreground">
+          {multiple ? '选择多张主图' : '选择一张主图'}
+        </span>
         <span className="mt-1.5 max-w-xs text-xs leading-5 text-muted-foreground">
-          支持一次选择多张图片；每张图片会建立独立素材组。
+          {multiple
+            ? '可一次多选或把多张图片拖到这里；每张图片会建立独立素材组。'
+            : '可点击选择或把图片拖到这里；发布后仍可继续维护素材信息。'}
         </span>
         <span className="mt-4 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground">
           浏览文件
@@ -29,9 +65,13 @@ export default function UploadAssetPicker({ files, previews, onSelect, onRemove 
         <input
           type="file"
           accept="image/*"
-          multiple
+          multiple={multiple}
+          disabled={disabled}
           className="hidden"
-          onChange={(event) => onSelect(Array.from(event.target.files || []))}
+          onChange={(event) => {
+            acceptFiles(Array.from(event.target.files || []));
+            event.target.value = '';
+          }}
         />
       </label>
     );
@@ -43,14 +83,18 @@ export default function UploadAssetPicker({ files, previews, onSelect, onRemove 
         <div className="flex items-center gap-2 text-sm font-medium">
           <Images className="size-4 text-foreground" />已选择 {files.length} 张
         </div>
-        <label className="cursor-pointer text-xs font-medium text-foreground hover:underline">
-          重新选择
+        <label className={`text-xs font-medium text-foreground hover:underline ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+          {multiple ? '继续添加' : '重新选择'}
           <input
             type="file"
             accept="image/*"
-            multiple
+            multiple={multiple}
+            disabled={disabled}
             className="hidden"
-            onChange={(event) => onSelect(Array.from(event.target.files || []))}
+            onChange={(event) => {
+              acceptFiles(Array.from(event.target.files || []));
+              event.target.value = '';
+            }}
           />
         </label>
       </div>
@@ -66,6 +110,7 @@ export default function UploadAssetPicker({ files, previews, onSelect, onRemove 
             <button
               type="button"
               aria-label={`移除 ${file.name}`}
+              disabled={disabled}
               className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-slate-950/65 text-white opacity-90 backdrop-blur transition hover:bg-slate-950"
               onClick={() => onRemove(file)}
             >
