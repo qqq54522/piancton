@@ -116,7 +116,6 @@ export default function HorizontalScrollRail({
           startScrollLeft: event.currentTarget.scrollLeft,
           startX: event.clientX,
         };
-        event.currentTarget.setPointerCapture?.(event.pointerId);
       }}
       onPointerMove={(event) => {
         const drag = dragRef.current;
@@ -127,6 +126,7 @@ export default function HorizontalScrollRail({
         if (!drag.moved) {
           drag.moved = true;
           setDragging(true);
+          event.currentTarget.setPointerCapture?.(event.pointerId);
         }
         event.preventDefault();
         event.currentTarget.scrollLeft = drag.startScrollLeft - distance;

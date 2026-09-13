@@ -17,7 +17,14 @@ function renderRail() {
     clientWidth: { configurable: true, value: 200 },
     scrollWidth: { configurable: true, value: 600 },
   });
-  return { rail, view };
+  const setPointerCapture = vi.fn();
+  const releasePointerCapture = vi.fn();
+  Object.defineProperties(rail, {
+    hasPointerCapture: { configurable: true, value: vi.fn(() => true) },
+    releasePointerCapture: { configurable: true, value: releasePointerCapture },
+    setPointerCapture: { configurable: true, value: setPointerCapture },
+  });
+  return { rail, releasePointerCapture, setPointerCapture, view };
 }
 
 describe('HorizontalScrollRail', () => {
@@ -37,7 +44,7 @@ describe('HorizontalScrollRail', () => {
 
   it('supports mouse drag without activating a channel button', () => {
     vi.useFakeTimers();
-    const { rail } = renderRail();
+    const { rail, releasePointerCapture, setPointerCapture } = renderRail();
     const firstChannel = within(rail).getByRole('button', { name: '渠道一' });
     const onClick = vi.fn();
     firstChannel.addEventListener('click', onClick);
@@ -53,23 +60,33 @@ describe('HorizontalScrollRail', () => {
       pointerId: 1,
       pointerType: 'mouse',
     });
+    expect(setPointerCapture).toHaveBeenCalledWith(1);
     fireEvent.pointerUp(rail, { pointerId: 1, pointerType: 'mouse' });
     fireEvent.click(firstChannel);
 
     expect(rail.scrollLeft).toBe(80);
     expect(onClick).not.toHaveBeenCalled();
+    expect(releasePointerCapture).toHaveBeenCalledWith(1);
     vi.runAllTimers();
     vi.useRealTimers();
   });
 
   it('keeps a normal channel click available when the user does not drag', () => {
-    const { rail } = renderRail();
+    const { rail, setPointerCapture } = renderRail();
     const firstChannel = within(rail).getByRole('button', { name: '渠道一' });
     const onClick = vi.fn();
     firstChannel.addEventListener('click', onClick);
 
+    fireEvent.pointerDown(firstChannel, {
+      button: 0,
+      clientX: 100,
+      pointerId: 1,
+      pointerType: 'mouse',
+    });
+    fireEvent.pointerUp(firstChannel, { pointerId: 1, pointerType: 'mouse' });
     fireEvent.click(firstChannel);
 
+    expect(setPointerCapture).not.toHaveBeenCalled();
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
