@@ -297,6 +297,40 @@
     background: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
   }
 
+  .horizontal-scroll-rail {
+    scrollbar-color: transparent transparent;
+    scrollbar-width: thin;
+  }
+
+  .horizontal-scroll-rail::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .horizontal-scroll-rail::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .horizontal-scroll-rail::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .horizontal-scroll-rail:hover,
+  .horizontal-scroll-rail:focus-visible,
+  .horizontal-scroll-rail:focus-within {
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 38%, transparent) transparent;
+  }
+
+  .horizontal-scroll-rail:hover::-webkit-scrollbar-thumb,
+  .horizontal-scroll-rail:focus-visible::-webkit-scrollbar-thumb,
+  .horizontal-scroll-rail:focus-within::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--muted-foreground) 34%, transparent);
+  }
+
+  .horizontal-scroll-rail:hover::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--muted-foreground) 52%, transparent);
+  }
+
   .sidebar-nav-pill {
     position: relative;
     overflow: hidden;

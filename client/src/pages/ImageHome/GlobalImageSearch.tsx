@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
 import { Button } from '@client/src/components/ui/button';
 import FeedbackDialog from '@client/src/components/FeedbackDialog';
+import HorizontalScrollRail from '@client/src/components/HorizontalScrollRail';
 import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
 import {
   DropdownMenu,
@@ -202,9 +203,10 @@ const GlobalImageSearch = ({
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-        <div
-          className="flex min-w-0 items-center gap-4 overflow-x-auto pb-1 pr-2"
+        <HorizontalScrollRail
+          className="flex min-w-0 items-center gap-4 pb-2 pr-2"
           aria-label="按使用渠道筛选"
+          title="滚动滚轮或按住鼠标左右拖动查看更多渠道"
         >
           <button
             type="button"
@@ -282,7 +284,7 @@ const GlobalImageSearch = ({
               <Plus className="size-3.5" />添加渠道
             </Button>
           ) : null}
-        </div>
+        </HorizontalScrollRail>
         <div className="flex shrink-0 items-center justify-end gap-2">
           <button
             type="button"
