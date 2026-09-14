@@ -1085,7 +1085,6 @@
   }
 
   .radial-action-menu,
-  .radial-action-menu__orbit,
   .radial-action-menu__action {
     transition: none;
   }
@@ -1093,50 +1092,29 @@
 
 .radial-action-menu {
   position: absolute;
-  top: -8px;
-  right: -14px;
+  top: 10px;
+  right: 10px;
   z-index: 30;
-  width: 220px;
-  height: 220px;
+  display: flex;
+  max-width: calc(100% - 20px);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
   pointer-events: none;
   opacity: 0;
-  transform: scale(0.92);
-  transform-origin: 74% 30%;
-  transition: opacity 180ms ease-out, transform 220ms ease-out;
+  transform: translateX(8px);
+  transition: opacity 160ms ease-out, transform 180ms ease-out;
 }
 
 .group:hover .radial-action-menu,
 .group:focus-within .radial-action-menu,
 .radial-action-menu:focus-within {
   opacity: 1;
-  transform: scale(1);
-}
-
-.radial-action-menu__orbit {
-  position: absolute;
-  top: 10px;
-  left: 20px;
-  width: 176px;
-  height: 176px;
-  border: 1px solid hsl(222 18% 28% / 0.2);
-  border-left-color: transparent;
-  border-radius: 999px;
-  transform: rotate(-28deg);
-  opacity: 0;
-  transition: opacity 180ms ease-out;
-}
-
-.group:hover .radial-action-menu__orbit,
-.group:focus-within .radial-action-menu__orbit,
-.radial-action-menu:focus-within .radial-action-menu__orbit {
-  opacity: 1;
+  transform: translateX(0);
 }
 
 .radial-action-menu__action {
-  position: absolute;
-  top: var(--action-top);
-  left: var(--action-left);
-  right: auto;
+  position: relative;
   display: inline-flex;
   min-width: 32px;
   height: 32px;
@@ -1151,32 +1129,22 @@
   box-shadow: 0 5px 14px hsl(222 18% 18% / 0.13);
   backdrop-filter: blur(10px);
   opacity: 0;
-  transform: translate(0, 0) scale(0.62);
-  transition: opacity 180ms ease-out, transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms ease-out, color 160ms ease-out;
+  transform: translateX(8px);
+  transition: opacity 160ms ease-out, transform 180ms ease-out, background-color 160ms ease-out, color 160ms ease-out;
 }
 
 .radial-action-menu__label {
-  max-width: 0;
-  overflow: hidden;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
-  opacity: 0;
-  transition: max-width 180ms ease-out, opacity 160ms ease-out;
 }
 
 .group:hover .radial-action-menu__action,
 .group:focus-within .radial-action-menu__action,
 .radial-action-menu:focus-within .radial-action-menu__action {
   opacity: 1;
-}
-
-.group:hover .radial-action-menu__label,
-.group:focus-within .radial-action-menu__label,
-.radial-action-menu:focus-within .radial-action-menu__label {
-  max-width: 84px;
-  opacity: 1;
+  transform: translateX(0);
 }
 
 .radial-action-menu__action:hover,
@@ -1184,49 +1152,7 @@
   background: hsl(222 18% 18%);
   color: hsl(0 0% 100%);
   outline: none;
-  transform: scale(1.08);
-}
-
-.radial-action-menu__action--agent {
-  --action-left: 96px;
-  --action-top: 180px;
-  transition-delay: 20ms;
-  transform: scale(0.62);
-}
-
-.radial-action-menu__action--basket {
-  --action-left: 60px;
-  --action-top: 144px;
-  transition-delay: 45ms;
-  transform: scale(0.62);
-}
-
-.radial-action-menu__action--copy {
-  --action-left: 96px;
-  --action-top: 36px;
-  transition-delay: 70ms;
-  transform: scale(0.62);
-}
-
-.radial-action-menu__action--download {
-  --action-left: 142px;
-  --action-top: 0px;
-  transition-delay: 95ms;
-  transform: scale(0.62);
-}
-
-.radial-action-menu__action--like {
-  --action-left: 44px;
-  --action-top: 108px;
-  transition-delay: 55ms;
-  transform: scale(0.62);
-}
-
-.radial-action-menu__action--board {
-  --action-left: 60px;
-  --action-top: 72px;
-  transition-delay: 65ms;
-  transform: scale(0.62);
+  transform: translateX(-2px);
 }
 
 .radial-action-menu__action--active {
@@ -1238,100 +1164,18 @@
   fill: currentColor;
 }
 
-.group:hover .radial-action-menu__action--agent,
-.group:focus-within .radial-action-menu__action--agent,
-.radial-action-menu:focus-within .radial-action-menu__action--agent {
-  transform: scale(1);
-}
-
-.group:hover .radial-action-menu__action--basket,
-.group:focus-within .radial-action-menu__action--basket,
-.radial-action-menu:focus-within .radial-action-menu__action--basket {
-  transform: scale(1);
-}
-
-.group:hover .radial-action-menu__action--copy,
-.group:focus-within .radial-action-menu__action--copy,
-.radial-action-menu:focus-within .radial-action-menu__action--copy {
-  transform: scale(1);
-}
-
-.group:hover .radial-action-menu__action--download,
-.group:focus-within .radial-action-menu__action--download,
-.radial-action-menu:focus-within .radial-action-menu__action--download {
-  transform: scale(1);
-}
-
-.group:hover .radial-action-menu__action--like,
-.group:focus-within .radial-action-menu__action--like,
-.radial-action-menu:focus-within .radial-action-menu__action--like,
-.group:hover .radial-action-menu__action--board,
-.group:focus-within .radial-action-menu__action--board,
-.radial-action-menu:focus-within .radial-action-menu__action--board {
-  transform: scale(1);
-}
-
-.radial-action-menu[data-action-count="3"] .radial-action-menu__action--copy {
-  --action-left: 28px;
-  --action-top: 24px;
-}
-
-.radial-action-menu[data-action-count="3"] .radial-action-menu__action--download {
-  --action-left: 130px;
-  --action-top: 0px;
-}
-
-.radial-action-menu[data-action-count="3"] .radial-action-menu__action--agent {
-  --action-left: 52px;
-  --action-top: 92px;
-}
-
-.radial-action-menu[data-action-count="3"],
-.radial-action-menu[data-action-count="4"] {
-  width: 220px;
-  height: 174px;
-}
-
-.radial-action-menu[data-action-count="3"] .radial-action-menu__orbit,
-.radial-action-menu[data-action-count="4"] .radial-action-menu__orbit {
-  width: 150px;
-  height: 150px;
-}
-
-.radial-action-menu[data-action-count="4"] .radial-action-menu__action--copy {
-  --action-left: 32px;
-  --action-top: 24px;
-}
-
-.radial-action-menu[data-action-count="4"] .radial-action-menu__action--download {
-  --action-left: 134px;
-  --action-top: 0px;
-}
-
-.radial-action-menu[data-action-count="4"] .radial-action-menu__action--basket {
-  --action-left: 20px;
-  --action-top: 78px;
-}
-
-.radial-action-menu[data-action-count="4"] .radial-action-menu__action--agent {
-  --action-left: 78px;
-  --action-top: 130px;
-}
-
 .radial-action-menu__variant {
-  position: absolute;
-  top: 126px;
-  right: 0;
+  position: relative;
   opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  transform: translateX(8px);
+  transition: opacity 160ms ease-out, transform 180ms ease-out;
 }
 
 .group:hover .radial-action-menu__variant,
 .group:focus-within .radial-action-menu__variant,
 .radial-action-menu:focus-within .radial-action-menu__variant {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -1340,36 +1184,10 @@
     transform: none;
   }
 
-  .radial-action-menu__orbit,
   .radial-action-menu__action,
-  .radial-action-menu__label,
   .radial-action-menu__variant {
     opacity: 1;
-  }
-
-  .radial-action-menu__label {
-    max-width: 84px;
-  }
-
-  .radial-action-menu__action--agent {
-    transform: scale(1);
-  }
-
-  .radial-action-menu__action--basket {
-    transform: scale(1);
-  }
-
-  .radial-action-menu__action--copy {
-    transform: scale(1);
-  }
-
-  .radial-action-menu__action--download {
-    transform: scale(1);
-  }
-
-  .radial-action-menu__action--like,
-  .radial-action-menu__action--board {
-    transform: scale(1);
+    transform: none;
   }
 }
 

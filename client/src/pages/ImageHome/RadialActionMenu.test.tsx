@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import RadialActionMenu from './RadialActionMenu';
 
 describe('RadialActionMenu', () => {
-  it('separates likes, boards and multi-select export', () => {
+  it('orders the image actions in a right-side stack and preserves multi-select export', () => {
     const toggleLike = vi.fn();
     const addToBoard = vi.fn();
     const toggleExport = vi.fn();
@@ -19,12 +19,17 @@ describe('RadialActionMenu', () => {
         onToggleLike={toggleLike}
         onAddToBoard={addToBoard}
         onToggleProjectBasket={toggleExport}
+        downloadHref="/download/test"
       />,
     );
 
+    const actionMenu = screen.getByLabelText('图片快捷操作');
+    expect(actionMenu.classList.contains('pointer-events-none')).toBe(true);
+    expect(actionMenu.querySelector('.radial-action-menu__orbit')).toBeNull();
     expect(
-      screen.getByLabelText('图片快捷操作').classList.contains('pointer-events-none'),
-    ).toBe(true);
+      Array.from(actionMenu.querySelectorAll('.radial-action-menu__label'))
+        .map((element) => element.textContent),
+    ).toEqual(['下载', '复制身份码', '收藏到画板', '喜欢', '加入多选', '发送到 Agent']);
     expect(
       screen.getByRole('button', { name: '加入我的喜欢' }).classList.contains('pointer-events-auto'),
     ).toBe(true);

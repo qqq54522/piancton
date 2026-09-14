@@ -33,42 +33,14 @@ function RadialActionMenu({
   variantSelector,
 }: RadialActionMenuProps) {
   const actions = [
-    {
-      key: 'agent',
-      label: '发送到 Piancton Agent',
-      displayLabel: '发送到 Agent',
-      icon: Bot,
-      onClick: onSendToAgent,
-      className: 'radial-action-menu__action--agent',
-    },
-    ...(onToggleLike
+    ...(downloadHref
       ? [{
-        key: 'like',
-        label: liked ? '从我的喜欢移除' : '加入我的喜欢',
-        displayLabel: liked ? '已喜欢' : '喜欢',
-        icon: Heart,
-        onClick: onToggleLike,
-        className: cn('radial-action-menu__action--like', liked && 'radial-action-menu__action--active'),
-      }]
-      : []),
-    ...(onAddToBoard
-      ? [{
-        key: 'board',
-        label: '收藏到画板',
-        displayLabel: '收藏到画板',
-        icon: FolderHeart,
-        onClick: onAddToBoard,
-        className: 'radial-action-menu__action--board',
-      }]
-      : []),
-    ...(onToggleProjectBasket
-      ? [{
-        key: 'basket',
-        label: inProjectBasket ? '从多选导出移除' : '加入多选导出',
-        displayLabel: inProjectBasket ? '移出多选' : '加入多选',
-        icon: inProjectBasket ? Check : FolderPlus,
-        onClick: onToggleProjectBasket,
-        className: 'radial-action-menu__action--basket',
+        key: 'download',
+        label: downloadLabel,
+        displayLabel: '下载',
+        icon: Download,
+        href: downloadHref,
+        className: 'radial-action-menu__action--download',
       }]
       : []),
     ...(identityCode && onCopyIdentity
@@ -81,16 +53,44 @@ function RadialActionMenu({
         className: 'radial-action-menu__action--copy',
       }]
       : []),
-    ...(downloadHref
+    ...(onAddToBoard
       ? [{
-        key: 'download',
-        label: downloadLabel,
-        displayLabel: '下载',
-        icon: Download,
-        href: downloadHref,
-        className: 'radial-action-menu__action--download',
+        key: 'board',
+        label: '收藏到画板',
+        displayLabel: '收藏到画板',
+        icon: FolderHeart,
+        onClick: onAddToBoard,
+        className: 'radial-action-menu__action--board',
       }]
       : []),
+    ...(onToggleLike
+      ? [{
+        key: 'like',
+        label: liked ? '从我的喜欢移除' : '加入我的喜欢',
+        displayLabel: liked ? '已喜欢' : '喜欢',
+        icon: Heart,
+        onClick: onToggleLike,
+        className: cn('radial-action-menu__action--like', liked && 'radial-action-menu__action--active'),
+      }]
+      : []),
+    ...(onToggleProjectBasket
+      ? [{
+        key: 'basket',
+        label: inProjectBasket ? '从多选导出移除' : '加入多选导出',
+        displayLabel: inProjectBasket ? '移出多选' : '加入多选',
+        icon: inProjectBasket ? Check : FolderPlus,
+        onClick: onToggleProjectBasket,
+        className: 'radial-action-menu__action--basket',
+      }]
+      : []),
+    {
+      key: 'agent',
+      label: '发送到 Piancton Agent',
+      displayLabel: '发送到 Agent',
+      icon: Bot,
+      onClick: onSendToAgent,
+      className: 'radial-action-menu__action--agent',
+    },
   ];
 
   return (
@@ -100,7 +100,14 @@ function RadialActionMenu({
       data-action-count={actions.length}
       onClick={(event) => event.stopPropagation()}
     >
-      <span className="radial-action-menu__orbit" aria-hidden="true" />
+      {variantSelector && (
+        <div
+          className="radial-action-menu__variant pointer-events-auto"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {variantSelector}
+        </div>
+      )}
       {actions.map((action) => {
         const Icon = action.icon;
         const commonProps = {
@@ -141,14 +148,6 @@ function RadialActionMenu({
           </button>
         );
       })}
-      {variantSelector && (
-        <div
-          className="radial-action-menu__variant pointer-events-auto"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {variantSelector}
-        </div>
-      )}
     </div>
   );
 }
