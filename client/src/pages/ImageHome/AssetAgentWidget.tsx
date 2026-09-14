@@ -55,8 +55,6 @@ import {
   type AgentState,
 } from './assetAgentSessionModel';
 
-const AUTO_IMAGE_PROMPT = '请讲解这张图片，判断它适合表达什么业务体系和核心卖点，并给出可以怎么使用。';
-const TEMPORARY_IMAGE_PROMPT = '请分析这张图片，说明它表达的内容、可能对应的业务体系和核心卖点；无法确认的部分请明确说明。';
 const TEMPORARY_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
 type AgentResponseMode = 'balanced' | 'fast';
@@ -104,7 +102,6 @@ function AssetAgentWidgetInner({
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const pendingImageRef = useRef<PendingTemporaryImage | null>(null);
   const followStreamRef = useRef(true);
-  const askRef = useRef<((question?: string, sessionOverride?: AgentSession) => Promise<void>) | null>(null);
   const [markState, setMarkState] = useState<'idle' | 'thinking' | 'happy' | 'wake'>('idle');
   const activeSession = useMemo(
     () => state.sessions.find((session) => session.id === state.activeSessionId)
@@ -306,10 +303,7 @@ function AssetAgentWidgetInner({
 
   useEffect(() => {
     return listenForAssetAgentImages((image) => {
-      void (async () => {
-        const session = await addImageToSession(image);
-        if (session) void askRef.current?.(AUTO_IMAGE_PROMPT, session);
-      })();
+      void addImageToSession(image);
     });
   }, [addImageToSession]);
 
@@ -380,10 +374,10 @@ function AssetAgentWidgetInner({
     }
   };
 
-  const ask = async (question?: string, sessionOverride?: AgentSession) => {
+  const ask = async (question?: string) => {
     const imageForRequest = pendingImageRef.current;
-    const message = (question ?? input).trim() || (imageForRequest ? TEMPORARY_IMAGE_PROMPT : '');
-    const sourceSession = sessionOverride ?? activeSession;
+    const message = (question ?? input).trim();
+    const sourceSession = activeSession;
     if (
       !message
       || loadingSessionId
@@ -558,10 +552,6 @@ function AssetAgentWidgetInner({
       setLoadingSessionId(null);
     }
   };
-
-  useEffect(() => {
-    askRef.current = ask;
-  });
 
   if (!open) {
     return null;
@@ -799,7 +789,7 @@ function AssetAgentWidgetInner({
           <textarea
             value={input}
             rows={1}
-            placeholder="问我：这张图怎么用、卖点怎么讲、销售怎么回复？"
+            placeholder="输入你想问的问题…"
             className="min-h-9 max-h-28 flex-1 resize-none border-0 bg-transparent px-0 py-1.5 text-[15px] leading-6 outline-none placeholder:text-muted-foreground/90 focus:ring-0"
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
@@ -816,7 +806,7 @@ function AssetAgentWidgetInner({
             disabled={
               Boolean(loadingSessionId)
               || uploadingImage
-              || (!input.trim() && !pendingImage)
+              || !input.trim()
             }
             onClick={() => void ask()}
           >

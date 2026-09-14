@@ -337,6 +337,9 @@ def test_asset_agent_bridges_library_image_pixels_into_ai_search_chat(
     assert all("/api/images/" not in url for url in ai_search.image_urls)
     assert len(set(ai_search.image_urls)) == 2
     assert "本轮附带了一张可供视觉分析的图片" in ai_search.last_query
+    assert "联网检索只按需使用" in ai_search.last_query
+    assert "图中奖杯的名称、年份、届次" in ai_search.last_query
+    assert "不得凭图猜测年份或背景" in ai_search.last_query
     assert "拍题精学讲解图" in ai_search.last_query
     for url in ai_search.image_urls:
         with pytest.raises(NotFoundError):

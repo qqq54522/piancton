@@ -1253,6 +1253,15 @@ def _ai_search_chat_message(
         if has_visual_image
         else ""
     )
+    external_facts_instructions = (
+        "联网检索只按需使用：当用户询问项目私域知识之外、需要公开资料核验的事实时，"
+        "例如图中奖杯的名称、年份、届次、所属赛事或事件背景，"
+        "如当前 AI 搜索应用已开启按需联网，应使用联网结果核验后再回答；"
+        "必须区分图中可直接观察的内容与联网获得的外部事实，不得凭图猜测年份或背景；"
+        "如网络资料仍不足以唯一确认，就明确说无法确认。"
+        "普通图片内容、六大体系、卖点、证明点和素材使用问题优先使用视觉与项目私域知识，"
+        "不要为了补齐答案而随意联网。"
+    )
     recommendation_instructions = (
         "用户本轮是在追问上一轮同一素材主题的其他图片。"
         f"只允许继续检索标题属于这些素材主题的图片：{'、'.join(recommendation_family_keys or [])}；"
@@ -1267,6 +1276,7 @@ def _ai_search_chat_message(
             style_instructions,
             mode_instructions,
             image_instructions,
+            external_facts_instructions,
             recommendation_instructions,
             "以下是同一会话最近几轮对话。请用它理解‘它、这个、刚才提到的卖点’等追问，"
             "延续已经确认的上下文；如果本轮明确改变话题，以本轮问题为准。"
