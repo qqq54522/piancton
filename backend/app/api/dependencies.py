@@ -599,6 +599,7 @@ def get_asset_agent_service(
             settings.ai_search_public_base_url or settings.public_base_url or _first_cors_origin()
         ),
         temporary_images=get_asset_agent_temporary_image_service(),
+        storage=build_storage(settings),
     )
 
 

@@ -19,6 +19,7 @@ from app.services.asset_agent_service import AssetAgentService
 from app.services.asset_agent_temporary_image_service import (
     AssetAgentTemporaryImageService,
 )
+from app.services.storage_service import LocalStorageProvider
 from app.services.volc_ai_search_client import (
     VolcAiSearchChatResult,
     VolcAiSearchStreamEvent,
@@ -275,7 +276,10 @@ def test_asset_agent_new_session_uses_ai_search_opening_and_local_images(db_fact
     assert session.suggested_questions == ["帮我找一张同步考点图"]
 
 
-def test_asset_agent_passes_context_image_url_to_ai_search_chat(db_factory):
+def test_asset_agent_bridges_library_image_pixels_into_ai_search_chat(
+    db_factory,
+    tmp_path,
+):
     with db_factory() as db:
         user = User(username="agent-ai-search-image-user", password_hash="x", role="business")
         group = AssetGroup(title="拍题精学图组", created_by="admin")
@@ -291,19 +295,131 @@ def test_asset_agent_passes_context_image_url_to_ai_search_chat(db_factory):
         db.add_all([user, group, image])
         db.commit()
 
+        storage = LocalStorageProvider(tmp_path / "images")
+        (storage.thumbnails / "photo-thumb.png").write_bytes(_png_bytes())
+        temporary_images = AssetAgentTemporaryImageService(
+            tmp_path / "agent-temporary",
+            public_base_url="http://example.test",
+            max_upload_bytes=20 * 1024 * 1024,
+            max_image_pixels=1_000_000,
+            max_long_image_pixels=2_000_000,
+            long_image_min_aspect_ratio=3.0,
+        )
         ai_search = _FakeAiSearchChat()
-        response = AssetAgentService(
+        service = AssetAgentService(
             db,
             _FailingProvider(),
             ai_search_chat=ai_search,
             ai_search_public_base_url="http://example.test",
-        ).chat(
+            temporary_images=temporary_images,
+            storage=storage,
+        )
+        response = service.chat(
             user,
             AssetAgentChatRequest(message="讲解这张图", image_ids=[image.id]),
         )
+        assert response.session is not None
+        frames = list(
+            service.chat_in_session_stream(
+                user,
+                response.session.id,
+                AssetAgentChatRequest(message="继续说明它的主要表达"),
+            )
+        )
 
     assert response.used_model is True
-    assert ai_search.last_image_url == f"http://example.test/api/images/{image.id}/thumbnail"
+    assert any(frame.startswith("event: final") for frame in frames)
+    assert len(ai_search.image_urls) == 2
+    assert all(
+        url.startswith("http://example.test/api/asset-agent/temporary-images/")
+        for url in ai_search.image_urls
+    )
+    assert all("/api/images/" not in url for url in ai_search.image_urls)
+    assert len(set(ai_search.image_urls)) == 2
+    assert "本轮附带了一张可供视觉分析的图片" in ai_search.last_query
+    assert "拍题精学讲解图" in ai_search.last_query
+    for url in ai_search.image_urls:
+        with pytest.raises(NotFoundError):
+            temporary_images.public_file(url.rsplit("/", 1)[-1])
+
+
+def test_asset_agent_expands_same_title_family_and_keeps_followup_on_topic(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-family-user", password_hash="x", role="business")
+        report_images: list[Image] = []
+        for index, title in enumerate(
+            [
+                "学情报告01（4-3）",
+                "学情报告02（4-3）",
+                "学情报告03（4-3）",
+                "学情报告04（4-3）",
+                "学情报告0002（16-9）",
+            ],
+            start=1,
+        ):
+            group = AssetGroup(
+                title=f"学情报告素材组{index}",
+                created_by="admin",
+                publish_status="published",
+            )
+            image = Image(
+                title=title,
+                identity_code=f"PC-REPORT-{index}",
+                file_name=f"report-{index}.png",
+                storage_key=f"report-{index}.png",
+                thumbnail_storage_key=f"report-{index}-thumb.png",
+                media_type="image/png",
+                size_bytes=100,
+                asset_group=group,
+                is_current=True,
+            )
+            report_images.append(image)
+            db.add_all([group, image])
+
+        other_group = AssetGroup(
+            title="辅助学习素材组",
+            created_by="admin",
+            publish_status="published",
+        )
+        other_image = Image(
+            title="辅助学习03（4-3）",
+            identity_code="PC-OTHER",
+            file_name="other.png",
+            storage_key="other.png",
+            thumbnail_storage_key="other-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+            asset_group=other_group,
+            is_current=True,
+        )
+        db.add_all([user, other_group, other_image])
+        db.commit()
+
+        ai_search = _FakeAiSearchChat()
+        ai_search.item_ids = [report_images[0].id, report_images[1].id]
+        service = AssetAgentService(db, _FailingProvider(), ai_search_chat=ai_search)
+        session = service.create_session(user)
+        first = service.chat_in_session(
+            user,
+            session.id,
+            AssetAgentChatRequest(message="帮我找学情报告的图片"),
+        )
+
+        ai_search.item_ids = [other_image.id]
+        second = service.chat_in_session(
+            user,
+            session.id,
+            AssetAgentChatRequest(message="把其他几张也给我找出来"),
+        )
+
+    expected_ids = {image.id for image in report_images}
+    assert {card.id for card in first.context_cards if card.kind == "image"} == expected_ids
+    assert "共 5 张" in first.answer
+    assert {card.id for card in second.context_cards if card.kind == "image"} == expected_ids
+    assert other_image.id not in {card.id for card in second.context_cards}
+    assert "只允许继续检索标题属于这些素材主题的图片：学情报告" in ai_search.last_query
+    assert second.answer.startswith("已继续为你补齐「学情报告」")
+    assert "辅助学习" not in second.answer
 
 
 def test_asset_agent_temporary_image_is_used_once_and_fast_mode_is_bounded(
@@ -348,7 +464,7 @@ def test_asset_agent_temporary_image_is_used_once_and_fast_mode_is_bounded(
     assert ai_search.last_image_url == uploaded.preview_url
     assert ai_search.last_page_size == 4
     assert "当前为快速模式" in ai_search.last_query
-    assert "用户本轮上传了一张临时图片" in ai_search.last_query
+    assert "本轮附带了一张可供视觉分析的图片" in ai_search.last_query
     with pytest.raises(NotFoundError):
         temporary_images.public_file(uploaded.token)
 
@@ -553,6 +669,10 @@ class _FakeAiSearchChat:
     item_ids: list[str] = []
     last_page_size = 0
 
+    def __init__(self):
+        self.item_ids = []
+        self.image_urls: list[str] = []
+
     @property
     def chat_search_configured(self) -> bool:
         return True
@@ -569,6 +689,7 @@ class _FakeAiSearchChat:
     ) -> VolcAiSearchChatResult:
         self.last_query = query
         self.last_image_url = image_url
+        self.image_urls.append(image_url)
         self.last_page_size = page_size
         return VolcAiSearchChatResult(
             session_id=session_id,
@@ -591,6 +712,7 @@ class _FakeAiSearchChat:
     ):
         self.last_query = query
         self.last_image_url = image_url
+        self.image_urls.append(image_url)
         self.last_page_size = page_size
         yield VolcAiSearchStreamEvent(step="tool call")
         yield VolcAiSearchStreamEvent(step="reply")

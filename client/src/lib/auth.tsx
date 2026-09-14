@@ -6,9 +6,11 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import * as authApi from '@client/src/api/auth';
+import { AUTH_EXPIRED_EVENT } from '@client/src/api/client';
 import type { User, UserRole } from '@client/src/types/api';
 
 
@@ -27,6 +29,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -36,6 +39,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    const expireSession = () => {
+      queryClient.clear();
+      setUser(null);
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, expireSession);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, expireSession);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,

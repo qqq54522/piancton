@@ -2,6 +2,7 @@ from app.domain.image_titles import (
     MAX_IMAGE_TITLE_LENGTH,
     allocate_unique_image_title,
     clean_image_title,
+    material_title_family,
     title_namespace,
 )
 
@@ -31,3 +32,17 @@ def test_long_duplicate_titles_leave_room_for_the_suffix():
 
 def test_a_natural_year_suffix_is_not_mistaken_for_an_auto_number():
     assert allocate_unique_image_title("课程2026", ["课程2026"]) == "课程2026001"
+
+
+def test_material_title_family_groups_sequence_and_aspect_variants():
+    assert material_title_family("学情报告02（4-3）") == "学情报告"
+    assert material_title_family("学情报告0002 (16:9)") == "学情报告"
+    assert material_title_family("AI定制班01（16-9）") == "ai定制班"
+    assert material_title_family("辅助学习03（4-3）") == "辅助学习"
+
+
+def test_material_title_family_does_not_merge_different_topics_or_natural_years():
+    assert material_title_family("学情报告03（4-3）") != material_title_family(
+        "辅助学习03（4-3）"
+    )
+    assert material_title_family("课程2026") == "课程2026"

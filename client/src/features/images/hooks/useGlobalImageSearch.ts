@@ -245,9 +245,18 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
   }, []);
 
   const selectChannelRefinement = useCallback((channel: string) => {
+    if (searchResult?.source === 'manual') {
+      setGlobalSearchInput('');
+      setGlobalSearchKeyword('');
+      setSelectedSystemCode(null);
+      setSelectedConceptCode(null);
+      setSelectedProofPointCode(null);
+      setSearchResult(null);
+      semanticSearch.reset();
+    }
     setChannelIntent(null);
     setSelectedChannel(channel);
-  }, []);
+  }, [searchResult?.source, semanticSearch]);
 
   useEffect(() => {
     if (channelIntent && !isChannelIntentInCatalog(channelIntent, channelIntentEntries)) {

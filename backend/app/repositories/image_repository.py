@@ -191,6 +191,33 @@ class ImageRepository:
         stmt = stmt.order_by(desc(Image.created_at), desc(Image.id)).limit(limit)
         return list(self.db.scalars(stmt).all())
 
+    def list_published_current_by_title_prefixes(
+        self,
+        prefixes: list[str],
+        *,
+        limit: int = 200,
+    ) -> list[Image]:
+        cleaned = list(dict.fromkeys(prefix.strip() for prefix in prefixes if prefix.strip()))
+        if not cleaned:
+            return []
+        stmt = (
+            select(Image)
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .where(
+                Image.deleted_at.is_(None),
+                Image.is_current.is_(True),
+                or_(
+                    Image.asset_group_id.is_(None),
+                    AssetGroup.publish_status == "published",
+                ),
+                or_(*(Image.title.istartswith(prefix, autoescape=True) for prefix in cleaned)),
+            )
+            .options(*IMAGE_LOAD_OPTIONS)
+            .order_by(Image.title.asc(), desc(Image.created_at), desc(Image.id))
+            .limit(max(1, min(limit, 500)))
+        )
+        return list(self.db.scalars(stmt).all())
+
     def search(self, keyword: str, limit: int) -> list[Image]:
         pattern = f"%{keyword}%"
         normalized_keyword = keyword.strip().lower()

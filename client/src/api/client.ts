@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 
 import type { ApiErrorBody } from '@client/src/types/api';
 
+export const AUTH_EXPIRED_EVENT = 'piancton:auth-expired';
 
 function readCookie(name: string): string | undefined {
   const prefix = `${name}=`;
@@ -26,6 +27,26 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (
+      error instanceof AxiosError
+      && error.response?.status === 401
+      && !isPublicAuthRequest(error.config?.url)
+      && typeof window !== 'undefined'
+    ) {
+      window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+    }
+    return Promise.reject(error);
+  },
+);
+
+function isPublicAuthRequest(url?: string) {
+  return ['/api/auth/login', '/api/auth/register', '/api/auth/me']
+    .some((path) => url?.startsWith(path));
+}
 
 export function getApiError(error: unknown): ApiErrorBody {
   if (error instanceof AxiosError && error.response?.data) {

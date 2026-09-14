@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
-from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from app.ai.contracts import (
     ModelRequest,
 )
 from app.core.errors import AppError, NotFoundError
+from app.domain.image_titles import material_title_family
 from app.models.asset import AssetGroup
 from app.models.asset_agent import AssetAgentMessage, AssetAgentSession
 from app.models.business_concept import BusinessConcept
@@ -47,6 +48,7 @@ from app.schemas.asset_agent import (
 from app.services.asset_agent_temporary_image_service import (
     AssetAgentTemporaryImageService,
 )
+from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
 from app.services.volc_ai_search_client import (
     VolcAiSearchChatResult,
@@ -59,6 +61,8 @@ AGENT_RESET_TIMEZONE = ZoneInfo("Asia/Shanghai")
 MAX_AGENT_HISTORY_MESSAGES = 24
 MAX_AGENT_HISTORY_CHARS = 12_000
 MAX_AGENT_HISTORY_MESSAGE_CHARS = 1_200
+MAX_AGENT_RECOMMENDATION_CARDS = 50
+logger = logging.getLogger(__name__)
 DEFAULT_GREETING = (
     "Hi，我是洋葱业务知识助手。\n\n"
     "我可以帮你理解洋葱学园的业务体系、核心卖点、证明点和使用场景，"
@@ -85,6 +89,7 @@ class AssetAgentService:
         ai_search_chat_page_size: int = 10,
         ai_search_public_base_url: str = "",
         temporary_images: AssetAgentTemporaryImageService | None = None,
+        storage: StorageProvider | None = None,
     ):
         self.db = db
         self.provider = provider
@@ -93,6 +98,7 @@ class AssetAgentService:
         self.ai_search_chat_page_size = max(1, min(ai_search_chat_page_size, 50))
         self.ai_search_public_base_url = ai_search_public_base_url.rstrip("/")
         self.temporary_images = temporary_images
+        self.storage = storage
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
@@ -187,18 +193,29 @@ class AssetAgentService:
         return self.chat_stream(user, payload)
 
     def chat(self, user: User, payload: AssetAgentChatRequest) -> AssetAgentChatResponse:
-        temporary_image_url = self._temporary_image_url(user, payload)
+        uploaded_image_url = self._temporary_image_url(user, payload)
+        library_image_url = ""
+        library_image_token = ""
+        if not uploaded_image_url:
+            library_image_url, library_image_token = self._library_image_bridge(user, payload)
         try:
-            return self._chat(user, payload, temporary_image_url=temporary_image_url)
+            return self._chat(
+                user,
+                payload,
+                visual_image_url=uploaded_image_url or library_image_url,
+                has_user_uploaded_image=bool(uploaded_image_url),
+            )
         finally:
             self._delete_temporary_image(user, payload)
+            self._delete_library_image_bridge(user, library_image_token)
 
     def _chat(
         self,
         user: User,
         payload: AssetAgentChatRequest,
         *,
-        temporary_image_url: str = "",
+        visual_image_url: str = "",
+        has_user_uploaded_image: bool = False,
     ) -> AssetAgentChatResponse:
         message = payload.message.strip()
         if not message:
@@ -206,6 +223,7 @@ class AssetAgentService:
 
         self._reset_user_sessions_for_today(user)
         session = self._session_for_chat(user, payload)
+        continuation_family_keys = self._continuation_family_keys(session, message)
         conversation_history = _conversation_history_text(session.messages)
         payload_context = self._context_from_ids(payload.image_ids)
         if payload_context:
@@ -234,17 +252,26 @@ class AssetAgentService:
             message=message,
             conversation_history=conversation_history,
             context_text=context_text,
-            context_images=context_images,
-            temporary_image_url=temporary_image_url,
+            recommendation_family_keys=continuation_family_keys,
+            visual_image_url=visual_image_url,
             response_mode=payload.response_mode,
         )
         if external_chat is not None:
-            recommended_cards = self._recommended_image_cards(external_chat.item_ids)
+            recommended_cards = self._recommended_image_cards(
+                external_chat.item_ids,
+                message=message,
+                preferred_family_keys=continuation_family_keys,
+            )
             response_cards = _merge_context_cards(context_cards, recommended_cards)
             suggestions = _clean_suggestions(external_chat.suggestions) or _fallback_suggestions(
                 bool(images or groups)
             )
-            answer = _normalize_agent_text(external_chat.answer)
+            answer = self._recommendation_answer(
+                _normalize_agent_text(external_chat.answer),
+                seed_image_ids=external_chat.item_ids,
+                cards=recommended_cards,
+                preferred_family_keys=continuation_family_keys,
+            )
             session.suggested_questions_json = _json_dump(suggestions)
             self._add_message(
                 session,
@@ -269,7 +296,7 @@ class AssetAgentService:
         understanding = self._route_business_understanding(message, images, groups)
         prompt = _agent_prompt(
             response_mode=payload.response_mode,
-            has_temporary_image=bool(temporary_image_url),
+            has_temporary_image=has_user_uploaded_image,
         )
         input_text = "\n\n".join(
             item
@@ -285,7 +312,7 @@ class AssetAgentService:
                 f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
                 "用户本轮上传了临时图片，但外部图像问答通道未返回结果。"
                 "不要假装已经看见图片，应明确说明暂时无法可靠识别并请用户重试。"
-                if temporary_image_url
+                if has_user_uploaded_image
                 else "",
                 f"项目启用卖点简表：\n{self._catalog_text(groups)}",
             )
@@ -323,7 +350,7 @@ class AssetAgentService:
                 images,
                 groups,
                 error=str(exc),
-                has_temporary_image=bool(temporary_image_url),
+                has_temporary_image=has_user_uploaded_image,
             )
             suggestions = _fallback_suggestions(bool(images or groups))
             used_model = False
@@ -351,13 +378,19 @@ class AssetAgentService:
         message = payload.message.strip()
         if not message:
             raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
-        temporary_image_url = self._temporary_image_url(user, payload)
+        uploaded_image_url = self._temporary_image_url(user, payload)
+        library_image_url = ""
+        library_image_token = ""
+        if not uploaded_image_url:
+            library_image_url, library_image_token = self._library_image_bridge(user, payload)
+        visual_image_url = uploaded_image_url or library_image_url
 
         def events() -> Iterator[str]:
             session: AssetAgentSession | None = None
             try:
                 self._reset_user_sessions_for_today(user)
                 session = self._session_for_chat(user, payload)
+                continuation_family_keys = self._continuation_family_keys(session, message)
                 conversation_history = _conversation_history_text(session.messages)
                 payload_context = self._context_from_ids(payload.image_ids)
                 if payload_context:
@@ -394,7 +427,8 @@ class AssetAgentService:
                                 context_text,
                                 conversation_history=conversation_history,
                                 response_mode=payload.response_mode,
-                                has_temporary_image=bool(temporary_image_url),
+                                has_visual_image=bool(visual_image_url),
+                                recommendation_family_keys=continuation_family_keys,
                             ),
                             session_id=session.id,
                             user_id=user.id,
@@ -403,11 +437,7 @@ class AssetAgentService:
                                 payload.response_mode,
                             ),
                             enable_suggestions=True,
-                            image_url=temporary_image_url
-                            or _first_image_url(
-                                context_images,
-                                public_base_url=self.ai_search_public_base_url,
-                            ),
+                            image_url=visual_image_url,
                         ):
                             step_text = _visible_ai_search_step(upstream.step)
                             if step_text and step_text not in announced_steps:
@@ -424,7 +454,11 @@ class AssetAgentService:
                             ]
                             if new_item_ids:
                                 external_item_ids.extend(new_item_ids)
-                                live_cards = self._recommended_image_cards(external_item_ids)
+                                live_cards = self._recommended_image_cards(
+                                    external_item_ids,
+                                    message=message,
+                                    preferred_family_keys=continuation_family_keys,
+                                )
                                 if live_cards:
                                     yield _sse(
                                         "context_cards",
@@ -440,7 +474,23 @@ class AssetAgentService:
                             raise
                     answer = _normalize_agent_text("".join(answer_parts))
                     if answer:
-                        recommended_cards = self._recommended_image_cards(external_item_ids)
+                        recommended_cards = self._recommended_image_cards(
+                            external_item_ids,
+                            message=message,
+                            preferred_family_keys=continuation_family_keys,
+                        )
+                        finalized_answer = self._recommendation_answer(
+                            answer,
+                            seed_image_ids=external_item_ids,
+                            cards=recommended_cards,
+                            preferred_family_keys=continuation_family_keys,
+                        )
+                        if finalized_answer != answer:
+                            yield _sse(
+                                "answer_delta",
+                                {"text": finalized_answer[len(answer):]},
+                            )
+                        answer = finalized_answer
                         response_cards = _merge_context_cards(
                             context_cards,
                             recommended_cards,
@@ -492,7 +542,7 @@ class AssetAgentService:
 
                 prompt = _agent_prompt(
                     response_mode=payload.response_mode,
-                    has_temporary_image=bool(temporary_image_url),
+                    has_temporary_image=bool(uploaded_image_url),
                 )
                 input_text = "\n\n".join(
                     item
@@ -508,7 +558,7 @@ class AssetAgentService:
                         f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
                         "用户本轮上传了临时图片，但外部图像问答通道未返回结果。"
                         "不要假装已经看见图片，应明确说明暂时无法可靠识别并请用户重试。"
-                        if temporary_image_url
+                        if uploaded_image_url
                         else "",
                         f"项目启用卖点简表：\n{self._catalog_text(groups)}",
                     )
@@ -545,7 +595,7 @@ class AssetAgentService:
                         images,
                         groups,
                         error=str(exc),
-                        has_temporary_image=bool(temporary_image_url),
+                        has_temporary_image=bool(uploaded_image_url),
                     )
                     suggestions = _fallback_suggestions(bool(images or groups))
                     used_model = False
@@ -580,6 +630,7 @@ class AssetAgentService:
                 yield _sse("error", {"message": _clip(str(exc) or exc.__class__.__name__, 200)})
             finally:
                 self._delete_temporary_image(user, payload)
+                self._delete_library_image_bridge(user, library_image_token)
 
         return events()
 
@@ -741,8 +792,28 @@ class AssetAgentService:
         images: list[Image],
         groups: list[AssetGroup],
     ) -> list[AssetAgentContextCard]:
+        cards = self._image_cards(images, limit=6)
+
+        for group in groups[:6]:
+            cards.append(
+                AssetAgentContextCard(
+                    kind="asset_group",
+                    id=group.id,
+                    title=group.title,
+                    subtitle="素材组",
+                    facts=_group_facts(group)[:6],
+                )
+            )
+        return cards
+
+    def _image_cards(
+        self,
+        images: list[Image],
+        *,
+        limit: int,
+    ) -> list[AssetAgentContextCard]:
         cards: list[AssetAgentContextCard] = []
-        for image in images[:6]:
+        for image in images[:limit]:
             facts = [
                 item
                 for item in (
@@ -765,23 +836,127 @@ class AssetAgentService:
                     asset_group_id=image.asset_group_id,
                 )
             )
-
-        for group in groups[:6]:
-            cards.append(
-                AssetAgentContextCard(
-                    kind="asset_group",
-                    id=group.id,
-                    title=group.title,
-                    subtitle="素材组",
-                    facts=_group_facts(group)[:6],
-                )
-            )
         return cards
 
-    def _recommended_image_cards(self, image_ids: list[str]) -> list[AssetAgentContextCard]:
-        images = self._load_images(image_ids)
-        cards = self._context_cards(images, [])
-        return [card for card in cards if card.kind == "image"][:8]
+    def _recommended_image_cards(
+        self,
+        image_ids: list[str],
+        *,
+        message: str = "",
+        preferred_family_keys: list[str] | None = None,
+    ) -> list[AssetAgentContextCard]:
+        seed_images = self._load_images(image_ids)
+        preferred = {
+            key for key in preferred_family_keys or [] if _expandable_material_family(key)
+        }
+        seed_family_counts: dict[str, int] = {}
+        for image in seed_images:
+            family = material_title_family(image.title)
+            if _expandable_material_family(family):
+                seed_family_counts[family] = seed_family_counts.get(family, 0) + 1
+
+        normalized_message = message.casefold()
+        expandable = preferred or {
+            family
+            for family, count in seed_family_counts.items()
+            if count >= 2 or family in normalized_message
+        }
+        if not expandable:
+            return self._image_cards(seed_images, limit=MAX_AGENT_RECOMMENDATION_CARDS)
+
+        matching_seeds = (
+            [
+                image
+                for image in seed_images
+                if material_title_family(image.title) in expandable
+            ]
+            if preferred
+            else seed_images
+        )
+        sibling_candidates = self.images.list_published_current_by_title_prefixes(
+            list(expandable),
+            limit=200,
+        )
+        siblings = [
+            image
+            for image in sibling_candidates
+            if material_title_family(image.title) in expandable
+        ]
+        ordered = _unique_images([*matching_seeds, *siblings])
+        return self._image_cards(ordered, limit=MAX_AGENT_RECOMMENDATION_CARDS)
+
+    def _continuation_family_keys(
+        self,
+        session: AssetAgentSession,
+        message: str,
+    ) -> list[str]:
+        if not _is_same_material_family_followup(message):
+            return []
+        ordered_messages = sorted(
+            session.messages,
+            key=lambda item: (_datetime_sort_key(item.created_at), item.id),
+            reverse=True,
+        )
+        for previous in ordered_messages:
+            if previous.role != "assistant":
+                continue
+            families = list(
+                dict.fromkeys(
+                    family
+                    for card in _parse_context_cards(previous.context_cards_json)
+                    if card.kind == "image"
+                    for family in [material_title_family(card.title)]
+                    if _expandable_material_family(family)
+                )
+            )
+            if families:
+                return families
+        return []
+
+    def _recommendation_answer(
+        self,
+        answer: str,
+        *,
+        seed_image_ids: list[str],
+        cards: list[AssetAgentContextCard],
+        preferred_family_keys: list[str],
+    ) -> str:
+        if not cards:
+            return answer
+        card_family_counts: dict[str, int] = {}
+        for card in cards:
+            family = material_title_family(card.title)
+            if _expandable_material_family(family):
+                card_family_counts[family] = card_family_counts.get(family, 0) + 1
+        seed_family_counts: dict[str, int] = {}
+        for image in self._load_images(seed_image_ids):
+            family = material_title_family(image.title)
+            if _expandable_material_family(family):
+                seed_family_counts[family] = seed_family_counts.get(family, 0) + 1
+        if preferred_family_keys:
+            names = "、".join(
+                f"「{family}」"
+                for family in preferred_family_keys
+                if family in card_family_counts
+            )
+            return (
+                f"已继续为你补齐{names}同一素材主题的当前已发布版本，"
+                f"共 {len(cards)} 张；不同尺寸会一起列在下面。"
+                "本轮不会混入同一卖点下的其他主题。"
+            )
+        expanded_families = [
+            family
+            for family, count in card_family_counts.items()
+            if count > seed_family_counts.get(family, 0)
+        ]
+        if not expanded_families:
+            return answer
+        names = "、".join(f"「{family}」" for family in expanded_families)
+        return (
+            f"{answer}\n\n库内结果补充：AI Search 首批命中的数量不代表全部可用版本。"
+            f"我已按{names}的同一素材主题补齐当前已发布版本，共 {len(cards)} 张；"
+            "不同尺寸会一起列在下面，并以实际返回的图片卡片为准。"
+        )
 
     def _concept_cards(self, groups: list[AssetGroup]) -> list[AssetAgentContextCard]:
         seen: set[str] = set()
@@ -917,8 +1092,8 @@ class AssetAgentService:
         message: str,
         conversation_history: str,
         context_text: str,
-        context_images: list[AssetAgentImageContext],
-        temporary_image_url: str = "",
+        recommendation_family_keys: list[str],
+        visual_image_url: str = "",
         response_mode: AssetAgentResponseMode = "balanced",
     ) -> VolcAiSearchChatResult | None:
         client = self.ai_search_chat
@@ -932,20 +1107,60 @@ class AssetAgentService:
                     context_text,
                     conversation_history=conversation_history,
                     response_mode=response_mode,
-                    has_temporary_image=bool(temporary_image_url),
+                    has_visual_image=bool(visual_image_url),
+                    recommendation_family_keys=recommendation_family_keys,
                 ),
                 session_id=session.id,
                 user_id=user.id,
                 page_size=_chat_page_size(self.ai_search_chat_page_size, response_mode),
                 enable_suggestions=True,
-                image_url=temporary_image_url
-                or _first_image_url(
-                    context_images,
-                    public_base_url=self.ai_search_public_base_url,
-                ),
+                image_url=visual_image_url,
             )
         except VolcAiSearchClientError:
             return None
+
+    def _library_image_bridge(
+        self,
+        user: User,
+        payload: AssetAgentChatRequest,
+    ) -> tuple[str, str]:
+        if self.temporary_images is None or self.storage is None:
+            return "", ""
+        image_ids = list(payload.image_ids)
+        if not image_ids and payload.conversation_id:
+            session = self.sessions.get_for_user(user.id, payload.conversation_id)
+            if session is not None:
+                image_ids = [item.image_id for item in self._session_context(session)]
+        images = self._load_images(image_ids)
+        if not images:
+            return "", ""
+
+        image = images[0]
+        path = None
+        try:
+            if image.thumbnail_storage_key:
+                path = self.storage.thumbnail_path_for(image.thumbnail_storage_key)
+                filename = f"{image.title}.jpg"
+            else:
+                path = self.storage.path_for(image.storage_key)
+                filename = image.file_name or image.title
+            with path.open("rb") as stream:
+                bridged = self.temporary_images.create(
+                    stream,
+                    owner_id=user.id,
+                    filename=filename,
+                )
+            return bridged.preview_url, bridged.token
+        except (AppError, OSError):
+            logger.warning(
+                "asset_agent_library_visual_bridge_failed image_id=%s",
+                image.id,
+                exc_info=True,
+            )
+            return "", ""
+        finally:
+            if path is not None:
+                self.storage.release(path)
 
     def _temporary_image_url(
         self,
@@ -969,6 +1184,14 @@ class AssetAgentService:
         payload: AssetAgentChatRequest,
     ) -> None:
         token = payload.temporary_image_token
+        if not token or self.temporary_images is None:
+            return
+        try:
+            self.temporary_images.delete(token, owner_id=user.id)
+        except AppError:
+            pass
+
+    def _delete_library_image_bridge(self, user: User, token: str) -> None:
         if not token or self.temporary_images is None:
             return
         try:
@@ -1005,7 +1228,8 @@ def _ai_search_chat_message(
     *,
     conversation_history: str = "",
     response_mode: AssetAgentResponseMode = "balanced",
-    has_temporary_image: bool = False,
+    has_visual_image: bool = False,
+    recommendation_family_keys: list[str] | None = None,
 ) -> str:
     style_instructions = (
         "以下为内部输出要求，请遵守但不要在回答中复述："
@@ -1024,9 +1248,16 @@ def _ai_search_chat_message(
         else "当前为均衡模式：兼顾结论、必要依据和可执行建议，但不要堆砌固定模板。"
     )
     image_instructions = (
-        "用户本轮上传了一张临时图片。请先依据图片可见内容回答；"
+        "本轮附带了一张可供视觉分析的图片。请先依据图片可见内容回答；"
         "需要判断业务体系或卖点时，只能使用项目已确认知识，无法确认就明确说不确定。"
-        if has_temporary_image
+        if has_visual_image
+        else ""
+    )
+    recommendation_instructions = (
+        "用户本轮是在追问上一轮同一素材主题的其他图片。"
+        f"只允许继续检索标题属于这些素材主题的图片：{'、'.join(recommendation_family_keys or [])}；"
+        "不要扩展到同一卖点下的其他素材主题，并把该主题的不同尺寸/版本尽量完整返回。"
+        if recommendation_family_keys
         else ""
     )
     return "\n\n".join(
@@ -1036,6 +1267,7 @@ def _ai_search_chat_message(
             style_instructions,
             mode_instructions,
             image_instructions,
+            recommendation_instructions,
             "以下是同一会话最近几轮对话。请用它理解‘它、这个、刚才提到的卖点’等追问，"
             "延续已经确认的上下文；如果本轮明确改变话题，以本轮问题为准。"
             if conversation_history
@@ -1053,22 +1285,6 @@ def _ai_search_chat_message(
 
 def _chat_page_size(configured: int, response_mode: AssetAgentResponseMode) -> int:
     return min(configured, 4) if response_mode == "fast" else configured
-
-
-def _first_image_url(
-    context_images: list[AssetAgentImageContext],
-    *,
-    public_base_url: str,
-) -> str:
-    for item in context_images:
-        image_url = (item.image_url or f"/api/images/{item.image_id}/thumbnail").strip()
-        if not image_url:
-            continue
-        if image_url.startswith(("http://", "https://")):
-            return image_url
-        if public_base_url:
-            return urljoin(f"{public_base_url}/", image_url.lstrip("/"))
-    return ""
 
 
 def _ai_search_chat_attempt(*, status: str, error: str = "") -> dict[str, Any]:
@@ -1358,7 +1574,7 @@ def _parse_context_cards(raw: str | None) -> list[AssetAgentContextCard]:
             cards.append(AssetAgentContextCard.model_validate(item))
         except ValueError:
             continue
-    return cards[:8]
+    return cards[:MAX_AGENT_RECOMMENDATION_CARDS]
 
 
 def _message_read(message: AssetAgentMessage) -> AssetAgentMessageRead:
@@ -1385,7 +1601,7 @@ def _merge_context_cards(
             continue
         seen.add(key)
         merged.append(card)
-    return merged[:12]
+    return merged[:MAX_AGENT_RECOMMENDATION_CARDS]
 
 
 def _title_from_message(message: str) -> str:
@@ -1629,6 +1845,48 @@ def _unique(values: list[str]) -> list[str]:
         seen.add(item)
         cleaned.append(item)
     return cleaned
+
+
+def _unique_images(values: list[Image]) -> list[Image]:
+    cleaned: list[Image] = []
+    seen: set[str] = set()
+    for image in values:
+        if image.id in seen:
+            continue
+        seen.add(image.id)
+        cleaned.append(image)
+    return cleaned
+
+
+def _expandable_material_family(value: str) -> bool:
+    normalized = value.strip().casefold()
+    return len(normalized) >= 3 and normalized not in {
+        "图片",
+        "素材",
+        "大图",
+        "小图",
+        "banner",
+    }
+
+
+def _is_same_material_family_followup(message: str) -> bool:
+    normalized = "".join(message.split()).casefold()
+    continuation_markers = (
+        "其他",
+        "其它",
+        "其余",
+        "剩下",
+        "更多",
+        "全部",
+        "再找",
+        "再给",
+        "也给",
+        "都找",
+    )
+    material_markers = ("图", "素材", "张", "找", "推荐", "返回", "返出")
+    return any(marker in normalized for marker in continuation_markers) and any(
+        marker in normalized for marker in material_markers
+    )
 
 
 def _normalize_agent_text(value: str) -> str:
