@@ -1,6 +1,6 @@
 ---
 name: maintain-piancton-architecture
-description: "在卖点智库中新增功能、重构、修复或审查代码时维护API、Service、Domain、Repository、Storage、ModelProvider、搜索编排和前端组件边界。用于任何可能改变项目结构或图片搜索链路的开发任务；必须先读取项目总纲和护栏，并同步测试与决策记录。"
+description: "在卖点智库中新增功能、重构、修复或审查代码时维护 API、Service、Domain、Repository、Storage、火山 AI Search 和前端组件边界。用于任何可能改变项目结构或图片搜索链路的开发任务；必须先读取项目总纲和护栏，并同步测试与决策记录。"
 ---
 
 # 维护卖点智库架构
@@ -14,7 +14,7 @@ description: "在卖点智库中新增功能、重构、修复或审查代码时
 ## 实施纪律
 
 - 完整读取 `RULES.md` 并遵守依赖方向。
-- API 只做鉴权和传输；Service 编排用例；Domain 保存纯规则；Repository 只读写数据库；Storage 只处理文件；Provider 只处理厂商协议。
+- API 只做鉴权和传输；Service 编排用例；Domain 保存纯规则；Repository 只读写数据库；Storage 只处理文件；火山 AI Search Client 只处理厂商协议。不得重新接入 API 中心、独立模型 Provider 或旧图片分析任务。
 - 搜索理解、召回、过滤、评分、响应、外部分支和唯一一次 Reranker 保持独立边界。
 - 可版本化规则进入 taxonomy、Skill 或独立策略服务，不在编排器追加业务词特判。
 - 数据模型、搜索契约或业务边界变化先新增总纲决策；Phase/范围变化同步项目日志与当前执行文档。
@@ -27,4 +27,3 @@ description: "在卖点智库中新增功能、重构、修复或审查代码时
 ## 资源
 
 - `RULES.md`：当前项目依赖方向与分层边界。
-

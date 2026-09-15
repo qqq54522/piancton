@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import SearchDiagnosticsRead, SearchResponse
@@ -16,7 +16,9 @@ from app.services.search_models import (
 from app.services.search_response_builder import SearchResponseBuilder
 from app.services.search_scorer import SearchScorer
 from app.services.semantic_rerank_service import SemanticRerankService
-from app.services.semantic_search_clients import RerankerClient
+
+if TYPE_CHECKING:
+    from app.services.semantic_search_clients import RerankerClient
 
 
 class SearchRankingService:

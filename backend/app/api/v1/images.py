@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from fastapi import (
@@ -55,6 +56,9 @@ router = APIRouter(prefix="/images", tags=["images"])
 def list_images(
     keyword: Optional[str] = None,
     channel: Optional[str] = Query(default=None, max_length=100),
+    folder_id: Optional[str] = Query(default=None, alias="folderId", max_length=36),
+    unfiled: bool = Query(default=False),
+    scene: str = Query(default="all", pattern="^(all|scene|nonScene)$"),
     cursor: Optional[str] = None,
     limit: int = Query(default=12, ge=1, le=50),
     sort_by: str = Query(
@@ -65,7 +69,7 @@ def list_images(
     _: User = Depends(get_current_user),
     service: ImageService = Depends(get_image_service),
 ):
-    return service.list_images(keyword, channel, cursor, limit, sort_by)
+    return service.list_images(keyword, channel, cursor, limit, sort_by, folder_id, unfiled, scene)
 
 
 @router.get("/for-you", response_model=ForYouImageListResponse)
@@ -154,6 +158,7 @@ def upload_image(
     title: Optional[str] = Form(default=None),
     expected_search_words: str = Form(default="", alias="expectedSearchWords"),
     channel: Optional[str] = Form(default=None, max_length=100),
+    folder_placements: str = Form(default="{}", alias="folderPlacements", max_length=1500),
     style_label: Optional[str] = Form(default=None, alias="styleLabel", max_length=100),
     is_scene_image: Optional[bool] = Form(default=None, alias="isSceneImage"),
     user: User = Depends(require_write_role),
@@ -161,6 +166,15 @@ def upload_image(
     audit: AuditService = Depends(get_audit_service),
 ):
     original_name = file.filename or "image"
+    try:
+        parsed_placements = json.loads(folder_placements)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="目录选择格式无效") from exc
+    if not isinstance(parsed_placements, dict) or any(
+        not isinstance(key, str) or not isinstance(value, str)
+        for key, value in parsed_placements.items()
+    ):
+        raise HTTPException(status_code=400, detail="目录选择格式无效")
     image = service.upload(
         file.file,
         original_name,
@@ -170,6 +184,7 @@ def upload_image(
         _required_channel(channel),
         style_label,
         is_scene_image,
+        parsed_placements,
     )
     audit.record(
         actor_user_id=user.id,

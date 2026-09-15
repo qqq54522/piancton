@@ -117,8 +117,9 @@ Compose 内置的 Nginx 监听 HTTP。生产域名的 HTTPS 证书应由服务�
 
 ```bash
 cp .env.docker.example .env
-# 修改数据库密码、CORS_ORIGINS、Cookie 和可选模型配置
-# 如需启用 AI，同时配置 MODEL_PROVIDER、MODEL_BASE_URL、MODEL_API_KEY、MODEL_NAME
+# 修改数据库密码、CORS_ORIGINS、Cookie 和火山 AI Search 配置
+# Agent 问答需设置 AI_SEARCH_ENABLED、AI_SEARCH_CHAT_ENABLED、AI_SEARCH_API_KEY、
+# AI_SEARCH_APPLICATION_ID 与 AI_SEARCH_CHAT_DATASET_IDS（知识库、图片库）
 docker compose up --build -d
 docker compose exec backend python -m scripts.create_admin admin 'replace-with-a-strong-password'
 docker compose exec backend python -m scripts.seed_taxonomy

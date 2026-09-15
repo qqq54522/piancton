@@ -112,7 +112,7 @@ const Layout = () => {
   const navItems = [
     { to: '/', label: '素材库', icon: LayoutGrid, end: true, show: true },
     { to: '/admin/concepts', label: '卖点管理', icon: LibraryBig, show: user?.role === 'admin' },
-    { to: '/admin/channels', label: '渠道管理', icon: Tags, show: user?.role === 'admin' },
+    { to: '/admin/channels', label: '渠道管理', icon: Tags, show: canManageAssets },
     { to: searchOpsPath, label: '搜索运营', icon: Search, show: canViewSearchOps },
     { to: '/announcements/manage', label: '公告管理', icon: Megaphone, show: canManageAssets },
     { to: '/admin/usage', label: '使用统计', icon: BarChart3, show: user?.role === 'admin' },

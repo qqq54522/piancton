@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from app.ai.contracts import ModelCallResult
 from app.schemas.ai import SearchUnderstanding
@@ -12,7 +13,6 @@ from app.services.meilisearch_recall_service import MeilisearchRecallService
 from app.services.query_understanding_service import QueryUnderstandingService
 from app.services.search_branch_runner import SearchBranchRunner
 from app.services.search_cache import SearchCaches
-from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
 from app.services.search_models import (
     ExternalSearchCandidate,
     QueryUnderstandingOutcome,
@@ -21,8 +21,11 @@ from app.services.search_models import (
     SearchDeadline,
     SearchHit,
 )
-from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
-from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
+
+if TYPE_CHECKING:
+    from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
+    from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
+    from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 
 
 class SearchExternalBranches:

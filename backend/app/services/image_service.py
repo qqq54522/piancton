@@ -12,6 +12,7 @@ from PIL import Image as PillowImage
 from app.core.errors import AppError, NotFoundError
 from app.domain.image_titles import clean_image_title
 from app.models.asset import AssetGroup
+from app.models.channel_folder import ImageChannelPlacement
 from app.models.image import Image
 from app.repositories.image_repository import ImageRepository
 from app.schemas.image import (
@@ -23,14 +24,13 @@ from app.schemas.image import (
 )
 from app.services.asset_identity_service import AssetIdentityService
 from app.services.asset_relation_service import AssetRelationService
-from app.services.embedding_index import EmbeddingIndexSync
+from app.services.channel_folder_service import ChannelFolderService, channel_contains
 from app.services.image_title_service import ImageTitleService
 from app.services.related_image_service import RelatedImageService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.serializers import image_to_detail, image_to_read
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
-from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 from app.services.volc_ai_search_client import VolcAiSearchClient
 from app.services.volc_ai_search_sync import VolcAiSearchIndexSync
 
@@ -69,8 +69,6 @@ class ImageService:
         long_image_min_aspect_ratio: float,
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
-        embedding_index: EmbeddingIndexSync | None = None,
-        vector_index: VikingDBVectorIndexSync | None = None,
         ai_search_index: VolcAiSearchIndexSync | None = None,
         ai_search_client: VolcAiSearchClient | None = None,
         ai_search_recommend_enabled: bool = False,
@@ -84,8 +82,6 @@ class ImageService:
         self.thumbnail_max_size = thumbnail_max_size
         self.uow = UnitOfWork(db)
         self.search_index = search_index or SearchIndexSync.from_settings()
-        self.embedding_index = embedding_index or EmbeddingIndexSync.disabled()
-        self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.ai_search_index = ai_search_index or VolcAiSearchIndexSync.disabled()
         self.asset_relations = AssetRelationService(db)
         self.identities = AssetIdentityService(db)
@@ -103,11 +99,29 @@ class ImageService:
         cursor: Optional[str],
         limit: int,
         sort_by: str,
+        folder_id: str | None = None,
+        unfiled: bool = False,
+        scene: str = "all",
     ) -> ImageListResponse:
         cursor_value = cursor_id = None
         if cursor:
             cursor_value, cursor_id = decode_cursor(cursor, sort_by)
-        rows = self.images.list(keyword, channel, cursor_value, cursor_id, limit, sort_by)
+        if (folder_id or unfiled) and not channel:
+            raise AppError("channel_required", "按目录浏览时请先选择渠道")
+        folder_ids = (
+            ChannelFolderService(self.uow.db).folder_ids(channel, folder_id) if folder_id else None
+        )
+        rows = self.images.list(
+            keyword,
+            channel,
+            cursor_value,
+            cursor_id,
+            limit,
+            sort_by,
+            folder_ids=folder_ids,
+            unfiled=unfiled,
+            scene=scene,
+        )
         has_more = len(rows) > limit
         items = rows[:limit]
         next_cursor = None
@@ -132,9 +146,7 @@ class ImageService:
                     continue
                 seen.add(channel)
                 channels.append(channel)
-        return ImageChannelOptions(
-            channels=sorted(channels, key=lambda value: value.casefold())
-        )
+        return ImageChannelOptions(channels=sorted(channels, key=lambda value: value.casefold()))
 
     def get_detail(
         self,
@@ -168,7 +180,16 @@ class ImageService:
         channel: str | None = None,
         style_label: str | None = None,
         is_scene_image: bool | None = None,
+        folder_placements: dict[str, str] | None = None,
     ) -> ImageRead:
+        folder_placements = folder_placements or {}
+        folder_service = ChannelFolderService(self.uow.db)
+        for placement_channel, folder_id in folder_placements.items():
+            if not channel_contains(channel, placement_channel):
+                raise AppError("channel_mismatch", "目录所属渠道不在本次上传渠道中")
+            folder = folder_service.repo.folder(folder_id)
+            if not folder or folder.channel_name != placement_channel:
+                raise AppError("folder_mismatch", "所选目录不属于对应渠道")
         staged = self.storage.stage(
             stream,
             self.max_upload_bytes,
@@ -207,8 +228,15 @@ class ImageService:
         )
         try:
             self.images.add(image)
+            if folder_placements:
+                self.uow.flush()
+                for placement_channel, folder_id in folder_placements.items():
+                    folder_service.repo.add_placement(
+                        ImageChannelPlacement(
+                            image_id=image.id, channel_name=placement_channel, folder_id=folder_id
+                        )
+                    )
             group.primary_image_id = image.id
-            self.embedding_index.upsert_image(self.images, image)
             self.storage.finalize(staged)
             self.uow.commit()
         except Exception:
@@ -232,7 +260,6 @@ class ImageService:
         image.title = resolved_title
         if image.asset_group and image.asset_group.primary_image_id == image.id:
             image.asset_group.title = resolved_title
-        self.embedding_index.upsert_image(self.images, image)
         self.images.save(image)
         self.uow.commit()
         self._sync_index(image.id)
@@ -251,6 +278,10 @@ class ImageService:
         if not resolved_channel:
             raise AppError("channel_required", "请至少保留一个使用渠道", status_code=422)
         image.channel = resolved_channel
+        placement_repo = ChannelFolderService(self.uow.db).repo
+        for placement in placement_repo.image_placements(image.id):
+            if not channel_contains(resolved_channel, placement.channel_name):
+                placement_repo.remove_placement(placement)
         group = image.asset_group
         if group:
             group.style_label = (style_label or "").strip() or None
@@ -320,7 +351,6 @@ class ImageService:
         image = self.images.get(image_id)
         if image:
             self.search_index.upsert_image(image)
-            self.vector_index.best_effort_upsert_image(image)
             self.ai_search_index.upsert_image(image)
 
     def _get(self, image_id: str) -> Image:
@@ -341,8 +371,4 @@ def _split_channel_value(value: str | None) -> list[str]:
     if not value:
         return []
     normalized = value.replace(",", "、").replace("，", "、").replace("/", "、").replace("／", "、")
-    return [
-        item.strip()
-        for item in normalized.split("、")
-        if item.strip()
-    ]
+    return [item.strip() for item in normalized.split("、") if item.strip()]

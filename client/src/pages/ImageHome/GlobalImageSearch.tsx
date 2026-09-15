@@ -1,4 +1,4 @@
-import { ArrowUpDown, Bell, BriefcaseBusiness, Check, Film, FolderHeart, Heart, LogOut, MessageSquarePlus, Plus, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { ArrowUpDown, Bell, BriefcaseBusiness, Check, Film, FolderHeart, Heart, LogOut, MessageSquarePlus, Plus, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,41 +16,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@client/src/components/ui/dropdown-menu';
-import { Input } from '@client/src/components/ui/input';
-import { shouldIgnoreEnterForIme } from '@client/src/lib/ime';
 import { useAuth } from '@client/src/lib/auth';
-import { useSearchQueryRecommendations } from '@client/src/features/images/useSearchQueryRecommendations';
 import { useAnnouncementUnreadCount } from '@client/src/features/announcements/useAnnouncements';
 import {
   type SceneImageFilter,
   type SearchRefinementOptions,
   type SearchRefinements,
 } from './searchResultFilters';
-import { addCustomChannel, useChannelOptions } from './channelOptions';
+import { useChannelOptions } from './channelOptions';
 
 interface GlobalImageSearchProps {
-  input: string;
   refinementOptions: SearchRefinementOptions;
   refinements: SearchRefinements;
-  refinementsReady: boolean;
   sortBy: 'createdAt' | 'downloadCount';
   showBusinessAccount: boolean;
   manualFilterOpen: boolean;
   animateGifPreview: boolean;
   agentOpen: boolean;
-  onInputChange: (value: string) => void;
   onChannelChange: (value: string) => void;
   onSceneChange: (value: SceneImageFilter) => void;
   onSortByChange: (value: 'createdAt' | 'downloadCount') => void;
   onManualFilterOpenChange: (open: boolean) => void;
   onAnimateGifPreviewChange: (value: boolean) => void;
   onAgentOpenChange: (open: boolean) => void;
-  onClear: () => void;
-  onSearch: (value?: string) => void;
 }
 
 const GlobalImageSearch = ({
-  input,
   refinementOptions,
   refinements,
   sortBy,
@@ -58,25 +49,18 @@ const GlobalImageSearch = ({
   manualFilterOpen,
   animateGifPreview,
   agentOpen,
-  onInputChange,
   onChannelChange,
   onSceneChange,
   onSortByChange,
   onManualFilterOpenChange,
   onAnimateGifPreviewChange,
   onAgentOpenChange,
-  onClear,
-  onSearch,
 }: GlobalImageSearchProps) => {
-  const [addingChannel, setAddingChannel] = useState(false);
-  const [draftChannel, setDraftChannel] = useState('');
-  const [completionOpen, setCompletionOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const channelOptions = useChannelOptions(refinementOptions.channels);
   const canAddChannel = !showBusinessAccount;
-  const { placeholder, completions } = useSearchQueryRecommendations(input);
   const unreadAnnouncements = useAnnouncementUnreadCount(showBusinessAccount);
   const unreadCount = unreadAnnouncements.data?.unreadCount ?? 0;
   const intentChannels = refinements.channel
@@ -91,146 +75,28 @@ const GlobalImageSearch = ({
     await logout();
     navigate('/login', { replace: true });
   };
-  const submitCustomChannel = () => {
-    const channel = addCustomChannel(draftChannel);
-    if (!channel) return;
-    setDraftChannel('');
-    setAddingChannel(false);
-    onChannelChange(channel);
-  };
+
 
   return (
-    <section className="mt-5 space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-foreground/55" />
-          <Input
-            aria-label="搜索业务素材"
-            placeholder={placeholder}
-            value={input}
-            onChange={(event) => {
-              setCompletionOpen(true);
-              onInputChange(event.target.value);
-            }}
-            onFocus={() => setCompletionOpen(true)}
-            onBlur={() => setCompletionOpen(false)}
-            onKeyDown={(event) => {
-              if (shouldIgnoreEnterForIme(event)) return;
-              if (event.key === 'Enter') {
-                setCompletionOpen(false);
-                onSearch();
-              }
-            }}
-            className="h-14 rounded-[22px] border-transparent bg-[#f1f1ef] pl-12 pr-32 text-base shadow-none transition-colors hover:bg-[#ececea] focus-visible:border-transparent focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-foreground/10 md:text-base"
-          />
-          {input && (
-            <button
-              type="button"
-              aria-label="清空搜索"
-              onClick={onClear}
-              className="absolute right-24 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-foreground/55 transition-colors hover:bg-black/5 hover:text-foreground"
-            >
-              <X className="size-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setCompletionOpen(false);
-              onSearch();
-            }}
-            className="absolute right-2 top-1/2 z-10 flex h-10 -translate-y-1/2 items-center rounded-[18px] bg-foreground px-4 text-sm font-semibold text-background shadow-sm transition hover:bg-foreground/88 active:translate-y-[calc(-50%+1px)]"
-          >
-            搜索
-          </button>
-          {completionOpen && input.trim().length >= 2 && completions.length > 0 && (
-            <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-2xl border border-border/70 bg-white py-2 shadow-xl shadow-foreground/10">
-              <p className="px-4 pb-1 text-[11px] font-medium text-muted-foreground">搜索联想</p>
-              {completions.map((completion) => (
-                <button
-                  key={completion}
-                  type="button"
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground/80 transition hover:bg-secondary/70 hover:text-foreground"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setCompletionOpen(false);
-                    onInputChange(completion);
-                    onSearch(completion);
-                  }}
-                >
-                  <Search className="size-4 shrink-0 text-muted-foreground" />
-                  <span>{completion}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {showBusinessAccount && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border/70 bg-white shadow-xs transition-colors hover:bg-[#f1f1ef]"
-                aria-label="打开账号菜单"
-              >
-                <Avatar className="size-9 border border-border bg-[#f1f1ef]">
-                  <AvatarFallback className="bg-[#f1f1ef] text-foreground">
-                    <BriefcaseBusiness className="size-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <UnreadAnnouncementBadge count={unreadCount} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
-              <DropdownMenuLabel className="px-2.5 py-2">
-                <span className="block text-xs font-semibold">{user?.username}</span>
-                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">当前身份：业务用户</span>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => navigate('/my-likes')}>
-                <Heart className="size-4" />我的喜欢
-              </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => navigate('/my-collections')}>
-                <FolderHeart className="size-4" />我的收藏
-              </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => navigate('/my-messages')}>
-                <Bell className="size-4" />我的信息
-                {unreadCount > 0 && (
-                  <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => setFeedbackOpen(true)}>
-                <MessageSquarePlus className="size-4" />提交反馈
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={handleLogout}>
-                <LogOut className="size-4" />退出并切换账号
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-
+    <section className="min-w-0">
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-        <HorizontalScrollRail
-          className="flex min-w-0 items-center gap-4 pb-2 pr-2"
-          aria-label="按使用渠道筛选"
-          title="滚动滚轮或按住鼠标左右拖动查看更多渠道"
-        >
-          <button
+      <div className="flex min-w-0 items-center gap-3">
+        <button
             type="button"
             aria-expanded={manualFilterOpen}
-            aria-label={manualFilterOpen ? '收起卖点筛选' : '展开卖点筛选'}
+            aria-label={manualFilterOpen ? '收起渠道分类' : '展开渠道分类'}
             onClick={() => onManualFilterOpenChange(!manualFilterOpen)}
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-sm transition ${manualFilterOpen ? 'bg-foreground text-background' : 'bg-white text-foreground ring-1 ring-border/70 hover:bg-[#f1f1ef]'}`}
-            title="展开卖点筛选"
+            title={refinements.channel ? `${refinements.channel}的分类` : '业务卖点筛选'}
           >
             <SlidersHorizontal className="size-4" />
           </button>
+        <HorizontalScrollRail
+          className="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto pb-2 pr-2"
+          aria-label="按使用渠道筛选"
+          title="滚动滚轮或按住鼠标左右拖动查看更多渠道"
+        >
           <button
             type="button"
             className={`relative h-10 shrink-0 px-0 text-sm font-semibold transition-colors after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full after:rounded-full after:transition-opacity ${refinements.channel || intentChannels.length > 0 ? 'text-muted-foreground after:bg-transparent hover:text-foreground' : 'text-foreground after:bg-foreground'}`}
@@ -248,55 +114,13 @@ const GlobalImageSearch = ({
               {channel}
             </button>
           ))}
-          {canAddChannel && addingChannel ? (
-            <div className="flex min-w-44 shrink-0 items-center gap-1 rounded-xl border border-border bg-white px-2 py-1">
-              <Input
-                value={draftChannel}
-                onChange={(event) => setDraftChannel(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') submitCustomChannel();
-                  if (event.key === 'Escape') {
-                    setDraftChannel('');
-                    setAddingChannel(false);
-                  }
-                }}
-                placeholder="新增渠道"
-                maxLength={24}
-                className="h-7 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
-                autoFocus
-              />
-              <Button
-                type="button"
-                size="sm"
-                className="h-7 bg-foreground px-2 text-xs text-background hover:bg-foreground/88"
-                disabled={!draftChannel.trim()}
-                onClick={submitCustomChannel}
-              >
-                添加
-              </Button>
-              <button
-                type="button"
-                aria-label="取消新增渠道"
-                onClick={() => {
-                  setDraftChannel('');
-                  setAddingChannel(false);
-                }}
-                className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ) : canAddChannel ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-10 shrink-0 rounded-none px-0 font-semibold text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground"
-              onClick={() => setAddingChannel(true)}
-            >
-              <Plus className="size-3.5" />添加渠道
+          {canAddChannel && (
+            <Button type="button" variant="ghost" size="sm"
+              className="h-10 shrink-0 rounded-none px-0 font-semibold text-muted-foreground"
+              onClick={() => navigate('/admin/channels')}>
+              <Plus className="size-3.5" />管理渠道
             </Button>
-          ) : null}
+          )}
         </HorizontalScrollRail>
         <div className="flex shrink-0 items-center justify-end gap-2">
           <button
@@ -348,20 +172,30 @@ const GlobalImageSearch = ({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <button
-            type="button"
+          {showBusinessAccount && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label="打开账号菜单" className="relative flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-white">
+                  <Avatar className="size-8 border border-border bg-[#f1f1ef]"><AvatarFallback className="bg-[#f1f1ef]"><BriefcaseBusiness className="size-4" /></AvatarFallback></Avatar>
+                  <UnreadAnnouncementBadge count={unreadCount} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+                <DropdownMenuLabel><span className="block text-xs font-semibold">{user?.username}</span><span className="text-[11px] font-normal text-muted-foreground">业务用户</span></DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/my-likes')}><Heart className="size-4" />我的喜欢</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/my-collections')}><FolderHeart className="size-4" />我的收藏</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/my-messages')}><Bell className="size-4" />我的信息{unreadCount > 0 && <span className="ml-auto text-red-500">{unreadCount}</span>}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFeedbackOpen(true)}><MessageSquarePlus className="size-4" />提交反馈</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => void handleLogout()}><LogOut className="size-4" />退出并切换账号</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <button type="button" className="flex size-9 items-center justify-center rounded-full border border-border bg-white lg:hidden"
             aria-label={agentOpen ? '收起 Piancton Agent' : '打开 Piancton Agent'}
-            aria-pressed={agentOpen}
-            onClick={() => onAgentOpenChange(!agentOpen)}
-            className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-3 pr-4 text-sm font-semibold transition-colors ${agentOpen ? 'border-foreground bg-foreground text-background shadow-sm' : 'border-border bg-white text-foreground shadow-xs hover:bg-[#f1f1ef]'}`}
-          >
-            <PianctonAgentMark
-              size="sm"
-              state={agentOpen ? 'wake' : 'idle'}
-              interactive={false}
-              className="!size-7"
-            />
-            Agent
+            onClick={() => onAgentOpenChange(!agentOpen)}>
+            <PianctonAgentMark size="sm" state={agentOpen ? 'wake' : 'idle'} interactive={false} className="!size-7" />
           </button>
         </div>
       </div>

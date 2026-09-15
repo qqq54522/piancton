@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import Layout from './components/Layout';
 import { AdminRoute, BusinessRoute, DesignerRoute, ProtectedRoute } from './lib/auth';
@@ -43,6 +43,8 @@ const RoutesComponent = () => (
             <Route path="my-messages" element={<MyMessages />} />
           </Route>
           <Route element={<DesignerRoute />}>
+            <Route path="admin/channels" element={<AdminChannels />} />
+            <Route path="admin/channel-folders" element={<Navigate to="/admin/channels" replace />} />
             <Route path="trash" element={<Trash />} />
             <Route path="search-ops" element={<AdminSearchOps />} />
             <Route path="admin/search-ops" element={<AdminSearchOps />} />
@@ -51,7 +53,6 @@ const RoutesComponent = () => (
           <Route element={<AdminRoute />}>
             <Route path="admin/users" element={<AdminUsers />} />
             <Route path="admin/audit" element={<AdminAudit />} />
-            <Route path="admin/channels" element={<AdminChannels />} />
             <Route path="admin/usage" element={<AdminUsage />} />
             <Route path="admin/identity-codes" element={<AdminIdentityCodes />} />
             <Route path="admin/concepts" element={<AdminConcepts />} />

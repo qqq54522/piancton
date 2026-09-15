@@ -10,17 +10,19 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from app.core.errors import AppError, NotFoundError
 from app.models.asset import AssetGroup, AssetSourceLink
+from app.models.channel_folder import ImageChannelPlacement
 from app.models.image import Image
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.channel_folder_repository import ChannelFolderRepository
 from app.repositories.image_repository import ImageRepository
 from app.schemas.asset import AssetGroupRead, AssetSourceLinkCreate, AssetSourceLinkUpdate
 from app.services.asset_identity_service import AssetIdentityService
 from app.services.asset_serializers import asset_group_to_read
+from app.services.channel_folder_service import channel_contains
 from app.services.image_title_service import ImageTitleService
 from app.services.search_index_sync import SearchIndexSync
 from app.services.storage_service import StorageProvider
 from app.services.unit_of_work import UnitOfWork
-from app.services.vikingdb_vector_index import VikingDBVectorIndexSync
 from app.services.volc_ai_search_sync import VolcAiSearchIndexSync
 
 ASSET_ROLES = {"derivative", "alternative", "revision"}
@@ -39,7 +41,6 @@ class AssetService:
         long_image_min_aspect_ratio: float,
         thumbnail_max_size: int,
         search_index: SearchIndexSync | None = None,
-        vector_index: VikingDBVectorIndexSync | None = None,
         ai_search_index: VolcAiSearchIndexSync | None = None,
     ):
         self.assets = AssetRepository(db)
@@ -51,7 +52,6 @@ class AssetService:
         self.long_image_min_aspect_ratio = long_image_min_aspect_ratio
         self.thumbnail_max_size = thumbnail_max_size
         self.search_index = search_index or SearchIndexSync.from_settings()
-        self.vector_index = vector_index or VikingDBVectorIndexSync.disabled()
         self.ai_search_index = ai_search_index or VolcAiSearchIndexSync.disabled()
         self.uow = UnitOfWork(db)
         self.image_titles = ImageTitleService(db)
@@ -111,6 +111,7 @@ class AssetService:
         )
         try:
             self.images.add(image)
+            self._inherit_folder_placements(group.primary_image_id, image, resolved_channel)
             self.storage.finalize(staged)
             self.uow.commit()
         except Exception:
@@ -118,7 +119,6 @@ class AssetService:
             self.storage.discard(staged)
             raise
         self.search_index.upsert_image(image)
-        self.vector_index.best_effort_upsert_image(image)
         self.ai_search_index.upsert_image(image)
         # Group-level relations and accepted phrases are inherited by reference.
         return asset_group_to_read(self._get(group_id))
@@ -172,6 +172,9 @@ class AssetService:
         )
         try:
             self.images.add(image)
+            self._inherit_folder_placements(
+                previous_primary.id if previous_primary else None, image, resolved_channel
+            )
             group.primary_image_id = image.id
             group.title = image.title
             self.assets.save(group)
@@ -184,20 +187,14 @@ class AssetService:
         if previous_primary:
             self.search_index.delete_image(previous_primary.id)
             self.ai_search_index.delete_image(previous_primary.id)
-            self.vector_index.best_effort_upsert_image(previous_primary)
         self.search_index.upsert_image(image)
-        self.vector_index.best_effort_upsert_image(image)
         self.ai_search_index.upsert_image(image)
         return asset_group_to_read(self._get(group_id))
 
     def delete_variant(self, group_id: str, image_id: str) -> AssetGroupRead:
         group = self._get(group_id)
         image = next(
-            (
-                item
-                for item in group.images
-                if item.id == image_id and item.deleted_at is None
-            ),
+            (item for item in group.images if item.id == image_id and item.deleted_at is None),
             None,
         )
         if not image:
@@ -214,7 +211,6 @@ class AssetService:
         self.uow.commit()
         self.search_index.delete_image(image.id)
         self.ai_search_index.delete_image(image.id)
-        self.vector_index.best_effort_upsert_image(image)
         return asset_group_to_read(self._get(group_id))
 
     def add_source_link(
@@ -358,7 +354,9 @@ class AssetService:
                     "note": link.note,
                 }
                 for link in group.source_links
-            ] if include_source_links else [],
+            ]
+            if include_source_links
+            else [],
             "searchPhrases": [
                 {
                     "phrase": phrase.phrase,
@@ -431,8 +429,24 @@ class AssetService:
         if not image:
             return
         self.search_index.upsert_image(image)
-        self.vector_index.best_effort_upsert_image(image)
         self.ai_search_index.upsert_image(image)
+
+    def _inherit_folder_placements(
+        self, source_image_id: str | None, image: Image, channel: str | None
+    ) -> None:
+        if not source_image_id:
+            return
+        placements = ChannelFolderRepository(self.uow.db).image_placements(source_image_id)
+        relevant = [item for item in placements if channel_contains(channel, item.channel_name)]
+        if not relevant:
+            return
+        self.uow.flush()
+        for item in relevant:
+            self.uow.db.add(
+                ImageChannelPlacement(
+                    image_id=image.id, channel_name=item.channel_name, folder_id=item.folder_id
+                )
+            )
 
     def _resolve_version_channel(
         self,
@@ -469,7 +483,6 @@ def _clean_optional(value: str | None) -> str | None:
 
 def _safe_archive_name(value: str) -> str:
     cleaned = "".join(
-        char if char.isalnum() or char in {"-", "_", "."} else "_"
-        for char in value.strip()
+        char if char.isalnum() or char in {"-", "_", "."} else "_" for char in value.strip()
     ).strip("._")
     return cleaned or "asset"

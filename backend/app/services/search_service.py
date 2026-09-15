@@ -2,22 +2,24 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
 from app.repositories.image_repository import ImageRepository
 from app.schemas.ai import SearchUnderstanding
 from app.schemas.image import SearchBranchStatusRead, SearchResponse
-from app.services.ai_service import AiService
 from app.services.identity_search_service import IdentitySearchService
 from app.services.search_cache import SearchCaches
-from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
 from app.services.search_models import SearchHit
 from app.services.search_service_components import build_search_components
-from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
-from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
-from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 from app.services.volc_ai_search_service import VolcAiSearchService
+
+if TYPE_CHECKING:
+    from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
+    from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
+    from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
+    from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ class SearchService:
         meilisearch_api_key: str = "",
         meilisearch_index: str = "images",
         search_timeout_seconds: float = 0.2,
-        ai_service: AiService | None = None,
+        ai_service: object | None = None,
         embedding_client: EmbeddingClient | None = None,
         embedding_top_n: int = 100,
         reranker: RerankerClient | None = None,

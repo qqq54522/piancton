@@ -291,6 +291,7 @@ export function useGlobalImageSearch({ allTags }: { allTags: TagWithCount[] }) {
   ]);
 
   return {
+    businessSystems: systems,
     businessConcepts: concepts,
     businessFacets: facets,
     clearGlobalSearch,

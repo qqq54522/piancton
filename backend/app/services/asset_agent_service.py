@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from time import monotonic
 from typing import Any, cast
-from zoneinfo import ZoneInfo
 
 import httpx
 from sqlalchemy.orm import Session
@@ -24,6 +24,8 @@ from app.repositories.asset_agent_repository import (
     AssetAgentSessionRepository,
 )
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.business_concept_repository import BusinessConceptRepository
+from app.repositories.channel_folder_repository import ChannelFolderRepository
 from app.repositories.image_repository import ImageRepository
 from app.schemas.asset_agent import (
     AssetAgentChatRequest,
@@ -50,11 +52,6 @@ from app.services.volc_ai_search_client import (
     VolcAiSearchStreamEvent,
 )
 
-MAX_AGENT_SESSIONS = 20
-AGENT_RESET_TIMEZONE = ZoneInfo("Asia/Shanghai")
-MAX_AGENT_HISTORY_MESSAGES = 24
-MAX_AGENT_HISTORY_CHARS = 12_000
-MAX_AGENT_HISTORY_MESSAGE_CHARS = 1_200
 MAX_AGENT_RECOMMENDATION_CARDS = 50
 logger = logging.getLogger(__name__)
 DEFAULT_GREETING = (
@@ -86,12 +83,13 @@ class AssetAgentService:
         self.sessions = AssetAgentSessionRepository(db)
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
+        self.channel_folders = ChannelFolderRepository(db)
         self.assets = AssetRepository(db)
+        self.concepts = BusinessConceptRepository(db)
         self.uow = UnitOfWork(db)
 
     def list_sessions(self, user: User) -> AssetAgentSessionListResponse:
-        self._reset_user_sessions_for_today(user)
-        sessions = self.sessions.list_for_user(user.id, limit=MAX_AGENT_SESSIONS)
+        sessions = self.sessions.list_for_user(user.id)
         if not sessions:
             sessions = [self._create_session(user, use_ai_search_opening=True)]
         self.uow.commit()
@@ -104,14 +102,12 @@ class AssetAgentService:
         user: User,
         payload: AssetAgentSessionCreateRequest | None = None,
     ) -> AssetAgentSessionRead:
-        self._reset_user_sessions_for_today(user)
         session = self._create_session(
             user,
             title=payload.title if payload else None,
             context_images=payload.context_images if payload else [],
             use_ai_search_opening=not bool(payload and payload.context_images),
         )
-        self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
         self.uow.commit()
         return self._session_read(session)
 
@@ -121,7 +117,6 @@ class AssetAgentService:
         session_id: str,
         payload: AssetAgentSessionContextUpdateRequest,
     ) -> AssetAgentSessionRead:
-        self._reset_user_sessions_for_today(user)
         session = self._get_session_or_404(user, session_id)
         previous_ids = {item.image_id for item in self._session_context(session)}
         context_images = _clean_context_images(payload.context_images)
@@ -143,7 +138,6 @@ class AssetAgentService:
         return self._session_read(session)
 
     def delete_session(self, user: User, session_id: str) -> None:
-        self._reset_user_sessions_for_today(user)
         session = self._get_session_or_404(user, session_id)
         self.sessions.delete(session)
         self.uow.commit()
@@ -177,6 +171,7 @@ class AssetAgentService:
 
     def chat(self, user: User, payload: AssetAgentChatRequest) -> AssetAgentChatResponse:
         uploaded_image_url = self._temporary_image_url(user, payload)
+        uploaded_image_title = self._temporary_image_title(payload) if uploaded_image_url else ""
         library_image_url = ""
         library_image_token = ""
         if not uploaded_image_url:
@@ -187,6 +182,7 @@ class AssetAgentService:
                 payload,
                 visual_image_url=uploaded_image_url or library_image_url,
                 has_user_uploaded_image=bool(uploaded_image_url),
+                uploaded_image_title=uploaded_image_title,
             )
         finally:
             self._delete_temporary_image(user, payload)
@@ -199,15 +195,20 @@ class AssetAgentService:
         *,
         visual_image_url: str = "",
         has_user_uploaded_image: bool = False,
+        uploaded_image_title: str = "",
     ) -> AssetAgentChatResponse:
         message = payload.message.strip()
         if not message:
             raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
 
-        self._reset_user_sessions_for_today(user)
         session = self._session_for_chat(user, payload)
+        recap_answer = self._history_recap_answer(user, message)
+        dialogue_context = _saved_dialogue_context(session)
+        image_history_context = _sent_image_history_context(session)
         continuation_family_keys = self._continuation_family_keys(session, message)
-        conversation_history = _conversation_history_text(session.messages)
+        selling_point_cards, selling_point_names = self._selling_point_material_cards(
+            session, message
+        )
         payload_context = self._context_from_ids(payload.image_ids)
         if payload_context:
             session.context_images_json = _json_dump(
@@ -216,7 +217,7 @@ class AssetAgentService:
         if session.title == "新对话":
             session.title = _title_from_message(message)
         session.updated_at = _now()
-        self._add_message(session, role="user", content=message)
+        user_message = self._add_message(session, role="user", content=message)
 
         context_images = self._session_context(session)
         image_ids = [item.image_id for item in context_images]
@@ -224,38 +225,88 @@ class AssetAgentService:
             item.asset_group_id for item in context_images if item.asset_group_id
         ] + payload.asset_group_ids
         images = self._load_images(image_ids)
+        sent_image_cards = self._image_cards(images, limit=8)
+        if uploaded_image_title:
+            sent_image_cards.append(
+                _uploaded_image_card(user_message.id, uploaded_image_title)
+            )
+        if sent_image_cards:
+            user_message.context_cards_json = _json_dump(
+                [
+                    card.model_dump(mode="json", by_alias=True)
+                    for card in sent_image_cards
+                ]
+            )
         groups = self._load_groups(group_ids, images)
         concept_cards = self._concept_cards(groups)
         context_cards = self._context_cards(images, groups) + concept_cards
-        context_text = self._context_text(images, groups)
+        context_text = "\n\n".join(
+            item
+            for item in (
+                dialogue_context,
+                self._context_text(images, groups),
+                image_history_context,
+            )
+            if item
+        )
+        if recap_answer and not (visual_image_url or images):
+            return self._save_local_history_answer(session, recap_answer)
 
-        external_chat = self._try_ai_search_chat(
-            user=user,
-            session=session,
-            message=message,
-            conversation_history=conversation_history,
-            context_text=context_text,
-            recommendation_family_keys=continuation_family_keys,
-            visual_image_url=visual_image_url,
-            response_mode=payload.response_mode,
+        visual_unavailable = bool(images and not visual_image_url and _needs_image_visual(message))
+        external_chat = (
+            None
+            if visual_unavailable
+            else self._try_ai_search_chat(
+                user=user,
+                session=session,
+                message=message,
+                context_text=context_text,
+                recommendation_family_keys=continuation_family_keys,
+                visual_image_url=visual_image_url,
+                response_mode=payload.response_mode,
+            )
         )
         if external_chat is not None:
+            title_family = self._explicit_title_material_family(message)
             recommended_cards = self._recommended_image_cards(
                 external_chat.item_ids,
                 message=message,
                 preferred_family_keys=continuation_family_keys,
+                title_family=title_family,
             )
+            channel_match = self._explicit_channel_material_query(message)
+            if channel_match:
+                recommended_cards = self._verified_channel_cards(
+                    *channel_match,
+                    seed_image_ids=external_chat.item_ids,
+                    allowed_image_ids=[card.id for card in recommended_cards]
+                    if title_family else None,
+                )
+            elif not title_family and selling_point_cards:
+                recommended_cards = selling_point_cards
             response_cards = _merge_context_cards(context_cards, recommended_cards)
             suggestions = _clean_suggestions(external_chat.suggestions) or _fallback_suggestions(
                 bool(images or groups)
             )
-            answer = self._recommendation_answer(
-                _normalize_agent_text(external_chat.answer),
-                seed_image_ids=external_chat.item_ids,
-                cards=recommended_cards,
-                preferred_family_keys=continuation_family_keys,
-            )
+            answer = _normalize_agent_text(external_chat.answer)
+            if channel_match:
+                answer = self._channel_result_answer(answer, channel_match[0], recommended_cards)
+            elif title_family and recommended_cards:
+                answer = self._verified_title_result_answer(recommended_cards)
+            elif selling_point_cards and not title_family:
+                answer = self._verified_selling_point_result_answer(
+                    selling_point_names, recommended_cards
+                )
+            else:
+                answer = self._recommendation_answer(
+                    answer,
+                    seed_image_ids=external_chat.item_ids,
+                    cards=recommended_cards,
+                    preferred_family_keys=continuation_family_keys,
+                )
             session.suggested_questions_json = _json_dump(suggestions)
+            if images and visual_image_url and not has_user_uploaded_image:
+                session.context_images_json = "[]"
             self._add_message(
                 session,
                 role="assistant",
@@ -264,7 +315,6 @@ class AssetAgentService:
                 context_cards=recommended_cards,
             )
             self.sessions.save(session)
-            self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
             self.uow.commit()
             return AssetAgentChatResponse(
                 answer=answer,
@@ -278,19 +328,23 @@ class AssetAgentService:
 
         answer = _ai_search_unavailable_answer(
             has_image=bool(visual_image_url or images or groups),
+            failure_kind="ImageUnavailable" if visual_unavailable else "",
         )
         suggestions = _fallback_suggestions(bool(images or groups))
         attempt_error = (
-            "AI Search chat is not configured"
-            if self.ai_search_chat is None
-            or not getattr(self.ai_search_chat, "chat_search_configured", False)
-            else "AI Search chat request failed or returned no answer"
+            "ImageUnavailable"
+            if visual_unavailable
+            else (
+                "AI Search chat is not configured"
+                if self.ai_search_chat is None
+                or not getattr(self.ai_search_chat, "chat_search_configured", False)
+                else "AI Search chat request failed or returned no answer"
+            )
         )
 
         session.suggested_questions_json = _json_dump(suggestions)
         self._add_message(session, role="assistant", content=answer, used_model=False)
         self.sessions.save(session)
-        self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
         self.uow.commit()
         return AssetAgentChatResponse(
             answer=answer,
@@ -311,6 +365,7 @@ class AssetAgentService:
         if not message:
             raise AppError("empty_message", "请输入要问 Piancton Agent 的问题", status_code=422)
         uploaded_image_url = self._temporary_image_url(user, payload)
+        uploaded_image_title = self._temporary_image_title(payload) if uploaded_image_url else ""
         library_image_url = ""
         library_image_token = ""
         if not uploaded_image_url:
@@ -320,10 +375,14 @@ class AssetAgentService:
         def events() -> Iterator[str]:
             session: AssetAgentSession | None = None
             try:
-                self._reset_user_sessions_for_today(user)
                 session = self._session_for_chat(user, payload)
+                recap_answer = self._history_recap_answer(user, message)
+                dialogue_context = _saved_dialogue_context(session)
+                image_history_context = _sent_image_history_context(session)
                 continuation_family_keys = self._continuation_family_keys(session, message)
-                conversation_history = _conversation_history_text(session.messages)
+                selling_point_cards, selling_point_names = self._selling_point_material_cards(
+                    session, message
+                )
                 payload_context = self._context_from_ids(payload.image_ids)
                 if payload_context:
                     session.context_images_json = _json_dump(
@@ -332,7 +391,7 @@ class AssetAgentService:
                 if session.title == "新对话":
                     session.title = _title_from_message(message)
                 session.updated_at = _now()
-                self._add_message(session, role="user", content=message)
+                user_message = self._add_message(session, role="user", content=message)
 
                 context_images = self._session_context(session)
                 image_ids = [item.image_id for item in context_images]
@@ -340,15 +399,46 @@ class AssetAgentService:
                     item.asset_group_id for item in context_images if item.asset_group_id
                 ] + payload.asset_group_ids
                 images = self._load_images(image_ids)
+                sent_image_cards = self._image_cards(images, limit=8)
+                if uploaded_image_title:
+                    sent_image_cards.append(
+                        _uploaded_image_card(user_message.id, uploaded_image_title)
+                    )
+                if sent_image_cards:
+                    user_message.context_cards_json = _json_dump(
+                        [
+                            card.model_dump(mode="json", by_alias=True)
+                            for card in sent_image_cards
+                        ]
+                    )
                 groups = self._load_groups(group_ids, images)
                 concept_cards = self._concept_cards(groups)
                 context_cards = self._context_cards(images, groups) + concept_cards
-                context_text = self._context_text(images, groups)
+                context_text = "\n\n".join(
+                    item
+                    for item in (
+                        dialogue_context,
+                        self._context_text(images, groups),
+                        image_history_context,
+                    )
+                    if item
+                )
+
+                if recap_answer and not (visual_image_url or images):
+                    response = self._save_local_history_answer(session, recap_answer)
+                    yield _sse("answer_delta", {"text": recap_answer})
+                    yield _sse("final", response.model_dump(mode="json", by_alias=True))
+                    return
 
                 client = self.ai_search_chat
                 ai_search_error = "AI Search chat is not configured"
+                if images and not visual_image_url and _needs_image_visual(message):
+                    client = None
+                    ai_search_error = "ImageUnavailable"
                 if client is not None and getattr(client, "chat_search_configured", False):
                     ai_search_error = ""
+                    channel_match = self._explicit_channel_material_query(message)
+                    title_family = self._explicit_title_material_family(message)
                     answer_parts: list[str] = []
                     external_suggestions: list[str] = []
                     external_item_ids: list[str] = []
@@ -361,7 +451,6 @@ class AssetAgentService:
                             _ai_search_chat_message(
                                 message,
                                 context_text,
-                                conversation_history=conversation_history,
                                 response_mode=payload.response_mode,
                                 has_visual_image=bool(visual_image_url),
                                 recommendation_family_keys=continuation_family_keys,
@@ -383,7 +472,8 @@ class AssetAgentService:
                                 yield _sse("reasoning_delta", {"text": f"{step_text}\n"})
                             if upstream.content:
                                 answer_parts.append(upstream.content)
-                                yield _sse("answer_delta", {"text": upstream.content})
+                                if not (channel_match or title_family or selling_point_cards):
+                                    yield _sse("answer_delta", {"text": upstream.content})
                             external_suggestions.extend(upstream.suggestions)
                             new_item_ids = [
                                 item_id
@@ -396,7 +486,10 @@ class AssetAgentService:
                                     external_item_ids,
                                     message=message,
                                     preferred_family_keys=continuation_family_keys,
+                                    title_family=title_family,
                                 )
+                                if channel_match or title_family or selling_point_cards:
+                                    live_cards = []
                                 if live_cards:
                                     yield _sse(
                                         "context_cards",
@@ -424,14 +517,67 @@ class AssetAgentService:
                             external_item_ids,
                             message=message,
                             preferred_family_keys=continuation_family_keys,
+                            title_family=title_family,
                         )
-                        finalized_answer = self._recommendation_answer(
-                            answer,
-                            seed_image_ids=external_item_ids,
-                            cards=recommended_cards,
-                            preferred_family_keys=continuation_family_keys,
-                        )
-                        if finalized_answer != answer:
+                        if channel_match:
+                            recommended_cards = self._verified_channel_cards(
+                                *channel_match,
+                                seed_image_ids=external_item_ids,
+                                allowed_image_ids=[card.id for card in recommended_cards]
+                                if title_family else None,
+                            )
+                            finalized_answer = self._channel_result_answer(
+                                answer, channel_match[0], recommended_cards
+                            )
+                            if recommended_cards:
+                                yield _sse(
+                                    "context_cards",
+                                    {
+                                        "cards": [
+                                            card.model_dump(mode="json", by_alias=True)
+                                            for card in recommended_cards
+                                        ]
+                                    },
+                                )
+                        elif title_family and recommended_cards:
+                            finalized_answer = self._verified_title_result_answer(recommended_cards)
+                            yield _sse(
+                                "context_cards",
+                                {
+                                    "cards": [
+                                        card.model_dump(mode="json", by_alias=True)
+                                        for card in recommended_cards
+                                    ]
+                                },
+                            )
+                        elif selling_point_cards and not title_family:
+                            recommended_cards = selling_point_cards
+                            finalized_answer = self._verified_selling_point_result_answer(
+                                selling_point_names, recommended_cards
+                            )
+                            yield _sse(
+                                "context_cards",
+                                {
+                                    "cards": [
+                                        card.model_dump(mode="json", by_alias=True)
+                                        for card in recommended_cards
+                                    ]
+                                },
+                            )
+                        else:
+                            finalized_answer = self._recommendation_answer(
+                                answer,
+                                seed_image_ids=external_item_ids,
+                                cards=recommended_cards,
+                                preferred_family_keys=continuation_family_keys,
+                            )
+                        if (
+                            channel_match
+                            or (title_family and recommended_cards)
+                            or (selling_point_cards and not title_family)
+                        ):
+                            yield _sse("answer_delta", {"text": finalized_answer})
+                        elif finalized_answer != answer:
                             yield _sse(
                                 "answer_delta",
                                 {"text": finalized_answer[len(answer) :]},
@@ -445,6 +591,8 @@ class AssetAgentService:
                             external_suggestions
                         ) or _fallback_suggestions(bool(images or groups or recommended_cards))
                         session.suggested_questions_json = _json_dump(suggestions)
+                        if images and library_image_url:
+                            session.context_images_json = "[]"
                         self._add_message(
                             session,
                             role="assistant",
@@ -453,7 +601,6 @@ class AssetAgentService:
                             context_cards=recommended_cards,
                         )
                         self.sessions.save(session)
-                        self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
                         self.uow.commit()
                         response = AssetAgentChatResponse(
                             answer=answer,
@@ -488,7 +635,6 @@ class AssetAgentService:
                     used_model=False,
                 )
                 self.sessions.save(session)
-                self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
                 self.uow.commit()
                 response = AssetAgentChatResponse(
                     answer=answer,
@@ -521,12 +667,18 @@ class AssetAgentService:
     ) -> AssetAgentSession:
         if payload.conversation_id:
             session = self.sessions.get_for_user(user.id, payload.conversation_id)
-            if session and _is_active_today(session):
-                return session
             if session:
-                self.sessions.delete(session)
+                return session
         context_images = self._context_from_ids(payload.image_ids)
-        return self._create_session(user, context_images=context_images)
+        requested_id = ""
+        if payload.conversation_id:
+            try:
+                requested_id = str(uuid.UUID(payload.conversation_id))
+            except ValueError:
+                pass
+        return self._create_session(
+            user, context_images=context_images, session_id=requested_id or None
+        )
 
     def _create_session(
         self,
@@ -535,9 +687,11 @@ class AssetAgentService:
         title: str | None = None,
         context_images: list[AssetAgentImageContext] | None = None,
         use_ai_search_opening: bool = False,
+        session_id: str | None = None,
     ) -> AssetAgentSession:
         cleaned_context = _clean_context_images(context_images or [])
         session = AssetAgentSession(
+            id=session_id or str(uuid.uuid4()),
             user_id=user.id,
             title=_title_from_message(title or cleaned_context[0].title)
             if title or cleaned_context
@@ -546,7 +700,7 @@ class AssetAgentService:
                 [item.model_dump(by_alias=True) for item in cleaned_context]
             ),
             suggested_questions_json=_json_dump(_fallback_suggestions(bool(cleaned_context))),
-            expires_at=_next_reset_at(),
+            expires_at=_agent_legacy_expiry_at(),
             created_at=_now(),
             updated_at=_now(),
         )
@@ -575,19 +729,9 @@ class AssetAgentService:
 
     def _get_session_or_404(self, user: User, session_id: str) -> AssetAgentSession:
         session = self.sessions.get_for_user(user.id, session_id)
-        if not session or not _is_active_today(session):
-            if session:
-                self.sessions.delete(session)
+        if not session:
             raise NotFoundError("asset_agent_session_not_found", "聊天记录不存在或已过期")
         return session
-
-    def _reset_user_sessions_for_today(self, user: User) -> None:
-        now = _now()
-        self.sessions.delete_for_user_before_day(
-            user.id,
-            day_start=_current_day_start(now),
-            now=now,
-        )
 
     def _add_message(
         self,
@@ -619,7 +763,6 @@ class AssetAgentService:
             session.messages,
             key=lambda item: (_datetime_sort_key(item.created_at), item.id),
         )
-        memory_used_chars, memory_usage_ratio = _conversation_memory_usage(messages)
         return AssetAgentSessionRead(
             id=session.id,
             title=session.title,
@@ -627,9 +770,6 @@ class AssetAgentService:
             context_images=self._session_context(session),
             suggested_questions=_parse_string_list(session.suggested_questions_json),
             expires_at=session.expires_at,
-            memory_used_chars=memory_used_chars,
-            memory_limit_chars=MAX_AGENT_HISTORY_CHARS,
-            memory_usage_ratio=memory_usage_ratio,
             created_at=session.created_at,
             updated_at=session.updated_at,
         )
@@ -724,8 +864,25 @@ class AssetAgentService:
         *,
         message: str = "",
         preferred_family_keys: list[str] | None = None,
+        title_family: str = "",
     ) -> list[AssetAgentContextCard]:
         seed_images = self._load_images(image_ids)
+        if title_family:
+            seed_images = [
+                image for image in seed_images
+                if material_title_family(image.title) == title_family
+            ]
+            siblings = [
+                image
+                for image in self.images.list_published_current_by_title_prefixes(
+                    [title_family], limit=200
+                )
+                if material_title_family(image.title) == title_family
+            ]
+            return self._image_cards(
+                _unique_images([*seed_images, *siblings]),
+                limit=MAX_AGENT_RECOMMENDATION_CARDS,
+            )
         preferred = {key for key in preferred_family_keys or [] if _expandable_material_family(key)}
         seed_family_counts: dict[str, int] = {}
         for image in seed_images:
@@ -758,6 +915,172 @@ class AssetAgentService:
         ]
         ordered = _unique_images([*matching_seeds, *siblings])
         return self._image_cards(ordered, limit=MAX_AGENT_RECOMMENDATION_CARDS)
+
+    def _selling_point_material_cards(
+        self, session: AssetAgentSession, message: str
+    ) -> tuple[list[AssetAgentContextCard], list[str]]:
+        """Ground explicit selling-point image requests in accepted, published assets."""
+        if not _is_material_card_request(message):
+            return [], []
+        concepts = self.concepts.list()
+        mentioned = [concept for concept in concepts if concept.name in message]
+        if not mentioned and any(
+            phrase in message for phrase in ("这", "那", "上面", "前面", "刚才", "素材卡")
+        ):
+            previous_answers = (
+                item.content
+                for item in sorted(
+                    session.messages,
+                    key=lambda item: (_datetime_sort_key(item.created_at), item.id),
+                    reverse=True,
+                )
+                if item.role == "assistant"
+            )
+            previous_answer = next(previous_answers, "")
+            mentioned = [
+                concept for concept in concepts if concept.name in previous_answer
+            ]
+        if not mentioned or len(mentioned) > 4:
+            return [], []
+
+        cards: list[AssetAgentContextCard] = []
+        found_names: list[str] = []
+        per_concept = max(1, 8 // len(mentioned))
+        for concept in mentioned:
+            accepted = [
+                image
+                for image, relation_role in self.concepts.list_assets(concept.id)
+                if relation_role == "expresses" and not image.title.startswith("测试占位")
+            ]
+            if not accepted:
+                continue
+            selected = _unique_images(accepted)[:per_concept]
+            cards.extend(self._image_cards(selected, limit=per_concept))
+            found_names.append(concept.name)
+        return cards[:8], found_names
+
+    @staticmethod
+    def _verified_selling_point_result_answer(
+        names: list[str], cards: list[AssetAgentContextCard]
+    ) -> str:
+        joined = "、".join(f"「{name}」" for name in names)
+        return (
+            f"当前素材库按已确认的{joined}卖点关系找到 {len(cards)} 张已发布图片。"
+            "直接点下面的图片卡可以查看和下载。"
+        )
+
+    def _explicit_title_material_family(self, message: str) -> str:
+        if not any(phrase in message for phrase in ("找", "搜", "检索", "给我看", "推荐")):
+            return ""
+        if not any(phrase in message for phrase in ("图", "素材", "照片", "图片")):
+            return ""
+        candidates = self.images.list_published_current_titles_mentioned_in(message)
+        families = [
+            family
+            for image in candidates
+            for family in [material_title_family(image.title)]
+            if image.title.casefold() in message.casefold()
+            and _expandable_material_family(family)
+        ]
+        return max(families, key=len, default="")
+
+    def _explicit_channel_material_query(
+        self, message: str
+    ) -> tuple[str, list[str] | None] | None:
+        if not any(
+            phrase in message
+            for phrase in ("找", "搜", "检索", "给我看", "推荐", "有没有", "展示", "列出")
+        ):
+            return None
+        if not any(phrase in message for phrase in ("图", "素材", "案例", "配图")) and not any(
+            phrase in message for phrase in ("找", "搜", "检索", "给我看", "展示")
+        ):
+            return None
+        matches = [
+            channel.name
+            for channel in self.channel_folders.channels()
+            if channel.name and channel.name in message
+        ]
+        if not matches:
+            return None
+        channel = max(matches, key=len)
+        folders = self.channel_folders.folders(channel)
+        by_id = {folder.id: folder for folder in folders}
+
+        def depth(folder_id: str) -> int:
+            count = 0
+            current = by_id.get(folder_id)
+            seen: set[str] = set()
+            while current and current.parent_id and current.parent_id not in seen:
+                seen.add(current.parent_id)
+                current = by_id.get(current.parent_id)
+                count += 1
+            return count
+
+        named = [folder for folder in folders if folder.name in message]
+        if not named:
+            return channel, None
+        chosen = max(named, key=lambda folder: (depth(folder.id), len(folder.name)))
+        descendants = {chosen.id}
+        while True:
+            expanded = descendants | {
+                folder.id for folder in folders if folder.parent_id in descendants
+            }
+            if expanded == descendants:
+                break
+            descendants = expanded
+        return channel, list(descendants)
+
+    def _verified_channel_cards(
+        self,
+        channel: str,
+        folder_ids: list[str] | None,
+        *,
+        seed_image_ids: list[str],
+        allowed_image_ids: list[str] | None = None,
+    ) -> list[AssetAgentContextCard]:
+        if allowed_image_ids is not None:
+            allowed = self.images.list_published_current_for_channel(
+                channel,
+                folder_ids=folder_ids,
+                image_ids=allowed_image_ids,
+                limit=MAX_AGENT_RECOMMENDATION_CARDS,
+            ) if allowed_image_ids else []
+            return self._image_cards(allowed, limit=MAX_AGENT_RECOMMENDATION_CARDS)
+        verified_seeds = self.images.list_published_current_for_channel(
+            channel,
+            folder_ids=folder_ids,
+            image_ids=seed_image_ids,
+            limit=MAX_AGENT_RECOMMENDATION_CARDS,
+        ) if seed_image_ids else []
+        local = self.images.list_published_current_for_channel(
+            channel,
+            folder_ids=folder_ids,
+            limit=MAX_AGENT_RECOMMENDATION_CARDS,
+        )
+        return self._image_cards(
+            _unique_images([*verified_seeds, *local]),
+            limit=MAX_AGENT_RECOMMENDATION_CARDS,
+        )
+
+    @staticmethod
+    def _channel_result_answer(
+        answer: str, channel: str, cards: list[AssetAgentContextCard]
+    ) -> str:
+        if cards:
+            return (
+                f"本地图库中「{channel}」渠道找到 {len(cards)} 张当前已发布图片，"
+                "已列在下面；按实际渠道归属核对。"
+            )
+        return f"{answer}\n\n本地图库中「{channel}」渠道目前没有匹配的已发布图片。"
+
+    @staticmethod
+    def _verified_title_result_answer(cards: list[AssetAgentContextCard]) -> str:
+        family = material_title_family(cards[0].title)
+        return (
+            f"当前素材库找到「{family}」主题的 {len(cards)} 张已发布图片。"
+            "直接点下面的图片卡可以查看和下载。"
+        )
 
     def _continuation_family_keys(
         self,
@@ -868,13 +1191,53 @@ class AssetAgentService:
                 lines.append(f"- {fact}")
         return "\n".join(lines)
 
+    def _history_recap_answer(self, user: User, message: str) -> str:
+        normalized = "".join(message.split())
+        if not (
+            ("聊" in normalized and any(word in normalized for word in ("之前", "以前", "刚才")))
+            or ("问" in normalized and any(word in normalized for word in ("之前", "刚才")))
+            or "历史聊天" in normalized
+        ):
+            return ""
+        prior: list[tuple[float, str]] = []
+        for saved_session in self.sessions.list_for_user(user.id):
+            for item in saved_session.messages:
+                if item.role == "user" and item.content.strip():
+                    prior.append((_datetime_sort_key(item.created_at), item.content.strip()))
+        # This method runs before the current user message is persisted, so the
+        # list contains only actual earlier questions from this account.
+        prior.sort(key=lambda item: item[0])
+        if not prior:
+            return "目前保存的聊天记录里还没有更早的提问。"
+        topics = "\n".join(
+            f"{index}. {content}" for index, (_, content) in enumerate(prior, start=1)
+        )
+        return f"你之前在这个账号里依次问过：\n{topics}"
+
+    def _save_local_history_answer(
+        self, session: AssetAgentSession, answer: str
+    ) -> AssetAgentChatResponse:
+        suggestions = _fallback_suggestions(False)
+        session.suggested_questions_json = _json_dump(suggestions)
+        self._add_message(session, role="assistant", content=answer, used_model=False)
+        self.sessions.save(session)
+        self.uow.commit()
+        return AssetAgentChatResponse(
+            answer=answer,
+            conversation_id=session.id,
+            session=self._session_read(session),
+            suggested_questions=suggestions,
+            context_cards=[],
+            used_model=False,
+            provider_attempts=[],
+        )
+
     def _try_ai_search_chat(
         self,
         *,
         user: User,
         session: AssetAgentSession,
         message: str,
-        conversation_history: str,
         context_text: str,
         recommendation_family_keys: list[str],
         visual_image_url: str = "",
@@ -890,7 +1253,6 @@ class AssetAgentService:
                 _ai_search_chat_message(
                     message,
                     context_text,
-                    conversation_history=conversation_history,
                     response_mode=response_mode,
                     has_visual_image=bool(visual_image_url),
                     recommendation_family_keys=recommendation_family_keys,
@@ -973,6 +1335,12 @@ class AssetAgentService:
             )
         return self.temporary_images.public_url_for_owner(token, owner_id=user.id)
 
+    def _temporary_image_title(self, payload: AssetAgentChatRequest) -> str:
+        token = payload.temporary_image_token
+        if not token or self.temporary_images is None:
+            return ""
+        return self.temporary_images.public_file(token).title
+
     def _delete_temporary_image(
         self,
         user: User,
@@ -1017,11 +1385,86 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _uploaded_image_card(message_id: str, title: str) -> AssetAgentContextCard:
+    return AssetAgentContextCard(
+        kind="image",
+        id=f"uploaded:{message_id}",
+        title=title,
+        subtitle="用户上传图片",
+    )
+
+
+def _saved_dialogue_context(session: AssetAgentSession) -> str:
+    previous = sorted(
+        session.messages,
+        key=lambda item: (_datetime_sort_key(item.created_at), item.id),
+    )
+    lines: list[str] = []
+    for item in previous:
+        if item.role == "user":
+            lines.append(f"用户：{item.content}")
+        elif item.role == "assistant" and item.used_model and item.content.strip():
+            lines.append(f"助手：{item.content}")
+    if not lines:
+        return ""
+    return (
+        "以下是当前同一对话中已经保存的实际聊天内容，按发生顺序排列。"
+        "可用于理解追问或回答用户问‘之前聊过什么’；"
+        "旧回答不是未经核对的洋葱业务事实，新问题仍以当前知识库为准。\n"
+        + "\n".join(lines)
+    )
+
+
+def _sent_image_history_context(session: AssetAgentSession) -> str:
+    ordered_messages = sorted(
+        session.messages,
+        key=lambda item: (_datetime_sort_key(item.created_at), item.id),
+    )
+    sent_images: list[str] = []
+    for index, previous in enumerate(ordered_messages):
+        if previous.role != "user":
+            continue
+        image_cards = [
+            card
+            for card in _parse_context_cards(previous.context_cards_json)
+            if card.kind == "image"
+        ]
+        if not image_cards:
+            continue
+        following = next(
+            (
+                item
+                for item in ordered_messages[index + 1 :]
+                if item.role in {"user", "assistant"}
+            ),
+            None,
+        )
+        answer = (
+            following.content.strip()
+            if following is not None
+            and following.role == "assistant"
+            and following.used_model is True
+            else "此前没有生成可靠的看图回答，不能根据文件名推断画面。"
+        )
+        for card in image_cards:
+            sent_images.append(
+                f"第{len(sent_images) + 1}张：{card.title}；"
+                f"当时的问题：{previous.content}；当时的回答：{answer}"
+            )
+    if not sent_images:
+        return ""
+    return (
+        "以下是本对话此前实际发送过的图片，顺序可供用户用‘第一张’‘前两张’等自然语言回指。"
+        "这些是已保存的附件名称与先前回答，不代表本轮重新读取了旧图片像素；"
+        "若先前看图失败，不要猜测画面。\n"
+        + "\n".join(sent_images)
+    )
+
+
 def _ai_search_chat_message(
     message: str,
     context_text: str,
     *,
-    conversation_history: str = "",
     response_mode: AssetAgentResponseMode = "balanced",
     has_visual_image: bool = False,
     recommendation_family_keys: list[str] | None = None,
@@ -1059,12 +1502,6 @@ def _ai_search_chat_message(
             mode_instructions,
             image_instructions,
             recommendation_instructions,
-            "以下是同一会话最近几轮对话。请用它理解‘它、这个、刚才提到的卖点’等追问，"
-            "延续已经确认的上下文；过去的助手回答也可能有误，与项目知识冲突时主动更正。"
-            "如果本轮明确改变话题，以本轮问题为准。"
-            if conversation_history
-            else "",
-            conversation_history,
             "以下是用户带来的素材上下文；只在与本轮问题相关时使用。"
             if context_text.strip()
             else "",
@@ -1180,82 +1617,16 @@ def _chunk_text(value: str, *, size: int = 8) -> Iterator[str]:
         yield value[index : index + size]
 
 
-def _is_active_today(session: AssetAgentSession) -> bool:
-    now = _now()
-    created_at = session.created_at
-    expires_at = session.expires_at
-    if created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=timezone.utc)
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    return created_at >= _current_day_start(now) and expires_at > now
-
-
-def _current_day_start(now: datetime) -> datetime:
-    local_now = now.astimezone(AGENT_RESET_TIMEZONE)
-    local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    return local_start.astimezone(timezone.utc)
-
-
-def _next_reset_at() -> datetime:
-    local_now = _now().astimezone(AGENT_RESET_TIMEZONE)
-    tomorrow = local_now.date() + timedelta(days=1)
-    local_midnight = datetime.combine(
-        tomorrow,
-        datetime.min.time(),
-        tzinfo=AGENT_RESET_TIMEZONE,
-    )
-    return local_midnight.astimezone(timezone.utc)
+def _agent_legacy_expiry_at() -> datetime:
+    # The database column remains non-null for compatibility; Agent conversations
+    # are retained until the user explicitly deletes them.
+    return datetime(9999, 1, 1, tzinfo=timezone.utc)
 
 
 def _datetime_sort_key(value: datetime) -> float:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.timestamp()
-
-
-def _conversation_history_text(messages: list[AssetAgentMessage]) -> str:
-    lines = _conversation_memory_lines(messages)
-    selected: list[str] = []
-    used_chars = 0
-    for line in reversed(lines[-MAX_AGENT_HISTORY_MESSAGES:]):
-        separator_chars = 1 if selected else 0
-        if used_chars + separator_chars + len(line) > MAX_AGENT_HISTORY_CHARS:
-            break
-        selected.append(line)
-        used_chars += separator_chars + len(line)
-    return "\n".join(reversed(selected))
-
-
-def _conversation_memory_lines(messages: list[AssetAgentMessage]) -> list[str]:
-    ordered = sorted(
-        (item for item in messages if item.role in {"user", "assistant"} and item.content.strip()),
-        key=lambda item: (_datetime_sort_key(item.created_at), item.id),
-    )
-    first_user_index = next(
-        (index for index, item in enumerate(ordered) if item.role == "user"),
-        None,
-    )
-    if first_user_index is None:
-        return []
-    return [
-        f"{'用户' if item.role == 'user' else '助手'}："
-        f"{_clip(item.content, MAX_AGENT_HISTORY_MESSAGE_CHARS)}"
-        for item in ordered[first_user_index:]
-    ]
-
-
-def _conversation_memory_usage(
-    messages: list[AssetAgentMessage],
-) -> tuple[int, float]:
-    lines = _conversation_memory_lines(messages)
-    if not lines:
-        return 0, 0.0
-    raw_chars = sum(len(line) for line in lines) + max(0, len(lines) - 1)
-    if len(lines) > MAX_AGENT_HISTORY_MESSAGES:
-        raw_chars = MAX_AGENT_HISTORY_CHARS
-    used_chars = min(raw_chars, MAX_AGENT_HISTORY_CHARS)
-    return used_chars, round(used_chars / MAX_AGENT_HISTORY_CHARS, 4)
 
 
 def _json_dump(value: Any) -> str:
@@ -1481,6 +1852,11 @@ def _fallback_suggestions(has_context: bool) -> list[str]:
 
 
 def _ai_search_unavailable_answer(*, has_image: bool, failure_kind: str = "") -> str:
+    if failure_kind == "ImageUnavailable":
+        return (
+            "图片已加入当前对话，但在线服务这次无法读取它的画面，因此不能根据图片内容回答。"
+            "请管理员配置公网可访问的图片服务地址；配置完成后可直接重问，不必重新发送图片。"
+        )
     if failure_kind in {"ConnectError", "ConnectTimeout", "RemoteProtocolError"}:
         reason = "这次与 AI 搜索引擎的连接中断了。"
     elif failure_kind == "ReadTimeout":
@@ -1492,6 +1868,24 @@ def _ai_search_unavailable_answer(*, has_image: bool, failure_kind: str = "") ->
     return (
         f"{reason}请直接重试这个问题。"
         "你可以像普通 AI 助手一样提问，不需要先选择体系、卖点或发送图片。"
+    )
+
+
+def _needs_image_visual(message: str) -> bool:
+    return any(
+        phrase in message
+        for phrase in (
+            "讲了什么",
+            "写了什么",
+            "画面内容",
+            "看到了什么",
+            "图里",
+            "图上",
+            "图片里",
+            "图片上",
+            "照片里",
+            "画面里",
+        )
     )
 
 
@@ -1547,6 +1941,17 @@ def _is_same_material_family_followup(message: str) -> bool:
     return any(marker in normalized for marker in continuation_markers) and any(
         marker in normalized for marker in material_markers
     )
+
+def _is_material_card_request(message: str) -> bool:
+    normalized = "".join(message.split())
+    if "素材卡" in normalized and any(
+        marker in normalized for marker in ("要", "给", "看", "找", "展示", "返回")
+    ):
+        return True
+    return any(
+        marker in normalized
+        for marker in ("找", "搜", "检索", "给我看", "推荐", "展示", "列出", "返回")
+    ) and any(marker in normalized for marker in ("图", "素材", "照片", "配图"))
 
 
 def _normalize_agent_text(value: str) -> str:

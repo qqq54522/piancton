@@ -25,7 +25,6 @@ from app.schemas.ai import (
     SearchSystemRouting,
     SearchUnderstanding,
 )
-from app.services.ai_service import AiService
 from app.services.evidence_point_understanding_service import (
     EvidencePointUnderstandingService,
 )
@@ -148,7 +147,7 @@ MIN_PROOF_DETAIL_LENGTH = 4
 class QueryUnderstandingService:
     def __init__(
         self,
-        ai_service: AiService | None = None,
+        ai_service: object | None = None,
         catalog: BusinessIntentCatalog | None = None,
         search_policy: SearchPolicyCatalog | None = None,
         runtime_catalog: RuntimeIntentCatalog | None = None,

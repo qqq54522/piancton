@@ -17,6 +17,7 @@ import type {
   TagWithCount,
   UpdateImageTitleRequest,
 } from '@client/src/types/api';
+import type { ManagedChannel } from '@client/src/features/images/channelFolders';
 
 
 export async function fetchImages(params: ImageListParams): Promise<ImageListResponse> {
@@ -29,6 +30,30 @@ export async function fetchForYouImages(limit = 48): Promise<ForYouImageListResp
 
 export async function fetchImageChannels(): Promise<ImageChannelOptions> {
   return (await api.get('/api/images/channels')).data;
+}
+
+export async function fetchChannelFolderCatalog(): Promise<ManagedChannel[]> {
+  return (await api.get('/api/channel-folders')).data;
+}
+
+export async function createManagedChannel(name: string): Promise<ManagedChannel[]> {
+  return (await api.post('/api/channel-folders/channels', { name })).data;
+}
+
+export async function createChannelFolder(input: { channel: string; name: string; parentId?: string | null }): Promise<void> {
+  await api.post('/api/channel-folders/folders', input);
+}
+
+export async function renameChannelFolder(folderId: string, name: string): Promise<void> {
+  await api.patch(`/api/channel-folders/folders/${folderId}`, { name });
+}
+
+export async function deleteChannelFolder(folderId: string): Promise<void> {
+  await api.delete(`/api/channel-folders/folders/${folderId}`);
+}
+
+export async function assignChannelFolder(channel: string, imageIds: string[], folderId: string | null): Promise<number> {
+  return (await api.post('/api/channel-folders/placements', { channel, imageIds, folderId })).data.assigned;
 }
 
 export async function fetchSearchQueryRecommendations(
@@ -54,6 +79,7 @@ export async function uploadImage(input: {
   file: File;
   title: string;
   channel?: string;
+  folderPlacements?: Record<string, string>;
   styleLabel?: string;
   isSceneImage?: boolean;
 }): Promise<ImageItem> {
@@ -61,6 +87,9 @@ export async function uploadImage(input: {
   form.append('file', input.file);
   form.append('title', input.title);
   if (input.channel?.trim()) form.append('channel', input.channel.trim());
+  if (input.folderPlacements && Object.keys(input.folderPlacements).length) {
+    form.append('folderPlacements', JSON.stringify(input.folderPlacements));
+  }
   if (input.styleLabel?.trim()) form.append('styleLabel', input.styleLabel.trim());
   if (typeof input.isSceneImage === 'boolean') {
     form.append('isSceneImage', String(input.isSceneImage));

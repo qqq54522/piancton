@@ -26,9 +26,6 @@ export interface AgentSession {
   suggestedQuestions: string[];
   createdAt: number;
   updatedAt: number;
-  memoryUsedChars: number;
-  memoryLimitChars: number;
-  memoryUsageRatio: number;
 }
 
 export interface AgentState {
@@ -43,10 +40,6 @@ export const DEFAULT_QUESTIONS = [
   '我发一张图，你帮我看看它讲了什么',
 ] as const;
 
-export const MAX_SESSIONS = 20;
-export const DEFAULT_MEMORY_LIMIT_CHARS = 12_000;
-export const MEMORY_MESSAGE_LIMIT = 24;
-export const MEMORY_MESSAGE_CHAR_LIMIT = 1_200;
 export const LOCAL_SESSION_PREFIX = 'local-';
 export const DEFAULT_GREETING =
   'Hi，我是洋葱 Agent。你可以像和普通助手聊天一样直接提问。聊到洋葱的产品、业务体系或素材时，我会结合洋葱知识与素材库回答；其他问题也可以直接问我。';
@@ -94,9 +87,6 @@ export function createLocalSession(message = DEFAULT_GREETING): AgentSession {
     suggestedQuestions: [...DEFAULT_QUESTIONS],
     createdAt: now,
     updatedAt: now,
-    memoryUsedChars: 0,
-    memoryLimitChars: DEFAULT_MEMORY_LIMIT_CHARS,
-    memoryUsageRatio: 0,
   };
 }
 
@@ -108,11 +98,6 @@ export function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
     usedModel: message.usedModel,
     contextCards: message.contextCards ?? [],
   }));
-  const memoryLimitChars = positiveNumber(
-    session.memoryLimitChars,
-    DEFAULT_MEMORY_LIMIT_CHARS,
-  );
-  const localMemory = conversationMemoryUsage(messages, memoryLimitChars);
   return {
     id: session.id,
     title: session.title || '历史对话',
@@ -123,36 +108,6 @@ export function sessionFromApi(session: ApiAssetAgentSession): AgentSession {
       : [...DEFAULT_QUESTIONS],
     createdAt: dateToMillis(session.createdAt),
     updatedAt: dateToMillis(session.updatedAt),
-    memoryUsedChars: nonNegativeNumber(session.memoryUsedChars, localMemory.usedChars),
-    memoryLimitChars,
-    memoryUsageRatio: boundedRatio(session.memoryUsageRatio, localMemory.ratio),
-  };
-}
-
-export function conversationMemoryUsage(
-  messages: ChatMessage[],
-  limitChars = DEFAULT_MEMORY_LIMIT_CHARS,
-): { usedChars: number; ratio: number } {
-  const eligible = messages.filter((message) => (
-    (message.role === 'user' || message.role === 'assistant') && message.content.trim()
-  ));
-  const firstUserIndex = eligible.findIndex((message) => message.role === 'user');
-  if (firstUserIndex < 0) return { usedChars: 0, ratio: 0 };
-
-  const lines = eligible.slice(firstUserIndex).map((message) => {
-    const clipped = message.content.length > MEMORY_MESSAGE_CHAR_LIMIT
-      ? `${message.content.slice(0, MEMORY_MESSAGE_CHAR_LIMIT - 1)}…`
-      : message.content;
-    return `${message.role === 'user' ? '用户' : '助手'}：${clipped}`;
-  });
-  const normalizedLimit = positiveNumber(limitChars, DEFAULT_MEMORY_LIMIT_CHARS);
-  const rawChars = lines.length > MEMORY_MESSAGE_LIMIT
-    ? normalizedLimit
-    : lines.reduce((total, line) => total + line.length, Math.max(0, lines.length - 1));
-  const usedChars = Math.min(rawChars, normalizedLimit);
-  return {
-    usedChars,
-    ratio: usedChars / normalizedLimit,
   };
 }
 
@@ -206,8 +161,7 @@ export function stateFromSessions(
 ): AgentState {
   const normalized = sessions
     .filter((session) => session.messages.length > 0)
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, MAX_SESSIONS);
+    .sort((left, right) => right.updatedAt - left.updatedAt);
   const fallback = normalized.length > 0 ? normalized : [createLocalSession()];
   return {
     sessions: fallback,
@@ -226,8 +180,7 @@ export function upsertSession(
     session,
     ...state.sessions.filter((item) => item.id !== session.id && !isLocalSession(item.id)),
   ]
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, MAX_SESSIONS);
+    .sort((left, right) => right.updatedAt - left.updatedAt);
   return stateFromSessions(sessions, activeSessionId);
 }
 
@@ -238,8 +191,7 @@ export function updateSession(
 ): AgentState {
   const sessions = state.sessions
     .map((session) => (session.id === sessionId ? updater(session) : session))
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, MAX_SESSIONS);
+    .sort((left, right) => right.updatedAt - left.updatedAt);
   return { ...state, sessions };
 }
 
@@ -295,17 +247,4 @@ export function safeId(): string {
 function dateToMillis(value: string): number {
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
-function positiveNumber(value: number | undefined, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function nonNegativeNumber(value: number | undefined, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
-}
-
-function boundedRatio(value: number | undefined, fallback: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.max(0, Math.min(1, value));
 }

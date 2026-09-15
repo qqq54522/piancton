@@ -7,12 +7,9 @@
 | Skill | 触发场景 | 运行时 AI |
 |---|---|---|
 | `understand-image-search-intent` | 维护体系、卖点和边界知识；为火山知识索引提供来源 | 当前自由搜索不直接调用旧模型链路 |
-| `analyze-image-asset` | 历史图片分析规则资料；当前主流程不再调用 | 否；接口已退役 |
-| `match-copy-selling-points` | 历史文案卖点匹配规则资料；当前主流程不再调用 | 否；接口已退役 |
 | `manage-image-library` | 上传、素材组版本、人工关系、下载和回收 | 主要由确定性服务执行 |
 | `govern-selling-point-knowledge` | 维护六体系、16卖点和业务边界 | AI 可辅助，人工决定 |
 | `evaluate-image-search-quality` | 本地/三模型准确性、越界和延迟评测 | 可选；外发前必须授权 |
-| `operate-model-providers` | 历史 Provider 边界与防误接规则 | 当前运行时不调用；仅供迁移审计 |
 | `maintain-piancton-architecture` | 新功能、修复、重构和代码审查 | 开发阶段使用 |
 | `understand-image-channel-intent` | 用户搜索或上传时识别 PPT、品牌手册、手机端、官网及大图/小图语境 | 暂不默认调用；先由确定性规则和前端测试验证 |
 

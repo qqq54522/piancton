@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.domain.search_query_expansion import expand_search_terms
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
+from app.models.channel_folder import ImageChannelPlacement
 from app.models.image import (
     AnalysisRun,
     Image,
@@ -75,6 +76,9 @@ class ImageRepository:
         cursor_id: str | None,
         limit: int,
         sort_by: str,
+        folder_ids: list[str] | None = None,
+        unfiled: bool = False,
+        scene: str = "all",
     ) -> list[Image]:
         stmt = select(Image).where(Image.deleted_at.is_(None)).options(*IMAGE_LOAD_OPTIONS)
         if channel:
@@ -104,6 +108,29 @@ class ImageRepository:
                     normalized_field.ilike(f"%、{normalized_channel}"),
                 )
             )
+        if scene != "all":
+            stmt = stmt.outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id).where(
+                AssetGroup.is_scene_image.is_(scene == "scene")
+            )
+        if folder_ids is not None:
+            stmt = stmt.where(
+                exists(
+                    select(ImageChannelPlacement.id).where(
+                        ImageChannelPlacement.image_id == Image.id,
+                        ImageChannelPlacement.channel_name == channel,
+                        ImageChannelPlacement.folder_id.in_(folder_ids),
+                    )
+                )
+            )
+        elif unfiled and channel:
+            stmt = stmt.where(
+                ~exists(
+                    select(ImageChannelPlacement.id).where(
+                        ImageChannelPlacement.image_id == Image.id,
+                        ImageChannelPlacement.channel_name == channel,
+                    )
+                )
+            )
         if keyword:
             keyword_terms = expand_search_terms(keyword)[:30]
             patterns = [f"%{term}%" for term in keyword_terms if term.strip()]
@@ -114,22 +141,17 @@ class ImageRepository:
                         Image.title.ilike(pattern),
                         literal(keyword).ilike(literal("%") + Image.title + literal("%")),
                         Image.image_summary.ilike(pattern),
-                        literal(keyword).ilike(
-                            literal("%") + Image.image_summary + literal("%")
-                        ),
+                        literal(keyword).ilike(literal("%") + Image.image_summary + literal("%")),
                         AssetSearchPhrase.phrase.ilike(pattern),
                     ]
                 )
-            stmt = (
-                stmt.outerjoin(
-                    AssetSearchPhrase,
-                    and_(
-                        AssetSearchPhrase.asset_group_id == Image.asset_group_id,
-                        AssetSearchPhrase.review_status == "accepted",
-                    ),
-                )
-                .where(or_(*keyword_conditions))
-            )
+            stmt = stmt.outerjoin(
+                AssetSearchPhrase,
+                and_(
+                    AssetSearchPhrase.asset_group_id == Image.asset_group_id,
+                    AssetSearchPhrase.review_status == "accepted",
+                ),
+            ).where(or_(*keyword_conditions))
 
         if cursor_value is not None and cursor_id:
             if sort_by == "downloadCount":
@@ -189,6 +211,82 @@ class ImageRepository:
         if channel:
             stmt = stmt.where(Image.channel == channel)
         stmt = stmt.order_by(desc(Image.created_at), desc(Image.id)).limit(limit)
+        return list(self.db.scalars(stmt).all())
+
+    def list_published_current_for_channel(
+        self,
+        channel: str,
+        *,
+        folder_ids: list[str] | None = None,
+        image_ids: list[str] | None = None,
+        limit: int = 50,
+    ) -> list[Image]:
+        """Find verified channel members without treating a multi-channel value as one name."""
+        normalized_channel = channel.strip().replace(" ", "")
+        normalized_field = func.replace(
+            func.replace(
+                func.replace(
+                    func.replace(
+                        func.replace(Image.channel, " ", ""), ",", "、"
+                    ),
+                    "，", "、"
+                ),
+                "/", "、"
+            ),
+            "／", "、"
+        )
+        stmt = (
+            select(Image)
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .where(
+                Image.deleted_at.is_(None),
+                Image.is_current.is_(True),
+                or_(Image.asset_group_id.is_(None), AssetGroup.publish_status == "published"),
+                or_(
+                    normalized_field == normalized_channel,
+                    normalized_field.ilike(f"{normalized_channel}、%"),
+                    normalized_field.ilike(f"%、{normalized_channel}、%"),
+                    normalized_field.ilike(f"%、{normalized_channel}"),
+                ),
+            )
+            .options(*IMAGE_LOAD_OPTIONS)
+        )
+        if folder_ids is not None:
+            stmt = stmt.where(
+                exists(
+                    select(ImageChannelPlacement.id).where(
+                        ImageChannelPlacement.image_id == Image.id,
+                        ImageChannelPlacement.channel_name == channel,
+                        ImageChannelPlacement.folder_id.in_(folder_ids),
+                    )
+                )
+            )
+        if image_ids is not None:
+            stmt = stmt.where(Image.id.in_(image_ids))
+        return list(
+            self.db.scalars(
+                stmt.order_by(desc(Image.created_at), desc(Image.id))
+                .limit(max(1, min(limit, 200)))
+            ).all()
+        )
+
+    def list_published_current_titles_mentioned_in(
+        self, message: str, *, limit: int = 50
+    ) -> list[Image]:
+        """Use only exact local display titles explicitly present in the user's request."""
+        stmt = (
+            select(Image)
+            .outerjoin(AssetGroup, AssetGroup.id == Image.asset_group_id)
+            .where(
+                Image.deleted_at.is_(None),
+                Image.is_current.is_(True),
+                or_(Image.asset_group_id.is_(None), AssetGroup.publish_status == "published"),
+                literal(message).ilike(literal("%") + Image.title + literal("%")),
+            )
+            .options(*IMAGE_LOAD_OPTIONS)
+            .order_by(desc(Image.created_at), desc(Image.id))
+            .limit(max(1, min(limit, 200)))
+        )
         return list(self.db.scalars(stmt).all())
 
     def list_published_current_by_title_prefixes(
@@ -266,7 +364,7 @@ class ImageRepository:
                     Image.image_summary.ilike(pattern),
                     literal(keyword).ilike(literal("%") + Image.image_summary + literal("%")),
                     accepted_phrase_match,
-                )
+                ),
             )
             .options(*IMAGE_LOAD_OPTIONS)
             .order_by(desc(match_rank), desc(Image.created_at), desc(Image.id))

@@ -451,6 +451,92 @@ export interface paths {
         patch: operations["update_image_filter_metadata_api_images__image_id__filter_metadata_patch"];
         trace?: never;
     };
+    "/api/channel-folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog */
+        get: operations["catalog_api_channel_folders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/channel-folders/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Channel */
+        post: operations["create_channel_api_channel_folders_channels_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/channel-folders/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Folder */
+        post: operations["create_folder_api_channel_folders_folders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/channel-folders/folders/{folder_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Folder */
+        delete: operations["delete_folder_api_channel_folders_folders__folder_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Folder */
+        patch: operations["rename_folder_api_channel_folders_folders__folder_id__patch"];
+        trace?: never;
+    };
+    "/api/channel-folders/placements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign */
+        post: operations["assign_api_channel_folders_placements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/asset-groups": {
         parameters: {
             query?: never;
@@ -1530,12 +1616,6 @@ export interface components {
              * Format: date-time
              */
             expiresAt: string;
-            /** Memoryusedchars */
-            memoryUsedChars: number;
-            /** Memorylimitchars */
-            memoryLimitChars: number;
-            /** Memoryusageratio */
-            memoryUsageRatio: number;
             /**
              * Createdat
              * Format: date-time
@@ -2003,6 +2083,11 @@ export interface components {
             expected_search_words: string;
             /** Channel */
             channel?: string | null;
+            /**
+             * Folder Placements
+             * @default {}
+             */
+            folder_placements: string;
             /** Style Label */
             style_label?: string | null;
             /** Is Scene Image */
@@ -2095,6 +2180,18 @@ export interface components {
             proofPoints?: components["schemas"]["ProofPointFacetRead"][];
             /** Evidencepoints */
             evidencePoints?: components["schemas"]["EvidencePointFacetRead"][];
+        };
+        /** ChannelCreate */
+        ChannelCreate: {
+            /** Name */
+            name: string;
+        };
+        /** ChannelRead */
+        ChannelRead: {
+            /** Name */
+            name: string;
+            /** Folders */
+            folders: components["schemas"]["FolderRead"][];
         };
         /** ConceptHealthItem */
         ConceptHealthItem: {
@@ -2288,6 +2385,29 @@ export interface components {
             reason: string;
             /** Weight */
             weight: number;
+        };
+        /** FolderCreate */
+        FolderCreate: {
+            /** Channel */
+            channel: string;
+            /** Name */
+            name: string;
+            /** Parentid */
+            parentId?: string | null;
+        };
+        /** FolderRead */
+        FolderRead: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Parentid */
+            parentId?: string | null;
+        };
+        /** FolderRename */
+        FolderRename: {
+            /** Name */
+            name: string;
         };
         /** ForYouImageListResponse */
         ForYouImageListResponse: {
@@ -2591,6 +2711,20 @@ export interface components {
         PasswordReset: {
             /** Password */
             password: string;
+        };
+        /** PlacementBatch */
+        PlacementBatch: {
+            /** Channel */
+            channel: string;
+            /** Imageids */
+            imageIds: string[];
+            /** Folderid */
+            folderId?: string | null;
+        };
+        /** PlacementResult */
+        PlacementResult: {
+            /** Assigned */
+            assigned: number;
         };
         /** ProofPointFacetRead */
         ProofPointFacetRead: {
@@ -3820,6 +3954,9 @@ export interface operations {
             query?: {
                 keyword?: string | null;
                 channel?: string | null;
+                folderId?: string | null;
+                unfiled?: boolean;
+                scene?: string;
                 cursor?: string | null;
                 limit?: number;
                 sortBy?: string;
@@ -4423,6 +4560,227 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    catalog_api_channel_folders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_channel_api_channel_folders_channels_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_folder_api_channel_folders_folders_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_folder_api_channel_folders_folders__folder_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                folder_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_folder_api_channel_folders_folders__folder_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                folder_id: string;
+            };
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_api_channel_folders_placements_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlacementBatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlacementResult"];
                 };
             };
             /** @description Validation Error */

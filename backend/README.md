@@ -48,8 +48,8 @@ make docker-up
 ## AI Search
 
 在线搜索理解、推荐和素材库 Agent 问答只使用火山 AI Search。配置见根目录 README
-和 `backend/.env.example`。API 中心路由和独立模型调度已下线；历史模型配置与数据
-保留兼容，但不再装配进在线依赖。AI Search 不可用时搜索使用本地业务目录、数据库
+和 `backend/.env.example`。API 中心路由、独立模型调度、旧模型配置和图片分析任务已下线；
+历史数据库结构与迁移只为旧库无损升级保留，不装配进在线依赖。AI Search 不可用时搜索使用本地业务目录、数据库
 和可选 Meilisearch 降级，Agent 明确提示暂时不可用。
 
 ## 搜索后端

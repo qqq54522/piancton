@@ -1,5 +1,5 @@
-"""Vendor-neutral model provider contracts and implementations."""
+"""Historical AI contracts used by deterministic search compatibility code.
 
-from app.ai.factory import get_model_provider
-
-__all__ = ["get_model_provider"]
+The current runtime never initializes an independent model provider. Agent and
+online AI functions use the configured Viking AI Search application directly.
+"""

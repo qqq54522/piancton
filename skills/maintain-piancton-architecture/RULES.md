@@ -9,7 +9,7 @@ React client -> FastAPI route -> Service -> Repository -> SQLAlchemy model
                                   |
                                   +-> Domain policy
                                   +-> Storage
-                                  +-> ModelProvider
+                                  +-> Viking AI Search client
                                   +-> Search boundary services
 ```
 
@@ -19,14 +19,15 @@ React client -> FastAPI route -> Service -> Repository -> SQLAlchemy model
 - `backend/app/domain`: pure business policies, data structures and evaluation logic.
 - `backend/app/repositories`: database reads and writes only.
 - `backend/app/models`: persistence definitions only.
-- `backend/app/ai`: vendor-neutral model boundary and adapters.
+- `backend/app/ai`: historical contracts for compatibility; no current Provider factory.
 - `storage/images`: local image bytes.
 - `skills`: capability instructions and rule references.
 
 Allowed dependency direction is downward. Repositories must not import services;
-providers must not own business taxonomies; frontend must not contain authoritative
+AI Search clients must not own business taxonomies; frontend must not contain authoritative
 classification rules.
 
-Search assembly must remain split: `SearchService` wires dependencies,
-`AsyncSearchOrchestrator` sequences the pipeline, external branches own timeouts and
-hydration, and the rerank coordinator owns the single optional Reranker call.
+Online AI calls go only through `VolcAiSearchClient`. Agent uses its `chat_search`
+with the current knowledge and image datasets. Search may use a bounded local
+deterministic fallback, but must not initialize another model, VikingDB router,
+Embedding client, Reranker, or API Center scheduler.

@@ -1,14 +1,17 @@
 import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from io import BytesIO
+from uuid import uuid4
 
 import httpx
 import pytest
 from PIL import Image as PillowImage
 
-from app.core.errors import NotFoundError
+from app.core.errors import AppError, NotFoundError
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase, ConceptSystemLink
+from app.models.channel_folder import ChannelFolder, ImageChannelPlacement, ManagedChannel
 from app.models.image import Image
 from app.models.tag import Tag
 from app.models.user import User
@@ -164,11 +167,43 @@ def test_asset_agent_ai_search_receives_recent_history_for_manual_followup(db_fa
     assert first.conversation_id == session.id
     assert refreshed.id == session.id
     assert any(frame.startswith("event: final") for frame in frames)
-    assert "以下是同一会话最近几轮对话" in ai_search.last_query
-    assert "过去的助手回答也可能有误" in ai_search.last_query
+    assert ai_search.session_ids == [session.id, session.id]
     assert "用户：洋葱拍题精学解决什么问题？" in ai_search.last_query
     assert "助手：这是火山 AI Search 的业务知识回答。" in ai_search.last_query
     assert ai_search.last_query.startswith("那它属于哪个体系？")
+
+
+def test_asset_agent_recovers_missing_session_id_and_recaps_saved_prior_chat(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-recovered-chat", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+        ai_search = _FakeAiSearchChat()
+        service = AssetAgentService(db, ai_search_chat=ai_search)
+        earlier = service.create_session(user)
+        service.chat_in_session(
+            user,
+            earlier.id,
+            AssetAgentChatRequest(message="帮我找一张王玉龙专家的图片"),
+        )
+        recovered_id = str(uuid4())
+        first = service.chat_in_session(
+            user,
+            recovered_id,
+            AssetAgentChatRequest(message="我们之前都聊了什么呢"),
+        )
+        second = service.chat_in_session(
+            user,
+            recovered_id,
+            AssetAgentChatRequest(message="那张图片适合什么用途？"),
+        )
+
+    assert first.conversation_id == recovered_id
+    assert "帮我找一张王玉龙专家的图片" in first.answer
+    assert first.used_model is False
+    assert second.conversation_id == recovered_id
+    assert "我们之前都聊了什么呢" in ai_search.last_query
+    assert "助手：你之前在这个账号里依次问过" not in ai_search.last_query
 
 
 def test_asset_agent_never_uses_an_extra_model_when_ai_search_is_unavailable(db_factory):
@@ -277,7 +312,7 @@ def test_asset_agent_stream_retries_connection_before_answer_and_keeps_chat(db_f
     assert chat.page_sizes == [4, 4]
 
 
-def test_asset_agent_memory_window_keeps_recent_messages_and_reports_full(db_factory):
+def test_asset_agent_keeps_history_without_reporting_a_fake_memory_limit(db_factory):
     with db_factory() as db:
         user = User(username="agent-memory-cap-user", password_hash="x", role="business")
         db.add(user)
@@ -295,14 +330,28 @@ def test_asset_agent_memory_window_keeps_recent_messages_and_reports_full(db_fac
             )
         service.uow.commit()
 
-        history = asset_agent_service._conversation_history_text(session.messages)
         snapshot = service._session_read(session)
 
-    assert "memory-message-0-" not in history
-    assert "memory-message-29-" in history
-    assert len(history) <= asset_agent_service.MAX_AGENT_HISTORY_CHARS
-    assert snapshot.memory_used_chars == asset_agent_service.MAX_AGENT_HISTORY_CHARS
-    assert snapshot.memory_usage_ratio == 1.0
+    assert len(snapshot.messages) == 31
+    assert "memory-message-0-" in snapshot.messages[1].content
+    assert "memory-message-29-" in snapshot.messages[-1].content
+    assert "memoryLimitChars" not in snapshot.model_dump(mode="json", by_alias=True)
+
+
+def test_asset_agent_does_not_delete_older_same_day_conversations(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-many-sessions-user", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+
+        service = AssetAgentService(db)
+        first = service.create_session(user)
+        for _ in range(24):
+            service.create_session(user)
+        listed = service.list_sessions(user)
+
+    assert len(listed.sessions) == 25
+    assert first.id in {session.id for session in listed.sessions}
 
 
 def test_asset_agent_native_stream_persists_ai_search_image_cards(db_factory):
@@ -342,6 +391,217 @@ def test_asset_agent_native_stream_persists_ai_search_image_cards(db_factory):
     assert assistant.context_cards[0].id == image.id
     assert assistant.context_cards[0].identity_code == "PC-STREAM"
     assert assistant.context_cards[0].image_url.endswith(f"/{image.id}/thumbnail")
+
+
+def test_asset_agent_explicit_channel_search_uses_verified_folder_membership(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-channel-search", password_hash="x", role="business")
+        beijing = ChannelFolder(id=str(uuid4()), channel_name="合作案例", name="北京")
+        chaoyang = ChannelFolder(
+            id=str(uuid4()), channel_name="合作案例", name="朝阳", parent_id=beijing.id
+        )
+        wangjing = ChannelFolder(
+            id=str(uuid4()), channel_name="合作案例", name="望京", parent_id=chaoyang.id
+        )
+        shanghai = ChannelFolder(id=str(uuid4()), channel_name="合作案例", name="上海")
+        beijing_image = Image(
+            title="望京学校合作图", channel="PPT、合作案例", file_name="beijing.png",
+            storage_key="beijing.png", thumbnail_storage_key="beijing-thumb.png",
+            media_type="image/png", size_bytes=100, is_current=True,
+        )
+        shanghai_image = Image(
+            title="上海学校合作图", channel="合作案例", file_name="shanghai.png",
+            storage_key="shanghai.png", thumbnail_storage_key="shanghai-thumb.png",
+            media_type="image/png", size_bytes=100, is_current=True,
+        )
+        unrelated = Image(
+            title="PPT 公告图", channel="PPT", file_name="unrelated.png",
+            storage_key="unrelated.png", thumbnail_storage_key="unrelated-thumb.png",
+            media_type="image/png", size_bytes=100, is_current=True,
+        )
+        db.add_all([
+            user, ManagedChannel(name="合作案例"), ManagedChannel(name="PPT"),
+            beijing, chaoyang, wangjing, shanghai,
+            beijing_image, shanghai_image, unrelated,
+        ])
+        db.flush()
+        db.add_all([
+            ImageChannelPlacement(
+                image_id=beijing_image.id, channel_name="合作案例", folder_id=wangjing.id
+            ),
+            ImageChannelPlacement(
+                image_id=shanghai_image.id, channel_name="合作案例", folder_id=shanghai.id
+            ),
+        ])
+        db.commit()
+        ai_search = _FakeAiSearchChat()
+        ai_search.item_ids = [unrelated.id]
+        service = AssetAgentService(db, ai_search_chat=ai_search)
+        response = service.chat(
+            user, AssetAgentChatRequest(message="帮我找合作案例北京的图片")
+        )
+        session = service.create_session(user)
+        frames = list(service.chat_in_session_stream(
+            user, session.id, AssetAgentChatRequest(message="搜合作案例朝阳素材")
+        ))
+        refreshed = service.list_sessions(user).sessions[0]
+        search_query = ai_search.last_query
+        ai_search.item_ids = []
+        general = service.chat(
+            user, AssetAgentChatRequest(message="推荐 PPT 的制作方法")
+        )
+
+    assert {card.id for card in response.context_cards if card.kind == "image"} == {
+        beijing_image.id
+    }
+    assert unrelated.id not in {card.id for card in response.context_cards}
+    assert shanghai_image.id not in {card.id for card in response.context_cards}
+    assert "「合作案例」渠道找到 1 张" in response.answer
+    assert "业务知识回答" not in response.answer
+    assert any(frame.startswith("event: context_cards") for frame in frames)
+    assert any(
+        "「合作案例」渠道找到 1 张" in frame
+        for frame in frames
+        if frame.startswith("event: answer_delta")
+    )
+    assert {card.id for card in refreshed.messages[-1].context_cards} == {beijing_image.id}
+    assert search_query.startswith("搜合作案例朝阳素材")
+    assert general.answer == "这是火山 AI Search 的业务知识回答。"
+
+
+def test_asset_agent_named_material_returns_current_local_cards_instead_of_stale_link(
+    db_factory,
+):
+    stale_link = "http://118.196.150.130/image/b87cd76e-db89-4375-adbf-45c87ee15be5"
+
+    class LinkAiSearch(_FakeAiSearchChat):
+        def chat_search(self, *args, **kwargs):
+            result = super().chat_search(*args, **kwargs)
+            return replace(result, answer=f"这里有专家图片：{stale_link}")
+
+        def stream_chat_search(self, *args, **kwargs):
+            for event in super().stream_chat_search(*args, **kwargs):
+                yield (
+                    replace(event, content=f"这里有专家图片：{stale_link}")
+                    if event.content else event
+                )
+
+    with db_factory() as db:
+        user = User(username="agent-named-image", password_hash="x", role="business")
+        images = [
+            Image(
+                title=title, file_name=f"wang-{index}.png",
+                storage_key=f"wang-{index}.png",
+                thumbnail_storage_key=f"wang-{index}-thumb.png",
+                media_type="image/png", size_bytes=100, is_current=True,
+            )
+            for index, title in enumerate(("王玉龙专家", "王玉龙专家-01"), start=1)
+        ]
+        db.add_all([user, *images])
+        db.commit()
+        ai_search = LinkAiSearch()
+        ai_search.item_ids = ["b87cd76e-db89-4375-adbf-45c87ee15be5"]
+        service = AssetAgentService(db, ai_search_chat=ai_search)
+        response = service.chat(
+            user, AssetAgentChatRequest(message="帮我找一张王玉龙专家的图片")
+        )
+        session = service.create_session(user)
+        frames = list(service.chat_in_session_stream(
+            user, session.id, AssetAgentChatRequest(message="找王玉龙专家图片")
+        ))
+
+    expected = {image.id for image in images}
+    assert {card.id for card in response.context_cards if card.kind == "image"} == expected
+    assert stale_link not in response.answer
+    assert "点下面的图片卡" in response.answer
+    assert any(frame.startswith("event: context_cards") for frame in frames)
+    answer_frames = [frame for frame in frames if frame.startswith("event: answer_delta")]
+    assert any("点下面的图片卡" in frame for frame in answer_frames)
+    assert not any(stale_link in frame for frame in answer_frames)
+
+
+def test_asset_agent_selling_point_image_followup_returns_real_clickable_cards(
+    db_factory,
+):
+    class NamesOnlyAiSearch(_FakeAiSearchChat):
+        def chat_search(self, *args, **kwargs):
+            result = super().chat_search(*args, **kwargs)
+            return replace(
+                result,
+                answer="AI拍题精学和举一反三可以用不存在的官网图。",
+            )
+
+        def stream_chat_search(self, *args, **kwargs):
+            for event in super().stream_chat_search(*args, **kwargs):
+                yield replace(event, content="不存在的官网图") if event.content else event
+
+    with db_factory() as db:
+        user = User(username="agent-selling-point-cards", password_hash="x", role="business")
+        concepts = [
+            BusinessConcept(code="photo_guided_learning", name="AI拍题精学"),
+            BusinessConcept(code="transfer_practice", name="举一反三"),
+        ]
+        real_images = []
+        for index, concept in enumerate(concepts):
+            group = AssetGroup(title=concept.name, created_by="admin")
+            image = Image(
+                title=f"{concept.name}主图",
+                file_name=f"real-{index}.png",
+                storage_key=f"real-{index}.png",
+                thumbnail_storage_key=f"real-{index}-thumb.png",
+                media_type="image/png",
+                size_bytes=100,
+                is_current=True,
+                asset_group=group,
+            )
+            group.concept_links.append(AssetConceptLink(
+                concept=concept,
+                relation_role="expresses",
+                origin="manual",
+                review_status="accepted",
+            ))
+            real_images.append(image)
+            db.add_all([group, image])
+        pending_group = AssetGroup(title="未审核假图", created_by="admin")
+        pending_image = Image(
+            title="未审核假图", file_name="pending.png", storage_key="pending.png",
+            thumbnail_storage_key="pending-thumb.png", media_type="image/png",
+            size_bytes=100, is_current=True, asset_group=pending_group,
+        )
+        pending_group.concept_links.append(AssetConceptLink(
+            concept=concepts[0], relation_role="expresses", origin="ai",
+            review_status="pending",
+        ))
+        db.add_all([user, *concepts, pending_group, pending_image])
+        db.commit()
+
+        ai_search = NamesOnlyAiSearch()
+        service = AssetAgentService(db, ai_search_chat=ai_search)
+        first = service.chat(user, AssetAgentChatRequest(
+            message="AI拍题精学和举一反三分别解决什么问题？"
+        ))
+        second = service.chat(user, AssetAgentChatRequest(
+            message="把这两个卖点的图片给我找出来", conversation_id=first.session.id
+        ))
+        frames = list(service.chat_in_session_stream(
+            user, first.session.id, AssetAgentChatRequest(message="我要的是素材卡")
+        ))
+        refreshed = service.sessions.get(first.session.id)
+
+    expected = {image.id for image in real_images}
+    assert first.context_cards == []
+    assert {card.id for card in second.context_cards if card.kind == "image"} == expected
+    assert all(card.image_url and card.download_url for card in second.context_cards)
+    assert pending_image.id not in {card.id for card in second.context_cards}
+    assert "不存在的官网图" not in second.answer
+    assert "点下面的图片卡" in second.answer
+    assert {
+        card["id"] for card in json.loads(refreshed.messages[-1].context_cards_json)
+    } == expected
+    assert any(frame.startswith("event: context_cards") for frame in frames)
+    answer_frames = [frame for frame in frames if frame.startswith("event: answer_delta")]
+    assert any("点下面的图片卡" in frame for frame in answer_frames)
+    assert not any("不存在的官网图" in frame for frame in answer_frames)
 
 
 def test_asset_agent_new_session_uses_ai_search_opening_and_local_images(db_factory):
@@ -426,20 +686,167 @@ def test_asset_agent_bridges_library_image_pixels_into_ai_search_chat(
         )
 
     assert response.used_model is True
+    assert response.session.context_images == []
+    assert (
+        next(item for item in response.session.messages if item.role == "user").context_cards[0].id
+        == image.id
+    )
     assert any(frame.startswith("event: final") for frame in frames)
     assert len(ai_search.image_urls) == 2
+    assert ai_search.image_urls[0].startswith(
+        "http://example.test/api/asset-agent/temporary-images/"
+    )
+    assert ai_search.image_urls[1] == ""
+    assert "/api/images/" not in ai_search.image_urls[0]
+    assert "拍题精学讲解图" in ai_search.queries[0]
+    assert ai_search.session_ids == [response.session.id, response.session.id]
+    with pytest.raises(NotFoundError):
+        temporary_images.public_file(ai_search.image_urls[0].rsplit("/", 1)[-1])
+
+
+def test_asset_agent_stream_consumes_library_image_after_success(db_factory, tmp_path):
+    with db_factory() as db:
+        user = User(username="agent-stream-image-user", password_hash="x", role="business")
+        image = Image(
+            title="望京合作学校图",
+            file_name="school.png",
+            storage_key="school.png",
+            thumbnail_storage_key="school-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+        )
+        db.add_all([user, image])
+        db.commit()
+
+        storage = LocalStorageProvider(tmp_path / "images")
+        (storage.thumbnails / "school-thumb.png").write_bytes(_png_bytes())
+        temporary_images = AssetAgentTemporaryImageService(
+            tmp_path / "agent-temporary",
+            public_base_url="http://example.test",
+            max_upload_bytes=20 * 1024 * 1024,
+            max_image_pixels=1_000_000,
+            max_long_image_pixels=2_000_000,
+            long_image_min_aspect_ratio=3.0,
+        )
+        ai_search = _FakeAiSearchChat()
+        service = AssetAgentService(
+            db,
+            ai_search_chat=ai_search,
+            ai_search_public_base_url="http://example.test",
+            temporary_images=temporary_images,
+            storage=storage,
+        )
+        first_frames = list(
+            service.chat_stream(
+                user,
+                AssetAgentChatRequest(message="这张图讲了什么？", image_ids=[image.id]),
+            )
+        )
+        first_final = next(
+            json.loads(frame.partition("data: ")[2])
+            for frame in first_frames
+            if frame.startswith("event: final")
+        )
+        second_frames = list(
+            service.chat_in_session_stream(
+                user,
+                first_final["conversationId"],
+                AssetAgentChatRequest(message="那它适合怎么介绍？"),
+            )
+        )
+
+    assert first_final["session"]["contextImages"] == []
+    assert any(
+        card["id"] == image.id
+        for item in first_final["session"]["messages"]
+        if item["role"] == "user"
+        for card in item["contextCards"]
+    )
+    assert any(frame.startswith("event: final") for frame in second_frames)
+    assert ai_search.image_urls[0].startswith(
+        "http://example.test/api/asset-agent/temporary-images/"
+    )
+    assert ai_search.image_urls[1] == ""
+    assert "望京合作学校图" in ai_search.queries[0]
+    assert "第1张：望京合作学校图" in ai_search.queries[1]
+    assert ai_search.session_ids == [first_final["conversationId"]] * 2
+
+
+def test_asset_agent_remembers_two_sent_images_in_followup(db_factory, tmp_path):
+    with db_factory() as db:
+        user = User(username="agent-two-image-history", password_hash="x", role="business")
+        first_image = Image(
+            title="北京合作学校图",
+            file_name="beijing.png",
+            storage_key="beijing.png",
+            thumbnail_storage_key="beijing-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+        )
+        second_image = Image(
+            title="上海合作学校图",
+            file_name="shanghai.png",
+            storage_key="shanghai.png",
+            thumbnail_storage_key="shanghai-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+        )
+        db.add_all([user, first_image, second_image])
+        db.commit()
+        storage = LocalStorageProvider(tmp_path / "images")
+        for image in (first_image, second_image):
+            (storage.thumbnails / image.thumbnail_storage_key).write_bytes(_png_bytes())
+        temporary_images = AssetAgentTemporaryImageService(
+            tmp_path / "agent-temporary",
+            public_base_url="http://example.test",
+            max_upload_bytes=20 * 1024 * 1024,
+            max_image_pixels=1_000_000,
+            max_long_image_pixels=2_000_000,
+            long_image_min_aspect_ratio=3.0,
+        )
+        ai_search = _FakeAiSearchChat()
+        service = AssetAgentService(
+            db,
+            ai_search_chat=ai_search,
+            temporary_images=temporary_images,
+            storage=storage,
+        )
+        first = service.chat(
+            user,
+            AssetAgentChatRequest(message="第一张图讲什么？", image_ids=[first_image.id]),
+        )
+        assert first.session is not None
+        second = service.chat_in_session(
+            user,
+            first.session.id,
+            AssetAgentChatRequest(message="第二张图呢？", image_ids=[second_image.id]),
+        )
+        assert second.session is not None
+        followup = service.chat_in_session(
+            user,
+            first.session.id,
+            AssetAgentChatRequest(message="我前两张发的是什么图片？"),
+        )
+        assert followup.session is not None
+
+    assert followup.conversation_id == first.session.id
+    assert ai_search.session_ids == [first.session.id] * 3
     assert all(
         url.startswith("http://example.test/api/asset-agent/temporary-images/")
-        for url in ai_search.image_urls
+        for url in ai_search.image_urls[:2]
     )
-    assert all("/api/images/" not in url for url in ai_search.image_urls)
-    assert len(set(ai_search.image_urls)) == 2
-    assert "本轮附带图片" in ai_search.last_query
-    assert "区分可见内容和推测" in ai_search.last_query
-    assert "拍题精学讲解图" in ai_search.last_query
-    for url in ai_search.image_urls:
-        with pytest.raises(NotFoundError):
-            temporary_images.public_file(url.rsplit("/", 1)[-1])
+    assert ai_search.image_urls[2] == ""
+    assert "第1张：北京合作学校图" in ai_search.queries[2]
+    assert "第2张：上海合作学校图" in ai_search.queries[2]
+    assert "当时的回答：这是火山 AI Search 的业务知识回答" in ai_search.queries[2]
+    sent_titles = [
+        card.title
+        for message in followup.session.messages
+        if message.role == "user"
+        for card in message.context_cards
+        if card.kind == "image"
+    ]
+    assert sent_titles == ["北京合作学校图", "上海合作学校图"]
 
 
 def test_asset_agent_expands_same_title_family_and_keeps_followup_on_topic(db_factory):
@@ -544,12 +951,13 @@ def test_asset_agent_temporary_image_is_used_once_and_fast_mode_is_bounded(
         )
         ai_search = _FakeAiSearchChat()
 
-        response = AssetAgentService(
+        service = AssetAgentService(
             db,
             ai_search_chat=ai_search,
             ai_search_chat_page_size=10,
             temporary_images=temporary_images,
-        ).chat(
+        )
+        response = service.chat(
             user,
             AssetAgentChatRequest(
                 message="这张图表达什么卖点？",
@@ -557,17 +965,92 @@ def test_asset_agent_temporary_image_is_used_once_and_fast_mode_is_bounded(
                 response_mode="fast",
             ),
         )
+        assert response.session is not None
+        followup = service.chat_in_session(
+            user,
+            response.session.id,
+            AssetAgentChatRequest(message="我刚发的那张图片是什么？"),
+        )
+        assert followup.session is not None
 
     assert response.used_model is True
-    assert ai_search.last_image_url == uploaded.preview_url
-    assert ai_search.last_page_size == 4
-    assert "本轮用户选择简短回答" in ai_search.last_query
-    assert "本轮附带图片" in ai_search.last_query
+    assert ai_search.image_urls == [uploaded.preview_url, ""]
+    assert ai_search.session_ids == [response.session.id] * 2
+    assert "本轮用户选择简短回答" in ai_search.queries[0]
+    assert "本轮附带图片" in ai_search.queries[0]
+    assert "第1张：不会分类的图片" in ai_search.queries[1]
+    assert response.session.messages[-2].context_cards[0].subtitle == "用户上传图片"
     with pytest.raises(NotFoundError):
         temporary_images.public_file(uploaded.token)
 
 
-def test_asset_agent_temporary_image_endpoint_is_ephemeral(client):
+@pytest.mark.parametrize("base_url", ["http://localhost", "http://127.0.0.1", "http://192.168.1.5"])
+def test_asset_agent_rejects_local_visual_bridge_urls(tmp_path, base_url):
+    temporary_images = AssetAgentTemporaryImageService(
+        tmp_path / "agent-temporary",
+        public_base_url=base_url,
+        max_upload_bytes=20 * 1024 * 1024,
+        max_image_pixels=1_000_000,
+        max_long_image_pixels=2_000_000,
+        long_image_min_aspect_ratio=3.0,
+    )
+    with pytest.raises(AppError) as error:
+        temporary_images.public_url("A" * 32)
+    assert error.value.code == "temporary_image_public_url_unreachable"
+
+
+def test_asset_agent_explains_when_local_library_image_cannot_reach_ai_search(db_factory, tmp_path):
+    with db_factory() as db:
+        user = User(username="agent-local-visual-user", password_hash="x", role="business")
+        image = Image(
+            title="押题合集-河北",
+            file_name="question.png",
+            storage_key="question.png",
+            thumbnail_storage_key="question-thumb.png",
+            media_type="image/png",
+            size_bytes=100,
+        )
+        db.add_all([user, image])
+        db.commit()
+        storage = LocalStorageProvider(tmp_path / "images")
+        (storage.thumbnails / "question-thumb.png").write_bytes(_png_bytes())
+        temporary_images = AssetAgentTemporaryImageService(
+            tmp_path / "agent-temporary",
+            public_base_url="http://localhost",
+            max_upload_bytes=20 * 1024 * 1024,
+            max_image_pixels=1_000_000,
+            max_long_image_pixels=2_000_000,
+            long_image_min_aspect_ratio=3.0,
+        )
+        ai_search = _FakeAiSearchChat()
+        service = AssetAgentService(
+            db, ai_search_chat=ai_search, temporary_images=temporary_images, storage=storage
+        )
+        response = service.chat(
+            user,
+            AssetAgentChatRequest(message="这张图片讲了什么", image_ids=[image.id]),
+        )
+        assert response.session is not None
+        frames = list(
+            service.chat_in_session_stream(
+                user,
+                response.session.id,
+                AssetAgentChatRequest(message="图里写了什么"),
+            )
+        )
+
+    assert response.used_model is False
+    assert "无法读取它的画面" in response.answer
+    assert response.provider_attempts[0]["error"] == "ImageUnavailable"
+    assert any("无法读取它的画面" in frame for frame in frames)
+    assert ai_search.image_urls == []
+    assert list((tmp_path / "agent-temporary").iterdir()) == []
+
+
+def test_asset_agent_temporary_image_endpoint_is_ephemeral(client, monkeypatch):
+    from app.api import dependencies
+
+    monkeypatch.setattr(dependencies.settings, "ai_search_public_base_url", "http://example.test")
     csrf = login(client, "business", "business-password")
     headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
 
@@ -645,7 +1128,7 @@ def test_asset_agent_sessions_are_user_private_even_for_admin(client):
     assert [item["id"] for item in still_owned.json()["sessions"]] == [session_id]
 
 
-def test_asset_agent_resets_all_user_memory_at_local_midnight(
+def test_asset_agent_keeps_user_conversation_across_local_midnight(
     db_factory,
     monkeypatch,
 ):
@@ -664,44 +1147,37 @@ def test_asset_agent_resets_all_user_memory_at_local_midnight(
         first_reply = service.chat_in_session(
             user,
             first.id,
-            AssetAgentChatRequest(message="第一个窗口的今日记忆"),
+            AssetAgentChatRequest(message="第一个窗口的聊天记录"),
         ).session
         assert first_reply is not None
         assert first_reply.id == first.id
-        assert first_reply.memory_used_chars > 0
-        assert first_reply.memory_limit_chars == asset_agent_service.MAX_AGENT_HISTORY_CHARS
 
         second = service.create_session(user, None)
         second_reply = service.chat_in_session(
             user,
             second.id,
-            AssetAgentChatRequest(message="第二个窗口的今日记忆"),
+            AssetAgentChatRequest(message="第二个窗口的聊天记录"),
         ).session
         assert second_reply is not None
         assert len(service.list_sessions(user).sessions) == 2
 
         monkeypatch.setattr(asset_agent_service, "_now", lambda: after_midnight)
-        fresh = service.list_sessions(user)
+        retained = service.list_sessions(user)
 
-        assert len(fresh.sessions) == 1
-        assert fresh.sessions[0].id not in {first.id, second.id}
-        assert fresh.sessions[0].title == "新对话"
-        assert [message.role for message in fresh.sessions[0].messages] == ["assistant"]
-        assert fresh.sessions[0].memory_used_chars == 0
-        assert fresh.sessions[0].expires_at > after_midnight
-        assert service.sessions.get_for_user(user.id, first.id) is None
-        assert service.sessions.get_for_user(user.id, second.id) is None
+        assert {session.id for session in retained.sessions} == {first.id, second.id}
+        assert service.sessions.get_for_user(user.id, first.id) is not None
+        assert service.sessions.get_for_user(user.id, second.id) is not None
 
         response = service.chat_in_session(
             user,
             first.id,
-            AssetAgentChatRequest(message="新一天第一问"),
+            AssetAgentChatRequest(message="新一天继续追问"),
         )
 
         assert response.session is not None
-        assert response.conversation_id not in {first.id, second.id}
-        assert "第一个窗口的今日记忆" not in ai_search.last_query
-        assert "第二个窗口的今日记忆" not in ai_search.last_query
+        assert response.conversation_id == first.id
+        assert "第一个窗口的聊天记录" in ai_search.last_query
+        assert "第二个窗口的聊天记录" not in ai_search.last_query
 
 
 class _FakeAiSearchChat:
@@ -713,6 +1189,8 @@ class _FakeAiSearchChat:
     def __init__(self):
         self.item_ids = []
         self.image_urls: list[str] = []
+        self.queries: list[str] = []
+        self.session_ids: list[str] = []
 
     @property
     def chat_search_configured(self) -> bool:
@@ -729,6 +1207,8 @@ class _FakeAiSearchChat:
         image_url: str = "",
     ) -> VolcAiSearchChatResult:
         self.last_query = query
+        self.queries.append(query)
+        self.session_ids.append(session_id)
         self.last_image_url = image_url
         self.image_urls.append(image_url)
         self.last_page_size = page_size
@@ -752,6 +1232,8 @@ class _FakeAiSearchChat:
         image_url: str = "",
     ):
         self.last_query = query
+        self.queries.append(query)
+        self.session_ids.append(session_id)
         self.last_image_url = image_url
         self.image_urls.append(image_url)
         self.last_page_size = page_size

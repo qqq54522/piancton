@@ -6,18 +6,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = PROJECT_ROOT / "skills"
 
 FORMAL_SKILLS = {
-    "analyze-image-asset",
     "evaluate-image-search-quality",
     "govern-selling-point-knowledge",
     "maintain-piancton-architecture",
     "manage-image-library",
-    "match-copy-selling-points",
-    "operate-model-providers",
     "understand-image-channel-intent",
     "understand-image-search-intent",
 }
 
 RETIRED_SKILLS = {
+    "analyze-image-asset",
+    "match-copy-selling-points",
+    "operate-model-providers",
     "analyze-image-content",
     "classify-secondary-selling-points",
     "integrate-model-provider",

@@ -16,14 +16,20 @@ export function useImageListQuery(
   keyword: string,
   sortBy: 'createdAt' | 'downloadCount',
   channel: string,
+  folderId: string | null = null,
+  unfiled = false,
+  scene: 'all' | 'scene' | 'nonScene' = 'all',
 ) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const imageQuery = useInfiniteQuery({
-    queryKey: ['images', keyword, sortBy, channel],
+    queryKey: ['images', keyword, sortBy, channel, folderId, unfiled, scene],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => imageApi.fetchImages({
       keyword: keyword || undefined,
       channel: channel || undefined,
+      folderId: folderId || undefined,
+      unfiled: channel ? unfiled : undefined,
+      scene,
       cursor: pageParam,
       limit: 12,
       sortBy,

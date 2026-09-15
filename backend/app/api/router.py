@@ -10,6 +10,7 @@ from app.api.v1 import (
     auth,
     business_concepts,
     business_facets,
+    channel_folders,
     images,
     search_feedback,
     search_ops,
@@ -22,6 +23,7 @@ api_router.include_router(auth.router)
 api_router.include_router(announcements.router)
 api_router.include_router(announcements.admin_router)
 api_router.include_router(images.router)
+api_router.include_router(channel_folders.router)
 api_router.include_router(assets.router)
 api_router.include_router(business_concepts.router)
 api_router.include_router(business_facets.router)

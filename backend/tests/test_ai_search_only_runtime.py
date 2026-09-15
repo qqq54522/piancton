@@ -28,3 +28,21 @@ def test_asset_agent_runtime_uses_only_viking_ai_search(db_factory):
     assert service.ai_search_chat is None or service.ai_search_chat.base_url.startswith(
         "https://aisearch."
     )
+    if service.ai_search_chat is not None:
+        assert service.ai_search_chat.chat_dataset_ids == [
+            item.strip()
+            for item in dependencies.settings.ai_search_chat_dataset_ids.split(",")
+            if item.strip()
+        ]
+
+
+def test_retired_model_settings_cannot_be_loaded_into_runtime():
+    for name in (
+        "model_api_key",
+        "search_fallback_api_key",
+        "image_analysis_api_key",
+        "embedding_api_key",
+        "reranker_api_key",
+        "vikingdb_api_key",
+    ):
+        assert not hasattr(dependencies.settings, name)

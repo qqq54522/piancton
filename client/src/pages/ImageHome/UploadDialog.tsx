@@ -15,9 +15,11 @@ import {
   DialogTitle,
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
+import { Select } from '@client/src/components/ui/select';
 import { useBusinessConcepts } from '@client/src/features/assets/useBusinessConcepts';
 import { SellingPointRelationFields } from '@client/src/features/assets/SellingPointRelationFields';
 import { useImageChannelOptions } from '@client/src/features/images/hooks/useImageListQuery';
+import { folderPath, useChannelFolderCatalog } from '@client/src/features/images/channelFolders';
 import { useImageTitleResolution } from '@client/src/features/images/useImageTitleResolution';
 import UploadAssetPicker from './UploadAssetPicker';
 import { addCustomChannel, useChannelOptions } from './channelOptions';
@@ -38,6 +40,7 @@ const UploadDialog = ({ initialMode = 'single', open, onOpenChange, onSuccess }:
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState('');
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+  const [folderPlacements, setFolderPlacements] = useState<Record<string, string>>({});
   const [addingChannel, setAddingChannel] = useState(false);
   const [draftChannel, setDraftChannel] = useState('');
   const [styleLabel, setStyleLabel] = useState('');
@@ -53,7 +56,11 @@ const UploadDialog = ({ initialMode = 'single', open, onOpenChange, onSuccess }:
   } | null>(null);
   const concepts = useBusinessConcepts(open);
   const remoteChannels = useImageChannelOptions(open);
-  const channelOptions = useChannelOptions(remoteChannels.data?.channels ?? []);
+  const folderCatalog = useChannelFolderCatalog(open);
+  const channelOptions = useChannelOptions([
+    ...(remoteChannels.data?.channels ?? []),
+    ...(folderCatalog.data?.map((channel) => channel.name) ?? []),
+  ]);
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
@@ -88,6 +95,7 @@ const UploadDialog = ({ initialMode = 'single', open, onOpenChange, onSuccess }:
     setFiles([]);
     setTitle('');
     setSelectedChannels([]);
+    setFolderPlacements({});
     setAddingChannel(false);
     setDraftChannel('');
     setStyleLabel('');
@@ -141,6 +149,7 @@ const UploadDialog = ({ initialMode = 'single', open, onOpenChange, onSuccess }:
           file,
           title: fileTitle,
           channel: joinChannelValues(selectedChannels),
+          folderPlacements: Object.fromEntries(Object.entries(folderPlacements).filter(([channel]) => selectedChannels.includes(channel))),
           styleLabel: styleLabel.trim() || undefined,
           isSceneImage,
         });
@@ -419,6 +428,23 @@ const UploadDialog = ({ initialMode = 'single', open, onOpenChange, onSuccess }:
                     </div>
                     <span className="field-hint">每张主图至少选择一个适用渠道；可多选，新增渠道会同步出现在首页筛选里。</span>
                   </div>
+                  {selectedChannels.some((channel) => folderCatalog.data?.some((entry) => entry.name === channel && entry.folders.length > 0)) && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {selectedChannels.map((channel) => {
+                        const folders = folderCatalog.data?.find((entry) => entry.name === channel)?.folders ?? [];
+                        if (!folders.length) return null;
+                        return <label key={channel}>
+                          <span className="field-label">{channel} · 目录</span>
+                          <Select value={folderPlacements[channel] ?? ''} disabled={uploading}
+                            onChange={(event) => setFolderPlacements((current) => ({ ...current, [channel]: event.target.value }))}>
+                            <option value="">暂不归类</option>
+                            {folders.map((folder) => <option key={folder.id} value={folder.id}>{folderPath(folder, folders)}</option>)}
+                          </Select>
+                        </label>;
+                      })}
+                      <p className="col-span-full text-xs text-muted-foreground">选择最具体的分类即可，上级地区、学校等会自动归属；旧图片可以在渠道管理中批量整理。</p>
+                    </div>
+                  )}
                   {mode === 'single' && <label className="block">
                     <span className="field-label">画面风格</span>
                     <Input

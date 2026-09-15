@@ -23,6 +23,7 @@ from app.services.asset_service import AssetService
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.business_concept_service import BusinessConceptService
+from app.services.channel_folder_service import ChannelFolderService
 from app.services.home_recommendation_service import HomeRecommendationService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
@@ -139,6 +140,10 @@ def get_image_service(db: Session = Depends(get_db)) -> ImageService:
             settings.ai_search_enabled and settings.ai_search_recommend_enabled
         ),
     )
+
+
+def get_channel_folder_service(db: Session = Depends(get_db)) -> ChannelFolderService:
+    return ChannelFolderService(db)
 
 
 def get_home_recommendation_service(

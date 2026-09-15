@@ -19,6 +19,7 @@ from app.models.business_concept import (
     ConceptSearchPhrase,
     ConceptSystemLink,
 )
+from app.models.channel_folder import ChannelFolder, ImageChannelPlacement, ManagedChannel
 from app.models.image import (
     AnalysisRun,
     ContentTag,
@@ -47,6 +48,9 @@ __all__ = [
     "ModelCallTrace",
     "ModelRoutingSlot",
     "BusinessConcept",
+    "ManagedChannel",
+    "ChannelFolder",
+    "ImageChannelPlacement",
     "ConceptSystemLink",
     "ConceptRelation",
     "ConceptSearchPhrase",

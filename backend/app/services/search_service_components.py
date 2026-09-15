@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
 from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
-from app.services.ai_service import AiService
 from app.services.concept_search_recall import ConceptSearchRecallService
 from app.services.database_search_recall import DatabaseSearchRecallService
 from app.services.embedding_recall_service import EmbeddingRecallService
@@ -17,7 +17,6 @@ from app.services.query_profile_service import QueryProfileService
 from app.services.query_understanding_service import QueryUnderstandingService
 from app.services.search_cache import SearchCaches, build_search_caches
 from app.services.search_external_branches import SearchExternalBranches
-from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
 from app.services.search_orchestrator import AsyncSearchOrchestrator
 from app.services.search_ranking_service import SearchRankingService
 from app.services.search_rerank_coordinator import SearchRerankCoordinator
@@ -25,9 +24,12 @@ from app.services.search_result_recommendation_service import (
     SearchResultRecommendationService,
 )
 from app.services.search_system_filter import SearchSystemFilter
-from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
-from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
-from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
+
+if TYPE_CHECKING:
+    from app.services.search_knowledge_fallback_router import SearchKnowledgeFallbackRouter
+    from app.services.semantic_search_clients import EmbeddingClient, RerankerClient
+    from app.services.viking_knowledge_service_router import VikingKnowledgeServiceRouter
+    from app.services.vikingdb_knowledge_router import VikingDBKnowledgeRouter
 
 
 @dataclass
@@ -44,7 +46,7 @@ def build_search_components(
     meilisearch_api_key: str,
     meilisearch_index: str,
     search_timeout_seconds: float,
-    ai_service: AiService | None,
+    ai_service: object | None,
     embedding_client: EmbeddingClient | None,
     embedding_top_n: int,
     reranker: RerankerClient | None,

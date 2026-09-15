@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
@@ -8,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, BinaryIO
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from PIL import Image as PillowImage
 from PIL import UnidentifiedImageError
@@ -162,6 +163,24 @@ class AssetAgentTemporaryImageService:
             raise AppError(
                 "temporary_image_public_url_missing",
                 "临时问图地址尚未配置，请联系管理员",
+                status_code=503,
+            )
+        parsed = urlparse(self.public_base_url)
+        hostname = (parsed.hostname or "").lower()
+        try:
+            address = ipaddress.ip_address(hostname)
+        except ValueError:
+            address = None
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not hostname
+            or hostname == "localhost"
+            or hostname.endswith((".localhost", ".local"))
+            or (address is not None and not address.is_global)
+        ):
+            raise AppError(
+                "temporary_image_public_url_unreachable",
+                "当前图片地址只在本地可访问，在线问图需要公网可访问的服务地址",
                 status_code=503,
             )
         return urljoin(

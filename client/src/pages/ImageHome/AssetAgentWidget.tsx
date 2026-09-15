@@ -33,8 +33,8 @@ import { useAuth } from '@client/src/lib/auth';
 import { copyTextToClipboard } from '@client/src/lib/clipboard';
 import type { AssetAgentContextCard } from '@client/src/types/api';
 import {
+  contextApiToPayload,
   contextPayloadToApi,
-  conversationMemoryUsage,
   createLocalSession,
   DEFAULT_GREETING,
   DEFAULT_QUESTIONS,
@@ -65,9 +65,10 @@ interface AssetAgentWidgetProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   topOffset?: number;
+  dockLocked?: boolean;
 }
 
-const AssetAgentWidget = ({ open, onOpenChange, topOffset = 0 }: AssetAgentWidgetProps = {}) => {
+const AssetAgentWidget = ({ open, onOpenChange, topOffset = 0, dockLocked = false }: AssetAgentWidgetProps = {}) => {
   const { user } = useAuth();
   if (!user) return null;
 
@@ -77,6 +78,7 @@ const AssetAgentWidget = ({ open, onOpenChange, topOffset = 0 }: AssetAgentWidge
       open={open}
       onOpenChange={onOpenChange}
       topOffset={topOffset}
+      dockLocked={dockLocked}
     />
   );
 };
@@ -85,6 +87,7 @@ function AssetAgentWidgetInner({
   open: controlledOpen,
   onOpenChange,
   topOffset = 0,
+  dockLocked = false,
 }: AssetAgentWidgetProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -118,11 +121,6 @@ function AssetAgentWidgetInner({
     (total, message) => total + message.content.length + (message.reasoningContent?.length ?? 0),
     0,
   );
-  const activeMemory = useMemo(
-    () => conversationMemoryUsage(activeSession.messages, activeSession.memoryLimitChars),
-    [activeSession.memoryLimitChars, activeSession.messages],
-  );
-  const activeMemoryPercent = Math.min(100, Math.round(activeMemory.ratio * 100));
   const isIntroOnly = !activeSession.messages.some((message) => message.role === 'user');
   const open = controlledOpen ?? internalOpen;
 
@@ -180,9 +178,11 @@ function AssetAgentWidgetInner({
     setOpenState(true);
     const current = activeSessionRef.current;
     const contextImages = current?.contextImages ?? [];
-    if (contextImages.some((item) => item.imageId === image.imageId)) return current ?? null;
+    if (contextImages.length === 1 && contextImages[0].imageId === image.imageId) {
+      return current ?? null;
+    }
 
-    const nextContext = [...contextImages, image].slice(-8);
+    const nextContext = [image];
     if (!current || isLocalSession(current.id)) {
       try {
         const created = await createAssetAgentSession({
@@ -405,7 +405,25 @@ function AssetAgentWidgetInner({
       title: session.title === '新对话' ? titleFromMessage(message) : session.title,
       messages: [
         ...session.messages,
-        { id: safeId(), role: 'user', content: message },
+        {
+          id: safeId(),
+          role: 'user',
+          content: message,
+          contextCards: targetSession.contextImages.map((image): AssetAgentContextCard => ({
+            kind: 'image',
+            id: image.imageId,
+            title: image.title,
+            facts: [],
+            imageUrl: image.imageUrl ?? null,
+            assetGroupId: image.assetGroupId ?? null,
+          })).concat(imageForRequest ? [{
+            kind: 'image',
+            id: `uploaded:${safeId()}`,
+            title: imageForRequest.file.name.replace(/\.[^.]+$/, '').trim() || '临时图片',
+            facts: [],
+            imageUrl: null,
+          }] : []),
+        },
         {
           id: assistantMessageId,
           role: 'assistant',
@@ -467,8 +485,15 @@ function AssetAgentWidgetInner({
           })));
           return;
         }
+        if (event.response.session && event.response.session.id !== targetSession.id) {
+          const confirmed = sessionFromApi(event.response.session);
+          setState((current) => upsertSession(current, confirmed, confirmed.id));
+          return;
+        }
         setState((current) => updateSession(current, targetSession.id, (session) => ({
           ...session,
+          contextImages: event.response.session?.contextImages.map(contextApiToPayload)
+            ?? session.contextImages,
           messages: session.messages.map((item) => (
             item.id === assistantMessageId
               ? {
@@ -516,8 +541,16 @@ function AssetAgentWidgetInner({
           temporaryImageToken: fallbackTemporaryImage?.token ?? null,
           responseMode,
         });
+        if (response.session && response.session.id !== targetSession.id) {
+          const confirmed = sessionFromApi(response.session);
+          setState((current) => upsertSession(current, confirmed, confirmed.id));
+          if (imageForRequest) clearPendingImage();
+          return;
+        }
         setState((current) => updateSession(current, targetSession.id, (session) => ({
           ...session,
+          contextImages: response.session?.contextImages.map(contextApiToPayload)
+            ?? session.contextImages,
           messages: [
             ...session.messages,
             responseMessage(response),
@@ -564,7 +597,6 @@ function AssetAgentWidgetInner({
       aria-label="Piancton Agent 对话侧栏"
     >
       <div className="flex h-12 items-center justify-end gap-2 border-b border-border/60 bg-white px-4">
-        <AgentMemoryIndicator percent={activeMemoryPercent} />
         <button
           type="button"
           className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition hover:bg-secondary/70 hover:text-foreground"
@@ -575,7 +607,7 @@ function AssetAgentWidgetInner({
         </button>
         <button
           type="button"
-          className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary/70 hover:text-foreground"
+          className={`inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary/70 hover:text-foreground ${dockLocked ? 'lg:hidden' : ''}`}
           onClick={() => setOpenState(false)}
           aria-label="收起 Piancton Agent"
           title="收起"
@@ -588,7 +620,7 @@ function AssetAgentWidgetInner({
         <div className="border-b border-border/60 bg-secondary/45 px-4 py-2">
           <div className="mb-1 flex items-center justify-between">
             <p className="text-[11px] font-medium text-muted-foreground">
-              当前聊天已带入 {activeSession.contextImages.length} 张图片
+              下一条消息将附带 {activeSession.contextImages.length} 张图片
             </p>
             <button
               type="button"
@@ -669,9 +701,21 @@ function AssetAgentWidgetInner({
                 />
               ) : null}
               {!isIntroMessage && (
-                <AgentMessageContent
-                  content={normalizeAgentText(message.content || (message.streaming ? '正在生成回答内容…' : ''))}
-                />
+                <>
+                  {message.role === 'user' && message.contextCards?.filter((card) => card.kind === 'image').map((card) => (
+                    <div key={card.id} className="mb-2 flex items-center gap-2 text-[11px] text-background/80">
+                      {card.imageUrl ? (
+                        <img src={card.imageUrl} alt="" className="size-8 rounded-md object-cover" />
+                      ) : (
+                        <ImageIcon className="size-4" />
+                      )}
+                      <span className="truncate">{card.title}</span>
+                    </div>
+                  ))}
+                  <AgentMessageContent
+                    content={normalizeAgentText(message.content || (message.streaming ? '正在生成回答内容…' : ''))}
+                  />
+                </>
               )}
               {message.role === 'assistant' && message.contextCards && (
                 <AgentImageCards
@@ -809,56 +853,6 @@ function AssetAgentWidgetInner({
         </div>
       </div>
     </aside>
-  );
-}
-
-function AgentMemoryIndicator({ percent }: { percent: number }) {
-  const normalized = Math.max(0, Math.min(100, percent));
-  const circumference = 2 * Math.PI * 10;
-  const dashOffset = circumference * (1 - normalized / 100);
-  const colorClass = normalized >= 90
-    ? 'text-destructive'
-    : normalized >= 70
-      ? 'text-amber-500'
-      : 'text-foreground/70';
-  const title = normalized >= 90
-    ? `今日对话记忆已使用 ${normalized}%，建议点击“新对话”开启新的记忆窗口；每天 00:00 会清空所有 Agent 对话`
-    : `今日对话记忆已使用 ${normalized}%；每天 00:00 会清空所有 Agent 对话`;
-
-  return (
-    <div
-      className={`mr-auto inline-flex items-center gap-1.5 text-[11px] font-medium ${colorClass}`}
-      role="status"
-      aria-label={title}
-      title={title}
-    >
-      <span className="relative inline-flex size-8 items-center justify-center" aria-hidden="true">
-        <svg viewBox="0 0 28 28" className="absolute inset-0 size-8 -rotate-90">
-          <circle
-            cx="14"
-            cy="14"
-            r="10"
-            fill="none"
-            stroke="currentColor"
-            strokeOpacity="0.14"
-            strokeWidth="2.5"
-          />
-          <circle
-            cx="14"
-            cy="14"
-            r="10"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-          />
-        </svg>
-        <span className="relative text-[9px] tabular-nums">{normalized}</span>
-      </span>
-      <span>今日记忆</span>
-    </div>
   );
 }
 

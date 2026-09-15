@@ -8,7 +8,6 @@ from app.api import dependencies
 from app.models.asset import AssetConceptLink, AssetGroup
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
 from app.models.tag import Tag
-from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from tests.conftest import login
 
@@ -445,11 +444,6 @@ def test_phase5_asset_search_phrase_mutation_routes_are_retired(
     client, monkeypatch
 ):
     monkeypatch.setattr(SearchIndexSync, "upsert_image", lambda _self, _image: None)
-    monkeypatch.setattr(
-        EmbeddingIndexSync,
-        "upsert_image",
-        lambda _self, _repo, _image: None,
-    )
     csrf = login(client, "admin", "admin-password")
     headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
     primary = client.post(

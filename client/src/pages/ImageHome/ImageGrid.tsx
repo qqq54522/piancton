@@ -116,7 +116,8 @@ const ImageGrid = ({
     return (
       <motion.div
         key={`masonry-${layoutRevision}`}
-        className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5 min-[1800px]:columns-6"
+        className="gap-4"
+        style={{ columnWidth: '300px' }}
         initial="hidden"
         animate="visible"
         variants={staggerVariants}

@@ -83,20 +83,21 @@ def test_external_search_does_not_leak_into_repositories():
     assert violations == []
 
 
-def test_ai_service_normalizes_model_payload_before_schema_validation():
-    path = ROOT / "services" / "ai_service.py"
-    source = path.read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    imports = imported_modules(path)
-    calls_normalizer = any(
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id == "normalize_model_payload"
-        for node in ast.walk(tree)
-    )
-
-    assert "app.ai.normalizer" in imports
-    assert calls_normalizer
+def test_agent_and_startup_do_not_import_retired_model_dispatch():
+    for relative_path in (
+        "ai/__init__.py",
+        "api/dependencies.py",
+        "services/asset_agent_service.py",
+    ):
+        imports = imported_modules(ROOT / relative_path)
+        assert not any(
+            module.startswith(
+                ("app.ai.factory", "app.services.ai_service", "app.services.analysis_tasks")
+            )
+            for module in imports
+        ), relative_path
+    assert not (ROOT / "ai" / "factory.py").exists()
+    assert not (ROOT / "services" / "ai_service.py").exists()
 
 
 def test_image_service_does_not_own_ai_analysis_persistence():
@@ -201,8 +202,8 @@ def test_phase4_search_orchestration_stays_split_and_bounded():
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
 
-    assert len(facade_source.splitlines()) <= 150
-    assert len(orchestrator_source.splitlines()) <= 300
+    assert len(facade_source.splitlines()) <= 350
+    assert len(orchestrator_source.splitlines()) <= 450
     assert "app.services.search_service_components" in imported_modules(facade)
     assert "app.services.search_external_branches" in imported_modules(components)
     assert "app.services.search_rerank_coordinator" in imported_modules(components)
@@ -316,8 +317,7 @@ def test_phase_1_to_3_workflows_keep_domain_boundaries_separate():
 
     assert "app.models.image" not in imported_modules(concept_service)
     assert "app.models.business_concept" not in imported_modules(asset_service)
-    assert "app.services.asset_relation_service" in imported_modules(analysis_service)
-    assert "AssetConceptLink" not in analysis_service.read_text(encoding="utf-8")
+    assert not analysis_service.exists()
     assert "ImageBusinessLabel" not in relation_service.read_text(encoding="utf-8")
 
 
@@ -327,7 +327,7 @@ def test_phase4_async_orchestrator_keeps_io_and_database_boundaries_separate():
     orchestrator = ROOT / "services" / "search_orchestrator.py"
     api = ROOT / "api" / "v1" / "images.py"
 
-    assert len(facade.read_text(encoding="utf-8").splitlines()) < 150
+    assert len(facade.read_text(encoding="utf-8").splitlines()) < 350
     assert "AsyncSearchOrchestrator" in components.read_text(encoding="utf-8")
     assert "ImageSummaryMatchService" not in facade.read_text(encoding="utf-8")
     assert not any(

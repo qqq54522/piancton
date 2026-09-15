@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { Loader2, RotateCcw, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderClosed, Loader2, RotateCcw, Upload } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '@client/src/components/ui/button';
@@ -9,7 +9,8 @@ import { useImageBrowser } from '@client/src/features/images/useImageBrowser';
 import { useAnimatedGifPreview } from '@client/src/features/images/useAnimatedGifPreview';
 import { useForYouImages } from '@client/src/features/images/useForYouImages';
 import { takeImageHomeScroll } from '@client/src/features/images/searchNavigationState';
-import type { BusinessConcept, BusinessFacetCatalog, ImageItem } from '@client/src/types/api';
+import type { BusinessConcept, BusinessFacetCatalog, ImageItem, TagWithCount } from '@client/src/types/api';
+import { type ChannelFolder } from '@client/src/features/images/channelFolders';
 import GlobalImageSearch from './GlobalImageSearch';
 import AssetAgentWidget from './AssetAgentWidget';
 import ImageGrid from './ImageGrid';
@@ -41,7 +42,7 @@ const ImageHome = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [manualFilterOpen, setManualFilterOpen] = useState(false);
-  const [agentPanelOpen, setAgentPanelOpen] = useState(false);
+  const [agentPanelOpen, setAgentPanelOpen] = useState(() => window.innerWidth >= 1024);
   const [uploadMode, setUploadMode] = useState<UploadMode>('single');
   const animatedGifPreview = useAnimatedGifPreview();
   const consumedLocationStateKeyRef = useRef<string | null>(null);
@@ -51,11 +52,15 @@ const ImageHome = () => {
   const isBusiness = auth.user?.role === 'business';
   const {
     businessConcepts,
+    businessSystems,
     businessFacets,
+    folderCatalog,
+    selectedFolderId,
+    setSelectedFolderId,
+    setUnfiledOnly,
     clearGlobalSearch,
     executeGlobalSearch,
     globalSearchImages,
-    globalSearchInput,
     globalSearchKeyword,
     globalSearchError,
     globalSearchLoading,
@@ -70,19 +75,27 @@ const ImageHome = () => {
     searchRefinements,
     selectedConceptCode,
     selectedProofPointCode,
+    selectedSystemCode,
     selectConcept,
     selectProofPoint,
+    selectSystem,
     semanticResult,
     setChannelIntentRefinement,
     setSelectedChannel,
     setSelectedScene,
     sentinelRef,
-    setGlobalSearchInput,
     setSortBy,
     setUploadOpen,
     sortBy,
     uploadOpen,
   } = useImageBrowser();
+  useEffect(() => {
+    const keepAgentDocked = () => {
+      if (window.innerWidth >= 1024) setAgentPanelOpen(true);
+    };
+    window.addEventListener('resize', keepAgentDocked);
+    return () => window.removeEventListener('resize', keepAgentDocked);
+  }, []);
   const showingTypedSearch = globalSearchSource === 'typed' && (Boolean(semanticResult) || Boolean(globalSearchKeyword));
   const showingForYou = isBusiness
     && !showingTypedSearch
@@ -194,34 +207,32 @@ const ImageHome = () => {
     <div className="pb-8">
       <div
         ref={stickyHeaderRef}
-        className={`fixed right-0 top-0 z-40 border-b border-border/60 bg-white ${!isBusiness ? 'left-20' : 'left-0'} ${isBusiness ? 'px-4 py-4 sm:px-6 lg:px-8' : 'px-4 pb-4 pt-3 sm:px-6 lg:px-8'}`}
+        className={`fixed right-0 top-0 z-40 border-b border-border/60 bg-white lg:right-[440px] ${!isBusiness ? 'left-20' : 'left-0'} px-4 py-3 sm:px-6 lg:px-8`}
       >
         <div className="mx-auto w-full max-w-[1920px]">
           <GlobalImageSearch
-            input={globalSearchInput}
             refinementOptions={refinementOptions}
             refinements={searchRefinements}
-            refinementsReady={Boolean(semanticResult) && !globalSearchLoading}
             sortBy={sortBy}
             showBusinessAccount={isBusiness}
             manualFilterOpen={manualFilterOpen}
             animateGifPreview={animatedGifPreview.enabled}
             agentOpen={agentPanelOpen}
-            onInputChange={setGlobalSearchInput}
-            onChannelChange={setSelectedChannel}
+            onChannelChange={(channel) => {
+              setSelectedChannel(channel);
+              setManualFilterOpen(Boolean(channel));
+            }}
             onSceneChange={setSelectedScene}
             onSortByChange={setSortBy}
             onManualFilterOpenChange={setManualFilterOpen}
             onAnimateGifPreviewChange={animatedGifPreview.setEnabled}
             onAgentOpenChange={setAgentPanelOpen}
-            onClear={clearGlobalSearch}
-            onSearch={executeGlobalSearch}
           />
         </div>
       </div>
 
       <div className="w-full px-0" style={{ paddingTop: contentTopOffset }}>
-        <div className={`transition-[padding] duration-300 ease-out ${agentPanelOpen ? 'lg:pr-[440px]' : ''}`}>
+        <div className="transition-[padding] duration-300 ease-out lg:pr-[440px]">
           <div className="flex items-start gap-0 max-sm:flex-col">
             <ManualFilterRail
               open={manualFilterOpen}
@@ -229,8 +240,15 @@ const ImageHome = () => {
               stickyTop={headerTopOffset}
               selectedConceptCode={selectedConceptCode}
               selectedProofPointCode={selectedProofPointCode}
+              selectedSystemCode={selectedSystemCode}
+              businessSystems={businessSystems}
               businessConcepts={businessConcepts}
               businessFacets={businessFacets}
+              channel={searchRefinements.channel}
+              folders={folderCatalog.find((item) => item.name === searchRefinements.channel)?.folders ?? []}
+              selectedFolderId={selectedFolderId}
+              onFolderChange={(id) => { setSelectedFolderId(id); setUnfiledOnly(false); }}
+              onSystemChange={selectSystem}
               onConceptChange={selectConcept}
               onProofPointChange={selectProofPoint}
             />
@@ -320,8 +338,9 @@ const ImageHome = () => {
       />
       <AssetAgentWidget
         open={agentPanelOpen}
-        onOpenChange={setAgentPanelOpen}
-        topOffset={stickyHeaderHeight}
+        onOpenChange={(open) => { if (window.innerWidth < 1024) setAgentPanelOpen(open); }}
+        topOffset={0}
+        dockLocked
       />
     </div>
   );
@@ -410,8 +429,15 @@ interface ManualFilterRailProps {
   stickyTop: number;
   selectedConceptCode: string | null;
   selectedProofPointCode: string | null;
+  selectedSystemCode: string | null;
+  businessSystems: TagWithCount[];
   businessConcepts: BusinessConcept[];
   businessFacets: BusinessFacetCatalog;
+  channel: string;
+  folders: ChannelFolder[];
+  selectedFolderId: string | null;
+  onFolderChange: (id: string | null) => void;
+  onSystemChange: (value: string | null) => void;
   onConceptChange: (value: string | null) => void;
   onProofPointChange: (value: string | null) => void;
 }
@@ -422,11 +448,19 @@ const ManualFilterRail = ({
   stickyTop,
   selectedConceptCode,
   selectedProofPointCode,
+  selectedSystemCode,
+  businessSystems,
   businessConcepts,
   businessFacets,
+  channel,
+  folders,
+  selectedFolderId,
+  onFolderChange,
+  onSystemChange,
   onConceptChange,
   onProofPointChange,
 }: ManualFilterRailProps) => {
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const [draftConceptCode, setDraftConceptCode] = useState<string | null>(selectedConceptCode);
   const [draftProofPointCode, setDraftProofPointCode] = useState<string | null>(selectedProofPointCode);
   const visibleProofPoints = businessFacets.proofPoints.filter(
@@ -446,6 +480,8 @@ const ManualFilterRail = ({
     setDraftConceptCode(selectedConceptCode);
     setDraftProofPointCode(selectedProofPointCode);
   }, [open, selectedConceptCode, selectedProofPointCode]);
+
+  useEffect(() => { setExpandedFolderIds(new Set()); }, [channel]);
 
   const handleConceptDraftChange = (value: string | null) => {
     setDraftConceptCode(value);
@@ -476,7 +512,33 @@ const ManualFilterRail = ({
     >
       <div className="flex h-full max-h-full w-[320px] flex-col border-r border-border/70 bg-white max-sm:w-full max-sm:rounded-[24px] max-sm:border">
         <div className="min-h-0 overflow-y-auto px-7 py-7 compact-scrollbar max-sm:px-5 max-sm:py-5">
-          <div className="space-y-7">
+          <div className="mb-5 flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">{channel ? '分类' : '业务卖点'}</h2>
+          </div>
+          {channel ? (
+            <div className="space-y-1">
+              {folders.length > 0 && folders.filter((folder) => !folder.parentId)
+                .sort((a, b) => a.name.localeCompare(b.name, 'zh')).map((folder) => (
+                  <ChannelFolderBranch key={folder.id} folder={folder} folders={folders}
+                    selectedFolderId={selectedFolderId} expandedFolderIds={expandedFolderIds}
+                    onSelect={onFolderChange}
+                    onToggle={(id) => setExpandedFolderIds((current) => {
+                      const next = new Set(current);
+                      if (next.has(id)) next.delete(id); else next.add(id);
+                      return next;
+                    })} />
+                ))}
+              {!folders.length && <p className="px-3 py-4 text-xs text-muted-foreground">这个渠道还没有分类，全部图片仍可浏览。</p>}
+            </div>
+          ) : <div className="space-y-7">
+            <label className="block">
+              <span className="field-label">体系</span>
+              <Select aria-label="按体系筛选" value={selectedSystemCode ?? ''}
+                onChange={(event) => onSystemChange(event.target.value || null)}>
+                <option value="">全部体系</option>
+                {businessSystems.map((system) => <option key={system.code} value={system.code ?? ''}>{system.name}</option>)}
+              </Select>
+            </label>
             <label className="block">
               <span className="field-label">卖点</span>
               <Select
@@ -504,9 +566,9 @@ const ManualFilterRail = ({
                 ))}
               </Select>
             </label>
-          </div>
+          </div>}
         </div>
-        <div className="mt-auto flex items-center gap-3 border-t border-border/60 bg-white p-5">
+        {!channel && <div className="mt-auto flex items-center gap-3 border-t border-border/60 bg-white p-5">
           <Button
             type="button"
             variant="outline"
@@ -526,11 +588,42 @@ const ManualFilterRail = ({
           >
             应用
           </Button>
-        </div>
+        </div>}
       </div>
     </aside>
   );
 };
+
+function ChannelFolderBranch({ folder, folders, selectedFolderId, expandedFolderIds, onSelect, onToggle }: {
+  folder: ChannelFolder;
+  folders: ChannelFolder[];
+  selectedFolderId: string | null;
+  expandedFolderIds: Set<string>;
+  onSelect: (id: string | null) => void;
+  onToggle: (id: string) => void;
+}) {
+  const children = folders.filter((item) => item.parentId === folder.id).sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  const expanded = expandedFolderIds.has(folder.id);
+  const active = selectedFolderId === folder.id;
+  return <div className="mb-1">
+    <div className={`flex items-center rounded-xl transition-colors ${active ? 'bg-foreground text-background' : 'bg-secondary/70 hover:bg-secondary'}`}>
+      <button type="button" onClick={() => { onSelect(folder.id); if (children.length && !expanded) onToggle(folder.id); }}
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-left text-sm font-semibold">
+        <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${active ? 'bg-white/15' : 'bg-white'}`}><FolderClosed className="size-4 opacity-75" /></span>
+        <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+      </button>
+      {children.length > 0 && <button type="button" aria-label={`${expanded ? '收起' : '展开'}${folder.name}的下级分类`}
+        aria-expanded={expanded} onClick={() => onToggle(folder.id)} className="mr-2 rounded-lg p-1.5 hover:bg-black/10">
+        {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+      </button>}
+    </div>
+    {children.length > 0 && expanded && <div className="ml-5 mt-1 space-y-1 border-l border-border/80 pl-3">
+      {children.map((child) => <ChannelFolderBranch key={child.id} folder={child} folders={folders}
+        selectedFolderId={selectedFolderId} expandedFolderIds={expandedFolderIds}
+        onSelect={onSelect} onToggle={onToggle} />)}
+    </div>}
+  </div>;
+}
 
 /** 读取 sticky 搜索区实际高度，供左侧筛选栏计算自身吸顶位置和最大高度 */
 function useElementHeight(ref: RefObject<HTMLElement | null>): number {

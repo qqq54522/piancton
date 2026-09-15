@@ -30,6 +30,9 @@ export interface TagWithCount extends Tag {
 export interface ImageListParams {
   keyword?: string;
   channel?: string;
+  folderId?: string;
+  unfiled?: boolean;
+  scene?: 'all' | 'scene' | 'nonScene';
   cursor?: string;
   limit?: number;
   sortBy?: 'createdAt' | 'downloadCount';
@@ -760,9 +763,6 @@ export interface AssetAgentSession {
   contextImages: AssetAgentImageContext[];
   suggestedQuestions: string[];
   expiresAt: string;
-  memoryUsedChars: number;
-  memoryLimitChars: number;
-  memoryUsageRatio: number;
   createdAt: string;
   updatedAt: string;
 }

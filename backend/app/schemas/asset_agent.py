@@ -55,9 +55,6 @@ class AssetAgentSessionRead(ApiModel):
     context_images: list[AssetAgentImageContext] = Field(default_factory=list)
     suggested_questions: list[str] = Field(default_factory=list)
     expires_at: datetime
-    memory_used_chars: int = Field(ge=0)
-    memory_limit_chars: int = Field(gt=0)
-    memory_usage_ratio: float = Field(ge=0, le=1)
     created_at: datetime
     updated_at: datetime
 
