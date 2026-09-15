@@ -12,20 +12,22 @@
 | `manage-image-library` | 上传、素材组版本、人工关系、下载和回收 | 主要由确定性服务执行 |
 | `govern-selling-point-knowledge` | 维护六体系、16卖点和业务边界 | AI 可辅助，人工决定 |
 | `evaluate-image-search-quality` | 本地/三模型准确性、越界和延迟评测 | 可选；外发前必须授权 |
-| `operate-model-providers` | Provider 接入、降级顺序、超时和遥测 | 管理模型基础设施 |
+| `operate-model-providers` | 历史 Provider 边界与防误接规则 | 当前运行时不调用；仅供迁移审计 |
 | `maintain-piancton-architecture` | 新功能、修复、重构和代码审查 | 开发阶段使用 |
 | `understand-image-channel-intent` | 用户搜索或上传时识别 PPT、品牌手册、手机端、官网及大图/小图语境 | 暂不默认调用；先由确定性规则和前端测试验证 |
 
-## 应用运行时模型映射
+## 应用运行时 AI Search 映射
 
-| Model task | Runtime rules | 触发入口 |
+| AI Search 能力 | Runtime service | 触发入口 |
 |---|---|---|
-| `search_result_recommendation_reason` | `build_search_route_explanation_prompt()` + 用户原话 + 火山已命中卖点 | 搜索结果顶部：解释为什么这句话命中这些卖点，不参与召回、排序或候选准入 |
-| `asset_agent_chat` | `AssetAgentService` 组装图片、素材组、人工 accepted 卖点关系和当前启用卖点简表 | 右侧 Piancton Agent，统一回答图片、卖点、体系、素材使用和销售话术；不写入业务事实 |
+| 搜索 | `VolcAiSearchService` | 素材检索；本地仅保留不外发数据的确定性降级 |
+| `chat_search` | `AssetAgentService` | 右侧 Piancton Agent，回答通用业务问题、图片问题和自然语言找图 |
+| 推荐 | `HomeRecommendationService` / AI Search 推荐接口 | 首页猜你喜欢与详情页相关推荐 |
+| 补全、摘要、行为 | `VolcAiSearchClient` 对应能力 | 搜索交互和推荐效果闭环 |
 
 渠道意图识别当前作为卖点意图的并行 Skill：先沉淀 schema、渠道分类和推荐解释规则，再由前端确定性解析器做搜索结果后二次收窄与解释；暂不进入 `MODEL_SKILLS`，避免在真实渠道标注不足时影响卖点主通道和在线模型耗时。
 
-当前 API 中心正式自动调度只保留两个模型用途：`search_result_recommendation_reason` 用于搜索级命中卖点解释，`asset_agent_chat` 用于右侧 Piancton Agent 通用业务问答。`search_system_routing`、`search_intent_understanding`、`search_proof_point_understanding`、`search_candidate_review`、`image_content_analysis`、`copy_selling_point_matching` 和 `asset_search_phrase_generation` 均为历史退役任务，不再进入当前运行时映射。
+API 中心和本地通用 `ModelProvider` 调度已全部退役。`search_result_recommendation_reason`、`asset_agent_chat`、`search_system_routing`、`search_intent_understanding`、`search_proof_point_understanding`、`search_candidate_review`、`image_content_analysis`、`copy_selling_point_matching` 和 `asset_search_phrase_generation` 都不得进入当前运行时；需要语义能力时使用 Viking AI Search 应用已配置的能力。
 
 模型输出必须经过 normalizer、Pydantic schema、运行时目录和审核状态校验。模型任务返回成功不等于业务判断正确。
 

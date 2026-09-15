@@ -14,22 +14,18 @@ from app.core.errors import AppError
 from app.core.middleware import RequestContextMiddleware
 from app.db.session import SessionLocal, get_db
 from app.services.ai_search_behavior_sync import AiSearchBehaviorWorker
-from app.services.api_center_maintenance import ApiCenterMaintenanceWorker
 
 settings = get_settings()
-api_center_maintenance_worker = ApiCenterMaintenanceWorker(SessionLocal, settings)
 ai_search_behavior_worker = AiSearchBehaviorWorker(SessionLocal, settings)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    api_center_maintenance_worker.start()
     ai_search_behavior_worker.start()
     try:
         yield
     finally:
         ai_search_behavior_worker.stop()
-        api_center_maintenance_worker.stop()
 
 
 app = FastAPI(title=settings.app_name, version="2.0.0", lifespan=lifespan)

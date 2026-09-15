@@ -210,19 +210,5 @@ def _record_meilisearch_trace(
     duration_ms: int,
     error: str,
 ) -> None:
-    try:
-        from app.db.session import SessionLocal
-        from app.services.api_center_service import ApiCenterService
-
-        with SessionLocal() as db:
-            ApiCenterService(db).record_external_call(
-                task="search_index",
-                layer_name="搜索索引：Meilisearch",
-                provider=provider,
-                model=model,
-                status=status,
-                duration_ms=duration_ms,
-                error_summary=error,
-            )
-    except Exception:
-        return
+    # API Center has been retired. Search telemetry belongs to the search log.
+    return None

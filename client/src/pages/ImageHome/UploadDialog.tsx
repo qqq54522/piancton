@@ -143,7 +143,6 @@ const UploadDialog = ({ initialMode = 'single', open, onOpenChange, onSuccess }:
           channel: joinChannelValues(selectedChannels),
           styleLabel: styleLabel.trim() || undefined,
           isSceneImage,
-          autoAnalyze: false,
         });
         let relationError: string | null = null;
         if (image.assetGroupId && (primaryConceptId || supportConceptIds.length > 0)) {

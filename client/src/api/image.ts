@@ -8,7 +8,6 @@ import type {
   ImageListResponse,
   ForYouImageListResponse,
   ImageTitleResolution,
-  ProviderStatus,
   SearchFeedbackRequest,
   SearchInteractionAction,
   SearchInteractionSource,
@@ -57,7 +56,6 @@ export async function uploadImage(input: {
   channel?: string;
   styleLabel?: string;
   isSceneImage?: boolean;
-  autoAnalyze?: boolean;
 }): Promise<ImageItem> {
   const form = new FormData();
   form.append('file', input.file);
@@ -67,7 +65,6 @@ export async function uploadImage(input: {
   if (typeof input.isSceneImage === 'boolean') {
     form.append('isSceneImage', String(input.isSceneImage));
   }
-  form.append('autoAnalyze', String(input.autoAnalyze ?? true));
   return (await api.post('/api/images/upload', form)).data;
 }
 
@@ -136,8 +133,4 @@ export async function recordSearchInteraction(data: {
   conversationId?: string | null;
 }): Promise<void> {
   await api.post('/api/usage/search-interaction', data);
-}
-
-export async function fetchProviderStatus(): Promise<ProviderStatus> {
-  return (await api.get('/api/ai/provider')).data;
 }

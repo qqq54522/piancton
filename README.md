@@ -13,14 +13,12 @@
 - 主图、延展图、备选图、修订版和素材组级去重展示；尺寸延展只识别尺寸并继承主图语义，不重复 AI 分析；同组版本不重复进入相关素材，非主图版本可单独移入回收站并恢复
 - PostgreSQL + Alembic，开发环境也可使用 SQLite
 - 本地持久化图片卷，可替换 Storage Provider
-- AI Provider 稳定接口；未配置时明确返回 `503 provider_not_configured`
-- 已支持 OpenAI-compatible 多模态模型接入，API Key 统一在管理员“API 中心”维护
-- API 中心是运行时唯一入口，`.env` 只作为首次空库导入来源；删除 Key 后不会从 `.env` 自动恢复
+- 在线 AI 搜索、推荐和 Agent 问答统一通过火山 AI Search；未配置时使用本地业务目录和数据库降级
 - 管理员可查看按用户、今日和区间聚合的登录、访问与下载使用量
-- 模型 Provider 已配置时，上传成功后自动生成语义总结、画面事实、场景、素材独有表达和业务概念关系建议；不再生成固定客观标签
+- 图片上传保留人工维护和已存语义；上传成功后不再自动调用独立图片分析模型
 - AI 建议与负责人确认严格区分来源和审核状态，不覆盖人工确认事实
 - 卖点公共话术集中管理并由关联素材继承，单张图片只维护独有画面和场景说法
-- 一个业务搜索框、六大体系可选筛选、0～多个卖点意图识别；卖点公共话术先路由，accepted 卖点关系限定主通道，素材独有话术在通道内选图，数据库/Meilisearch/Embedding 多路召回只在无卖点素材或意图未消歧时兜底；结果顶部可按本次卖点缩小，卡片显示动态匹配卖点，返回后还可按人工渠道/画面风格/场景图属性精细筛选且不改变原排序
+- 一个业务搜索框、六大体系可选筛选；AI Search 判断卖点与推荐，本地人工 accepted 关系约束图库，数据库/Meilisearch 提供可降级召回；结果仍可按卖点、渠道、画面风格和场景图精细筛选
 - React、TanStack Query、OpenAPI TypeScript 类型和管理员页面
 - 登录失败限流、结构化 request ID、安全响应头和操作审计
 
@@ -30,7 +28,7 @@ Phase 0～6 工程改造和旧职责清理已经完成。当前本地素材库�
 当前本地检查结果：
 
 - 后端 pytest：当前定向回归已通过；完整回归按总纲最新记录为准
-- Ruff、Pyright：通过
+- 修改范围 Ruff 通过；全量 Pyright 尚有历史类型错误，以项目日志 D349 记录为准
 - 前端 TypeScript、ESLint、Vitest、生产构建：通过
 - 搜索评测资产：50 条用例通过结构校验
 - PostgreSQL 17 CI：Phase 0～6 回滚提交已通过从零迁移和全量检查
@@ -40,9 +38,9 @@ Phase 0～6 工程改造和旧职责清理已经完成。当前本地素材库�
 
 1. 继续确认“主要表达/可以支持/不适用”关系，并补齐证明点细标。
 2. 建立真实查询绑定，重新生成 Phase 0/4 报告。
-3. 启用需要的外部搜索增强，完成故障注入和 P95 压测。
+3. 验证 AI Search 搜索、推荐与 Agent 的真实效果，完成故障注入和 P95 压测。
 4. 在目标服务器配置域名、HTTPS、PostgreSQL 和持久化卷。
-5. 验证权限、上传、分析、搜索、预览、下载和反馈闭环。
+5. 验证权限、上传、搜索、预览、下载和反馈闭环。
 6. 配置并演练 PostgreSQL 与图片卷的备份恢复。
 
 在以上服务器验收完成前，不要把项目标记为“生产部署已验证”。
@@ -85,80 +83,25 @@ cd client
 npm run generate:api
 ```
 
-## AI 模型配置
+## AI Search 配置
 
-API 中心是 API Key、接口地址、模型和启停状态的唯一管理入口。后端实际调用只读取
-API 中心数据库，前端永远不接触完整 API Key。
-
-为了兼容已有部署，首次启动且 API 中心还没有任何记录时，系统会把 `.env` 中已有的
-模型配置导入 API 中心一次。导入完成后，后续不会再用 `.env` 覆盖 API 中心；日常新增、
-修改、启用和停用都在 API 中心完成。
-
-新部署也可以先在 `backend/.env` 中提供一次性初始配置：
+Docker 部署从 `.env.docker.example` 复制为根目录 `.env`；直接启动后端从
+`backend/.env.example` 复制为 `backend/.env`。在线 AI 只使用火山 AI Search：
 
 ```env
-MODEL_PROVIDER=openai_compatible
-MODEL_BASE_URL=https://api.example.com/v1
-MODEL_API_KEY=replace-with-your-secret-key
-MODEL_NAME=your-vision-model
-MODEL_TIMEOUT_SECONDS=120
+AI_SEARCH_ENABLED=true
+AI_SEARCH_CHAT_ENABLED=true
+AI_SEARCH_BASE_URL=https://aisearch.cn-beijing.volces.com
+AI_SEARCH_API_KEY=replace-with-your-secret-key
+AI_SEARCH_APPLICATION_ID=your-application-id
+AI_SEARCH_DATASET_ID=your-image-dataset-id
+AI_SEARCH_CHAT_DATASET_IDS=your-knowledge-dataset-id,your-image-dataset-id
 ```
 
-服务器 Docker 部署时，首次迁移读取项目根目录 `.env` 中的同名变量。若 API 中心没有
-可用 API，`/api/ai/*` 写接口会稳定返回 `503 provider_not_configured`，不会偷偷绕回
-`.env`，也不会假装成功。
-
-如果 API Key 曾经粘贴到聊天、截图或公共文档里，上线前请在模型平台重新生成
-一个新 Key，并废弃旧 Key。
-
-### 首次迁移配置清单
-
-真实密钥日常应在 API 中心维护。下面这些环境变量只作为已有部署的首次迁移入口；
-不要提交真实密钥到 GitHub，即使仓库是私有仓库也一样。仓库中只保留变量名和示例占位符。
-
-```env
-# 首次启动导入 API 中心的通用 AI 配置
-MODEL_PROVIDER=openai_compatible
-MODEL_NAME=your-model-name
-MODEL_BASE_URL=https://api.example.com/v1
-MODEL_API_KEY=replace-with-your-secret-key
-
-# 图片分析专用；首次导入时不填则使用通用模型配置
-IMAGE_ANALYSIS_MODEL_NAME=your-vision-model
-IMAGE_ANALYSIS_BASE_URL=https://api.example.com/v1
-IMAGE_ANALYSIS_API_KEY=replace-with-your-secret-key
-
-# 上传前素材话术生成专用；首次导入时不填则使用通用模型配置
-ASSET_PHRASE_MODEL_NAME=your-text-model
-ASSET_PHRASE_BASE_URL=https://api.example.com/v1
-ASSET_PHRASE_API_KEY=replace-with-your-secret-key
-
-# 搜索理解的首次导入配置
-SEARCH_FALLBACK_MODEL_NAME=your-search-fallback-model
-SEARCH_FALLBACK_BASE_URL=https://api.example.com/v1
-SEARCH_FALLBACK_API_KEY=replace-with-your-secret-key
-
-# 可选 Provider 槽位
-FALLBACK1_NAME=your-fallback-model
-FALLBACK1_BASE_URL=https://api.example.com/v1
-FALLBACK1_API_KEY=replace-with-your-secret-key
-FALLBACK2_NAME=your-second-fallback-model
-FALLBACK2_BASE_URL=https://api.example.com/v1
-FALLBACK2_API_KEY=replace-with-your-secret-key
-
-# 可选搜索增强
-MEILISEARCH_API_KEY=replace-with-a-search-master-key
-EMBEDDING_BASE_URL=https://api.example.com/v1
-EMBEDDING_API_KEY=replace-with-your-secret-key
-EMBEDDING_MODEL_NAME=your-embedding-model
-RERANKER_BASE_URL=https://api.example.com/v1
-RERANKER_API_KEY=replace-with-your-secret-key
-RERANKER_MODEL_NAME=your-reranker-model
-```
-
-Docker 部署时从 `.env.docker.example` 复制为 `.env` 后填写；本地直接启动后端时
-从 `backend/.env.example` 复制为 `backend/.env` 后填写。首次启动导入后，之后请只在
-API 中心修改，不要继续同时修改环境文件。
+知识库问答需把知识数据集 ID 放入 `AI_SEARCH_CHAT_DATASET_IDS`；只填写图片数据集
+不会自动连接另一份知识库。推荐和行为上报按环境示例中的 `AI_SEARCH_RECOMMEND_*`
+与 `AI_SEARCH_BEHAVIOR_*` 配置。API 中心、自动模型调度和 `/api/ai/*` 接口已退出运行时；
+旧模型密钥不再参与搜索、Agent 或上传。真实密钥仅放在 Git 忽略的环境文件中。
 
 ## Docker 部署
 

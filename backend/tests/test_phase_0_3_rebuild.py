@@ -2,17 +2,9 @@ from io import BytesIO
 
 from PIL import Image as PillowImage
 
-from app.ai.contracts import ModelCallResult
 from app.api import dependencies
 from app.domain.search_eval import load_search_eval_cases
-from app.main import app
-from app.models.business_concept import BusinessConcept
 from app.models.tag import Tag
-from app.schemas.ai import (
-    ConceptSuggestion,
-    ImageAnalysisResult,
-    ImageSemanticProfile,
-)
 from tests.conftest import login
 
 
@@ -108,8 +100,7 @@ def test_phase1_concept_can_link_multiple_systems_and_keep_stable_code(
 def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(
     client, monkeypatch
 ):
-    monkeypatch.setattr(dependencies.settings, "vikingdb_knowledge_router_enabled", False)
-    monkeypatch.setattr(dependencies.settings, "vikingdb_enabled", False)
+    monkeypatch.setattr(dependencies.settings, "ai_search_enabled", False)
     csrf = login(client, "admin", "admin-password")
     headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
     uploaded = client.post(
@@ -122,7 +113,6 @@ def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(
             "channel": "官网",
             "styleLabel": "官网风格",
             "isSceneImage": "true",
-            "autoAnalyze": "false",
         },
     )
     assert uploaded.status_code == 201
@@ -163,109 +153,3 @@ def test_phase2_upload_creates_group_and_derivative_search_is_deduplicated(
     assert result["image"]["styleLabel"] == "官网风格"
     assert result["image"]["isSceneImage"] is True
     assert {item["channel"] for item in result["availableVariants"]} == {"官网", "朋友圈"}
-
-
-def test_phase3_v2_analysis_and_owner_confirmation_survive_rerun(client, db_factory):
-    with db_factory() as db:
-        system = Tag(
-            code="sync_school",
-            name="同步校内体系",
-            color="#111111",
-            node_type="system",
-            assignable=False,
-            status="active",
-        )
-        tag = Tag(
-            code="animation_explanation",
-            name="动画精讲",
-            color="#222222",
-            parent=system,
-            node_type="image_label",
-            assignable=True,
-            status="active",
-        )
-        concept = BusinessConcept(
-            code="animation_explanation",
-            name="动画精讲",
-            concept_type="product_function",
-        )
-        db.add_all([system, tag, concept])
-        db.commit()
-
-    class FakeAiService:
-        def analyze_image(self, _path):
-            return ModelCallResult(
-                ImageAnalysisResult(
-                    image_summary="平板界面展示数学动画和分步计算，顶部可见课程标题。",
-                    semantic_profile=ImageSemanticProfile(
-                        visual_facts=["平板学习界面", "数学动画", "分步计算"],
-                        scenes=["居家学习"],
-                        asset_search_phrases=["蓝色平板动画课画面"],
-                    ),
-                    concept_suggestions=[
-                        ConceptSuggestion(
-                            concept_code="animation_explanation",
-                            system_name="同步校内体系",
-                            concept_name="动画精讲",
-                            confidence=0.94,
-                            evidence_level="A",
-                            relation_role="expresses",
-                            reason="画面展示动画和分步计算，适合动画精讲，不是课后小测。",
-                        )
-                    ],
-                )
-            )
-
-    app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
-    csrf = login(client, "admin", "admin-password")
-    headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
-    uploaded = client.post(
-        "/api/images/upload",
-        headers=headers,
-        files={"file": ("analysis.png", png_file(), "image/png")},
-        data={
-            "title": "V2 分析测试",
-            "expectedSearchWords": "负责人手工搜索语",
-            "channel": "PPT",
-            "autoAnalyze": "false",
-        },
-    ).json()
-
-    analyzed = client.post(f"/api/ai/images/{uploaded['id']}/analyze", headers=headers)
-    assert analyzed.status_code == 200
-    detail = client.get(f"/api/images/{uploaded['id']}").json()
-    assert detail["semanticProfile"]["schemaVersion"] == 3
-    assert detail["semanticProfile"]["scenes"] == ["居家学习"]
-    assert "contentTags" not in detail
-
-    group_id = detail["assetGroupId"]
-    group = client.get(f"/api/asset-groups/{group_id}").json()
-    suggestion = next(item for item in group["conceptLinks"] if item["origin"] == "ai")
-    assert suggestion["relationRole"] == "expresses"
-    assert suggestion["reviewStatus"] == "pending"
-
-    reviewed = client.patch(
-        f"/api/asset-groups/{group_id}/concept-links/{suggestion['id']}",
-        headers=headers,
-        json={"reviewStatus": "accepted", "relationRole": "expresses"},
-    )
-    assert reviewed.status_code == 200
-    assert any(
-        item["origin"] == "manual"
-        and item["reviewStatus"] == "accepted"
-        and item["conceptCode"] == "animation_explanation"
-        for item in reviewed.json()["conceptLinks"]
-    )
-
-    rerun = client.post(f"/api/ai/images/{uploaded['id']}/analyze", headers=headers)
-    assert rerun.status_code == 200
-    after = client.get(f"/api/asset-groups/{group_id}").json()
-    assert len(
-        [
-            item
-            for item in after["conceptLinks"]
-            if item["origin"] == "manual"
-            and item["conceptCode"] == "animation_explanation"
-        ]
-    ) == 1
-    assert after["searchPhrases"] == []

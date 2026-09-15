@@ -1,23 +1,21 @@
 ---
 name: operate-model-providers
-description: "接入、切换、诊断和验证卖点智库的文本或视觉模型Provider、Kimi到DeepSeek到GPT降级链、超时预算与Provider级遥测。用于模型配置、适配器开发、鉴权排查或降级验证；不得把厂商协议写进业务服务，也不得暴露或移动密钥。"
+description: "审计卖点智库历史文本/视觉模型 Provider，防止已退役的 API 中心、Kimi、DeepSeek、GPT、Embedding 或 Reranker 被误接回当前运行时。当前在线 AI 能力统一由 Viking AI Search 提供。"
 ---
 
 # 运维模型 Provider
 
-保持业务服务只依赖中立 `ModelProvider`。执行接入或诊断前完整读取 `RULES.md` 和总纲中当前 Provider、超时、数据外发与评测决策。
+当前业务运行时不得构造或调用通用 `ModelProvider`。执行历史代码清理、迁移审计或未来重新立项前，完整读取 `RULES.md` 和总纲中当前单一 AI Search、数据外发与评测决策。
 
 ## 工作流
 
-1. 识别任务需要文本、视觉或多模态能力，并核对其现有 JSON schema。
-2. 新厂商只增加适配器或配置槽位，不修改业务 Prompt、卖点目录和审核规则。
-3. 使用最小无敏感内容请求检查鉴权、模型名、JSON 模式和多模态兼容性。
-4. 按 `MODEL_PROVIDER_ORDER` 组装去重后的 Provider 链；当前顺序保持 Kimi → DeepSeek → GPT，除非用户明确调整。
-5. 每次尝试分别记录 provider、model、task、耗时、状态和安全错误摘要，不记录密钥、完整请求体或图片内容。
-6. 用故障注入验证前一 Provider 失败时后备仍有完整预算；再用获授权的小样本验证真实调用。
-7. 改动 Provider 后运行模型适配器测试、搜索降级测试和必要的端到端评测；模型连通不等于业务准确性通过。
+1. 确认当前页面、路由、后台 Worker 和业务依赖只调用 Viking AI Search。
+2. 搜索旧 `ModelProvider`、API Center、Embedding、Reranker 和知识库路由引用，区分历史迁移资料与当前可达运行代码。
+3. 历史数据库表和迁移不做破坏性删除；页面、HTTP API、Worker 和业务消费者必须不可达。
+4. 部署模板不得再要求额外模型 Key；旧 Key 即使残留在服务器环境文件中也必须被忽略。
+5. 用自动化测试验证退役路由返回 404，Agent 无 AI Search 时明确失败且不会调用第二供应商。
+6. 未来若要恢复额外 Provider，必须由用户明确改变架构决策并新增总纲记录，不可作为临时降级偷偷接入。
 
 ## 资源
 
 - `RULES.md`：中立协议、任务目录、降级和安全边界。
-

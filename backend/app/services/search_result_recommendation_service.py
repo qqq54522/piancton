@@ -441,7 +441,7 @@ class SearchResultRecommendationService:
         return ModelAttemptDiagnostic(
             task="search_result_recommendation_reason",
             layer=layer,
-            provider="api_center",
+            provider="local_deterministic",
             model="未调用",
             status=status,
             duration_ms=0,

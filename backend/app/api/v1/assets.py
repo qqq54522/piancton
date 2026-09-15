@@ -3,7 +3,6 @@ from urllib.parse import quote
 
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Depends,
     File,
     Form,
@@ -14,13 +13,10 @@ from fastapi import (
 )
 
 from app.api.dependencies import (
-    get_ai_service,
     get_asset_relation_service,
     get_asset_service,
     get_audit_service,
     get_current_user,
-    get_db_session_factory,
-    get_image_analysis_service,
     require_write_role,
 )
 from app.models.user import User
@@ -35,12 +31,9 @@ from app.schemas.asset import (
     AssetSourceLinkCreate,
     AssetSourceLinkUpdate,
 )
-from app.services.ai_service import AiService
-from app.services.analysis_tasks import run_image_analysis_task
 from app.services.asset_relation_service import AssetRelationService
 from app.services.asset_service import AssetService
 from app.services.audit_service import AuditService
-from app.services.image_analysis_service import ImageAnalysisService
 
 router = APIRouter(prefix="/asset-groups", tags=["asset-groups"])
 
@@ -114,17 +107,12 @@ def export_asset_groups(
 )
 def add_asset_variant(
     group_id: str,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = Form(default=None),
     asset_role: Literal["derivative", "alternative", "revision"] = Form(alias="assetRole"),
     channel: Optional[str] = Form(default=None),
-    auto_analyze: bool = Form(default=True, alias="autoAnalyze"),
     user: User = Depends(require_write_role),
     service: AssetService = Depends(get_asset_service),
-    analysis: ImageAnalysisService = Depends(get_image_analysis_service),
-    ai: AiService = Depends(get_ai_service),
-    session_factory=Depends(get_db_session_factory),
 ):
     original_name = file.filename or "image"
     group = service.add_variant(
@@ -136,18 +124,6 @@ def add_asset_variant(
         channel,
         user.username,
     )
-    image_id = max(group.images, key=lambda item: item.version_no).id
-    # A derivative is only a size/channel adaptation of the same visual. It
-    # inherits group semantics and must never create a competing AI analysis.
-    if asset_role != "derivative":
-        _queue_analysis(
-            image_id,
-            auto_analyze=auto_analyze,
-            background_tasks=background_tasks,
-            analysis=analysis,
-            ai=ai,
-            session_factory=session_factory,
-        )
     return group
 
 
@@ -158,16 +134,11 @@ def add_asset_variant(
 )
 def replace_asset_primary(
     group_id: str,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: Optional[str] = Form(default=None),
     channel: Optional[str] = Form(default=None),
-    auto_analyze: bool = Form(default=True, alias="autoAnalyze"),
     user: User = Depends(require_write_role),
     service: AssetService = Depends(get_asset_service),
-    analysis: ImageAnalysisService = Depends(get_image_analysis_service),
-    ai: AiService = Depends(get_ai_service),
-    session_factory=Depends(get_db_session_factory),
 ):
     original_name = file.filename or "image"
     group = service.replace_primary(
@@ -178,15 +149,6 @@ def replace_asset_primary(
         channel,
         user.username,
     )
-    if group.primary_image_id:
-        _queue_analysis(
-            group.primary_image_id,
-            auto_analyze=auto_analyze,
-            background_tasks=background_tasks,
-            analysis=analysis,
-            ai=ai,
-            session_factory=session_factory,
-        )
     return group
 
 @router.delete("/{group_id}/images/{image_id}", response_model=AssetGroupRead)
@@ -328,25 +290,3 @@ def delete_asset_source_link(
         request_id=request.state.request_id,
     )
     return group
-
-
-def _queue_analysis(
-    image_id: str,
-    *,
-    auto_analyze: bool,
-    background_tasks: BackgroundTasks,
-    analysis: ImageAnalysisService,
-    ai: AiService,
-    session_factory,
-) -> None:
-    provider = getattr(ai, "provider", None)
-    if not auto_analyze or provider is None or not provider.configured:
-        return
-    analysis_run = analysis.create_analysis_run(image_id)
-    background_tasks.add_task(
-        run_image_analysis_task,
-        image_id,
-        analysis_run.id,
-        provider,
-        session_factory,
-    )

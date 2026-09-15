@@ -191,23 +191,8 @@ def _record_semantic_trace(
     duration_ms: int,
     error: str,
 ) -> None:
-    try:
-        from app.db.session import SessionLocal
-        from app.services.api_center_service import ApiCenterService
-
-        with SessionLocal() as db:
-            ApiCenterService(db).record_external_call(
-                task=task,
-                layer_name=layer_name,
-                provider=provider,
-                model=model,
-                status=status,
-                duration_ms=duration_ms,
-                error_summary=error,
-            )
-    except Exception:
-        # Telemetry must never turn a search enhancement failure into a request failure.
-        return
+    # API Center has been retired. This legacy adapter is not wired at runtime.
+    return None
 
 
 def _provider_label(base_url: str) -> str:

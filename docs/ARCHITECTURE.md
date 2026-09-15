@@ -10,17 +10,15 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
                     |
                     +-> StorageProvider -> 持久化图片卷
                     |
-                    +-> ModelProvider -> placeholder / OpenAI-compatible 多模态模型
-                    |                 -> 正式 Skill 运行时 RULES 与版本化业务目录
+                    +-> AI Search -> 火山搜索、推荐和 Agent 问答
                     |
-                    +-> SearchService -> 限时并行搜索编排
+                    +-> SearchService -> 限时搜索编排与本地人工关系约束
                                       -> 数据库概念/短语召回
-                                      -> Meilisearch / Embedding / 查询理解
-                                      -> 一次可选 Reranker
+                                      -> 可选 Meilisearch 与 AI Search
 ```
 
-前端的图片、素材组和 AI 状态逻辑位于 `features/`，认证位于 `lib/auth.tsx`，
-管理员界面按用户、卖点公共话术、搜索运营、API 中心、使用统计和审计拆分在 `pages/Admin*/`。远程状态由 TanStack Query 管理，接口类型
+前端的图片和素材组逻辑位于 `features/`，认证位于 `lib/auth.tsx`，
+管理员界面按用户、卖点公共话术、搜索运营、使用统计和审计拆分在 `pages/Admin*/`。远程状态由 TanStack Query 管理，接口类型
 由 FastAPI OpenAPI 生成。
 
 ## 强制边界
@@ -33,21 +31,21 @@ FastAPI API -> Service / Unit of Work -> Repository -> PostgreSQL
 - 客户端永远不能提交或读取服务器物理路径。
 - Storage key 由后端生成，并在解析时限制在 storage root 内。
 - 数据库结构禁止使用 `create_all()`，只能通过 Alembic migration 修改。
-- AI 业务只依赖 `ModelProvider`；未配置 Provider 时必须失败，不能返回空结果冒充成功。
-- AI 输出必须先经过 normalizer、Pydantic schema 和 taxonomy catalog 校验，才能写入业务数据。
-- 正式 Skill 清单以 `skills/INDEX.md` 为准；应用模型任务只从 `backend/app/ai/skill_loader.py` 加载当前运行时 `RULES.md`，标准 `SKILL.md` 负责完整工作流和触发边界。
+- 在线 AI 仅依赖 AI Search；不能从旧 Provider、API 中心或独立 Embedding/Reranker 配置绕回。
+- AI Search 返回的卖点和候选必须服从本地人工 accepted 关系与业务目录约束。
+- 正式 Skill 清单以 `skills/INDEX.md` 为准；历史模型任务 RULES 保留为非运行时资料。
 - 素材概念关系必须区分人工事实与 AI 建议：`origin=manual/ai`；AI 建议通过 `review_status=pending/accepted/rejected` 流转。
 - 同卖点人工 `accepted` 关系会在服务层软拒绝 AI `pending` 建议，分析重跑也必须在持久化前排除该卖点；序列化和前端只做防御性过滤，不能代替后端事实约束。
 - 数据库是图片、业务概念、素材关系、AI 分析和审核状态的事实源；Meilisearch 只是可重建的派生索引。
 - Meilisearch 不可用时搜索必须降级到数据库路径，不能阻断上传、详情或基础搜索。
 - 普通业务用户只有一个搜索框；六大体系只有在用户显式选择时才是硬过滤。
-- 渠道保存在图片版本，人工画面风格与场景图状态保存在素材组；业务端只在已排序搜索响应上做稳定的精确二次筛选，不把这些属性塞入查询理解、召回融合或 Reranker。
+- 渠道保存在图片版本，人工画面风格与场景图状态保存在素材组；业务端只在已排序搜索响应上做稳定的精确二次筛选。
 - 外部搜索分支不得共享请求 SQLAlchemy Session；ORM 实体只由请求主会话水合。
-- 候选融合后最多执行一次 Reranker，生成式图片摘要裁判不得回到在线链路。
+- 独立 Reranker 和生成式图片摘要裁判不得回到在线链路。
 - 公共搜索话术属于业务概念，素材详情只保存当前图片独有话术；公共话术编辑/停用必须经过管理员接口和概念版本更新。
 - Meilisearch 字段优先级必须保持已确认业务语言高于已确认素材独有话术，再高于语义总结、画面事实和场景；AI 待审核素材话术只能作为低优先级语义辅助，拒绝后退出所有搜索投影。
-- `derivative` 尺寸/渠道延展只执行安全上传、缩略图和尺寸识别，不进入 AI 分析队列；只有正式主图的分析结果可以刷新素材组级 AI 关系和候选话术。
-- API 中心是运行时 API Key、模型地址、模型名、启停和调度的唯一管理入口；`.env` 只作为首次空库导入来源，导入或手动配置后不得再次自动覆盖数据库。
+- `derivative` 尺寸/渠道延展只执行安全上传、缩略图和尺寸识别；当前上传链路不自动调用独立 AI 分析。
+- 火山 AI Search 配置由后端环境变量读取；API 中心路由、页面和自动模型调度已下线，旧数据表保留兼容。
 - 用户使用量进入 `user_usage_events`，记录登录、页面访问和成功下载；原图片 `download_count` 继续作为素材维度下载计数。
 
 这些约束由 `backend/tests/test_architecture.py` 和 CI 检查。

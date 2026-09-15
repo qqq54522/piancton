@@ -36,7 +36,7 @@
 - 流水线顺序和降级汇总放在 `search_orchestrator.py`；外部任务并发、分支预算、缓存与候选水合放在 `search_external_branches.py`；总截止和唯一一次重排放在 `search_rerank_coordinator.py`。不要把这些职责塞回单个召回服务或总入口。
 - 外部并发召回先返回候选 ID/向量，ORM 实体只允许由请求主会话装载；不得跨线程共享 SQLAlchemy Session。
 - 在线链路不得重新启用生成式图片摘要裁判；候选合并后最多执行一次 Top 20 Reranker。
-- 当前普通搜索主链路优先由火山 VikingDB 干净知识库判断卖点，再回本地数据库按人工 accepted 关系取图库；旧 API 中心体系路由、卖点理解、证明点理解和候选复核不再参与当前测试链路。搜索结果页可以在命中卖点后调用一次 API 中心 `search_result_recommendation_reason`，只解释“用户原话为什么命中这些卖点”，不得改变召回、排序或候选准入。
+- 当前在线搜索、摘要、补全、推荐、行为闭环和 Agent 问答统一由火山 Viking AI Search 应用提供；不得再接 API 中心、通用大模型 Provider、旧 VikingDB/独立知识库路由、Embedding 或 Reranker。AI Search 不可用时只允许本地确定性降级或明确告知暂不可用。
 - 多路召回不得重新恢复成平铺竞争：可信卖点只允许 accepted `expresses/supports` 素材进入主通道，accepted 素材独有话术负责通道内主筛选，标题与 V3 画面事实/场景只作辅助。已有 `expresses` 直接素材时，只有 `supports` 的证明图必须命中 accepted 图片话术或得到查询明确点名的标题/画面证据，否则不能仅凭关系补位；没有 `expresses` 时可保留 accepted `supports` 作为可信库存保底。主通道无相关素材必须返回空结果，外部来源不得用无关库存补位。
 - “明确同时涉及多个卖点”“共享入口词探索型”和“多个未消歧候选”必须使用不同查询状态：真多卖点要求每个卖点有独立措辞证据；探索型（证据完全相同）召回可以合并主通道，但文案必须是“你可能在找”；未消歧候选不得显示成多个已识别卖点，也不得执行多卖点硬路由。
 - 查询里显式否定的卖点必须进入 `excluded_concepts` 并在路由层过滤，不得作为正向证据参与召回。
@@ -62,8 +62,8 @@
 #### 正式 Skill 与运行时任务
 
 - 每个正式 Skill 必须具备 `SKILL.md` 和 `agents/openai.yaml`；只有应用运行时模型需要读取的能力才额外提供 `RULES.md`。
-- 页面点击不会临时生成 Skill，而是由 Service 调用已注册的模型任务；模型任务到运行时规则的唯一映射位于 `backend/app/ai/skill_loader.py`。
-- 当前 API 中心正式自动调度只保留两类模型任务：`search_result_recommendation_reason` 用于搜索结果顶部解释命中卖点原因，`asset_agent_chat` 用于素材库 Agent。图片语义分析、上传前素材话术、旧分层搜索意图和兼容文案卖点匹配均不得作为当前主流程任务恢复；增加任务时必须同时定义触发入口、输入、输出 Schema、审核状态、超时、降级和测试。
+- 页面点击不会临时生成 Skill。当前运行时不再调用本地 `ModelProvider` 任务目录；Agent 直接调用 AI Search 的 `chat_search`，其他在线语义能力调用同一应用的对应接口。
+- `search_result_recommendation_reason`、`asset_agent_chat`、图片语义分析、上传前素材话术、旧分层搜索理解和兼容文案匹配均只作为历史资料保留，不得重新接入运行时。
 - 旧固定二级标签、`content_tags`、三层弱召回和旧 S/A/B/C 评分公式不得以新 Skill 名义恢复。底层确定性职责合并到完整工作流边界，但实现仍留在各自 Python 模块。
 - 修改正式 Skill 清单、运行时任务映射或删除旧 Skill 时，必须更新 `skills/INDEX.md`、总纲决策、项目日志和 `backend/tests/test_project_skills.py`。
 
@@ -84,17 +84,11 @@
 - 首次上传话术的 5 条只是初始表单上限，素材详情允许随真实搜索反馈持续补充；不得把它描述成素材永久总上限。
 - 面向用户的文字优先说明任务和结果，不直接暴露 Provider、索引、内部模式或算法分数等实现细节。
 
-### 4. API 中心可靠性
+### 4. 单一 AI Search 运行边界
 
-修改 API 入库、健康探测、Provider 适配、调度、容量或调用链路前，必须完整阅读 `API_CENTER_RELIABILITY_REQUIREMENTS.md`。
-
-- 页面宣称自动的能力必须有后端闭环和自动化测试，不能只依赖前端状态或说明文字。
-- 管理员启停、运行健康、自动候选资格、任务自动/人工模式和任务屏蔽不得重新混成一个状态。
-- 健康探测成功只证明对应探针能力；文本 JSON 成功不得自动推断图片输入或其他任务契约成功。
-- 批量健康和容量探测必须考虑同一 Provider 主机上的多个 Key，不能制造同站并发压力后把假超时写成 API 异常。
-- 新增错误处理先进入稳定错误分类与场景验收矩阵，不得只增加一条中文字符串特判。
-- API 地址、Provider 类型、模型和密钥的验证必须以后端为准；前端测试通过状态不能成为唯一准入条件。
-- 自动调度必须在任务能力、健康和容量准入后再做 Provider/Key 负载均衡，并在任务预算内保留真实 fallback 空间。
+- API 中心页面、HTTP 路由、后台巡检和 Provider 自动调度已经退役，不得以兼容修复名义恢复。
+- 历史 API Center 表与迁移可为旧库无损升级保留，但不能有当前页面、接口、Worker 或业务消费者。
+- 生产部署模板只暴露 AI Search 所需配置；服务器历史环境文件中残留的旧模型 Key 必须被当前运行时忽略。
 - 日志只记录脱敏结构化事实，完整 Key、Authorization、Prompt、图片字节、聊天正文和上游原文不得落库。
 
 ## 判断模块是否开始变重

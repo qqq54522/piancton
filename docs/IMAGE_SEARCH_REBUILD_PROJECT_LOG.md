@@ -1,12 +1,21 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-09-14
-当前范围：Phase 0～Phase 6；火山 VikingDB 干净知识路由、渠道/版位筛选、搜索顶部命中解释和 API 调用边界收口继续按真实业务边界推进
-当前状态：Phase 0～6 工程改造完成；当前打开的本地项目作为唯一基准；火山知识库服务可作为当前优先卖点裁决入口，旧 VikingDB 向量知识路由保留兼容；搜索主链路由火山先判断卖点并给出依据，再回本地数据库按人工 accepted 关系取图库；VikingDB V2 正式搜索字段已收窄到当前知识索引实际字段，知识库服务异常可继续进入向量 top1 fallback；API 中心“知识与数据库”已新增完整搜索链路体检，能区分全通、降级可用和失败，并展示配置、知识库、向量库和最终搜索分支状态；火山知识库 HTTP 错误已透传原始 message；当前新测试 Key 已验证可调通目标知识库问答服务，搜索卖点理解预算已调整到 60 秒，知识库最终答案解析已收紧为核心卖点强匹配；顶部解释 API 已收口为 8 秒非阻断加分项，超时使用稳定默认说明；API 中心当前正式自动调度只保留搜索结果顶部“命中卖点解释”和 Piancton Agent 通用业务问答两类调用；Piancton Agent 已从右下角悬浮小窗升级为右侧对话侧栏，桌面端打开时搜索页和素材瀑布流为侧栏让位，并已统一定位为一个通用业务机器人，不再拆成图片、卖点或销售多个 Agent；右侧 Agent 输入区已移除固定建议按钮，回答策略改为可见工作流，并新增 SSE 流式接口：先展示知识库/向量库卖点判断过程，再流式展示最终回答；Agent 卖点判断已复用搜索主链路同源的火山知识库优先、VikingDB 向量兜底配置；搜索顶部解释由后端与前端双层清理过程文案；上传图片语义分析、上传前素材话术生成和兼容文案卖点匹配不再作为当前主流程任务。
+更新时间：2026-09-15
+当前范围：Phase 0～Phase 6；D349 在回退基线 ebebe8f 上实施 AI Search 单一在线 AI 入口
+当前状态：本地 AI Search 单入口实施完成，API 中心与额外模型调度不再参与当前运行时；旧 Agent 和渠道界面保留；云端未部署。下文 D330～D346 是回退前的历史实施记录，当前事实以总纲 D349 为准。
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
 
 ---
+
+## 2026-09-15：AI Search 单一在线 AI 入口（D349，本地完成）
+
+- 基线：从稳定提交 `ebebe8fde2a6ba12e516d830da6a2abaa6080b8d` 新建 `codex/ai-search-only-20260915`，保留旧版 Agent 界面和渠道交互。
+- 目标：移除 API 中心页面、路由、Worker、调度器与额外模型消费者；Agent 只用 AI Search `chat_search`，上传不调用独立图片模型，搜索与推荐只使用 AI Search 和本地确定性降级。
+- 实现：删除后端 API 中心/旧 AI 路由、API Center Service/Repository/Schema、后台维护 Worker 和额外模型接线；`SearchService` 不再装配旧 Provider、Embedding、VikingDB、Reranker 与知识服务，`AssetAgentService` 仅接 AI Search `chat_search`。上传、追加版本和替换主图不自动分析。删除前端 API 中心页面、导航、请求、状态 Hook 与等待调度逻辑，重新生成实际 FastAPI OpenAPI 类型。Docker Compose 与环境示例只保留 AI Search 在线配置；README、架构、Guardrails 与 Skill 索引已同步。
+- 数据与迁移：无新 Alembic 迁移；历史 API Center 表/迁移仅为旧库无损兼容保留，已无运行时消费者。回退前 PostgreSQL 备份在 `backups/piancton-before-ebebe8f-20260915.dump`；素材、六大体系、16 卖点、人工 accepted 关系及既有火山数据集未删除。
+- 验证：本地 Docker 四服务健康；实际 FastAPI OpenAPI 中 API 中心和 `/api/ai/*` 路由均为 0，Agent 路由 8 条。后端 AI Search/Agent 专项 42 项、AI Search/Agent/上传/安全/Skill 合并回归 86 项全部通过；前端 34 文件 88 项测试、TypeScript/生产构建、ESLint、修改范围 Ruff 与差异检查通过。新开的本地浏览器页面中 API 中心导航已消失，素材库与旧版 Agent 入口保留。全量 Pyright 仍有 14 个原有模块类型错误，分布在未改动的旧代码和既有 AI Search Service，需单独治理；已删除唯一因旧调度依赖消失而断裂的 GPT-5.5 历史评测脚本。
+- 剩余验收：当前本地 `AI_SEARCH_ENABLED`、`AI_SEARCH_CHAT_ENABLED` 均为 true，应用和图片数据集 ID 已配置，但 `AI_SEARCH_CHAT_DATASET_IDS` 为空；若需让 Agent 明确检索另一份知识库，部署配置必须填入该知识数据集 ID。云端未部署；真实知识库问答和推荐质量需在配置后验收。
 
 ## 2026-09-14：素材库图片 Agent 实时视觉桥（D345）
 

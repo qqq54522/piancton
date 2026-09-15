@@ -9,13 +9,6 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.ai.contracts import (
-    ModelCallResult,
-    ModelProvider,
-    ModelProviderError,
-    ModelProviderNotConfigured,
-    ModelRequest,
-)
 from app.core.errors import AppError, NotFoundError
 from app.domain.image_titles import material_title_family
 from app.models.asset import AssetGroup
@@ -28,9 +21,7 @@ from app.repositories.asset_agent_repository import (
     AssetAgentSessionRepository,
 )
 from app.repositories.asset_repository import AssetRepository
-from app.repositories.business_concept_repository import BusinessConceptRepository
 from app.repositories.image_repository import ImageRepository
-from app.schemas.ai import SearchUnderstanding
 from app.schemas.asset_agent import (
     AssetAgentChatRequest,
     AssetAgentChatResponse,
@@ -38,7 +29,6 @@ from app.schemas.asset_agent import (
     AssetAgentImageContext,
     AssetAgentMessageRead,
     AssetAgentMessageRole,
-    AssetAgentModelResponse,
     AssetAgentResponseMode,
     AssetAgentSessionContextUpdateRequest,
     AssetAgentSessionCreateRequest,
@@ -73,18 +63,12 @@ DEFAULT_GREETING = (
 
 
 class AssetAgentService:
-    """Small business assistant for explaining image-library assets.
-
-    The assistant is intentionally retrieval-first: it explains images and selling
-    points from confirmed project data, then lets the model rewrite the wording.
-    """
+    """Business assistant powered only by Viking AI Search's built-in chat."""
 
     def __init__(
         self,
         db: Session,
-        provider: ModelProvider,
         *,
-        knowledge_router: Any | None = None,
         ai_search_chat: VolcAiSearchClient | None = None,
         ai_search_chat_page_size: int = 10,
         ai_search_public_base_url: str = "",
@@ -92,8 +76,6 @@ class AssetAgentService:
         storage: StorageProvider | None = None,
     ):
         self.db = db
-        self.provider = provider
-        self.knowledge_router = knowledge_router
         self.ai_search_chat = ai_search_chat
         self.ai_search_chat_page_size = max(1, min(ai_search_chat_page_size, 50))
         self.ai_search_public_base_url = ai_search_public_base_url.rstrip("/")
@@ -103,7 +85,6 @@ class AssetAgentService:
         self.messages = AssetAgentMessageRepository(db)
         self.images = ImageRepository(db)
         self.assets = AssetRepository(db)
-        self.concepts = BusinessConceptRepository(db)
         self.uow = UnitOfWork(db)
 
     def list_sessions(self, user: User) -> AssetAgentSessionListResponse:
@@ -293,70 +274,19 @@ class AssetAgentService:
                 provider_attempts=[_ai_search_chat_attempt(status="ok")],
             )
 
-        understanding = self._route_business_understanding(message, images, groups)
-        prompt = _agent_prompt(
-            response_mode=payload.response_mode,
-            has_temporary_image=has_user_uploaded_image,
+        answer = _ai_search_unavailable_answer(
+            has_image=bool(visual_image_url or images or groups),
         )
-        input_text = "\n\n".join(
-            item
-            for item in (
-                f"用户问题：{message}",
-                f"当前对话ID：{session.id}",
-                f"同一会话最近对话：\n{conversation_history}"
-                if conversation_history
-                else "",
-                f"知识库/向量库卖点判断：\n{_understanding_text(understanding)}"
-                if understanding
-                else "",
-                f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
-                "用户本轮上传了临时图片，但外部图像问答通道未返回结果。"
-                "不要假装已经看见图片，应明确说明暂时无法可靠识别并请用户重试。"
-                if has_user_uploaded_image
-                else "",
-                f"项目启用卖点简表：\n{self._catalog_text(groups)}",
-            )
-            if item
+        suggestions = _fallback_suggestions(bool(images or groups))
+        attempt_error = (
+            "AI Search chat is not configured"
+            if self.ai_search_chat is None
+            or not getattr(self.ai_search_chat, "chat_search_configured", False)
+            else "AI Search chat request failed or returned no answer"
         )
-
-        answer: str
-        suggestions: list[str]
-        used_model: bool
-        attempts: tuple[dict[str, Any], ...] = ()
-        try:
-            call: ModelCallResult[dict[str, Any]] = self.provider.generate_json(
-                ModelRequest(
-                    task="asset_agent_chat",
-                    prompt=prompt,
-                    input_text=input_text,
-                    timeout_seconds=30,
-                ),
-            )
-            attempts = call.attempts
-            raw = call.value
-            result = AssetAgentModelResponse.model_validate(raw)
-            answer = _normalize_agent_text(result.answer)
-            suggestions = _clean_suggestions(result.suggested_questions)
-            used_model = True
-        except (ModelProviderNotConfigured, ModelProviderError, ValueError) as exc:
-            error_attempts = getattr(exc, "attempts", ())
-            attempts = (
-                tuple(item for item in error_attempts if isinstance(item, dict))
-                if isinstance(error_attempts, (list, tuple))
-                else ()
-            )
-            answer = self._fallback_answer(
-                message,
-                images,
-                groups,
-                error=str(exc),
-                has_temporary_image=has_user_uploaded_image,
-            )
-            suggestions = _fallback_suggestions(bool(images or groups))
-            used_model = False
 
         session.suggested_questions_json = _json_dump(suggestions)
-        self._add_message(session, role="assistant", content=answer, used_model=used_model)
+        self._add_message(session, role="assistant", content=answer, used_model=False)
         self.sessions.save(session)
         self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
         self.uow.commit()
@@ -366,8 +296,10 @@ class AssetAgentService:
             session=self._session_read(session),
             suggested_questions=suggestions,
             context_cards=context_cards,
-            used_model=used_model,
-            provider_attempts=[attempt for attempt in attempts if isinstance(attempt, dict)],
+            used_model=False,
+            provider_attempts=[
+                _ai_search_chat_attempt(status="unavailable", error=attempt_error)
+            ],
         )
 
     def chat_stream(
@@ -414,7 +346,9 @@ class AssetAgentService:
                 context_text = self._context_text(images, groups)
 
                 client = self.ai_search_chat
+                ai_search_error = "AI Search chat is not configured"
                 if client is not None and getattr(client, "chat_search_configured", False):
+                    ai_search_error = ""
                     answer_parts: list[str] = []
                     external_suggestions: list[str] = []
                     external_item_ids: list[str] = []
@@ -469,7 +403,8 @@ class AssetAgentService:
                                             ]
                                         },
                                     )
-                    except VolcAiSearchClientError:
+                    except VolcAiSearchClientError as exc:
+                        ai_search_error = str(exc)
                         if answer_parts:
                             raise
                     answer = _normalize_agent_text("".join(answer_parts))
@@ -521,84 +456,14 @@ class AssetAgentService:
                         yield _sse("final", response.model_dump(mode="json", by_alias=True))
                         return
 
-                yield _sse(
-                    "reasoning_delta",
-                    {"text": "我先把这个问题归到合适的业务场景，再组织回答。\n"},
+                if client is not None and getattr(client, "chat_search_configured", False):
+                    ai_search_error = ai_search_error or (
+                        "AI Search chat request returned no usable answer"
+                    )
+                answer = _ai_search_unavailable_answer(
+                    has_image=bool(visual_image_url or images or groups),
                 )
-                understanding = self._route_business_understanding(message, images, groups)
-                if understanding:
-                    for chunk in _chunk_text(_visible_reasoning_text(understanding)):
-                        yield _sse("reasoning_delta", {"text": chunk})
-                else:
-                    yield _sse(
-                        "reasoning_delta",
-                        {
-                            "text": (
-                                "这句话暂时没有明确落到某一个卖点。"
-                                "我会先按当前图片、素材上下文和卖点简表来回答。\n"
-                            )
-                        },
-                    )
-
-                prompt = _agent_prompt(
-                    response_mode=payload.response_mode,
-                    has_temporary_image=bool(uploaded_image_url),
-                )
-                input_text = "\n\n".join(
-                    item
-                    for item in (
-                        f"用户问题：{message}",
-                        f"当前对话ID：{session.id}",
-                        f"同一会话最近对话：\n{conversation_history}"
-                        if conversation_history
-                        else "",
-                        f"知识库/向量库卖点判断：\n{_understanding_text(understanding)}"
-                        if understanding
-                        else "",
-                        f"已发送图片/素材上下文：\n{context_text}" if context_text else "",
-                        "用户本轮上传了临时图片，但外部图像问答通道未返回结果。"
-                        "不要假装已经看见图片，应明确说明暂时无法可靠识别并请用户重试。"
-                        if uploaded_image_url
-                        else "",
-                        f"项目启用卖点简表：\n{self._catalog_text(groups)}",
-                    )
-                    if item
-                )
-
-                answer: str
-                suggestions: list[str]
-                used_model: bool
-                attempts: tuple[dict[str, Any], ...] = ()
-                try:
-                    call: ModelCallResult[dict[str, Any]] = self.provider.generate_json(
-                        ModelRequest(
-                            task="asset_agent_chat",
-                            prompt=prompt,
-                            input_text=input_text,
-                            timeout_seconds=45,
-                        ),
-                    )
-                    attempts = call.attempts
-                    result = AssetAgentModelResponse.model_validate(call.value)
-                    answer = _normalize_agent_text(result.answer)
-                    suggestions = _clean_suggestions(result.suggested_questions)
-                    used_model = True
-                except (ModelProviderNotConfigured, ModelProviderError, ValueError) as exc:
-                    error_attempts = getattr(exc, "attempts", ())
-                    attempts = (
-                        tuple(item for item in error_attempts if isinstance(item, dict))
-                        if isinstance(error_attempts, (list, tuple))
-                        else ()
-                    )
-                    answer = self._fallback_answer(
-                        message,
-                        images,
-                        groups,
-                        error=str(exc),
-                        has_temporary_image=bool(uploaded_image_url),
-                    )
-                    suggestions = _fallback_suggestions(bool(images or groups))
-                    used_model = False
+                suggestions = _fallback_suggestions(bool(images or groups))
 
                 for chunk in _chunk_text(answer):
                     yield _sse("answer_delta", {"text": chunk})
@@ -608,7 +473,7 @@ class AssetAgentService:
                     session,
                     role="assistant",
                     content=answer,
-                    used_model=used_model,
+                    used_model=False,
                 )
                 self.sessions.save(session)
                 self.sessions.trim_for_user(user.id, keep=MAX_AGENT_SESSIONS)
@@ -619,9 +484,12 @@ class AssetAgentService:
                     session=self._session_read(session),
                     suggested_questions=suggestions,
                     context_cards=context_cards,
-                    used_model=used_model,
+                    used_model=False,
                     provider_attempts=[
-                        attempt for attempt in attempts if isinstance(attempt, dict)
+                        _ai_search_chat_attempt(
+                            status="unavailable",
+                            error=_clip(ai_search_error, 200),
+                        )
                     ],
                 )
                 yield _sse("final", response.model_dump(mode="json", by_alias=True))
@@ -996,94 +864,6 @@ class AssetAgentService:
                 lines.append(f"- {fact}")
         return "\n".join(lines)
 
-    def _catalog_text(self, scoped_groups: list[AssetGroup]) -> str:
-        scoped_codes = {
-            link.concept.code
-            for group in scoped_groups
-            for link in group.concept_links
-            if link.concept
-            and link.review_status != "rejected"
-            and link.relation_role != "excludes"
-        }
-        concepts = self.concepts.list()
-        prioritized = sorted(
-            concepts,
-            key=lambda item: (item.code not in scoped_codes, item.name, item.code),
-        )
-        lines: list[str] = []
-        for concept in prioritized[:60]:
-            system_names = [
-                link.system_tag.name
-                for link in concept.system_links
-                if link.status == "active" and link.system_tag
-            ]
-            phrases = [
-                phrase.phrase
-                for phrase in concept.search_phrases
-                if phrase.review_status == "accepted"
-            ][:6]
-            lines.append(
-                " / ".join(
-                    item
-                    for item in (
-                        concept.name,
-                        concept.code,
-                        f"体系：{'、'.join(system_names)}" if system_names else "",
-                        f"定义：{_clip(concept.definition, 120)}" if concept.definition else "",
-                        f"搜索话术：{'、'.join(phrases)}" if phrases else "",
-                    )
-                    if item
-                )
-            )
-        return "\n".join(lines)
-
-    def _fallback_answer(
-        self,
-        message: str,
-        images: list[Image],
-        groups: list[AssetGroup],
-        *,
-        error: str,
-        has_temporary_image: bool = False,
-    ) -> str:
-        if has_temporary_image:
-            return (
-                "这张临时图片本轮没有被可靠识别，我不能在没看清内容时替它硬套卖点。"
-                "请保留原问题并重新上传一次；识别成功后，我会只按图片可见内容和项目已确认的"
-                "六大体系、核心卖点来回答。"
-            )
-        if not images and not groups:
-            return _fallback_business_answer(message)
-        lines = [
-            "我先按素材库已有信息给你一个简版判断：",
-            f"你的问题：{message}",
-        ]
-        for group in groups[:3]:
-            lines.append(f"\n素材组「{group.title}」")
-            lines.extend(f"- {fact}" for fact in _group_facts(group)[:8])
-        for image in images[:3]:
-            lines.append(f"\n图片「{image.title}」")
-            if image.image_summary:
-                lines.append(f"- {_clip(image.image_summary, 180)}")
-        return "\n".join(lines)
-
-    def _route_business_understanding(
-        self,
-        message: str,
-        images: list[Image],
-        groups: list[AssetGroup],
-    ) -> SearchUnderstanding | None:
-        router = self.knowledge_router
-        if router is None or not getattr(router, "configured", False):
-            return None
-        if not _should_route_agent_message(message, images, groups):
-            return None
-        try:
-            result = router.route(message)
-        except Exception:
-            return None
-        return result if isinstance(result, SearchUnderstanding) else None
-
     def _try_ai_search_chat(
         self,
         *,
@@ -1328,92 +1108,6 @@ def _chunk_text(value: str, *, size: int = 8) -> Iterator[str]:
         return
     for index in range(0, len(value), size):
         yield value[index : index + size]
-
-
-def _should_route_agent_message(
-    message: str,
-    images: list[Image],
-    groups: list[AssetGroup],
-) -> bool:
-    query = message.strip()
-    if len(query) < 3:
-        return False
-    route_markers = (
-        "找图",
-        "找图片",
-        "找素材",
-        "推荐图片",
-        "配图",
-        "素材",
-        "图片",
-        "卖点",
-        "体系",
-        "属于",
-        "判断",
-        "匹配",
-        "命中",
-        "适合",
-        "解释",
-        "怎么讲",
-        "家长",
-        "销售",
-    )
-    if any(marker in query for marker in route_markers):
-        return True
-    if images or groups:
-        return any(marker in query for marker in ("卖点", "体系", "为什么", "适合", "怎么讲"))
-    return len(query) >= 6
-
-
-def _understanding_text(understanding: SearchUnderstanding) -> str:
-    concepts = "、".join(
-        f"{item.concept}（{item.relation}，{item.weight:.2f}）"
-        for item in understanding.matched_business_concepts
-    )
-    proof_points = "、".join(
-        f"{item.name}（{item.weight:.2f}）" for item in understanding.matched_proof_points
-    )
-    return "\n".join(
-        item
-        for item in (
-            f"原话：{understanding.original_query}",
-            f"查询状态：{understanding.query_type}",
-            f"判断意图：{understanding.search_intent}",
-            f"命中卖点：{concepts}" if concepts else "",
-            f"命中证明点：{proof_points}" if proof_points else "",
-            f"策略：{understanding.search_strategy}" if understanding.search_strategy else "",
-        )
-        if item
-    )
-
-
-def _visible_reasoning_text(understanding: SearchUnderstanding) -> str:
-    concepts = understanding.matched_business_concepts
-    if understanding.query_type == "no_reliable_intent_search" or not concepts:
-        return (
-            "这句话还缺少明确的对象、动作或使用场景。\n"
-            "所以我不会硬塞进某个卖点；可以先按普通业务问题回答，"
-            "也可以请你补一句想找的场景或用途。\n"
-        )
-    names = "、".join(item.concept for item in concepts)
-    lines = [
-        f"我先把这句话归到：{names}。\n",
-        f"核心判断：{understanding.search_intent}\n",
-    ]
-    for index, concept in enumerate(concepts, start=1):
-        lines.append(
-            f"{index}. {concept.concept}：{concept.reason or '和当前卖点定义最接近'}。\n"
-        )
-    if len(concepts) == 1:
-        lines.append(
-            "如果你是在找图，下一步就按这个卖点去匹配素材；"
-            "如果你是在问话术，我会直接帮你整理成可对外讲的表达。\n"
-        )
-    else:
-        lines.append(
-            "这句话里有多个独立信号；如果要找图，最好先确认优先表达哪一个卖点。\n"
-        )
-    return "".join(lines)
 
 
 def _is_active_today(session: AssetAgentSession) -> bool:
@@ -1786,11 +1480,23 @@ def _fallback_suggestions(has_context: bool) -> list[str]:
             "帮我找表达同一卖点的其他素材",
         ]
     return [
-        "洋葱拍题精学属于什么体系和卖点？",
-        "详细讲讲这个卖点的背景和边界",
-        "帮我找能表达这个卖点的图片",
-        "这个卖点需要时怎么转成家长话术？",
+        "洋葱都有哪些业务体系？",
+        "帮我把这段介绍写得更清楚",
+        "帮我找几张适合讲举一反三的图",
+        "我发一张图，你帮我看看它讲了什么",
     ]
+
+
+def _ai_search_unavailable_answer(*, has_image: bool) -> str:
+    if has_image:
+        return (
+            "图片已经保留在当前对话中，但在线问答服务本轮没有生成可靠回答。"
+            "请稍后直接重试原问题，不需要重新选择卖点，也不需要新建对话。"
+        )
+    return (
+        "在线问答服务本轮没有生成可靠回答，请稍后直接重试这个问题。"
+        "你可以像普通 AI 助手一样提问，不需要先选择体系、卖点或发送图片。"
+    )
 
 
 def _fallback_business_answer(message: str) -> str:

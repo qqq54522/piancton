@@ -64,7 +64,6 @@ export async function addAssetVariant(
   form.append('assetRole', input.role);
   if (input.title?.trim()) form.append('title', input.title.trim());
   if (input.channel?.trim()) form.append('channel', input.channel.trim());
-  form.append('autoAnalyze', String(input.role !== 'derivative'));
   return (await api.post(`/api/asset-groups/${groupId}/images`, form)).data;
 }
 
@@ -76,7 +75,6 @@ export async function replaceAssetPrimary(
   form.append('file', input.file);
   if (input.title?.trim()) form.append('title', input.title.trim());
   if (input.channel?.trim()) form.append('channel', input.channel.trim());
-  form.append('autoAnalyze', 'true');
   return (await api.post(`/api/asset-groups/${groupId}/primary-image`, form)).data;
 }
 

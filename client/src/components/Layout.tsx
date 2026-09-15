@@ -5,7 +5,6 @@ import {
   Fingerprint,
   BarChart3,
   Images,
-  KeyRound,
   LayoutGrid,
   LibraryBig,
   LogOut,
@@ -116,7 +115,6 @@ const Layout = () => {
     { to: '/admin/channels', label: '渠道管理', icon: Tags, show: user?.role === 'admin' },
     { to: searchOpsPath, label: '搜索运营', icon: Search, show: canViewSearchOps },
     { to: '/announcements/manage', label: '公告管理', icon: Megaphone, show: canManageAssets },
-    { to: '/admin/api-center', label: 'API 中心', icon: KeyRound, show: user?.role === 'admin' },
     { to: '/admin/usage', label: '使用统计', icon: BarChart3, show: user?.role === 'admin' },
     { to: '/admin/identity-codes', label: '身份码管理', icon: Fingerprint, show: user?.role === 'admin' },
     { to: '/admin/users', label: '用户管理', icon: Users, show: user?.role === 'admin' },
@@ -243,11 +241,6 @@ const Layout = () => {
               {canManageAssets && (
                 <NavLink to="/announcements/manage" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
                   <Megaphone className="size-4" />公告管理
-                </NavLink>
-              )}
-              {user?.role === 'admin' && (
-                <NavLink to="/admin/api-center" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
-                  <KeyRound className="size-4" />API 中心
                 </NavLink>
               )}
               {user?.role === 'admin' && (

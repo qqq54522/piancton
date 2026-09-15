@@ -98,7 +98,7 @@ const SemanticSearchResult = ({
             <div>
               <p className="font-medium">部分智能判断链路发生降级，已保留当前可用搜索结果。</p>
               <p className="mt-1">
-                {result.fallbackReason || '外部语义增强未在时限内完成，可稍后重试或到 API 中心测试连接。'}
+                {result.fallbackReason || 'AI 搜索暂时不可用，请稍后重试。'}
               </p>
             </div>
           </div>

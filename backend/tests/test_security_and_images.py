@@ -3,16 +3,12 @@ from io import BytesIO
 
 from PIL import Image as PillowImage
 
-from app.ai.contracts import ModelCallResult
 from app.api import dependencies
 from app.core.security import hash_secret
-from app.main import app
 from app.models.business_concept import BusinessConcept
 from app.models.tag import Tag
 from app.models.user import LoginThrottle
-from app.schemas.ai import ProviderStatus
-from app.services.ai_service import AiService
-from tests.conftest import ModelProviderStub, login
+from tests.conftest import login
 
 
 def png_file(width: int = 8, height: int = 4) -> bytes:
@@ -265,12 +261,12 @@ def test_large_non_long_image_still_respects_regular_pixel_limit(client, monkeyp
         "/api/images/upload",
         headers=headers,
         files={"file": ("too-large-square.png", png_file(40, 40), "image/png")},
-        data={"title": "普通大图", "channel": "PPT", "autoAnalyze": "false"},
+        data={"title": "普通大图", "channel": "PPT"},
     )
 
     assert response.status_code == 413
-    assert response.json()["detail"]["code"] == "image_too_many_pixels"
-    assert "普通图片上限 1000" in response.json()["detail"]["message"]
+    assert response.json()["code"] == "image_too_many_pixels"
+    assert "普通图片上限 1000" in response.json()["message"]
 
 
 def test_existing_long_image_with_legacy_thumbnail_is_regenerated_once(
@@ -366,8 +362,7 @@ def test_renaming_a_primary_image_auto_numbers_and_keeps_group_title_in_sync(cli
 
 
 def test_unified_search_log_has_no_requested_mode(client, monkeypatch):
-    monkeypatch.setattr(dependencies.settings, "vikingdb_knowledge_router_enabled", False)
-    monkeypatch.setattr(dependencies.settings, "vikingdb_enabled", False)
+    monkeypatch.setattr(dependencies.settings, "ai_search_enabled", False)
     headers = admin_headers(client)
     image = upload(client, headers, "搜索运营测试图")
 
@@ -427,17 +422,11 @@ def test_search_ops_is_available_to_designer_but_not_business(client):
     assert business_activity.status_code == 403
 
 
-def test_ai_not_configured_is_explicit(client):
-    from app.ai.placeholder import PlaceholderModelProvider
-
-    app.dependency_overrides[dependencies.get_ai_service] = lambda: AiService(
-        PlaceholderModelProvider()
-    )
+def test_legacy_ai_provider_route_is_removed(client):
     headers = admin_headers(client)
     image = upload(client, headers)
     response = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
-    assert response.status_code == 410
-    assert response.json()["code"] == "image_content_analysis_retired"
+    assert response.status_code == 404
 
 
 def test_pre_upload_asset_phrase_generation_route_is_retired(client):
@@ -474,47 +463,10 @@ def test_ai_analysis_route_is_retired_and_keeps_existing_content_untouched(
         )
         db.commit()
 
-    class Provider(ModelProviderStub):
-        name = "fake"
-        configured = True
-
-        def generate_json(self, request):
-            del request
-            return ModelCallResult(
-                {
-                    "image_summary": "平板界面展示数学动画和分步计算。",
-                    "semantic_profile": {
-                        "visual_facts": ["平板学习界面", "数学动画"],
-                        "scenes": ["居家学习"],
-                        "asset_search_phrases": ["蓝色平板动画课画面"],
-                    },
-                    "concept_suggestions": [
-                        {
-                            "concept_code": "animation_explanation",
-                            "system_name": "同步校内体系",
-                            "concept_name": "动画精讲",
-                            "confidence": 0.94,
-                            "evidence_level": "A",
-                            "relation_role": "expresses",
-                            "reason": "画面展示动画和分步计算，适合动画精讲，不是课后小测。",
-                        }
-                    ],
-                }
-            )
-
-    class FakeAiService(AiService):
-        def __init__(self):
-            super().__init__(Provider())
-
-        def provider_status(self):
-            return ProviderStatus(provider="fake", configured=True, model_name="fake")
-
-    app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
     headers = admin_headers(client)
     image = upload(client, headers, "AI分析")
     response = client.post(f"/api/ai/images/{image['id']}/analyze", headers=headers)
-    assert response.status_code == 410
-    assert response.json()["code"] == "image_content_analysis_retired"
+    assert response.status_code == 404
 
     detail = client.get(f"/api/images/{image['id']}").json()
     assert detail["semanticProfile"] is None

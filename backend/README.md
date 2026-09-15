@@ -36,7 +36,7 @@ make docker-up
 |---|---:|---:|---:|
 | 浏览、搜索、预览、下载 | ✓ | ✓ | ✓ |
 | 上传、维护素材版本和概念关系 |  | ✓ | ✓ |
-| AI 操作 |  | ✓ | ✓ |
+| AI Search 搜索与 Agent | ✓ | ✓ | ✓ |
 | 用户管理 |  |  | ✓ |
 | 审计日志 |  |  | ✓ |
 
@@ -45,18 +45,12 @@ make docker-up
 系统提供 `/health/live` 和 `/health/ready`，并为响应附加 request ID 与安全响应头。
 图片删除默认进入回收站，只有永久删除才会清理原图和缩略图。
 
-## AI Provider
+## AI Search
 
-后端支持 `MODEL_PROVIDER=openai_compatible`，通过 OpenAI-compatible
-`/chat/completions` 接口调用多模态模型。API 中心是日常唯一管理入口，后端实际调用只
-读取 API 中心数据库。
-
-为了兼容已有部署，只有在 API 中心数据库完全没有 API 记录时，系统才会把环境变量中的
-初始配置导入 API 中心一次。导入后不会再反向写回 `.env`，也不会用 `.env` 覆盖 API 中心。
-如果 API 中心没有可用 API，调用会明确返回未配置，不会绕回环境变量。
-
-模型必须能处理图片输入，并稳定返回 JSON 对象。业务层只依赖
-`ModelProvider` 协议；新增或替换模型时，只改 `app/ai` 适配器。
+在线搜索理解、推荐和素材库 Agent 问答只使用火山 AI Search。配置见根目录 README
+和 `backend/.env.example`。API 中心路由和独立模型调度已下线；历史模型配置与数据
+保留兼容，但不再装配进在线依赖。AI Search 不可用时搜索使用本地业务目录、数据库
+和可选 Meilisearch 降级，Agent 明确提示暂时不可用。
 
 ## 搜索后端
 
@@ -68,7 +62,7 @@ make docker-up
 - `MEILISEARCH_INDEX`，默认 `images`
 - `SEARCH_TIMEOUT_SECONDS`，默认 2 秒
 
-在线搜索由一条限时异步编排统一执行。配置 GPT-5.5 时，自然语言搜索严格串行执行三级理解：第一层只判断六大体系，第二层只读取候选体系卖点摘要和当前启用卖点，第三层只读取已命中卖点的直属证明点。三个阶段分别使用 `SEARCH_SYSTEM_ROUTING_TIMEOUT_SECONDS`、`SEARCH_SELLING_POINT_TIMEOUT_SECONDS` 和 `SEARCH_PROOF_POINT_TIMEOUT_SECONDS`，默认预算为 `8s/20s/20s`。第二层不得输出证明点，第三层不得改写卖点；只有完整成功结果进入查询理解缓存。任一必要层失败时记录降级并遵守精度保护，不把全库弱召回伪装成业务结果。本地固定目录、数据库、Meilisearch 和 Embedding 并行准备候选，候选融合后最多调用一次 Reranker。
+在线搜索由 AI Search 与本地业务约束协作：AI Search 提供卖点判断和候选，本地人工 accepted 关系确定可用素材；数据库与可选 Meilisearch 负责限时、可缓存的基础召回。独立 Embedding、Reranker 和模型主备调度不再装配。
 
 重建派生搜索索引：
 

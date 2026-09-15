@@ -1,12 +1,9 @@
-from collections.abc import Callable
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import Any, TypeVar
 
 import pytest
 from PIL import Image as PillowImage
 
-from app.ai.contracts import ModelCallResult, ModelRequest
 from app.core.errors import NotFoundError
 from app.models.asset import AssetConceptLink, AssetGroup, AssetSearchPhrase
 from app.models.business_concept import BusinessConcept, ConceptSearchPhrase, ConceptSystemLink
@@ -25,8 +22,6 @@ from app.services.volc_ai_search_client import (
     VolcAiSearchStreamEvent,
 )
 from tests.conftest import login
-
-T = TypeVar("T")
 
 
 def test_asset_agent_uses_confirmed_asset_context(db_factory):
@@ -74,8 +69,8 @@ def test_asset_agent_uses_confirmed_asset_context(db_factory):
         db.add_all([system, concept, group, image, user])
         db.commit()
 
-        provider = _RecordingProvider()
-        response = AssetAgentService(db, provider).chat(
+        ai_search = _FakeAiSearchChat()
+        response = AssetAgentService(db, ai_search_chat=ai_search).chat(
             user,
             AssetAgentChatRequest(message="这张图怎么跟家长解释？", image_ids=[image.id]),
         )
@@ -89,10 +84,10 @@ def test_asset_agent_uses_confirmed_asset_context(db_factory):
         "user",
         "assistant",
     ]
-    assert "AI定制班" in provider.last_request.input_text
-    assert "每个孩子都有自己的学习方案" in provider.last_request.input_text
+    assert "AI定制班" in ai_search.last_query
+    assert "每个孩子都有自己的学习方案" in ai_search.last_query
     assert response.context_cards[0].title == "定制规划图"
-    assert response.answer == "这张图可以用来解释 AI 定制班。"
+    assert response.answer == "这是火山 AI Search 的业务知识回答。"
 
 
 def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
@@ -101,9 +96,8 @@ def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
         db.add(user)
         db.commit()
 
-        provider = _FailingProvider()
         ai_search = _FakeAiSearchChat()
-        response = AssetAgentService(db, provider, ai_search_chat=ai_search).chat(
+        response = AssetAgentService(db, ai_search_chat=ai_search).chat(
             user,
             AssetAgentChatRequest(message="同步考点体系怎么跟家长解释？"),
         )
@@ -115,7 +109,6 @@ def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
     assert ai_search.last_query.startswith("同步考点体系怎么跟家长解释？")
     assert "内部输出要求" in ai_search.last_query
     assert "不要暴露 VikingDB" in ai_search.last_query
-    assert provider.called is False
 
 
 def test_asset_agent_ai_search_receives_recent_history_for_manual_followup(db_factory):
@@ -125,7 +118,7 @@ def test_asset_agent_ai_search_receives_recent_history_for_manual_followup(db_fa
         db.commit()
 
         ai_search = _FakeAiSearchChat()
-        service = AssetAgentService(db, _FailingProvider(), ai_search_chat=ai_search)
+        service = AssetAgentService(db, ai_search_chat=ai_search)
         session = service.create_session(user)
 
         first = service.chat_in_session(
@@ -151,14 +144,13 @@ def test_asset_agent_ai_search_receives_recent_history_for_manual_followup(db_fa
     assert ai_search.last_query.startswith("那它属于哪个体系？")
 
 
-def test_asset_agent_local_model_receives_recent_history_for_manual_followup(db_factory):
+def test_asset_agent_never_uses_an_extra_model_when_ai_search_is_unavailable(db_factory):
     with db_factory() as db:
         user = User(username="agent-local-history-user", password_hash="x", role="business")
         db.add(user)
         db.commit()
 
-        provider = _RecordingProvider()
-        service = AssetAgentService(db, provider)
+        service = AssetAgentService(db)
         session = service.create_session(user)
         service.chat_in_session(
             user,
@@ -172,9 +164,18 @@ def test_asset_agent_local_model_receives_recent_history_for_manual_followup(db_
         )
 
     assert response.conversation_id == session.id
-    assert "同一会话最近对话" in provider.last_request.input_text
-    assert "用户：先介绍一下 AI 定制班。" in provider.last_request.input_text
-    assert "助手：这张图可以用来解释 AI 定制班。" in provider.last_request.input_text
+    assert response.used_model is False
+    assert response.provider_attempts == [
+        {
+            "provider": "volc_ai_search_chat",
+            "model": "chat_search",
+            "status": "unavailable",
+            "duration_ms": None,
+            "error": "AI Search chat is not configured",
+        }
+    ]
+    assert "在线问答服务本轮没有生成可靠回答" in response.answer
+    assert "不需要先选择体系、卖点或发送图片" in response.answer
 
 
 def test_asset_agent_memory_window_keeps_recent_messages_and_reports_full(db_factory):
@@ -183,7 +184,7 @@ def test_asset_agent_memory_window_keeps_recent_messages_and_reports_full(db_fac
         db.add(user)
         db.commit()
 
-        service = AssetAgentService(db, _RecordingProvider())
+        service = AssetAgentService(db)
         created = service.create_session(user)
         session = service.sessions.get_for_user(user.id, created.id)
         assert session is not None
@@ -224,7 +225,7 @@ def test_asset_agent_native_stream_persists_ai_search_image_cards(db_factory):
         db.commit()
         ai_search = _FakeAiSearchChat()
         ai_search.item_ids = [image.id]
-        service = AssetAgentService(db, _FailingProvider(), ai_search_chat=ai_search)
+        service = AssetAgentService(db, ai_search_chat=ai_search)
         session = service.create_session(user)
 
         frames = list(
@@ -265,7 +266,6 @@ def test_asset_agent_new_session_uses_ai_search_opening_and_local_images(db_fact
 
         session = AssetAgentService(
             db,
-            _FailingProvider(),
             ai_search_chat=ai_search,
         ).create_session(user)
 
@@ -308,7 +308,6 @@ def test_asset_agent_bridges_library_image_pixels_into_ai_search_chat(
         ai_search = _FakeAiSearchChat()
         service = AssetAgentService(
             db,
-            _FailingProvider(),
             ai_search_chat=ai_search,
             ai_search_public_base_url="http://example.test",
             temporary_images=temporary_images,
@@ -400,7 +399,7 @@ def test_asset_agent_expands_same_title_family_and_keeps_followup_on_topic(db_fa
 
         ai_search = _FakeAiSearchChat()
         ai_search.item_ids = [report_images[0].id, report_images[1].id]
-        service = AssetAgentService(db, _FailingProvider(), ai_search_chat=ai_search)
+        service = AssetAgentService(db, ai_search_chat=ai_search)
         session = service.create_session(user)
         first = service.chat_in_session(
             user,
@@ -450,7 +449,6 @@ def test_asset_agent_temporary_image_is_used_once_and_fast_mode_is_bounded(
 
         response = AssetAgentService(
             db,
-            _FailingProvider(),
             ai_search_chat=ai_search,
             ai_search_chat_page_size=10,
             temporary_images=temporary_images,
@@ -563,8 +561,8 @@ def test_asset_agent_resets_all_user_memory_at_local_midnight(
         db.commit()
 
         monkeypatch.setattr(asset_agent_service, "_now", lambda: before_midnight)
-        provider = _RecordingProvider()
-        service = AssetAgentService(db, provider)
+        ai_search = _FakeAiSearchChat()
+        service = AssetAgentService(db, ai_search_chat=ai_search)
         first = service.create_session(user, None)
         first_reply = service.chat_in_session(
             user,
@@ -605,65 +603,8 @@ def test_asset_agent_resets_all_user_memory_at_local_midnight(
 
         assert response.session is not None
         assert response.conversation_id not in {first.id, second.id}
-        assert "第一个窗口的今日记忆" not in provider.last_request.input_text
-        assert "第二个窗口的今日记忆" not in provider.last_request.input_text
-
-
-class _RecordingProvider:
-    name = "recording"
-    last_request: ModelRequest
-
-    @property
-    def configured(self) -> bool:
-        return True
-
-    def generate_json(self, request: ModelRequest) -> ModelCallResult[dict[str, Any]]:
-        self.last_request = request
-        attempts = (
-            {
-                "provider": "recording",
-                "model": "test",
-                "status": "ok",
-                "duration_ms": 1,
-                "error": "",
-            },
-        )
-        return ModelCallResult(
-            {
-                "answer": "这张图可以用来解释 AI 定制班。",
-                "suggestedQuestions": ["它和真人督学有什么区别？"],
-            },
-            attempts,
-        )
-
-    def generate_validated_json(
-        self,
-        request: ModelRequest,
-        validator: Callable[[dict[str, Any]], T],
-    ) -> ModelCallResult[T]:
-        result = self.generate_json(request)
-        return ModelCallResult(validator(result.value), result.attempts)
-
-
-class _FailingProvider:
-    name = "failing"
-    called = False
-
-    @property
-    def configured(self) -> bool:
-        return True
-
-    def generate_json(self, request: ModelRequest) -> ModelCallResult[dict[str, Any]]:
-        self.called = True
-        raise AssertionError("local model should not be called when AI Search chat works")
-
-    def generate_validated_json(
-        self,
-        request: ModelRequest,
-        validator: Callable[[dict[str, Any]], T],
-    ) -> ModelCallResult[T]:
-        self.called = True
-        raise AssertionError("local model should not be called when AI Search chat works")
+        assert "第一个窗口的今日记忆" not in ai_search.last_query
+        assert "第二个窗口的今日记忆" not in ai_search.last_query
 
 
 class _FakeAiSearchChat:

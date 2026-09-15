@@ -148,13 +148,6 @@ class Settings(BaseSettings):
     search_candidate_limit: int = 20
     search_cache_ttl_seconds: float = 300.0
     search_cache_max_entries: int = 512
-    api_center_maintenance_enabled: bool = False
-    api_center_maintenance_interval_minutes: int = 360
-    api_center_maintenance_startup_delay_seconds: int = 300
-    api_center_maintenance_max_credentials_per_cycle: int = 20
-    api_center_call_trace_retention_days: int = 30
-    api_center_health_check_retention_days: int = 90
-
     model_config = SettingsConfigDict(
         env_file=(
             BACKEND_DIR / ".env",

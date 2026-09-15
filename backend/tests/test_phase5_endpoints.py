@@ -4,13 +4,10 @@ from zipfile import ZipFile
 
 from PIL import Image as PillowImage
 
-from app.ai.contracts import ModelCallResult
 from app.api import dependencies
-from app.main import app
 from app.models.asset import AssetConceptLink, AssetGroup
 from app.models.business_concept import BusinessConcept, ConceptSystemLink
 from app.models.tag import Tag
-from app.schemas.ai import ImageAnalysisResult, ImageSemanticProfile
 from app.services.embedding_index import EmbeddingIndexSync
 from app.services.search_index_sync import SearchIndexSync
 from tests.conftest import login
@@ -366,15 +363,7 @@ def test_source_link_changes_refresh_ai_search_primary_image(client, monkeypatch
     assert fake_index.deleted == []
 
 
-def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
-    from app.api.v1 import assets as assets_api
-
-    queued_image_ids: list[str] = []
-    monkeypatch.setattr(
-        assets_api,
-        "_queue_analysis",
-        lambda image_id, **_kwargs: queued_image_ids.append(image_id),
-    )
+def test_phase5_derivative_upload_has_no_legacy_ai_analysis_route(client):
     csrf = login(client, "admin", "admin-password")
     headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
     primary = client.post(
@@ -396,7 +385,6 @@ def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
     )
 
     assert variant.status_code == 201
-    assert queued_image_ids == []
     variant_id = next(
         item["id"]
         for item in variant.json()["images"]
@@ -406,27 +394,10 @@ def test_phase5_derivative_upload_never_queues_ai_analysis(client, monkeypatch):
         f"/api/ai/images/{variant_id}/analyze",
         headers=headers,
     )
-    assert manual_analysis.status_code == 400
-    assert manual_analysis.json()["code"] == "derivative_analysis_not_required"
+    assert manual_analysis.status_code == 404
 
 
-def test_phase5_analysis_does_not_persist_ai_asset_search_phrases(client):
-    result = {
-        "value": ImageAnalysisResult(
-            image_summary="主图画面",
-            semantic_profile=ImageSemanticProfile(
-                visual_facts=["主图画面"],
-                asset_search_phrases=["正确主图候选"],
-            ),
-            concept_suggestions=[],
-        )
-    }
-
-    class FakeAiService:
-        def analyze_image(self, _path):
-            return ModelCallResult(result["value"])
-
-    app.dependency_overrides[dependencies.get_ai_service] = lambda: FakeAiService()
+def test_phase5_removed_ai_analysis_route_does_not_persist_search_phrases(client):
     csrf = login(client, "admin", "admin-password")
     headers = {"X-CSRF-Token": csrf, "Origin": "http://localhost:5173"}
     primary = client.post(
@@ -437,7 +408,7 @@ def test_phase5_analysis_does_not_persist_ai_asset_search_phrases(client):
     ).json()
     group_id = primary["assetGroupId"]
     analyzed = client.post(f"/api/ai/images/{primary['id']}/analyze", headers=headers)
-    assert analyzed.status_code == 200
+    assert analyzed.status_code == 404
 
     variant_group = client.post(
         f"/api/asset-groups/{group_id}/images",
@@ -453,19 +424,11 @@ def test_phase5_analysis_does_not_persist_ai_asset_search_phrases(client):
         item["id"] for item in variant_group["images"] if item["id"] != primary["id"]
     )
 
-    result["value"] = ImageAnalysisResult(
-        image_summary="错误延展画面",
-        semantic_profile=ImageSemanticProfile(
-            visual_facts=["错误延展画面"],
-            asset_search_phrases=["错误延展候选"],
-        ),
-        concept_suggestions=[],
-    )
     alternative_analysis = client.post(
         f"/api/ai/images/{variant_id}/analyze",
         headers=headers,
     )
-    assert alternative_analysis.status_code == 200
+    assert alternative_analysis.status_code == 404
 
     phrases = client.get(f"/api/asset-groups/{group_id}", headers=headers).json()[
         "searchPhrases"
