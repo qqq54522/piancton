@@ -21,7 +21,7 @@
 | AI Search 能力 | Runtime service | 触发入口 |
 |---|---|---|
 | 搜索 | `VolcAiSearchService` | 素材检索；本地仅保留不外发数据的确定性降级 |
-| `chat_search` | `AssetAgentService` | 右侧 Piancton Agent，回答通用业务问题、图片问题和自然语言找图 |
+| `chat_search` | `AssetAgentService` | 右侧 Piancton Agent 自由问答；涉及洋葱业务时参考知识数据集与本地稳定目录，也可问图片和自然语言找图 |
 | 推荐 | `HomeRecommendationService` / AI Search 推荐接口 | 首页猜你喜欢与详情页相关推荐 |
 | 补全、摘要、行为 | `VolcAiSearchClient` 对应能力 | 搜索交互和推荐效果闭环 |
 

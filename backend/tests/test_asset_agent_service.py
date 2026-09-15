@@ -107,8 +107,31 @@ def test_asset_agent_prefers_ai_search_chat_when_configured(db_factory):
     assert response.suggested_questions == ["这个卖点适合什么素材？"]
     assert response.provider_attempts[0]["provider"] == "volc_ai_search_chat"
     assert ai_search.last_query.startswith("同步考点体系怎么跟家长解释？")
-    assert "内部输出要求" in ai_search.last_query
-    assert "不要暴露 VikingDB" in ai_search.last_query
+    assert "可自由问答的洋葱 Agent" in ai_search.last_query
+    assert "不必把普通问题转成卖点判断" in ai_search.last_query
+
+
+def test_asset_agent_six_system_question_uses_project_names(db_factory):
+    with db_factory() as db:
+        user = User(username="agent-six-systems", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+        ai_search = _FakeAiSearchChat()
+        AssetAgentService(db, ai_search_chat=ai_search).chat(
+            user,
+            AssetAgentChatRequest(message="洋葱的六大体系是什么？"),
+        )
+
+    for name in (
+        "同步校内体系",
+        "同步考点体系",
+        "同步培养体系",
+        "同步规划体系",
+        "同步自学体系",
+        "同步伴学体系",
+    ):
+        assert name in ai_search.last_query
+    assert "不要求把其他问题归入这些体系" in ai_search.last_query
 
 
 def test_asset_agent_ai_search_receives_recent_history_for_manual_followup(db_factory):
@@ -139,6 +162,7 @@ def test_asset_agent_ai_search_receives_recent_history_for_manual_followup(db_fa
     assert refreshed.id == session.id
     assert any(frame.startswith("event: final") for frame in frames)
     assert "以下是同一会话最近几轮对话" in ai_search.last_query
+    assert "过去的助手回答也可能有误" in ai_search.last_query
     assert "用户：洋葱拍题精学解决什么问题？" in ai_search.last_query
     assert "助手：这是火山 AI Search 的业务知识回答。" in ai_search.last_query
     assert ai_search.last_query.startswith("那它属于哪个体系？")
@@ -335,10 +359,8 @@ def test_asset_agent_bridges_library_image_pixels_into_ai_search_chat(
     )
     assert all("/api/images/" not in url for url in ai_search.image_urls)
     assert len(set(ai_search.image_urls)) == 2
-    assert "本轮附带了一张可供视觉分析的图片" in ai_search.last_query
-    assert "联网检索只按需使用" in ai_search.last_query
-    assert "图中奖杯的名称、年份、届次" in ai_search.last_query
-    assert "不得凭图猜测年份或背景" in ai_search.last_query
+    assert "本轮附带图片" in ai_search.last_query
+    assert "区分可见内容和推测" in ai_search.last_query
     assert "拍题精学讲解图" in ai_search.last_query
     for url in ai_search.image_urls:
         with pytest.raises(NotFoundError):
@@ -464,8 +486,8 @@ def test_asset_agent_temporary_image_is_used_once_and_fast_mode_is_bounded(
     assert response.used_model is True
     assert ai_search.last_image_url == uploaded.preview_url
     assert ai_search.last_page_size == 4
-    assert "当前为快速模式" in ai_search.last_query
-    assert "本轮附带了一张可供视觉分析的图片" in ai_search.last_query
+    assert "本轮用户选择简短回答" in ai_search.last_query
+    assert "本轮附带图片" in ai_search.last_query
     with pytest.raises(NotFoundError):
         temporary_images.public_file(uploaded.token)
 

@@ -37,10 +37,10 @@ export interface AgentState {
 }
 
 export const DEFAULT_QUESTIONS = [
-  '洋葱拍题精学属于什么体系和卖点？',
-  '详细讲讲这个卖点的背景和边界',
-  '帮我找能表达这个卖点的图片',
-  '这个卖点需要时怎么转成家长话术？',
+  '洋葱的六大体系是什么？',
+  '帮我把这段介绍写得更清楚',
+  '帮我找几张适合做 PPT 的素材',
+  '我发一张图，你帮我看看它讲了什么',
 ] as const;
 
 export const MAX_SESSIONS = 20;
@@ -49,7 +49,7 @@ export const MEMORY_MESSAGE_LIMIT = 24;
 export const MEMORY_MESSAGE_CHAR_LIMIT = 1_200;
 export const LOCAL_SESSION_PREFIX = 'local-';
 export const DEFAULT_GREETING =
-  'Hi，我是洋葱业务知识助手。\n\n我可以帮你理解洋葱学园的业务体系、核心卖点、证明点和使用场景，也可以把这些内容转成销售话术、家长沟通、素材方向、品牌文案、课程介绍或活动说明。\n\n你可以直接问我：某个卖点是什么意思、家长问题怎么回答、素材适合表达哪个卖点，或者某个场景该用什么卖点切入。';
+  'Hi，我是洋葱 Agent。你可以像和普通助手聊天一样直接提问。聊到洋葱的产品、业务体系或素材时，我会结合洋葱知识与素材库回答；其他问题也可以直接问我。';
 
 const LEGACY_DEFAULT_GREETING =
   '我是素材库 Agent。你可以把图片发给我，我会按已确认的卖点和素材信息帮你解释。';
@@ -69,11 +69,10 @@ const LEGACY_DEFAULT_QUESTIONS_WITHOUT_CONTEXT = [
 ] as const;
 
 export function responseMessage(response: AssetAgentChatResponse): ChatMessage {
-  const suffix = response.usedModel ? '' : '\n\n（本次模型不可用，已走本地兜底。）';
   return {
     id: safeId(),
     role: 'assistant',
-    content: normalizeAgentText(`${response.answer}${suffix}`),
+    content: normalizeAgentText(response.answer),
     usedModel: response.usedModel,
     contextCards: response.contextCards,
   };
@@ -162,6 +161,7 @@ function normalizeLegacyDefaultMessage(content: string): string {
     content === LEGACY_DEFAULT_GREETING
     || content === LEGACY_PIANCTON_DEFAULT_GREETING
     || content === LEGACY_BUSINESS_DEFAULT_GREETING
+    || content.startsWith('Hi，我是洋葱业务知识助手。\n\n我可以帮你理解洋葱学园')
   )
     ? DEFAULT_GREETING
     : content;

@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ChevronUp,
   Copy,
   Download,
   Image as ImageIcon,
   Loader2,
   Plus,
-  Search,
   Send,
   Sparkles,
   X,
@@ -25,7 +23,6 @@ import {
 } from '@client/src/api/assetAgent';
 import { getApiError } from '@client/src/api/client';
 import { recordSearchInteraction } from '@client/src/api/image';
-import { PianctonAgentMark } from '@client/src/components/PianctonAgentMark';
 import { Button } from '@client/src/components/ui/button';
 import {
   listenForAssetAgentImages,
@@ -646,10 +643,6 @@ function AssetAgentWidgetInner({
         }}
       >
         {activeSession.messages.map((message, index) => {
-          const previousUserMessage = activeSession.messages
-            .slice(0, index)
-            .reverse()
-            .find((item) => item.role === 'user')?.content;
           const isIntroMessage = message.role === 'assistant' && index === 0;
           return (
           <div
@@ -675,12 +668,6 @@ function AssetAgentWidgetInner({
                   onAsk={(question) => void ask(question)}
                 />
               ) : null}
-              {message.role === 'assistant' && message.reasoningContent && (
-                <AgentAnalysisCard
-                  query={previousUserMessage}
-                  streaming={Boolean(message.streaming)}
-                />
-              )}
               {!isIntroMessage && (
                 <AgentMessageContent
                   content={normalizeAgentText(message.content || (message.streaming ? '正在生成回答内容…' : ''))}
@@ -699,7 +686,10 @@ function AssetAgentWidgetInner({
         {loading && !hasStreamingAssistant && (
           <div className="flex justify-start">
             <div className="w-full">
-              <AgentAnalysisCard query={input} streaming />
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                正在回答…
+              </div>
             </div>
           </div>
         )}
@@ -911,80 +901,6 @@ function AgentIntroCard({
   );
 }
 
-function AgentAnalysisCard({
-  query,
-  streaming,
-}: {
-  query?: string;
-  streaming: boolean;
-}) {
-  const trimmedQuery = _clipText(query?.trim() || '当前问题', 24);
-  const queryChips = [
-    trimmedQuery,
-    buildAnalysisFollowupChip(query || ''),
-  ].filter((item, index, values) => item && values.indexOf(item) === index);
-  const steps = [
-    '分析您的需求',
-    '查询符合需求的物品',
-    '整合多源信息，筛选精选内容',
-    '生成回复内容',
-  ];
-  return (
-    <div className="agent-thinking-card mb-3 rounded-2xl bg-[#f3f4f8] px-4 py-3 text-xs leading-5 text-muted-foreground">
-      <div className="mb-2 flex items-center justify-between gap-2 font-semibold text-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          {streaming ? (
-            <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-          ) : (
-            <PianctonAgentMark size="sm" state="happy" interactive={false} className="!size-4" />
-          )}
-          问题分析{streaming ? '中…' : '完成'}
-        </span>
-        <ChevronUp className="size-3.5 text-muted-foreground" />
-      </div>
-      <div className="space-y-1.5">
-        {steps.map((step, index) => (
-          <div key={step} className="flex items-start gap-2">
-            <span
-              className={[
-                'mt-1.5 size-1.5 shrink-0 rounded-full',
-                index < 2 || !streaming ? 'bg-foreground/45' : 'bg-border',
-              ].join(' ')}
-            />
-            <span>{step}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-2 space-y-1.5">
-        {queryChips.map((item) => (
-          <div
-            key={item}
-            className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs text-foreground shadow-sm"
-          >
-            <span className="inline-flex min-w-0 items-center gap-1.5">
-              <Search className="size-3 shrink-0 text-muted-foreground" />
-              <span className="truncate">{item}</span>
-            </span>
-            <span className="text-muted-foreground">→</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function buildAnalysisFollowupChip(query: string) {
-  const normalized = query.trim();
-  if (!normalized) return '梳理业务知识与表达方式';
-  if (/家长|话术|沟通|听懂|转成/.test(normalized)) {
-    return '整理成家长能听懂的表达';
-  }
-  if (/找图|图片|素材|配图/.test(normalized)) {
-    return '先确认卖点，再检索已适配素材';
-  }
-  return `直接回答“${_clipText(normalized, 18)}”`;
-}
-
 function AgentMessageContent({ content }: { content: string }) {
   const lines = content.split('\n');
   return (
@@ -1157,10 +1073,6 @@ function renderInlineMarkdown(value: string) {
     }
     return part;
   });
-}
-
-function _clipText(value: string, maxLength: number) {
-  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 }
 
 export default AssetAgentWidget;

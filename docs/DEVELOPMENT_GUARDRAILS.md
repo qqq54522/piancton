@@ -63,6 +63,7 @@
 
 - 每个正式 Skill 必须具备 `SKILL.md` 和 `agents/openai.yaml`；只有应用运行时模型需要读取的能力才额外提供 `RULES.md`。
 - 页面点击不会临时生成 Skill。当前运行时不再调用本地 `ModelProvider` 任务目录；Agent 直接调用 AI Search 的 `chat_search`，其他在线语义能力调用同一应用的对应接口。
+- Agent 是普通自由问答入口，不要求每个问题先归入六体系、卖点、找图或销售话术；涉及洋葱内部事实时才以知识数据集和项目稳定业务目录校准，不得把外部同名“六体系”替代当前六个同步体系。
 - `search_result_recommendation_reason`、`asset_agent_chat`、图片语义分析、上传前素材话术、旧分层搜索理解和兼容文案匹配均只作为历史资料保留，不得重新接入运行时。
 - 旧固定二级标签、`content_tags`、三层弱召回和旧 S/A/B/C 评分公式不得以新 Skill 名义恢复。底层确定性职责合并到完整工作流边界，但实现仍留在各自 Python 模块。
 - 修改正式 Skill 清单、运行时任务映射或删除旧 Skill 时，必须更新 `skills/INDEX.md`、总纲决策、项目日志和 `backend/tests/test_project_skills.py`。
