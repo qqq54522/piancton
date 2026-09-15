@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     ai_search_chat_enabled: bool = False
     ai_search_chat_path: str = ""
     ai_search_chat_dataset_ids: str = ""
-    ai_search_chat_timeout_seconds: float = 20.0
+    ai_search_chat_timeout_seconds: float = 60.0
     ai_search_recommend_enabled: bool = False
     ai_search_recommend_path: str = ""
     ai_search_home_recommend_path: str = ""

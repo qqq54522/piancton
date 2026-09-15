@@ -4,9 +4,11 @@ import json
 import logging
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
+from time import monotonic
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, NotFoundError
@@ -45,6 +47,7 @@ from app.services.volc_ai_search_client import (
     VolcAiSearchChatResult,
     VolcAiSearchClient,
     VolcAiSearchClientError,
+    VolcAiSearchStreamEvent,
 )
 
 MAX_AGENT_SESSIONS = 20
@@ -296,9 +299,7 @@ class AssetAgentService:
             suggested_questions=suggestions,
             context_cards=context_cards,
             used_model=False,
-            provider_attempts=[
-                _ai_search_chat_attempt(status="unavailable", error=attempt_error)
-            ],
+            provider_attempts=[_ai_search_chat_attempt(status="unavailable", error=attempt_error)],
         )
 
     def chat_stream(
@@ -352,9 +353,11 @@ class AssetAgentService:
                     external_suggestions: list[str] = []
                     external_item_ids: list[str] = []
                     announced_steps: set[str] = set()
+                    chat_started_at = monotonic()
                     try:
                         self.db.flush()
-                        for upstream in client.stream_chat_search(
+                        for upstream in _stream_ai_search_chat_with_retry(
+                            client,
                             _ai_search_chat_message(
                                 message,
                                 context_text,
@@ -368,6 +371,8 @@ class AssetAgentService:
                             page_size=_chat_page_size(
                                 self.ai_search_chat_page_size,
                                 payload.response_mode,
+                                message=message,
+                                has_visual_image=bool(visual_image_url),
                             ),
                             enable_suggestions=True,
                             image_url=visual_image_url,
@@ -403,7 +408,14 @@ class AssetAgentService:
                                         },
                                     )
                     except VolcAiSearchClientError as exc:
-                        ai_search_error = str(exc)
+                        ai_search_error = _ai_search_failure_kind(exc)
+                        logger.warning(
+                            "asset_agent_ai_search_stream_failed "
+                            "kind=%s elapsed_ms=%d answer_started=%s",
+                            ai_search_error,
+                            round((monotonic() - chat_started_at) * 1000),
+                            bool(answer_parts),
+                        )
                         if answer_parts:
                             raise
                     answer = _normalize_agent_text("".join(answer_parts))
@@ -422,7 +434,7 @@ class AssetAgentService:
                         if finalized_answer != answer:
                             yield _sse(
                                 "answer_delta",
-                                {"text": finalized_answer[len(answer):]},
+                                {"text": finalized_answer[len(answer) :]},
                             )
                         answer = finalized_answer
                         response_cards = _merge_context_cards(
@@ -461,6 +473,7 @@ class AssetAgentService:
                     )
                 answer = _ai_search_unavailable_answer(
                     has_image=bool(visual_image_url or images or groups),
+                    failure_kind=ai_search_error,
                 )
                 suggestions = _fallback_suggestions(bool(images or groups))
 
@@ -713,9 +726,7 @@ class AssetAgentService:
         preferred_family_keys: list[str] | None = None,
     ) -> list[AssetAgentContextCard]:
         seed_images = self._load_images(image_ids)
-        preferred = {
-            key for key in preferred_family_keys or [] if _expandable_material_family(key)
-        }
+        preferred = {key for key in preferred_family_keys or [] if _expandable_material_family(key)}
         seed_family_counts: dict[str, int] = {}
         for image in seed_images:
             family = material_title_family(image.title)
@@ -732,11 +743,7 @@ class AssetAgentService:
             return self._image_cards(seed_images, limit=MAX_AGENT_RECOMMENDATION_CARDS)
 
         matching_seeds = (
-            [
-                image
-                for image in seed_images
-                if material_title_family(image.title) in expandable
-            ]
+            [image for image in seed_images if material_title_family(image.title) in expandable]
             if preferred
             else seed_images
         )
@@ -802,9 +809,7 @@ class AssetAgentService:
                 seed_family_counts[family] = seed_family_counts.get(family, 0) + 1
         if preferred_family_keys:
             names = "、".join(
-                f"「{family}」"
-                for family in preferred_family_keys
-                if family in card_family_counts
+                f"「{family}」" for family in preferred_family_keys if family in card_family_counts
             )
             return (
                 f"已继续为你补齐{names}同一素材主题的当前已发布版本，"
@@ -879,6 +884,7 @@ class AssetAgentService:
         if client is None or not getattr(client, "chat_search_configured", False):
             return None
         self.db.flush()
+        chat_started_at = monotonic()
         try:
             return client.chat_search(
                 _ai_search_chat_message(
@@ -891,11 +897,21 @@ class AssetAgentService:
                 ),
                 session_id=session.id,
                 user_id=user.id,
-                page_size=_chat_page_size(self.ai_search_chat_page_size, response_mode),
+                page_size=_chat_page_size(
+                    self.ai_search_chat_page_size,
+                    response_mode,
+                    message=message,
+                    has_visual_image=bool(visual_image_url),
+                ),
                 enable_suggestions=True,
                 image_url=visual_image_url,
             )
-        except VolcAiSearchClientError:
+        except VolcAiSearchClientError as exc:
+            logger.warning(
+                "asset_agent_ai_search_chat_failed kind=%s elapsed_ms=%d",
+                _ai_search_failure_kind(exc),
+                round((monotonic() - chat_started_at) * 1000),
+            )
             return None
 
     def _library_image_bridge(
@@ -1021,11 +1037,7 @@ def _ai_search_chat_message(
         + "、".join(node.name for node in load_taxonomy_catalog().system_nodes)
         + "。这只是涉及洋葱业务时的事实参考，不要求把其他问题归入这些体系。"
     )
-    mode_instructions = (
-        "本轮用户选择简短回答。"
-        if response_mode == "fast"
-        else ""
-    )
+    mode_instructions = "本轮用户选择简短回答。" if response_mode == "fast" else ""
     image_instructions = (
         "本轮附带图片。回答图片问题时区分可见内容和推测，涉及洋葱业务事实时参考项目知识。"
         if has_visual_image
@@ -1062,8 +1074,67 @@ def _ai_search_chat_message(
     )
 
 
-def _chat_page_size(configured: int, response_mode: AssetAgentResponseMode) -> int:
-    return min(configured, 4) if response_mode == "fast" else configured
+def _chat_page_size(
+    configured: int,
+    response_mode: AssetAgentResponseMode,
+    *,
+    message: str = "",
+    has_visual_image: bool = False,
+) -> int:
+    if response_mode == "fast":
+        return min(configured, 4)
+    if has_visual_image or any(
+        phrase in message for phrase in ("找图", "图片", "配图", "素材", "几张图", "发张图")
+    ):
+        return configured
+    return min(configured, 4)
+
+
+def _stream_ai_search_chat_with_retry(
+    client: VolcAiSearchClient,
+    query: str,
+    *,
+    session_id: str,
+    user_id: str,
+    page_size: int,
+    enable_suggestions: bool,
+    image_url: str,
+) -> Iterator[VolcAiSearchStreamEvent]:
+    for attempt in range(2):
+        answer_started = False
+        try:
+            for event in client.stream_chat_search(
+                query,
+                session_id=session_id,
+                user_id=user_id,
+                page_size=page_size,
+                enable_suggestions=enable_suggestions,
+                image_url=image_url,
+            ):
+                if event.content:
+                    answer_started = True
+                yield event
+            return
+        except VolcAiSearchClientError as exc:
+            if (
+                attempt
+                or answer_started
+                or not isinstance(
+                    exc.__cause__,
+                    (
+                        httpx.ConnectError,
+                        httpx.ConnectTimeout,
+                        httpx.ReadTimeout,
+                        httpx.RemoteProtocolError,
+                    ),
+                )
+            ):
+                raise
+            logger.warning(
+                "asset_agent_ai_search_stream_retry kind=%s attempt=%d",
+                _ai_search_failure_kind(exc),
+                attempt + 2,
+            )
 
 
 def _ai_search_chat_attempt(*, status: str, error: str = "") -> dict[str, Any]:
@@ -1074,6 +1145,16 @@ def _ai_search_chat_attempt(*, status: str, error: str = "") -> dict[str, Any]:
         "duration_ms": None,
         "error": error,
     }
+
+
+def _ai_search_failure_kind(exc: VolcAiSearchClientError) -> str:
+    cause = exc.__cause__
+    if cause is None:
+        return type(exc).__name__
+    status = getattr(getattr(cause, "response", None), "status_code", None)
+    if isinstance(status, int):
+        return f"{type(cause).__name__}:{status}"
+    return type(cause).__name__
 
 
 def _visible_ai_search_step(step: str) -> str:
@@ -1148,11 +1229,7 @@ def _conversation_history_text(messages: list[AssetAgentMessage]) -> str:
 
 def _conversation_memory_lines(messages: list[AssetAgentMessage]) -> list[str]:
     ordered = sorted(
-        (
-            item
-            for item in messages
-            if item.role in {"user", "assistant"} and item.content.strip()
-        ),
+        (item for item in messages if item.role in {"user", "assistant"} and item.content.strip()),
         key=lambda item: (_datetime_sort_key(item.created_at), item.id),
     )
     first_user_index = next(
@@ -1403,14 +1480,17 @@ def _fallback_suggestions(has_context: bool) -> list[str]:
     ]
 
 
-def _ai_search_unavailable_answer(*, has_image: bool) -> str:
+def _ai_search_unavailable_answer(*, has_image: bool, failure_kind: str = "") -> str:
+    if failure_kind in {"ConnectError", "ConnectTimeout", "RemoteProtocolError"}:
+        reason = "这次与 AI 搜索引擎的连接中断了。"
+    elif failure_kind == "ReadTimeout":
+        reason = "AI 搜索引擎这次响应超时了。"
+    else:
+        reason = "在线问答服务本轮没有生成可靠回答。"
     if has_image:
-        return (
-            "图片已经保留在当前对话中，但在线问答服务本轮没有生成可靠回答。"
-            "请稍后直接重试原问题，不需要重新选择卖点，也不需要新建对话。"
-        )
+        return f"图片已经保留在当前对话中。{reason}请直接重试原问题，不需要重新发送图片。"
     return (
-        "在线问答服务本轮没有生成可靠回答，请稍后直接重试这个问题。"
+        f"{reason}请直接重试这个问题。"
         "你可以像普通 AI 助手一样提问，不需要先选择体系、卖点或发送图片。"
     )
 
@@ -1470,12 +1550,7 @@ def _is_same_material_family_followup(message: str) -> bool:
 
 
 def _normalize_agent_text(value: str) -> str:
-    return (
-        value.strip()
-        .replace("\\r\\n", "\n")
-        .replace("\\n", "\n")
-        .replace("\\t", "  ")
-    )
+    return value.strip().replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "  ")
 
 
 def _clip(value: str | None, limit: int) -> str:

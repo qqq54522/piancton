@@ -1,6 +1,8 @@
+import json
 from datetime import datetime, timezone
 from io import BytesIO
 
+import httpx
 import pytest
 from PIL import Image as PillowImage
 
@@ -19,6 +21,7 @@ from app.services.asset_agent_temporary_image_service import (
 from app.services.storage_service import LocalStorageProvider
 from app.services.volc_ai_search_client import (
     VolcAiSearchChatResult,
+    VolcAiSearchClientError,
     VolcAiSearchStreamEvent,
 )
 from tests.conftest import login
@@ -200,6 +203,78 @@ def test_asset_agent_never_uses_an_extra_model_when_ai_search_is_unavailable(db_
     ]
     assert "在线问答服务本轮没有生成可靠回答" in response.answer
     assert "不需要先选择体系、卖点或发送图片" in response.answer
+
+
+def test_asset_agent_stream_timeout_logs_only_safe_diagnostics(db_factory, caplog):
+    class ReadTimeoutChat:
+        chat_search_configured = True
+        calls = 0
+
+        def stream_chat_search(self, *_args, **_kwargs):
+            self.calls += 1
+            raise VolcAiSearchClientError("AI Search 对话调用超时") from httpx.ReadTimeout(
+                "read timed out"
+            )
+
+    chat = ReadTimeoutChat()
+    with db_factory() as db:
+        user = User(username="agent-stream-timeout", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+        frames = list(
+            AssetAgentService(db, ai_search_chat=chat).chat_stream(
+                user,
+                AssetAgentChatRequest(message="请详细讲解同步规划体系"),
+            )
+        )
+
+    assert any(frame.startswith("event: final") for frame in frames)
+    assert chat.calls == 2
+    assert "asset_agent_ai_search_stream_retry" in caplog.text
+    assert "kind=ReadTimeout" in caplog.text
+    assert "elapsed_ms=" in caplog.text
+    assert "请详细讲解同步规划体系" not in caplog.text
+    final_frame = next(frame for frame in frames if frame.startswith("event: final"))
+    response = json.loads(final_frame.split("data: ", 1)[1])
+    assert "AI 搜索引擎这次响应超时了" in response["answer"]
+
+
+def test_asset_agent_stream_retries_connection_before_answer_and_keeps_chat(db_factory):
+    class ConnectThenReplyChat:
+        chat_search_configured = True
+
+        def __init__(self):
+            self.calls = 0
+            self.page_sizes = []
+
+        def stream_chat_search(self, *_args, **kwargs):
+            self.calls += 1
+            self.page_sizes.append(kwargs["page_size"])
+            if self.calls == 1:
+                raise VolcAiSearchClientError("connection failed") from httpx.ConnectError(
+                    "connection closed"
+                )
+            yield VolcAiSearchStreamEvent(step="reply")
+            yield VolcAiSearchStreamEvent(content="同步规划体系会根据学情制定计划。")
+
+    chat = ConnectThenReplyChat()
+    with db_factory() as db:
+        user = User(username="agent-stream-retry", password_hash="x", role="business")
+        db.add(user)
+        db.commit()
+        frames = list(
+            AssetAgentService(db, ai_search_chat=chat, ai_search_chat_page_size=10).chat_stream(
+                user,
+                AssetAgentChatRequest(message="请详细讲解一下同步规划体系"),
+            )
+        )
+
+    final_frame = next(frame for frame in frames if frame.startswith("event: final"))
+    response = json.loads(final_frame.split("data: ", 1)[1])
+    assert response["usedModel"] is True
+    assert response["answer"] == "同步规划体系会根据学情制定计划。"
+    assert chat.calls == 2
+    assert chat.page_sizes == [4, 4]
 
 
 def test_asset_agent_memory_window_keeps_recent_messages_and_reports_full(db_factory):
