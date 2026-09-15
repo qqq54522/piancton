@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  BriefcaseBusiness,
   FileClock,
   Fingerprint,
   BarChart3,
@@ -11,11 +10,10 @@ import {
   Menu,
   Megaphone,
   MessageSquarePlus,
-  Palette,
+  Camera,
   ScrollText,
   Search,
   Tags,
-  Shield,
   Upload,
   Users,
   X,
@@ -23,7 +21,8 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
-import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
+import AccountAvatar from '@client/src/components/AccountAvatar';
+import AccountAvatarDialog from '@client/src/components/AccountAvatarDialog';
 import { Button } from '@client/src/components/ui/button';
 import FeedbackDialog from '@client/src/components/FeedbackDialog';
 import NewUserWelcomeDialog from '@client/src/components/NewUserWelcomeDialog';
@@ -99,6 +98,7 @@ const SidebarUploadMenu = ({ onSelect }: { onSelect: (mode: 'single' | 'batch') 
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const { user, logout, completeOnboarding } = useAuth();
   const navigate = useNavigate();
   usePageViewTracking();
@@ -108,7 +108,6 @@ const Layout = () => {
   const searchOpsPath = user?.role === 'admin' ? '/admin/search-ops' : '/search-ops';
   const isBusiness = user?.role === 'business';
   const roleLabel = user?.role === 'admin' ? '管理员' : isDesigner ? '设计师' : '业务用户';
-  const RoleIcon = user?.role === 'admin' ? Shield : isDesigner ? Palette : BriefcaseBusiness;
   const navItems = [
     { to: '/', label: '素材库', icon: LayoutGrid, end: true, show: true },
     { to: '/admin/concepts', label: '卖点管理', icon: LibraryBig, show: user?.role === 'admin' },
@@ -166,11 +165,7 @@ const Layout = () => {
                   className="sidebar-nav-pill group relative mt-5 flex size-12 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
                   aria-label="打开账号菜单"
                 >
-                  <Avatar className="size-9 border border-border bg-white" data-sidebar-icon>
-                    <AvatarFallback className="bg-white text-foreground">
-                      <RoleIcon className="size-4" />
-                    </AvatarFallback>
-                  </Avatar>
+                  <AccountAvatar user={user} className="size-9" />
                   <span className="pointer-events-none absolute left-[58px] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-xl bg-foreground px-3 py-2 text-sm font-semibold text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                     {user?.username} · {roleLabel}
                   </span>
@@ -182,6 +177,9 @@ const Layout = () => {
                   <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">当前身份：{roleLabel}</span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => setAvatarDialogOpen(true)}>
+                  <Camera className="size-4" />更换头像
+                </DropdownMenuItem>
                 <DropdownMenuItem className="rounded-lg px-2.5 py-2" onClick={() => setFeedbackOpen(true)}>
                   <MessageSquarePlus className="size-4" />提交反馈
                 </DropdownMenuItem>
@@ -294,9 +292,12 @@ const Layout = () => {
               )}
               <div className="mt-2 flex items-center justify-between border-t border-border pt-3">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <RoleIcon className="size-4" />{user?.username} · {roleLabel}
+                  <AccountAvatar user={user} className="size-6" />{user?.username} · {roleLabel}
                 </div>
                 <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => { setMobileMenuOpen(false); setAvatarDialogOpen(true); }}>
+                    <Camera className="size-4" />头像
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -327,6 +328,7 @@ const Layout = () => {
         onComplete={completeOnboarding}
       />
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <AccountAvatarDialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen} />
     </div>
   );
 };

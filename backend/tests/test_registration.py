@@ -1,6 +1,8 @@
 from datetime import datetime
+from io import BytesIO
 
 import pytest
+from PIL import Image as PillowImage
 from sqlalchemy import select
 
 from app.core.security import verify_password
@@ -68,6 +70,49 @@ def test_duplicate_registration_keeps_original_account(client):
     assert client.get("/api/auth/me").json()["role"] == "admin"
 
 
+def test_account_avatar_is_private_and_separate_from_library(client, db_factory, tmp_path):
+    created = client.post("/api/auth/register", json=registration(avatarPresetId="mint"))
+    assert created.status_code == 201
+    assert created.json()["avatarPresetId"] == "mint"
+    assert created.json()["hasCustomAvatar"] is False
+    assert client.get("/api/auth/avatar").status_code == 401
+    csrf = login(client, "new-user", "new-password")
+    assert client.get("/api/auth/avatar").status_code == 404
+    image = BytesIO()
+    PillowImage.new("RGB", (64, 64), "#39ac9b").save(image, format="PNG")
+    assert client.post(
+        "/api/auth/avatar", files={"file": ("my-avatar.png", image.getvalue(), "image/png")},
+    ).status_code == 403
+    uploaded = client.post(
+        "/api/auth/avatar", files={"file": ("my-avatar.png", image.getvalue(), "image/png")},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert uploaded.status_code == 200
+    assert uploaded.json()["hasCustomAvatar"] is True
+    thumbnail = client.get("/api/auth/avatar")
+    assert thumbnail.status_code == 200
+    assert thumbnail.headers["content-type"].startswith("image/jpeg")
+    assert client.get("/api/images").json()["items"] == []
+    with db_factory() as db:
+        user = db.scalar(select(User).where(User.username == "new-user"))
+        original_key = user.avatar_storage_key
+        assert original_key is not None
+        assert (tmp_path / "images" / "account-avatars" / original_key).is_file()
+        assert not (tmp_path / "images" / original_key).exists()
+    selected = client.post(
+        "/api/auth/avatar/preset", json={"presetId": "coral"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert selected.status_code == 200
+    assert selected.json()["avatarPresetId"] == "coral"
+    assert selected.json()["hasCustomAvatar"] is False
+    assert client.get("/api/auth/avatar").status_code == 404
+    with db_factory() as db:
+        user = db.scalar(select(User).where(User.username == "new-user"))
+        assert user.avatar_storage_key is None
+    assert not (tmp_path / "images" / "account-avatars" / original_key).exists()
+
+
 @pytest.mark.parametrize("overrides", [
     {"username": "   "}, {"username": " ab "}, {"username": "x" * 101},
     {"password": "short", "confirmPassword": "short"},
@@ -75,6 +120,7 @@ def test_duplicate_registration_keeps_original_account(client):
     {"password": "x" * 201, "confirmPassword": "x" * 201},
     {"confirmPassword": "different-password"}, {"role": "admin"},
     {"isActive": True},
+    {"avatarPresetId": "unknown"},
 ])
 def test_invalid_registration_does_not_create_account(client, db_factory, overrides):
     assert client.post("/api/auth/register", json=registration(**overrides)).status_code == 422

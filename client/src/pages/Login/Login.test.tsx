@@ -4,9 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import Login from './Login';
 
-const mocks = vi.hoisted(() => ({ register: vi.fn(), login: vi.fn() }));
+const mocks = vi.hoisted(() => ({ register: vi.fn(), login: vi.fn(), uploadAvatar: vi.fn() }));
 vi.mock('@client/src/api/auth', () => ({ register: mocks.register }));
-vi.mock('@client/src/lib/auth', () => ({ useAuth: () => ({ user: null, login: mocks.login }) }));
+vi.mock('@client/src/lib/auth', () => ({ useAuth: () => ({ user: null, login: mocks.login, uploadAvatar: mocks.uploadAvatar }) }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 function openRegistration() {
@@ -30,12 +30,38 @@ it('returns to login after registration and preserves the account', async () => 
   fireEvent.change(screen.getByLabelText('确认密码'), { target: { value: 'new-password' } });
   fireEvent.click(screen.getByRole('button', { name: '注册账号' }));
   await waitFor(() => expect(screen.getByRole('status').textContent).toContain('注册成功'));
-  expect(mocks.register).toHaveBeenCalledWith('new-user', 'new-password', 'new-password');
+  expect(mocks.register).toHaveBeenCalledWith('new-user', 'new-password', 'new-password', 'blue');
   expect((screen.getByLabelText('账号') as HTMLInputElement).value).toBe('new-user');
   expect((screen.getByLabelText('密码') as HTMLInputElement).value).toBe('');
   fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'new-password' } });
   fireEvent.click(screen.getByRole('button', { name: '登录' }));
   await waitFor(() => expect(mocks.login).toHaveBeenCalledWith('new-user', 'new-password'));
+});
+
+it('sends the selected preset with registration', async () => {
+  mocks.register.mockResolvedValue({ username: 'new-user' });
+  openRegistration();
+  fireEvent.click(screen.getByRole('button', { name: '选择青绿头像' }));
+  fireEvent.change(screen.getByLabelText('确认密码'), { target: { value: 'new-password' } });
+  fireEvent.click(screen.getByRole('button', { name: '注册账号' }));
+  await waitFor(() => expect(mocks.register).toHaveBeenCalledWith('new-user', 'new-password', 'new-password', 'mint'));
+});
+
+it('keeps a custom avatar for the new account and uploads it after that account logs in', async () => {
+  mocks.register.mockResolvedValue({ username: 'new-user' });
+  mocks.login.mockResolvedValue(undefined);
+  mocks.uploadAvatar.mockResolvedValue(undefined);
+  URL.createObjectURL = vi.fn().mockReturnValue('blob:avatar');
+  URL.revokeObjectURL = vi.fn();
+  openRegistration();
+  const file = new File(['avatar'], 'avatar.png', { type: 'image/png' });
+  fireEvent.change(screen.getByLabelText('上传自己的头像'), { target: { files: [file] } });
+  fireEvent.change(screen.getByLabelText('确认密码'), { target: { value: 'new-password' } });
+  fireEvent.click(screen.getByRole('button', { name: '注册账号' }));
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('登录后会保存'));
+  fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'new-password' } });
+  fireEvent.click(screen.getByRole('button', { name: '登录' }));
+  await waitFor(() => expect(mocks.uploadAvatar).toHaveBeenCalledWith(file));
 });
 
 it('keeps the form available after a failed request', async () => {

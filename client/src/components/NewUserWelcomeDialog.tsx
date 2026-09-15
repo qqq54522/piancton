@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react';
 import {
   BotMessageSquare,
-  FolderHeart,
-  Heart,
-  LibraryBig,
-  Search,
+  FolderOpen,
+  Lightbulb,
+  UserRound,
   Sparkles,
 } from 'lucide-react';
 
@@ -23,29 +22,9 @@ interface NewUserWelcomeDialogProps {
   onComplete: () => Promise<void>;
 }
 
-const welcomeCards = [
-  {
-    title: '把业务需求变成可用的卖点图',
-    description:
-      '直接用日常语言描述你想表达的内容。卖点智库会先理解需求对应的业务卖点，再从已确认素材中优先找到真正适用的图片；如果库里暂时没有合适素材，也会如实告诉你。',
-    icon: LibraryBig,
-    accent: 'bg-amber-50 text-amber-800',
-  },
-  {
-    title: '顶部直接找图，右侧深入理解',
-    description:
-      '已经知道要找什么时，优先使用顶部搜索，例如“新疆合作案例”。当需求需要语义理解、卖点判断，或你还想继续追问时，使用右侧 Agent；它会先理解你的需求，再结合卖点帮你回答或找图。',
-    icon: Search,
-    accent: 'bg-sky-50 text-sky-800',
-  },
-  {
-    title: '喜欢随手留，收藏按画板整理',
-    description:
-      '常用图片可以点“喜欢”，之后从头像里的“我的喜欢”快速找回。需要分类时，再收藏到画板；你可以按项目、渠道或使用场景建立多个独立素材集。',
-    icon: Heart,
-    accent: 'bg-rose-50 text-rose-800',
-  },
-] as const;
+const Question = ({ children }: { children: string }) => (
+  <p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold leading-5 text-sky-950">“{children}”</p>
+);
 
 export default function NewUserWelcomeDialog({
   open,
@@ -86,48 +65,35 @@ export default function NewUserWelcomeDialog({
           </div>
           <DialogTitle className="text-2xl tracking-tight sm:text-3xl">欢迎来到卖点智库</DialogTitle>
           <DialogDescription className="max-w-3xl text-sm leading-6 sm:text-base">
-            卖点智库基于公司的六大业务体系与核心卖点，帮你更快找到适合业务需求的素材。不熟悉这些体系和卖点也没关系：打开右侧 Agent 直接提问，就能了解相关背景、卖点含义和适用场景。
+            右侧 <strong className="font-bold text-sky-900">Agent 是你的洋葱学园专属助手</strong>。直接像聊天一样问它，了解洋葱学园、继续追问，或让它帮你找图库中的图片。
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 px-6 py-6 sm:grid-cols-3 sm:px-8 sm:py-8">
-          {welcomeCards.map(({ title, description, icon: Icon, accent }, index) => (
-            <article key={title} className="rounded-2xl border border-border/75 bg-card p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className={`flex size-10 items-center justify-center rounded-xl ${accent}`}>
-                  <Icon className="size-5" />
-                </span>
-                <span className="text-xs font-semibold text-muted-foreground">0{index + 1}</span>
-              </div>
-              <h2 className="mt-5 text-base font-semibold tracking-tight">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
-              {index === 1 && (
-                <div className="mt-4 space-y-2 rounded-xl bg-secondary/60 p-3 text-xs font-medium text-foreground/75">
-                  <div className="flex items-center gap-2">
-                    <Search className="size-3.5" />目标明确：顶部搜索
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <BotMessageSquare className="size-3.5" />需要理解或追问：Agent
-                  </div>
-                </div>
-              )}
-              {index === 2 && (
-                <div className="mt-4 space-y-2 rounded-xl bg-secondary/60 p-3 text-xs font-medium text-foreground/75">
-                  <div className="flex items-center gap-2">
-                    <Heart className="size-3.5" />喜欢：快速找回常用图片
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FolderHeart className="size-3.5" />收藏：按画板分类整理
-                  </div>
-                </div>
-              )}
-            </article>
-          ))}
+        <div className="grid gap-4 px-6 py-6 md:grid-cols-3 sm:px-8 sm:py-8">
+          <article className="rounded-2xl border border-border/75 bg-card p-5 shadow-sm">
+            <BotMessageSquare className="size-6 text-sky-700" />
+            <h2 className="mt-4 text-base font-bold">先问，再接着聊</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">不知道从哪里开始？<strong className="text-foreground">直接问右侧 Agent</strong>，回答后可以继续追问。</p>
+            <div className="mt-4 space-y-2"><Question>洋葱学园的六大体系是什么？</Question><Question>详细讲讲同步自学体系。</Question><Question>同步课和培优课有什么区别？</Question></div>
+          </article>
+          <article className="rounded-2xl border border-border/75 bg-card p-5 shadow-sm">
+            <FolderOpen className="size-6 text-emerald-700" />
+            <h2 className="mt-4 text-base font-bold">找图有两种方式</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground"><strong className="text-foreground">手动点渠道和下级目录</strong>，浏览已有图片；也可以直接告诉 Agent 你想找什么。</p>
+            <div className="mt-4 space-y-2"><Question>帮我找新疆合作的案例图。</Question><p className="text-xs leading-5 text-muted-foreground">找到图库里已有的素材时，点击图片卡片即可看详情。</p></div>
+          </article>
+          <article className="rounded-2xl border border-sky-200 bg-sky-50/40 p-5 shadow-sm">
+            <Lightbulb className="size-6 text-amber-700" />
+            <h2 className="mt-4 text-base font-bold">复杂需求，可以两步问</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">如果需要判断业务含义，<strong className="text-sky-900">先聊清楚卖点，再接着找图</strong>，Agent 会沿用这段对话。</p>
+            <div className="mt-4 space-y-2"><Question>洋葱学园的拍题精学让孩子学一题会一类，涉及哪几个卖点？</Question><Question>帮我找这两个卖点下的图片。</Question></div>
+          </article>
         </div>
 
-        <div className="mx-6 rounded-2xl bg-secondary/70 px-5 py-4 sm:mx-8">
+        <div className="mx-6 flex items-start gap-3 rounded-2xl bg-secondary/70 px-5 py-4 sm:mx-8">
+          <UserRound className="mt-0.5 size-5 shrink-0 text-sky-800" />
           <p className="text-sm leading-6 text-foreground/80">
-            卖点智库目前处于内测阶段，搜索和推荐仍在持续优化。你的真实使用和反馈会帮助我们更快发现问题、改进体验。遇到问题或有任何想法，请点击头像里的“提交反馈”；提交时尽量留下联系人，方便我们尽快与你确认并跟进。感谢你的理解与共建。
+            <strong className="text-sky-900">右上角是你的账号头像，点它可以查看我的喜欢、我的收藏和消息。</strong> 你还可以在那里更换头像或提交反馈。
           </p>
         </div>
 

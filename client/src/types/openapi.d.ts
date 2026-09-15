@@ -89,6 +89,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Avatar */
+        get: operations["get_avatar_api_auth_avatar_get"];
+        put?: never;
+        /** Upload Avatar */
+        post: operations["upload_avatar_api_auth_avatar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/avatar/preset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Select Avatar Preset */
+        post: operations["select_avatar_preset_api_auth_avatar_preset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/announcements": {
         parameters: {
             query?: never;
@@ -2030,6 +2065,14 @@ export interface components {
              */
             createdAt: string;
         };
+        /** AvatarPresetRequest */
+        AvatarPresetRequest: {
+            /**
+             * Presetid
+             * @enum {string}
+             */
+            presetId: "blue" | "mint" | "coral" | "violet" | "gold" | "slate";
+        };
         /** Body_add_asset_variant_api_asset_groups__group_id__images_post */
         Body_add_asset_variant_api_asset_groups__group_id__images_post: {
             /**
@@ -2061,6 +2104,14 @@ export interface components {
         };
         /** Body_upload_asset_agent_temporary_image_api_asset_agent_temporary_images_post */
         Body_upload_asset_agent_temporary_image_api_asset_agent_temporary_images_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+        };
+        /** Body_upload_avatar_api_auth_avatar_post */
+        Body_upload_avatar_api_auth_avatar_post: {
             /**
              * File
              * Format: binary
@@ -2780,6 +2831,8 @@ export interface components {
             password: string;
             /** Confirmpassword */
             confirmPassword: string;
+            /** Avatarpresetid */
+            avatarPresetId?: ("blue" | "mint" | "coral" | "violet" | "gold" | "slate") | null;
         };
         /** SavedAssetListResponse */
         SavedAssetListResponse: {
@@ -3549,6 +3602,8 @@ export interface components {
              * @enum {string}
              */
             role: "business" | "designer" | "admin";
+            /** Avatarpresetid */
+            avatarPresetId?: ("blue" | "mint" | "coral" | "violet" | "gold" | "slate") | null;
         };
         /** UserRead */
         UserRead: {
@@ -3565,6 +3620,15 @@ export interface components {
             isActive: boolean;
             /** Onboardingcompletedat */
             onboardingCompletedAt: string | null;
+            /** Avatarpresetid */
+            avatarPresetId?: ("blue" | "mint" | "coral" | "violet" | "gold" | "slate") | null;
+            /** Avatarupdatedat */
+            avatarUpdatedAt?: string | null;
+            /**
+             * Hascustomavatar
+             * @default false
+             */
+            hasCustomAvatar: boolean;
             /**
              * Createdat
              * Format: date-time
@@ -3759,6 +3823,113 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_avatar_api_auth_avatar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_avatar_api_auth_avatar_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_avatar_api_auth_avatar_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_avatar_preset_api_auth_avatar_preset_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarPresetRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

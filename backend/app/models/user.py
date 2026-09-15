@@ -27,6 +27,12 @@ class User(Base):
     onboarding_completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    avatar_preset_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    avatar_storage_key: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    avatar_thumbnail_key: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    avatar_updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     announcements_read_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, default=utcnow
     )

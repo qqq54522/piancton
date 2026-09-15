@@ -9,6 +9,7 @@ from pydantic_core import PydanticCustomError
 from app.schemas.base import ApiModel
 
 Role = Literal["business", "designer", "admin"]
+AvatarPreset = Literal["blue", "mint", "coral", "violet", "gold", "slate"]
 
 
 class LoginRequest(ApiModel):
@@ -22,6 +23,7 @@ class RegisterRequest(ApiModel):
     username: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=8, max_length=200)
     confirm_password: str = Field(min_length=8, max_length=200)
+    avatar_preset_id: AvatarPreset | None = None
 
     @field_validator("username", mode="before")
     @classmethod
@@ -37,13 +39,39 @@ class RegisterRequest(ApiModel):
         return self
 
 
+class AvatarPresetRequest(ApiModel):
+    preset_id: AvatarPreset
+
+
 class UserRead(ApiModel):
     id: str
     username: str
     role: Role
     is_active: bool
     onboarding_completed_at: datetime | None
+    avatar_preset_id: AvatarPreset | None = None
+    avatar_updated_at: datetime | None = None
+    has_custom_avatar: bool = False
     created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def expose_avatar_state(cls, value):
+        if isinstance(value, dict):
+            return value
+        if hasattr(value, "avatar_storage_key"):
+            return {
+                "id": value.id,
+                "username": value.username,
+                "role": value.role,
+                "is_active": value.is_active,
+                "onboarding_completed_at": value.onboarding_completed_at,
+                "avatar_preset_id": value.avatar_preset_id,
+                "avatar_updated_at": value.avatar_updated_at,
+                "has_custom_avatar": bool(value.avatar_storage_key),
+                "created_at": value.created_at,
+            }
+        return value
 
 
 class LoginResponse(ApiModel):
@@ -55,6 +83,7 @@ class UserCreate(ApiModel):
     username: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=8, max_length=200)
     role: Role
+    avatar_preset_id: AvatarPreset | None = None
 
 
 class UserUpdate(ApiModel):

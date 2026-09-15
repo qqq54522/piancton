@@ -4,6 +4,8 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { getApiError } from '@client/src/api/client';
 import { register } from '@client/src/api/auth';
+import AvatarChoices from '@client/src/components/AvatarChoices';
+import type { AvatarPresetId } from '@client/src/components/AccountAvatar';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import { useAuth } from '@client/src/lib/auth';
@@ -18,7 +20,10 @@ const Login = () => {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { user, login } = useAuth();
+  const [avatarPresetId, setAvatarPresetId] = useState<AvatarPresetId>('blue');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarUsername, setPendingAvatarUsername] = useState<string | null>(null);
+  const { user, login, uploadAvatar } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,20 +48,34 @@ const Login = () => {
       setError('两次输入的密码不一致');
       return;
     }
+    if (isRegistering && avatarFile && avatarFile.size > 2 * 1024 * 1024) {
+      setError('头像图片不能超过 2 MB');
+      return;
+    }
     setSubmitting(true);
     setError('');
     setNotice('');
     try {
       if (isRegistering) {
-        const created = await register(username.trim(), password, confirmPassword);
+        const created = await register(username.trim(), password, confirmPassword, avatarPresetId);
         setUsername(created.username);
+        setPendingAvatarUsername(avatarFile ? created.username : null);
         setPassword('');
         setConfirmPassword('');
         setIsRegistering(false);
-        setNotice('注册成功，请使用新账号登录');
+        setNotice(avatarFile ? '注册成功，请登录，登录后会保存你的头像' : '注册成功，请使用新账号登录');
         return;
       }
       await login(username.trim(), password);
+      if (avatarFile && pendingAvatarUsername === username.trim()) {
+        try {
+          await uploadAvatar(avatarFile);
+          setAvatarFile(null);
+          setPendingAvatarUsername(null);
+        } catch {
+          window.alert('账号已登录，但头像暂时未保存。你可以点击右上角头像，在“更换头像”中重试。');
+        }
+      }
       const destination = (location.state as { from?: string } | null)?.from || '/';
       navigate(destination, { replace: true });
     } catch (requestError) {
@@ -131,6 +150,7 @@ const Login = () => {
               />
             </label>
           )}
+          {isRegistering && <AvatarChoices presetId={avatarPresetId} onPresetChange={setAvatarPresetId} file={avatarFile} onFileChange={setAvatarFile} disabled={submitting} />}
           {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="h-11 w-full" disabled={submitting}>
@@ -142,6 +162,8 @@ const Login = () => {
             setConfirmPassword('');
             setError('');
             setNotice('');
+            setPendingAvatarUsername(null);
+            setAvatarFile(null);
           }}>
             {isRegistering ? '已有账号？返回登录' : '还没有账号？注册账号'}
           </Button>

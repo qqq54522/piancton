@@ -24,6 +24,7 @@ class UserService:
             username=payload.username,
             password=payload.password,
             role="business",
+            avatar_preset_id=payload.avatar_preset_id,
         ))
 
     def create(self, payload: UserCreate) -> UserRead:
@@ -31,6 +32,7 @@ class UserService:
             username=payload.username.strip(),
             password_hash=hash_password(payload.password),
             role=payload.role,
+            avatar_preset_id=payload.avatar_preset_id,
         )
         try:
             self.users.add(user)

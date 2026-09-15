@@ -22,9 +22,10 @@ def _client(ak: str, sk: str, endpoint: str, region: str):
     )
 
 
-def build_storage(settings) -> StorageProvider:
+def build_storage(settings, *, namespace: str | None = None) -> StorageProvider:
+    root = settings.storage_dir / namespace if namespace else settings.storage_dir
     if settings.storage_backend == "local":
-        return LocalStorageProvider(settings.storage_dir)
+        return LocalStorageProvider(root)
     if settings.storage_backend != "tos":
         raise AppError("storage_config_invalid", "图片存储类型配置无效", status_code=503)
     if not all(
@@ -41,7 +42,7 @@ def build_storage(settings) -> StorageProvider:
     if endpoint.scheme != "https" or not endpoint.hostname or endpoint.username:
         raise AppError("storage_config_invalid", "对象存储地址必须为 HTTPS", status_code=503)
     return TosStorageProvider(
-        settings.storage_dir,
+        root,
         _client(
             settings.tos_access_key_id,
             settings.tos_secret_access_key,
@@ -49,5 +50,5 @@ def build_storage(settings) -> StorageProvider:
             settings.tos_region,
         ),
         settings.tos_bucket,
-        settings.tos_prefix,
+        f"{settings.tos_prefix}/{namespace}" if namespace else settings.tos_prefix,
     )

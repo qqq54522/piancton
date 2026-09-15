@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import * as authApi from '@client/src/api/auth';
+import type { AvatarPresetId } from '@client/src/api/auth';
 import { AUTH_EXPIRED_EVENT } from '@client/src/api/client';
 import type { User, UserRole } from '@client/src/types/api';
 
@@ -23,6 +24,8 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
+  uploadAvatar: (file: File) => Promise<void>;
+  selectAvatarPreset: (presetId: AvatarPresetId) => Promise<void>;
   ability: { can: (action: string, subject?: string) => boolean };
 }
 
@@ -67,6 +70,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const updatedUser = await authApi.completeOnboarding();
       setUser(updatedUser);
     },
+    uploadAvatar: async (file) => setUser(await authApi.uploadAvatar(file)),
+    selectAvatarPreset: async (presetId) => setUser(await authApi.selectAvatarPreset(presetId)),
     ability: {
       can: (action, subject) => {
         if (!user) return false;

@@ -34,6 +34,7 @@ from app.services.search_service import SearchService
 from app.services.storage_factory import build_storage
 from app.services.tag_service import TagService
 from app.services.usage_analytics_service import UsageAnalyticsService
+from app.services.user_avatar_service import UserAvatarService
 from app.services.user_service import UserService
 from app.services.volc_ai_search_client import VolcAiSearchClient
 from app.services.volc_ai_search_service import VolcAiSearchService
@@ -167,6 +168,10 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
         settings.thumbnail_max_size,
         ai_search_index=_build_ai_search_index(),
     )
+
+
+def get_user_avatar_service(db: Session = Depends(get_db)) -> UserAvatarService:
+    return UserAvatarService(db, build_storage(settings, namespace="account-avatars"))
 
 
 def get_asset_collection_service(

@@ -1,21 +1,30 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response
+from fastapi import APIRouter, Cookie, Depends, File, Request, Response, UploadFile
 
 from app.api.dependencies import (
     get_audit_service,
     get_auth_service,
     get_current_user,
     get_usage_analytics_service,
+    get_user_avatar_service,
     get_user_service,
     require_csrf,
 )
+from app.api.storage_response import StorageFileResponse
 from app.core.config import get_settings
 from app.models.user import User
-from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserRead
+from app.schemas.auth import (
+    AvatarPresetRequest,
+    LoginRequest,
+    LoginResponse,
+    RegisterRequest,
+    UserRead,
+)
 from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.usage_analytics_service import UsageAnalyticsService
+from app.services.user_avatar_service import UserAvatarService
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -111,3 +120,35 @@ def complete_onboarding(
     service: UserService = Depends(get_user_service),
 ):
     return service.complete_onboarding(user.id)
+
+
+@router.post("/avatar", response_model=UserRead)
+def upload_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(require_csrf),
+    service: UserAvatarService = Depends(get_user_avatar_service),
+):
+    return service.upload(user, file.file)
+
+
+@router.post("/avatar/preset", response_model=UserRead)
+def select_avatar_preset(
+    payload: AvatarPresetRequest,
+    user: User = Depends(require_csrf),
+    service: UserAvatarService = Depends(get_user_avatar_service),
+):
+    return service.select_preset(user, payload.preset_id)
+
+
+@router.get("/avatar")
+def get_avatar(
+    user: User = Depends(get_current_user),
+    service: UserAvatarService = Depends(get_user_avatar_service),
+):
+    return StorageFileResponse(
+        service.thumbnail(user),
+        release=service.storage.release,
+        media_type="image/jpeg",
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, max-age=86400"},
+    )

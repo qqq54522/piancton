@@ -1,8 +1,9 @@
-import { ArrowUpDown, Bell, BriefcaseBusiness, Check, Film, FolderHeart, Heart, LogOut, MessageSquarePlus, Plus, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { ArrowUpDown, Bell, Camera, Check, Film, FolderHeart, Heart, LogOut, MessageSquarePlus, Plus, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Avatar, AvatarFallback } from '@client/src/components/ui/avatar';
+import AccountAvatar from '@client/src/components/AccountAvatar';
+import AccountAvatarDialog from '@client/src/components/AccountAvatarDialog';
 import { Button } from '@client/src/components/ui/button';
 import FeedbackDialog from '@client/src/components/FeedbackDialog';
 import HorizontalScrollRail from '@client/src/components/HorizontalScrollRail';
@@ -57,6 +58,7 @@ const GlobalImageSearch = ({
   onAgentOpenChange,
 }: GlobalImageSearchProps) => {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const channelOptions = useChannelOptions(refinementOptions.channels);
@@ -80,6 +82,7 @@ const GlobalImageSearch = ({
   return (
     <section className="min-w-0">
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <AccountAvatarDialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen} />
 
       <div className="flex min-w-0 items-center gap-3">
         <button
@@ -176,13 +179,14 @@ const GlobalImageSearch = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" aria-label="打开账号菜单" className="relative flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-white">
-                  <Avatar className="size-8 border border-border bg-[#f1f1ef]"><AvatarFallback className="bg-[#f1f1ef]"><BriefcaseBusiness className="size-4" /></AvatarFallback></Avatar>
+                  <AccountAvatar user={user} className="size-8" />
                   <UnreadAnnouncementBadge count={unreadCount} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
                 <DropdownMenuLabel><span className="block text-xs font-semibold">{user?.username}</span><span className="text-[11px] font-normal text-muted-foreground">业务用户</span></DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setAvatarDialogOpen(true)}><Camera className="size-4" />更换头像</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/my-likes')}><Heart className="size-4" />我的喜欢</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/my-collections')}><FolderHeart className="size-4" />我的收藏</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/my-messages')}><Bell className="size-4" />我的信息{unreadCount > 0 && <span className="ml-auto text-red-500">{unreadCount}</span>}</DropdownMenuItem>
