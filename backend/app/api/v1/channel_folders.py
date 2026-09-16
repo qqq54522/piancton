@@ -13,6 +13,8 @@ from app.schemas.channel_folder import (
     FolderCreate,
     FolderRead,
     FolderRename,
+    FolderTreeCopy,
+    FolderTreeCopyResult,
     PlacementBatch,
     PlacementResult,
 )
@@ -47,6 +49,34 @@ def create_channel(
         request_id=request.state.request_id,
     )
     return service.list_catalog()
+
+
+@router.post("/folders/copy", response_model=FolderTreeCopyResult)
+def copy_folder_tree(
+    payload: FolderTreeCopy,
+    request: Request,
+    user: User = Depends(require_write_role),
+    service: ChannelFolderService = Depends(get_channel_folder_service),
+    audit: AuditService = Depends(get_audit_service),
+):
+    created, skipped = service.copy_folder_tree(
+        payload.source_channel,
+        payload.target_channel,
+    )
+    audit.record(
+        actor_user_id=user.id,
+        action="channel.folder.copy_tree",
+        target_type="channel",
+        target_id=payload.target_channel.strip(),
+        details={
+            "sourceChannel": payload.source_channel.strip(),
+            "created": created,
+            "skipped": skipped,
+            "imagesCopied": 0,
+        },
+        request_id=request.state.request_id,
+    )
+    return FolderTreeCopyResult(created=created, skipped=skipped)
 
 
 @router.post("/folders", response_model=FolderRead)

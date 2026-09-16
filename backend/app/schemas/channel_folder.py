@@ -28,6 +28,16 @@ class FolderRename(ApiModel):
     name: str = Field(min_length=1, max_length=80)
 
 
+class FolderTreeCopy(ApiModel):
+    source_channel: str = Field(min_length=1, max_length=100)
+    target_channel: str = Field(min_length=1, max_length=100)
+
+
+class FolderTreeCopyResult(ApiModel):
+    created: int
+    skipped: int
+
+
 class PlacementBatch(ApiModel):
     channel: str = Field(min_length=1, max_length=100)
     image_ids: list[str] = Field(min_length=1, max_length=100)

@@ -106,6 +106,60 @@ class ChannelFolderService:
         self.repo.remove_folder(folder_id)
         self.db.commit()
 
+    def copy_folder_tree(self, source_channel: str, target_channel: str) -> tuple[int, int]:
+        source_channel = source_channel.strip()
+        target_channel = target_channel.strip()
+        if not source_channel or not target_channel:
+            raise AppError("invalid_channel", "请选择来源渠道和目标渠道")
+        if source_channel == target_channel:
+            raise AppError("same_channel", "来源渠道和目标渠道不能相同")
+
+        source_folders = self.repo.folders(source_channel)
+        if not source_folders:
+            raise NotFoundError("source_folders_not_found", "来源渠道还没有可复制的分类")
+
+        self.ensure_channel(target_channel)
+        target_folders = self.repo.folders(target_channel)
+        target_by_parent_and_name = {
+            (folder.parent_id, folder.name): folder for folder in target_folders
+        }
+        source_to_target: dict[str, str] = {}
+        pending = list(source_folders)
+        created = 0
+        skipped = 0
+
+        while pending:
+            remaining = []
+            progressed = False
+            for source in pending:
+                if source.parent_id and source.parent_id not in source_to_target:
+                    remaining.append(source)
+                    continue
+                target_parent_id = source_to_target.get(source.parent_id)
+                existing = target_by_parent_and_name.get((target_parent_id, source.name))
+                if existing is not None:
+                    target = existing
+                    skipped += 1
+                else:
+                    target = ChannelFolder(
+                        channel_name=target_channel,
+                        parent_id=target_parent_id,
+                        name=source.name,
+                    )
+                    self.repo.add_folder(target)
+                    self.db.flush()
+                    target_by_parent_and_name[(target_parent_id, source.name)] = target
+                    created += 1
+                source_to_target[source.id] = target.id
+                progressed = True
+            if not progressed:
+                self.db.rollback()
+                raise AppError("folder_cycle", "来源渠道的分类层级存在循环，无法复制")
+            pending = remaining
+
+        self.db.commit()
+        return created, skipped
+
     def folder_ids(self, channel: str, folder_id: str) -> list[str]:
         folders = self.repo.folders(channel)
         if folder_id not in {folder.id for folder in folders}:

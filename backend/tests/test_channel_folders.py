@@ -155,6 +155,75 @@ def test_upload_placement_and_variant_inherit_channel_folder(client):
     ]
 
 
+def test_copy_folder_tree_merges_names_without_copying_image_placements(client):
+    write_headers = headers(login(client, "admin", "admin-password"))
+    source_root = client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "PPT", "name": "产品"},
+    ).json()
+    source_child = client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "PPT", "name": "AI功能", "parentId": source_root["id"]},
+    ).json()
+    client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "PPT", "name": "拍题精学", "parentId": source_child["id"]},
+    )
+    client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "官网大图", "name": "产品"},
+    )
+
+    uploaded = client.post(
+        "/api/images/upload",
+        headers=write_headers,
+        files={"file": ("shared.png", png(), "image/png")},
+        data={"title": "共用渠道图片", "channel": "PPT、官网大图"},
+    ).json()
+    client.post(
+        "/api/channel-folders/placements",
+        headers=write_headers,
+        json={"channel": "PPT", "imageIds": [uploaded["id"]], "folderId": source_child["id"]},
+    )
+
+    copied = client.post(
+        "/api/channel-folders/folders/copy",
+        headers=write_headers,
+        json={"sourceChannel": "PPT", "targetChannel": "官网大图"},
+    )
+    assert copied.status_code == 200
+    assert copied.json() == {"created": 2, "skipped": 1}
+
+    catalog = client.get("/api/channel-folders").json()
+    target_folders = next(item["folders"] for item in catalog if item["name"] == "官网大图")
+    target_root = next(item for item in target_folders if item["name"] == "产品")
+    target_child = next(item for item in target_folders if item["name"] == "AI功能")
+    target_grandchild = next(item for item in target_folders if item["name"] == "拍题精学")
+    assert target_child["parentId"] == target_root["id"]
+    assert target_grandchild["parentId"] == target_child["id"]
+    assert uploaded["id"] not in ids(
+        client.get(
+            "/api/images",
+            params={"channel": "官网大图", "folderId": target_child["id"]},
+        )
+    )
+    assert uploaded["id"] in ids(
+        client.get("/api/images", params={"channel": "官网大图", "unfiled": "true"})
+    )
+
+    repeated = client.post(
+        "/api/channel-folders/folders/copy",
+        headers=write_headers,
+        json={"sourceChannel": "PPT", "targetChannel": "官网大图"},
+    )
+    assert repeated.status_code == 200
+    assert repeated.json() == {"created": 0, "skipped": 3}
+
+
 def ids(response) -> set[str]:
     assert response.status_code == 200, response.text
     return {item["id"] for item in response.json()["items"]}
