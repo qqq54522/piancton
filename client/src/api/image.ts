@@ -44,10 +44,17 @@ export async function createChannelFolder(input: { channel: string; name: string
   await api.post('/api/channel-folders/folders', input);
 }
 
-export async function copyChannelFolderTree(sourceChannel: string, targetChannel: string): Promise<{ created: number; skipped: number }> {
+export async function copyChannelFolderTree(
+  sourceChannel: string,
+  targetChannel: string,
+  sourceFolderId?: string | null,
+  targetParentId?: string | null,
+): Promise<{ created: number; skipped: number }> {
   return (await api.post('/api/channel-folders/folders/copy', {
     sourceChannel,
     targetChannel,
+    sourceFolderId: sourceFolderId || null,
+    targetParentId: targetParentId || null,
   })).data;
 }
 

@@ -62,6 +62,8 @@ def copy_folder_tree(
     created, skipped = service.copy_folder_tree(
         payload.source_channel,
         payload.target_channel,
+        payload.source_folder_id,
+        payload.target_parent_id,
     )
     audit.record(
         actor_user_id=user.id,
@@ -70,6 +72,8 @@ def copy_folder_tree(
         target_id=payload.target_channel.strip(),
         details={
             "sourceChannel": payload.source_channel.strip(),
+            "sourceFolderId": payload.source_folder_id,
+            "targetParentId": payload.target_parent_id,
             "created": created,
             "skipped": skipped,
             "imagesCopied": 0,
@@ -128,12 +132,16 @@ def delete_folder(
     service: ChannelFolderService = Depends(get_channel_folder_service),
     audit: AuditService = Depends(get_audit_service),
 ):
-    service.delete_folder(folder_id)
+    deleted_folders, unfiled_images = service.delete_folder(folder_id)
     audit.record(
         actor_user_id=user.id,
         action="channel.folder.delete",
         target_type="channel_folder",
         target_id=folder_id,
+        details={
+            "deletedFolders": deleted_folders,
+            "unfiledImages": unfiled_images,
+        },
         request_id=request.state.request_id,
     )
     return service.list_catalog()

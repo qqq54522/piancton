@@ -95,18 +95,47 @@ class ChannelFolderService:
         folder.name = name
         self.db.commit()
 
-    def delete_folder(self, folder_id: str) -> None:
+    def delete_folder(self, folder_id: str) -> tuple[int, int]:
         folder = self.repo.folder(folder_id)
         if not folder:
             raise NotFoundError("folder_not_found", "目录不存在")
-        if any(item.parent_id == folder_id for item in self.repo.folders(folder.channel_name)):
-            raise ConflictError("folder_has_children", "请先整理或删除下级目录")
-        if self.repo.placement_count(folder_id):
-            raise ConflictError("folder_has_images", "目录仍有图片，请先批量移动图片")
-        self.repo.remove_folder(folder_id)
-        self.db.commit()
 
-    def copy_folder_tree(self, source_channel: str, target_channel: str) -> tuple[int, int]:
+        folders = self.repo.folders(folder.channel_name)
+        children_by_parent: dict[str, list[str]] = {}
+        for item in folders:
+            if item.parent_id:
+                children_by_parent.setdefault(item.parent_id, []).append(item.id)
+
+        delete_order: list[str] = []
+        visited: set[str] = set()
+        stack: list[tuple[str, bool]] = [(folder_id, False)]
+        while stack:
+            current_id, expanded = stack.pop()
+            if expanded:
+                delete_order.append(current_id)
+                continue
+            if current_id in visited:
+                self.db.rollback()
+                raise AppError("folder_cycle", "目录层级存在循环，无法删除")
+            visited.add(current_id)
+            stack.append((current_id, True))
+            for child_id in children_by_parent.get(current_id, []):
+                stack.append((child_id, False))
+
+        unfiled_images = self.repo.placement_count_for_folders(delete_order)
+        self.repo.remove_placements_for_folders(delete_order)
+        for current_id in delete_order:
+            self.repo.remove_folder(current_id)
+        self.db.commit()
+        return len(delete_order), unfiled_images
+
+    def copy_folder_tree(
+        self,
+        source_channel: str,
+        target_channel: str,
+        source_folder_id: str | None = None,
+        target_parent_id: str | None = None,
+    ) -> tuple[int, int]:
         source_channel = source_channel.strip()
         target_channel = target_channel.strip()
         if not source_channel or not target_channel:
@@ -117,9 +146,24 @@ class ChannelFolderService:
         source_folders = self.repo.folders(source_channel)
         if not source_folders:
             raise NotFoundError("source_folders_not_found", "来源渠道还没有可复制的分类")
+        source_by_id = {folder.id: folder for folder in source_folders}
+        if source_folder_id:
+            source_root = source_by_id.get(source_folder_id)
+            if source_root is None:
+                raise NotFoundError("source_folder_not_found", "来源分类不存在于当前渠道")
+            source_ids = set(self.folder_ids(source_channel, source_folder_id))
+            source_folders = [folder for folder in source_folders if folder.id in source_ids]
+        else:
+            source_ids = set(source_by_id)
 
         self.ensure_channel(target_channel)
         target_folders = self.repo.folders(target_channel)
+        if target_parent_id:
+            target_parent = next(
+                (folder for folder in target_folders if folder.id == target_parent_id), None
+            )
+            if target_parent is None:
+                raise NotFoundError("target_folder_not_found", "目标上级分类不存在于目标渠道")
         target_by_parent_and_name = {
             (folder.parent_id, folder.name): folder for folder in target_folders
         }
@@ -132,23 +176,27 @@ class ChannelFolderService:
             remaining = []
             progressed = False
             for source in pending:
-                if source.parent_id and source.parent_id not in source_to_target:
+                if source.parent_id in source_ids and source.parent_id not in source_to_target:
                     remaining.append(source)
                     continue
-                target_parent_id = source_to_target.get(source.parent_id)
-                existing = target_by_parent_and_name.get((target_parent_id, source.name))
+                resolved_parent_id = (
+                    source_to_target[source.parent_id]
+                    if source.parent_id in source_ids
+                    else target_parent_id
+                )
+                existing = target_by_parent_and_name.get((resolved_parent_id, source.name))
                 if existing is not None:
                     target = existing
                     skipped += 1
                 else:
                     target = ChannelFolder(
                         channel_name=target_channel,
-                        parent_id=target_parent_id,
+                        parent_id=resolved_parent_id,
                         name=source.name,
                     )
                     self.repo.add_folder(target)
                     self.db.flush()
-                    target_by_parent_and_name[(target_parent_id, source.name)] = target
+                    target_by_parent_and_name[(resolved_parent_id, source.name)] = target
                     created += 1
                 source_to_target[source.id] = target.id
                 progressed = True

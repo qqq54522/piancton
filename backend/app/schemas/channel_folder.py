@@ -31,6 +31,8 @@ class FolderRename(ApiModel):
 class FolderTreeCopy(ApiModel):
     source_channel: str = Field(min_length=1, max_length=100)
     target_channel: str = Field(min_length=1, max_length=100)
+    source_folder_id: str | None = None
+    target_parent_id: str | None = None
 
 
 class FolderTreeCopyResult(ApiModel):

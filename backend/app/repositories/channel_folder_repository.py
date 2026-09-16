@@ -1,4 +1,4 @@
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.channel_folder import ChannelFolder, ImageChannelPlacement, ManagedChannel
@@ -74,9 +74,21 @@ class ChannelFolderRepository:
             )
         )
 
-    def placement_count(self, folder_id: str) -> int:
-        return len(
-            self.db.scalars(
-                select(ImageChannelPlacement.id).where(ImageChannelPlacement.folder_id == folder_id)
-            ).all()
+    def placement_count_for_folders(self, folder_ids: list[str]) -> int:
+        if not folder_ids:
+            return 0
+        return int(
+            self.db.scalar(
+                select(func.count())
+                .select_from(ImageChannelPlacement)
+                .where(ImageChannelPlacement.folder_id.in_(folder_ids))
+            )
+            or 0
+        )
+
+    def remove_placements_for_folders(self, folder_ids: list[str]) -> None:
+        if not folder_ids:
+            return
+        self.db.execute(
+            delete(ImageChannelPlacement).where(ImageChannelPlacement.folder_id.in_(folder_ids))
         )

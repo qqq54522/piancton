@@ -90,12 +90,18 @@ def test_channel_folder_tree_and_old_image_batch_placement(client):
     assert old_id not in ids(
         client.get("/api/images", params={"channel": "合作学校", "unfiled": "true"})
     )
-    assert (
-        client.delete(
-            f"/api/channel-folders/folders/{school.json()['id']}", headers=headers(designer_csrf)
-        ).status_code
-        == 409
+    removed = client.delete(
+        f"/api/channel-folders/folders/{school.json()['id']}", headers=headers(designer_csrf)
     )
+    assert removed.status_code == 200
+    channel = next(item for item in removed.json() if item["name"] == "合作学校")
+    assert [(item["id"], item["name"]) for item in channel["folders"]] == [
+        (beijing.json()["id"], "北京")
+    ]
+    assert old_id in ids(
+        client.get("/api/images", params={"channel": "合作学校", "unfiled": "true"})
+    )
+    assert old_id in ids(client.get("/api/images", params={"channel": "合作学校"}))
 
 
 def test_upload_placement_and_variant_inherit_channel_folder(client):
@@ -222,6 +228,58 @@ def test_copy_folder_tree_merges_names_without_copying_image_placements(client):
     )
     assert repeated.status_code == 200
     assert repeated.json() == {"created": 0, "skipped": 3}
+
+
+def test_copy_selected_folder_subtree_under_target_folder(client):
+    write_headers = headers(login(client, "admin", "admin-password"))
+    source_root = client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "PPT", "name": "小学"},
+    ).json()
+    source_subject = client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "PPT", "name": "数学", "parentId": source_root["id"]},
+    ).json()
+    source_topic = client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "PPT", "name": "计算", "parentId": source_subject["id"]},
+    ).json()
+    client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "PPT", "name": "不应复制"},
+    )
+    target_parent = client.post(
+        "/api/channel-folders/folders",
+        headers=write_headers,
+        json={"channel": "官网大图", "name": "课程介绍"},
+    ).json()
+
+    copied = client.post(
+        "/api/channel-folders/folders/copy",
+        headers=write_headers,
+        json={
+            "sourceChannel": "PPT",
+            "targetChannel": "官网大图",
+            "sourceFolderId": source_subject["id"],
+            "targetParentId": target_parent["id"],
+        },
+    )
+    assert copied.status_code == 200
+    assert copied.json() == {"created": 2, "skipped": 0}
+
+    catalog = client.get("/api/channel-folders").json()
+    target_folders = next(item["folders"] for item in catalog if item["name"] == "官网大图")
+    copied_subject = next(item for item in target_folders if item["name"] == "数学")
+    copied_topic = next(item for item in target_folders if item["name"] == "计算")
+    assert copied_subject["parentId"] == target_parent["id"]
+    assert copied_topic["parentId"] == copied_subject["id"]
+    assert source_topic["id"] != copied_topic["id"]
+    assert "小学" not in {item["name"] for item in target_folders}
+    assert "不应复制" not in {item["name"] for item in target_folders}
 
 
 def ids(response) -> set[str]:

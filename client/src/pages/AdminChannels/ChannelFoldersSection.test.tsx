@@ -5,16 +5,22 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ChannelImagesPane } from './ChannelFoldersSection';
+import { ChannelFolderTree, ChannelImagesPane } from './ChannelFoldersSection';
 
 const mocks = vi.hoisted(() => ({
   assignChannelFolder: vi.fn(),
+  createChannelFolder: vi.fn(),
+  deleteChannelFolder: vi.fn(),
   fetchImages: vi.fn(),
+  renameChannelFolder: vi.fn(),
 }));
 
 vi.mock('@client/src/api/image', () => ({
   assignChannelFolder: mocks.assignChannelFolder,
+  createChannelFolder: mocks.createChannelFolder,
+  deleteChannelFolder: mocks.deleteChannelFolder,
   fetchImages: mocks.fetchImages,
+  renameChannelFolder: mocks.renameChannelFolder,
 }));
 
 vi.mock('sonner', () => ({
@@ -38,6 +44,9 @@ describe('ChannelImagesPane', () => {
       nextCursor: null,
     });
     mocks.assignChannelFolder.mockReset().mockResolvedValue(1);
+    mocks.createChannelFolder.mockReset().mockResolvedValue(undefined);
+    mocks.deleteChannelFolder.mockReset().mockResolvedValue(undefined);
+    mocks.renameChannelFolder.mockReset().mockResolvedValue(undefined);
   });
 
   afterEach(cleanup);
@@ -84,5 +93,39 @@ describe('ChannelImagesPane', () => {
         'folder-shanghai',
       );
     });
+  });
+
+  it('deletes a parent classification with all descendants after confirmation', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const onSelect = vi.fn();
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <ChannelFolderTree
+            channel="合作案例"
+            folders={[
+              { id: 'beijing', name: '北京', parentId: null },
+              { id: 'chaoyang', name: '朝阳', parentId: 'beijing' },
+              { id: 'school', name: '望京学校', parentId: 'chaoyang' },
+            ]}
+            selectedFolderId={null}
+            onSelect={onSelect}
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '删除北京及其下级分类' }));
+    expect(await screen.findByText('删除“北京”及其下级分类？')).toBeTruthy();
+    expect(screen.getByText(/将同时删除 2 个下级分类/)).toBeTruthy();
+    expect(screen.getByText(/图片不会被删除/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+
+    await waitFor(() => {
+      expect(mocks.deleteChannelFolder).toHaveBeenCalledWith('beijing');
+    });
+    expect(onSelect).toHaveBeenCalledWith(null);
   });
 });

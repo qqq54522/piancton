@@ -1,16 +1,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, FolderClosed, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, FolderClosed, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as imageApi from '@client/src/api/image';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@client/src/components/ui/alert-dialog';
 import { folderPath, orderedChannelFolders, type ChannelFolder } from '@client/src/features/images/channelFolders';
 
 type FolderAction = (action: () => Promise<unknown>, message: string) => Promise<boolean>;
 type OrganizeScope = 'current' | 'unfiled' | 'all';
+
+function folderSubtreeSize(folderId: string, folders: ChannelFolder[]): number {
+  const childrenByParent = new Map<string, string[]>();
+  for (const folder of folders) {
+    if (!folder.parentId) continue;
+    childrenByParent.set(folder.parentId, [...(childrenByParent.get(folder.parentId) ?? []), folder.id]);
+  }
+  const included = new Set<string>();
+  const pending = [folderId];
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (included.has(current)) continue;
+    included.add(current);
+    pending.push(...(childrenByParent.get(current) ?? []));
+  }
+  return included.size;
+}
 
 function useFolderActions(channel: string) {
   const queryClient = useQueryClient();
@@ -39,11 +65,12 @@ function useFolderActions(channel: string) {
   return { busy, run, create };
 }
 
-export function ChannelFolderTree({ channel, folders, selectedFolderId, onSelect }: {
+export function ChannelFolderTree({ channel, folders, selectedFolderId, onSelect, onCopy }: {
   channel: string;
   folders: ChannelFolder[];
   selectedFolderId: string | null;
   onSelect: (id: string | null) => void;
+  onCopy?: (id: string) => void;
 }) {
   const { busy, run, create } = useFolderActions(channel);
   const [rootName, setRootName] = useState('');
@@ -71,17 +98,18 @@ export function ChannelFolderTree({ channel, folders, selectedFolderId, onSelect
     <div className="space-y-1">
       {ordered.filter((folder) => !folder.parentId).map((folder) => <FolderBranch key={folder.id}
         folder={folder} folders={folders} selectedFolderId={selectedFolderId} onSelect={onSelect}
-        busy={busy} run={run} create={create} />)}
+        onCopy={onCopy} busy={busy} run={run} create={create} />)}
       {!folders.length && <p className="rounded-lg bg-secondary/50 px-3 py-3 text-xs text-muted-foreground">还没有分类，点“新增”开始。</p>}
     </div>
   </div>;
 }
 
-function FolderBranch({ folder, folders, selectedFolderId, onSelect, busy, run, create }: {
+function FolderBranch({ folder, folders, selectedFolderId, onSelect, onCopy, busy, run, create }: {
   folder: ChannelFolder;
   folders: ChannelFolder[];
   selectedFolderId: string | null;
   onSelect: (id: string | null) => void;
+  onCopy?: (id: string) => void;
   busy: boolean;
   run: FolderAction;
   create: (name: string, parentId: string | null) => Promise<boolean>;
@@ -89,10 +117,13 @@ function FolderBranch({ folder, folders, selectedFolderId, onSelect, busy, run, 
   const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [childName, setChildName] = useState('');
   const [name, setName] = useState(folder.name);
   useEffect(() => setName(folder.name), [folder.name]);
   const children = folders.filter((item) => item.parentId === folder.id).sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  const subtreeSize = folderSubtreeSize(folder.id, folders);
+  const descendantCount = subtreeSize - 1;
   const active = selectedFolderId === folder.id;
   const addChild = async () => {
     if (!childName.trim()) return;
@@ -100,6 +131,15 @@ function FolderBranch({ folder, folders, selectedFolderId, onSelect, busy, run, 
   };
   const rename = async () => {
     if (await run(() => imageApi.renameChannelFolder(folder.id, name.trim()), '分类已改名')) setEditing(false);
+  };
+  const remove = async () => {
+    const message = descendantCount
+      ? `已删除“${folder.name}”及其 ${descendantCount} 个下级分类，相关图片已移回未归类`
+      : `已删除“${folder.name}”，相关图片已移回未归类`;
+    if (await run(() => imageApi.deleteChannelFolder(folder.id), message)) {
+      setDeleteOpen(false);
+      onSelect(null);
+    }
   };
 
   return <div>
@@ -113,15 +153,19 @@ function FolderBranch({ folder, folders, selectedFolderId, onSelect, busy, run, 
         aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className="mr-2 rounded-lg p-1.5 hover:bg-black/10">
         {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
       </button>}
+      <button type="button" disabled={busy} aria-label={`删除${folder.name}及其下级分类`}
+        onClick={() => setDeleteOpen(true)}
+        className="mr-1 rounded-lg p-1.5 text-destructive hover:bg-black/10 disabled:opacity-50">
+        <Trash2 className="size-4" />
+      </button>
     </div>
     {active && <div className="flex flex-wrap gap-1 px-1 py-1">
       <button type="button" onClick={() => { setAdding((value) => !value); setExpanded(true); }}
         className="rounded-lg px-2 py-1 text-xs hover:bg-secondary"><Plus className="mr-1 inline size-3" />新增下级</button>
       <button type="button" onClick={() => setEditing((value) => !value)}
         className="rounded-lg px-2 py-1 text-xs hover:bg-secondary"><Pencil className="mr-1 inline size-3" />改名</button>
-      <button type="button" disabled={busy} aria-label={`删除${folder.name}`} onClick={async () => {
-        if (await run(() => imageApi.deleteChannelFolder(folder.id), '空分类已删除')) onSelect(null);
-      }} className="rounded-lg px-2 py-1 text-xs text-destructive hover:bg-secondary"><Trash2 className="mr-1 inline size-3" />删除</button>
+      {onCopy && <button type="button" onClick={() => onCopy(folder.id)}
+        className="rounded-lg px-2 py-1 text-xs hover:bg-secondary"><Copy className="mr-1 inline size-3" />复制到</button>}
     </div>}
     {adding && <div className="mb-2 flex gap-1 pl-2">
       <Input autoFocus value={childName} onChange={(event) => setChildName(event.target.value)}
@@ -137,8 +181,27 @@ function FolderBranch({ folder, folders, selectedFolderId, onSelect, busy, run, 
     </div>}
     {children.length > 0 && expanded && <div className="ml-4 mt-1 space-y-1 border-l border-border pl-2">
       {children.map((child) => <FolderBranch key={child.id} folder={child} folders={folders}
-        selectedFolderId={selectedFolderId} onSelect={onSelect} busy={busy} run={run} create={create} />)}
+        selectedFolderId={selectedFolderId} onSelect={onSelect} onCopy={onCopy}
+        busy={busy} run={run} create={create} />)}
     </div>}
+    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>删除“{folder.name}”及其下级分类？</AlertDialogTitle>
+          <AlertDialogDescription>
+            {descendantCount
+              ? `将同时删除 ${descendantCount} 个下级分类。分类中的图片不会被删除，会回到当前渠道的未归类。`
+              : '分类中的图片不会被删除，会回到当前渠道的未归类。'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
+          <Button type="button" variant="destructive" disabled={busy} onClick={remove}>
+            {busy ? '正在删除...' : '确认删除'}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>;
 }
 
