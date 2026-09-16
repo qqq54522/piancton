@@ -13,6 +13,7 @@ import {
 } from '@client/src/api/assetCollections';
 import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
+import { assetCollectionQueryKeys } from '@client/src/features/assets/assetCollectionQueryKeys';
 import ImageGrid from '@client/src/pages/ImageHome/ImageGrid';
 
 const MyCollections = () => {
@@ -24,7 +25,7 @@ const BoardList = () => {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const boardsQuery = useQuery({
-    queryKey: ['asset-collections', 'boards'],
+    queryKey: assetCollectionQueryKeys.boards,
     queryFn: fetchCollectionBoards,
   });
   const createMutation = useMutation({
@@ -136,12 +137,12 @@ const BoardList = () => {
 const BoardDetail = ({ boardId }: { boardId: string }) => {
   const navigate = useNavigate();
   const boardsQuery = useQuery({
-    queryKey: ['asset-collections', 'boards'],
+    queryKey: assetCollectionQueryKeys.boards,
     queryFn: fetchCollectionBoards,
   });
   const board = boardsQuery.data?.find((item) => item.id === boardId);
   const itemsQuery = useInfiniteQuery({
-    queryKey: ['asset-collections', 'board-items', boardId],
+    queryKey: assetCollectionQueryKeys.boardItems(boardId),
     queryFn: ({ pageParam }) => fetchCollectionBoardItems(boardId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => (
@@ -216,8 +217,8 @@ const CollectionHeader = ({ title, description }: { title: string; description: 
 
 async function invalidateBoards(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['asset-collections', 'boards'] }),
-    queryClient.invalidateQueries({ queryKey: ['asset-collections', 'summary'] }),
+    queryClient.invalidateQueries({ queryKey: assetCollectionQueryKeys.boards }),
+    queryClient.invalidateQueries({ queryKey: assetCollectionQueryKeys.summary }),
   ]);
 }
 

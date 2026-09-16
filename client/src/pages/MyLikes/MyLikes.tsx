@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom';
 
 import { fetchLikedAssets } from '@client/src/api/assetCollections';
 import { Button } from '@client/src/components/ui/button';
+import { assetCollectionQueryKeys } from '@client/src/features/assets/assetCollectionQueryKeys';
 import ImageGrid from '@client/src/pages/ImageHome/ImageGrid';
 
 const MyLikes = () => {
   const query = useInfiniteQuery({
-    queryKey: ['asset-collections', 'likes'],
+    queryKey: assetCollectionQueryKeys.likes,
     queryFn: ({ pageParam }) => fetchLikedAssets(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => (

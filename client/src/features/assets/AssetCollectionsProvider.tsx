@@ -23,10 +23,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@client/src/components/ui/dialog';
 import { Input } from '@client/src/components/ui/input';
+import { assetCollectionQueryKeys } from '@client/src/features/assets/assetCollectionQueryKeys';
 import { useAuth } from '@client/src/lib/auth';
 import type { AssetSaveContext } from '@client/src/types/api';
 
@@ -58,26 +60,28 @@ export function AssetCollectionsProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   const [pickerTarget, setPickerTarget] = useState<AssetCollectionTarget | null>(null);
   const [newBoardName, setNewBoardName] = useState('');
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const summaryQuery = useQuery({
-    queryKey: ['asset-collections', 'summary'],
+    queryKey: assetCollectionQueryKeys.summary,
     queryFn: fetchAssetCollectionSummary,
     enabled,
   });
   const membershipQuery = useQuery({
-    queryKey: ['asset-collections', 'membership', pickerTarget?.assetGroupId],
+    queryKey: assetCollectionQueryKeys.membership(pickerTarget?.assetGroupId),
     queryFn: () => fetchAssetMembership(pickerTarget!.assetGroupId),
     enabled: enabled && Boolean(pickerTarget),
   });
   const invalidate = async (assetGroupId?: string, boardId?: string) => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['asset-collections', 'summary'] }),
+      queryClient.invalidateQueries({ queryKey: assetCollectionQueryKeys.summary }),
+      queryClient.invalidateQueries({ queryKey: assetCollectionQueryKeys.boards }),
       queryClient.invalidateQueries({
-        queryKey: ['asset-collections', 'membership', assetGroupId],
+        queryKey: assetCollectionQueryKeys.membership(assetGroupId),
       }),
-      queryClient.invalidateQueries({ queryKey: ['asset-collections', 'likes'] }),
+      queryClient.invalidateQueries({ queryKey: assetCollectionQueryKeys.likes }),
       ...(boardId
         ? [queryClient.invalidateQueries({
-          queryKey: ['asset-collections', 'board-items', boardId],
+          queryKey: assetCollectionQueryKeys.boardItems(boardId),
         })]
         : []),
     ]);
@@ -98,32 +102,45 @@ export function AssetCollectionsProvider({ children }: PropsWithChildren) {
     },
     onError: () => toast.error('喜欢状态保存失败，请稍后再试'),
   });
-  const boardMutation = useMutation({
-    mutationFn: async ({ boardId, selected }: { boardId: string; selected: boolean }) => {
-      if (!pickerTarget) throw new Error('missing target');
-      const context = saveContext(pickerTarget);
-      return selected
-        ? removeAssetFromBoard(boardId, pickerTarget.assetGroupId, context)
-        : addAssetToBoard(boardId, pickerTarget.assetGroupId, context);
+  const saveToBoardMutation = useMutation({
+    mutationFn: async ({
+      boardId,
+      remove,
+      target,
+    }: {
+      boardId: string;
+      remove: boolean;
+      target: AssetCollectionTarget;
+    }) => {
+      const context = saveContext(target);
+      return remove
+        ? removeAssetFromBoard(boardId, target.assetGroupId, context)
+        : addAssetToBoard(boardId, target.assetGroupId, context);
     },
-    onSuccess: async (_membership, variables) => {
-      if (!pickerTarget) return;
-      await invalidate(pickerTarget.assetGroupId, variables.boardId);
+    onSuccess: async (_membership, { boardId, remove, target }) => {
+      const boardName = summaryQuery.data?.boards.find((board) => board.id === boardId)?.name;
+      await invalidate(target.assetGroupId, boardId);
+      setPickerTarget(null);
+      setSelectedBoardId(null);
+      setNewBoardName('');
+      if (remove) {
+        toast.success(boardName ? `已从「${boardName}」移除` : '已从画板移除');
+      } else {
+        toast.success(boardName ? `已收藏到「${boardName}」` : '已收藏到画板');
+      }
     },
     onError: () => toast.error('画板保存失败，请稍后再试'),
   });
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!pickerTarget) throw new Error('missing target');
-      const board = await createCollectionBoard(newBoardName.trim());
-      await addAssetToBoard(board.id, pickerTarget.assetGroupId, saveContext(pickerTarget));
-      return board;
+      if (!newBoardName.trim()) throw new Error('missing board name');
+      return createCollectionBoard(newBoardName.trim());
     },
     onSuccess: async (board) => {
-      if (!pickerTarget) return;
       setNewBoardName('');
-      await invalidate(pickerTarget.assetGroupId, board.id);
-      toast.success(`已收藏到「${board.name}」`);
+      setSelectedBoardId(board.id);
+      await invalidate(pickerTarget?.assetGroupId);
+      toast.success(`画板「${board.name}」已创建，请点击确定收藏`);
     },
     onError: () => toast.error('新建画板失败，请检查名称是否重复'),
   });
@@ -135,7 +152,11 @@ export function AssetCollectionsProvider({ children }: PropsWithChildren) {
     enabled,
     isLiked: (assetGroupId) => Boolean(assetGroupId && likedIds.has(assetGroupId)),
     toggleLike: (target) => likeMutation.mutate(target),
-    openBoardPicker: setPickerTarget,
+    openBoardPicker: (target) => {
+      setPickerTarget(target);
+      setSelectedBoardId(null);
+      setNewBoardName('');
+    },
   }), [enabled, likedIds, likeMutation]);
 
   return (
@@ -147,6 +168,7 @@ export function AssetCollectionsProvider({ children }: PropsWithChildren) {
           if (!open) {
             setPickerTarget(null);
             setNewBoardName('');
+            setSelectedBoardId(null);
           }
         }}
       >
@@ -157,53 +179,91 @@ export function AssetCollectionsProvider({ children }: PropsWithChildren) {
               {pickerTarget?.title}
             </DialogDescription>
           </DialogHeader>
+          <div className="rounded-xl border border-border bg-secondary/25 p-3">
+            <label htmlFor="new-collection-board" className="mb-2 block text-sm font-medium">
+              新建画板
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="new-collection-board"
+                aria-label="新画板名称"
+                value={newBoardName}
+                maxLength={80}
+                placeholder="例如：秋季家长会"
+                onChange={(event) => setNewBoardName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && newBoardName.trim()) createMutation.mutate();
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 bg-white"
+                disabled={!newBoardName.trim() || createMutation.isPending}
+                onClick={() => createMutation.mutate()}
+              >
+                <Plus className="size-4" />新建
+              </Button>
+            </div>
+          </div>
+          <p className="text-sm font-medium">选择一个画板</p>
           <div className="max-h-64 space-y-2 overflow-y-auto py-1">
             {summaryQuery.data?.boards.length ? summaryQuery.data.boards.map((board) => {
-              const selected = membershipQuery.data?.boardIds.includes(board.id) ?? false;
+              const selected = selectedBoardId === board.id;
+              const alreadySaved = membershipQuery.data?.boardIds.includes(board.id) ?? false;
               return (
                 <button
                   key={board.id}
                   type="button"
+                  aria-pressed={selected}
                   className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition ${selected ? 'border-foreground bg-foreground text-background' : 'border-border bg-white hover:bg-secondary/60'}`}
-                  disabled={boardMutation.isPending}
-                  onClick={() => boardMutation.mutate({ boardId: board.id, selected })}
+                  disabled={saveToBoardMutation.isPending}
+                  onClick={() => setSelectedBoardId(board.id)}
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <FolderHeart className="size-4 shrink-0" />
                     <span className="truncate text-sm font-medium">{board.name}</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2 text-xs opacity-75">
-                    {board.itemCount} 张
+                    {alreadySaved ? '已收藏' : `${board.itemCount} 张`}
                     {selected && <Check className="size-4" />}
                   </span>
                 </button>
               );
             }) : (
               <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                还没有画板，在下方新建一个
+                还没有画板，请先在上方新建一个
               </div>
             )}
           </div>
-          <div className="flex gap-2 border-t border-border pt-4">
-            <Input
-              aria-label="新画板名称"
-              value={newBoardName}
-              maxLength={80}
-              placeholder="新画板名称"
-              onChange={(event) => setNewBoardName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && newBoardName.trim()) createMutation.mutate();
-              }}
-            />
+          <DialogFooter className="border-t border-border pt-4">
             <Button
               type="button"
-              className="shrink-0"
-              disabled={!newBoardName.trim() || createMutation.isPending}
-              onClick={() => createMutation.mutate()}
+              variant="outline"
+              onClick={() => setPickerTarget(null)}
             >
-              <Plus className="size-4" />新建并收藏
+              取消
             </Button>
-          </div>
+            <Button
+              type="button"
+              disabled={!selectedBoardId || saveToBoardMutation.isPending}
+              onClick={() => {
+                if (selectedBoardId && pickerTarget) {
+                  saveToBoardMutation.mutate({
+                    boardId: selectedBoardId,
+                    remove: membershipQuery.data?.boardIds.includes(selectedBoardId) ?? false,
+                    target: pickerTarget,
+                  });
+                }
+              }}
+            >
+              {saveToBoardMutation.isPending
+                ? '正在保存...'
+                : selectedBoardId && membershipQuery.data?.boardIds.includes(selectedBoardId)
+                  ? '从该画板移除'
+                  : '确定收藏'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AssetCollectionsContext.Provider>
