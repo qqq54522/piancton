@@ -10,6 +10,7 @@ import { Input } from '@client/src/components/ui/input';
 import { folderPath, orderedChannelFolders, type ChannelFolder } from '@client/src/features/images/channelFolders';
 
 type FolderAction = (action: () => Promise<unknown>, message: string) => Promise<boolean>;
+type OrganizeScope = 'current' | 'unfiled' | 'all';
 
 function useFolderActions(channel: string) {
   const queryClient = useQueryClient();
@@ -148,7 +149,9 @@ export function ChannelImagesPane({ channel, folders, selectedFolderId }: {
 }) {
   const queryClient = useQueryClient();
   const [organizing, setOrganizing] = useState(false);
-  const [unfiledOnly, setUnfiledOnly] = useState(true);
+  const [organizeScope, setOrganizeScope] = useState<OrganizeScope>(
+    selectedFolderId ? 'current' : 'unfiled',
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pageCursor, setPageCursor] = useState<string | undefined>();
   const [previousCursors, setPreviousCursors] = useState<(string | undefined)[]>([]);
@@ -163,18 +166,36 @@ export function ChannelImagesPane({ channel, folders, selectedFolderId }: {
     setPreviousCursors([]);
     setSelectedIds([]);
     setTargetFolderId(selectedFolderId ?? '');
+    setOrganizeScope(selectedFolderId ? 'current' : 'unfiled');
     setOrganizing(false);
   }, [selectedFolderId]);
   const images = useQuery({
-    queryKey: ['channel-folder-images', channel, organizing, unfiledOnly, selectedFolderId, pageCursor],
+    queryKey: [
+      'channel-folder-images',
+      channel,
+      organizing,
+      organizeScope,
+      selectedFolderId,
+      pageCursor,
+    ],
     queryFn: () => imageApi.fetchImages({ channel,
-      ...(organizing ? { unfiled: unfiledOnly } : selectedFolderId ? { folderId: selectedFolderId } : {}),
+      ...(organizing
+        ? organizeScope === 'current' && selectedFolderId
+          ? { folderId: selectedFolderId }
+          : organizeScope === 'unfiled'
+            ? { unfiled: true }
+            : {}
+        : selectedFolderId
+          ? { folderId: selectedFolderId }
+          : {}),
       cursor: pageCursor, limit: 50 }),
   });
   const pageImages = images.data?.items ?? [];
   const pageIds = pageImages.map((image) => image.id);
   const changeMode = (value: boolean) => {
-    setOrganizing(value); setPageCursor(undefined); setPreviousCursors([]); setSelectedIds([]);
+    setOrganizing(value);
+    if (value) setOrganizeScope(selectedFolderId ? 'current' : 'unfiled');
+    setPageCursor(undefined); setPreviousCursors([]); setSelectedIds([]);
   };
   const assign = async () => {
     if (!selectedIds.length) return;
@@ -185,7 +206,7 @@ export function ChannelImagesPane({ channel, folders, selectedFolderId }: {
         queryClient.invalidateQueries({ queryKey: ['channel-folder-images'] }),
         queryClient.invalidateQueries({ queryKey: ['images'] }),
       ]);
-      toast.success(`${selectedIds.length} 张图片已归类`);
+      toast.success(`${selectedIds.length} 张图片的分类已调整`);
       setSelectedIds([]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '归类失败');
@@ -195,21 +216,29 @@ export function ChannelImagesPane({ channel, folders, selectedFolderId }: {
   return <main className="surface-card min-w-0 p-5 sm:p-6 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
       <div>
-        <p className="mb-1 text-xs text-muted-foreground">{organizing ? '整理已有图片' : '当前分类'}</p>
-        <h2 className="text-xl font-semibold tracking-tight">{organizing ? channel : selectedPath}</h2>
+        <p className="mb-1 text-xs text-muted-foreground">{organizing ? '调整图片分类' : '当前分类'}</p>
+        <h2 className="text-xl font-semibold tracking-tight">
+          {organizing && organizeScope === 'current' ? selectedPath : organizing ? channel : selectedPath}
+        </h2>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">当前页 {pageImages.length} 张图片</span>
         <Button size="sm" variant={organizing ? 'default' : 'outline'} onClick={() => changeMode(!organizing)}>
-          {organizing ? '返回分类图片' : '整理已有图片'}
+          {organizing ? '完成调整' : selectedFolderId ? '调整当前分类' : '整理渠道图片'}
         </Button>
       </div>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto compact-scrollbar">
     {organizing && <div className="mt-5 rounded-xl border border-border bg-secondary/30 p-3">
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={unfiledOnly}
-          onChange={(event) => { setUnfiledOnly(event.target.checked); setPageCursor(undefined); setPreviousCursors([]); setSelectedIds([]); }} />只看未归类</label>
+        <select aria-label="要调整的图片范围" value={organizeScope} onChange={(event) => {
+          setOrganizeScope(event.target.value as OrganizeScope);
+          setPageCursor(undefined); setPreviousCursors([]); setSelectedIds([]);
+        }} className="h-9 rounded-lg border border-border bg-white px-2 text-sm">
+          {selectedFolderId && <option value="current">当前分类：{selectedPath}</option>}
+          <option value="unfiled">未归类图片</option>
+          <option value="all">{channel}全部图片</option>
+        </select>
         <select aria-label="图片要归入的分类" value={targetFolderId} onChange={(event) => setTargetFolderId(event.target.value)}
           className="h-9 min-w-44 flex-1 rounded-lg border border-border bg-white px-2 text-sm">
           <option value="">移回未归类</option>
@@ -223,7 +252,7 @@ export function ChannelImagesPane({ channel, folders, selectedFolderId }: {
     {images.isLoading && <p className="py-14 text-center text-sm text-muted-foreground">正在加载图片...</p>}
     {images.isError && <p className="py-14 text-center text-sm text-destructive">图片加载失败，请稍后重试。</p>}
     {!images.isLoading && !images.isError && !pageImages.length && <p className="py-14 text-center text-sm text-muted-foreground">
-      {organizing ? '当前范围没有图片' : '这个分类还没有图片，可在“整理已有图片”中归入。'}
+      {organizing ? '当前范围没有图片' : '这个分类还没有图片，可在“整理渠道图片”中归入。'}
     </p>}
     <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {pageImages.map((image) => organizing ? <label key={image.id}
