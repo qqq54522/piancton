@@ -34,3 +34,7 @@ export async function me(): Promise<User> {
 export async function completeOnboarding(): Promise<User> {
   return (await api.post('/api/auth/onboarding/complete')).data;
 }
+
+export async function completeDailyFeedback(): Promise<User> {
+  return (await api.post('/api/auth/daily-feedback/complete')).data;
+}

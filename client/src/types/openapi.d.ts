@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/daily-feedback/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Daily Feedback */
+        post: operations["complete_daily_feedback_api_auth_daily_feedback_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/avatar": {
         parameters: {
             query?: never;
@@ -3630,6 +3647,11 @@ export interface components {
              */
             hasCustomAvatar: boolean;
             /**
+             * Dailyfeedbackrequired
+             * @default false
+             */
+            dailyFeedbackRequired: boolean;
+            /**
              * Createdat
              * Format: date-time
              */
@@ -3811,6 +3833,40 @@ export interface operations {
         };
     };
     complete_onboarding_api_auth_onboarding_complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                piancton_csrf?: string | null;
+                piancton_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_daily_feedback_api_auth_daily_feedback_complete_post: {
         parameters: {
             query?: never;
             header?: {

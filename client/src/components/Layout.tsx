@@ -23,6 +23,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import AccountAvatar from '@client/src/components/AccountAvatar';
 import AccountAvatarDialog from '@client/src/components/AccountAvatarDialog';
+import DailyFeedbackDialog from '@client/src/components/DailyFeedbackDialog';
 import { Button } from '@client/src/components/ui/button';
 import FeedbackDialog from '@client/src/components/FeedbackDialog';
 import NewUserWelcomeDialog from '@client/src/components/NewUserWelcomeDialog';
@@ -99,7 +100,7 @@ const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
-  const { user, logout, completeOnboarding } = useAuth();
+  const { user, logout, completeOnboarding, completeDailyFeedback } = useAuth();
   const navigate = useNavigate();
   usePageViewTracking();
   const isDesigner = user?.role === 'designer';
@@ -326,6 +327,14 @@ const Layout = () => {
       <NewUserWelcomeDialog
         open={isBusiness && user?.onboardingCompletedAt === null}
         onComplete={completeOnboarding}
+      />
+      <DailyFeedbackDialog
+        open={Boolean(
+          isBusiness
+          && user?.onboardingCompletedAt !== null
+          && user?.dailyFeedbackRequired,
+        )}
+        onComplete={completeDailyFeedback}
       />
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <AccountAvatarDialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen} />

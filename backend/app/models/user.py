@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Literal, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
@@ -27,6 +27,7 @@ class User(Base):
     onboarding_completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    daily_feedback_completed_on: Mapped[Optional[date]] = mapped_column(nullable=True)
     avatar_preset_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
     avatar_storage_key: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     avatar_thumbnail_key: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
