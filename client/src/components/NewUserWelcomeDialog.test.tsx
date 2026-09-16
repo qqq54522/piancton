@@ -20,7 +20,13 @@ describe('NewUserWelcomeDialog', () => {
     expect(screen.getByText('“帮我找这两个卖点下的图片。”')).not.toBeNull();
     expect(screen.queryByText(/顶部搜索/)).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: '知道了，开始使用' }));
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.pointerDown(document.body);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: '欢迎来到卖点智库' })).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '我已看完，开始使用' }));
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
   });
 
@@ -28,7 +34,7 @@ describe('NewUserWelcomeDialog', () => {
     const onComplete = vi.fn().mockRejectedValue(new Error('offline'));
     render(<NewUserWelcomeDialog open onComplete={onComplete} />);
 
-    fireEvent.click(screen.getByRole('button', { name: '知道了，开始使用' }));
+    fireEvent.click(screen.getByRole('button', { name: '我已看完，开始使用' }));
     expect((await screen.findByRole('alert')).textContent).toBe('暂时无法保存引导状态，请稍后再试。');
   });
 });

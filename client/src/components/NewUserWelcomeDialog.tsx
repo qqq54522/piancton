@@ -52,11 +52,14 @@ export default function NewUserWelcomeDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) void finishOnboarding();
-      }}
+      onOpenChange={() => undefined}
     >
-      <DialogContent className="max-h-[calc(100vh-1.5rem)] w-[min(980px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-y-auto rounded-[28px] p-0">
+      <DialogContent
+        className="max-h-[calc(100vh-1.5rem)] w-[min(980px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-y-auto rounded-[28px] p-0"
+        showCloseButton={false}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader className="border-b border-border/70 bg-gradient-to-br from-secondary/80 via-card to-card px-6 pb-6 pt-7 text-left sm:px-8">
           <div className="mb-4 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-white/80 px-3 py-1 text-xs font-semibold text-muted-foreground shadow-sm">
@@ -101,7 +104,7 @@ export default function NewUserWelcomeDialog({
 
         <DialogFooter className="px-6 pb-6 pt-5 sm:px-8 sm:pb-8">
           <Button className="h-11 min-w-44 rounded-xl" disabled={submitting} onClick={() => void finishOnboarding()}>
-            {submitting ? '正在进入…' : '知道了，开始使用'}
+            {submitting ? '正在进入…' : '我已看完，开始使用'}
           </Button>
         </DialogFooter>
       </DialogContent>
