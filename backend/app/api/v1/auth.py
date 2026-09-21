@@ -122,14 +122,6 @@ def complete_onboarding(
     return service.complete_onboarding(user.id)
 
 
-@router.post("/daily-feedback/complete", response_model=UserRead)
-def complete_daily_feedback(
-    user: User = Depends(require_csrf),
-    service: UserService = Depends(get_user_service),
-):
-    return service.complete_daily_feedback(user.id)
-
-
 @router.post("/avatar", response_model=UserRead)
 def upload_avatar(
     file: UploadFile = File(...),

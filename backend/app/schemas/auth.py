@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
@@ -11,24 +10,6 @@ from app.schemas.base import ApiModel
 
 Role = Literal["business", "designer", "admin"]
 AvatarPreset = Literal["blue", "mint", "coral", "violet", "gold", "slate"]
-SHANGHAI_TIMEZONE = ZoneInfo("Asia/Shanghai")
-
-
-def _shanghai_date(value: datetime) -> date:
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(SHANGHAI_TIMEZONE).date()
-
-
-def _daily_feedback_required(value) -> bool:
-    today = datetime.now(SHANGHAI_TIMEZONE).date()
-    return (
-        value.role == "business"
-        and _shanghai_date(value.created_at) < today
-        and value.daily_feedback_completed_on != today
-    )
-
-
 class LoginRequest(ApiModel):
     username: str = Field(min_length=1, max_length=100)
     password: str = Field(min_length=8, max_length=200)
@@ -69,7 +50,6 @@ class UserRead(ApiModel):
     avatar_preset_id: AvatarPreset | None = None
     avatar_updated_at: datetime | None = None
     has_custom_avatar: bool = False
-    daily_feedback_required: bool = False
     created_at: datetime
 
     @model_validator(mode="before")
@@ -87,7 +67,6 @@ class UserRead(ApiModel):
                 "avatar_preset_id": value.avatar_preset_id,
                 "avatar_updated_at": value.avatar_updated_at,
                 "has_custom_avatar": bool(value.avatar_storage_key),
-                "daily_feedback_required": _daily_feedback_required(value),
                 "created_at": value.created_at,
             }
         return value

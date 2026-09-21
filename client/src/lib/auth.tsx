@@ -24,7 +24,6 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
-  completeDailyFeedback: () => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
   selectAvatarPreset: (presetId: AvatarPresetId) => Promise<void>;
   ability: { can: (action: string, subject?: string) => boolean };
@@ -69,10 +68,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     },
     completeOnboarding: async () => {
       const updatedUser = await authApi.completeOnboarding();
-      setUser(updatedUser);
-    },
-    completeDailyFeedback: async () => {
-      const updatedUser = await authApi.completeDailyFeedback();
       setUser(updatedUser);
     },
     uploadAvatar: async (file) => setUser(await authApi.uploadAvatar(file)),

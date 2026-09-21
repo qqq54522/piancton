@@ -62,7 +62,7 @@ def test_register_then_login_with_business_permissions(client, db_factory):
     assert client.post("/api/images/upload", headers={"X-CSRF-Token": csrf}).status_code == 403
 
 
-def test_business_daily_feedback_is_required_once_per_shanghai_day(client, db_factory):
+def test_daily_feedback_requirement_is_removed(client, db_factory):
     with db_factory() as db:
         user = db.scalar(select(User).where(User.username == "business"))
         user.created_at = datetime.now(timezone.utc) - timedelta(days=2)
@@ -70,36 +70,12 @@ def test_business_daily_feedback_is_required_once_per_shanghai_day(client, db_fa
         db.commit()
 
     csrf = login(client, "business", "business-password")
-    assert client.get("/api/auth/me").json()["dailyFeedbackRequired"] is True
-    assert client.post("/api/auth/daily-feedback/complete").status_code == 403
-
-    completed = client.post(
+    current_user = client.get("/api/auth/me").json()
+    assert "dailyFeedbackRequired" not in current_user
+    assert client.post(
         "/api/auth/daily-feedback/complete",
         headers={"X-CSRF-Token": csrf},
-    )
-    assert completed.status_code == 200
-    assert completed.json()["dailyFeedbackRequired"] is False
-    repeated = client.post(
-        "/api/auth/daily-feedback/complete",
-        headers={"X-CSRF-Token": csrf},
-    )
-    assert repeated.status_code == 200
-    assert repeated.json()["dailyFeedbackRequired"] is False
-    assert client.get("/api/auth/me").json()["dailyFeedbackRequired"] is False
-
-
-def test_daily_feedback_skips_new_accounts_and_non_business_roles(client):
-    created = client.post("/api/auth/register", json=registration(username="today-user"))
-    assert created.status_code == 201
-    assert created.json()["dailyFeedbackRequired"] is False
-
-    designer_csrf = login(client, "designer", "designer-password")
-    denied = client.post(
-        "/api/auth/daily-feedback/complete",
-        headers={"X-CSRF-Token": designer_csrf},
-    )
-    assert denied.status_code == 403
-    assert denied.json()["code"] == "daily_feedback_business_only"
+    ).status_code == 404
 
 
 def test_duplicate_registration_keeps_original_account(client):

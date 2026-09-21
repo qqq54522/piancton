@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
 
@@ -62,21 +61,6 @@ class UserService:
         user = self._get(user_id)
         if user.onboarding_completed_at is None:
             user.onboarding_completed_at = datetime.now(timezone.utc)
-            self.users.save(user)
-            self.uow.commit()
-        return UserRead.model_validate(user)
-
-    def complete_daily_feedback(self, user_id: str) -> UserRead:
-        user = self._get(user_id)
-        if user.role != "business":
-            raise AppError(
-                "daily_feedback_business_only",
-                "每日反馈仅面向业务用户",
-                status_code=403,
-            )
-        today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
-        if user.daily_feedback_completed_on != today:
-            user.daily_feedback_completed_on = today
             self.users.save(user)
             self.uow.commit()
         return UserRead.model_validate(user)
