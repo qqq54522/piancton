@@ -868,6 +868,9 @@ AI_SEARCH_CHAT_PATH=火山chat_search路径
 AI_SEARCH_CHAT_DATASET_IDS=知识数据集ID,图片数据集ID
 AI_SEARCH_RECOMMEND_ENABLED=false
 AI_SEARCH_DATASET_ID=图片物品数据集ID
+AI_SEARCH_IMAGE_DATASET_ID=反向图片检索专用数据集ID
+AI_SEARCH_IMAGE_SEARCH_PATH=反向图片检索 Search API 路径
+AI_SEARCH_IMAGE_SYNC_ENABLED=true
 AI_SEARCH_PUBLIC_BASE_URL=https://外部可访问的图片桥地址
 ~~~
 
@@ -880,6 +883,8 @@ AI_SEARCH_PUBLIC_BASE_URL=https://外部可访问的图片桥地址
 | 普通搜索场景路径 | AI_SEARCH_SEARCH_PATH |
 | chat_search 路径 | AI_SEARCH_CHAT_PATH |
 | 图片物品数据集 ID | AI_SEARCH_DATASET_ID |
+| 反向图片检索数据集 ID | AI_SEARCH_IMAGE_DATASET_ID |
+| 反向图片检索 Search API 路径 | AI_SEARCH_IMAGE_SEARCH_PATH |
 | 知识数据集 ID | AI_SEARCH_CHAT_DATASET_IDS |
 | 推荐场景路径 | AI_SEARCH_RECOMMEND_PATH |
 | 行为数据集 ID | AI_SEARCH_BEHAVIOR_DATASET_ID |
@@ -893,6 +898,19 @@ AI_SEARCH_PUBLIC_BASE_URL=https://外部可访问的图片桥地址
 - 测试样例。
 - 截图。
 - 普通日志。
+
+### 8.10.1 配置“以图查图”专用数据集
+
+反向图片检索不要复用文字搜索/Agent 数据集。新建一个独立图片数据集，只保留 `image_id` 和一个图片字段（例如 `visual_image`）；在字段配置中把该图片字段勾选为“用于图搜 / Searchable (Image)”，并发布对应 Search API 场景。图片字段可以使用 Image Link，也可以使用 Base64，具体以控制台当前数据集 Schema 为准。
+
+Piancton 管理员/设计师侧边栏的“以图查图”会把上传图放入 15 分钟临时桥接文件，调用该专用 Search API；查询图不会写入素材库。现有卖点图库的当前已发布图片通过以下脚本回填：
+
+~~~bash
+docker compose exec backend python scripts/rebuild_reverse_image_index.py --dry-run
+docker compose exec backend python scripts/rebuild_reverse_image_index.py
+~~~
+
+执行前必须填写 `AI_SEARCH_IMAGE_DATASET_ID`、`AI_SEARCH_IMAGE_SEARCH_PATH`、`AI_SEARCH_PUBLIC_BASE_URL`，并确保火山服务能够访问临时图片地址。同步字段不包含身份码、标题、版本、渠道、卖点或素材关系；本地数据库只用返回的 `image_id` 水合结果卡片。
 
 ### 8.11 在线配置检查
 

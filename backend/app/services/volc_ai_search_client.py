@@ -96,8 +96,9 @@ class VolcAiSearchClient:
 
     def search(
         self,
-        query: str,
+        query: str = "",
         *,
+        image_url: str = "",
         page_number: int = 1,
         page_size: int = 10,
         user_id: str = "",
@@ -107,7 +108,7 @@ class VolcAiSearchClient:
         payload = {
             "query": {
                 "text": query,
-                "image_url": "",
+                "image_url": image_url.strip(),
             },
             "page_number": max(1, page_number),
             "page_size": max(1, min(page_size, 100)),

@@ -12,6 +12,7 @@ const AdminIdentityCodes = lazy(() => import('./pages/AdminIdentityCodes/AdminId
 const AdminChannels = lazy(() => import('./pages/AdminChannels/AdminChannels'));
 const AdminConcepts = lazy(() => import('./pages/AdminConcepts/AdminConcepts'));
 const AdminSearchOps = lazy(() => import('./pages/AdminSearchOps/AdminSearchOps'));
+const ReverseImageSearch = lazy(() => import('./pages/ReverseImageSearch/ReverseImageSearch'));
 const AdminAnnouncements = lazy(() => import('./pages/AdminAnnouncements/AdminAnnouncements'));
 const ImageDetail = lazy(() => import('./pages/ImageDetail/ImageDetail'));
 const ImageHome = lazy(() => import('./pages/ImageHome/ImageHome'));
@@ -47,6 +48,7 @@ const RoutesComponent = () => (
             <Route path="admin/channel-folders" element={<Navigate to="/admin/channels" replace />} />
             <Route path="trash" element={<Trash />} />
             <Route path="search-ops" element={<AdminSearchOps />} />
+            <Route path="reverse-image-search" element={<ReverseImageSearch />} />
             <Route path="admin/search-ops" element={<AdminSearchOps />} />
             <Route path="announcements/manage" element={<AdminAnnouncements />} />
           </Route>
@@ -56,6 +58,7 @@ const RoutesComponent = () => (
             <Route path="admin/usage" element={<AdminUsage />} />
             <Route path="admin/identity-codes" element={<AdminIdentityCodes />} />
             <Route path="admin/concepts" element={<AdminConcepts />} />
+            <Route path="admin/reverse-image-search" element={<ReverseImageSearch />} />
           </Route>
         </Route>
       </Route>

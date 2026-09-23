@@ -72,6 +72,16 @@ def _build_ai_search_client() -> VolcAiSearchClient:
     )
 
 
+def _build_ai_search_image_client() -> VolcAiSearchClient:
+    return VolcAiSearchClient(
+        base_url=settings.ai_search_base_url,
+        api_key=settings.ai_search_api_key,
+        dataset_id=settings.ai_search_image_dataset_id,
+        search_path=settings.ai_search_image_search_path,
+        timeout_seconds=settings.ai_search_timeout_seconds,
+    )
+
+
 def _build_ai_search_chat_client() -> VolcAiSearchClient:
     return VolcAiSearchClient(
         base_url=settings.ai_search_base_url,
@@ -116,6 +126,11 @@ def _build_ai_search_index() -> VolcAiSearchIndexSync:
         _build_ai_search_client(),
         enabled=settings.ai_search_enabled and settings.ai_search_sync_enabled,
         public_base_url=public_base_url,
+        image_client=_build_ai_search_image_client(),
+        image_enabled=(
+            settings.ai_search_enabled and settings.ai_search_image_sync_enabled
+        ),
+        image_storage=build_storage(settings),
     )
 
 
@@ -296,6 +311,18 @@ def get_asset_agent_temporary_image_service() -> AssetAgentTemporaryImageService
         max_image_pixels=settings.max_image_pixels,
         max_long_image_pixels=settings.max_long_image_pixels,
         long_image_min_aspect_ratio=settings.long_image_min_aspect_ratio,
+    )
+
+
+def get_reverse_image_search_service(db: Session = Depends(get_db)):
+    from app.services.reverse_image_search_service import ReverseImageSearchService
+
+    return ReverseImageSearchService(
+        db,
+        client=_build_ai_search_image_client(),
+        temporary_images=get_asset_agent_temporary_image_service(),
+        enabled=settings.ai_search_enabled,
+        page_size=settings.ai_search_page_size,
     )
 
 

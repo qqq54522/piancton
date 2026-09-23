@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import logging
 from datetime import timezone
 from typing import Any, Protocol
@@ -8,6 +9,7 @@ from urllib.parse import urljoin
 from app.models.image import Image
 from app.services.image_semantic_profile_service import ImageSemanticProfileService
 from app.services.query_expansion_service import unique
+from app.services.storage_service import StorageProvider
 from app.services.volc_ai_search_client import (
     VolcAiSearchClient,
     VolcAiSearchClientError,
@@ -34,11 +36,17 @@ class VolcAiSearchIndexSync:
         *,
         enabled: bool,
         public_base_url: str,
+        image_client: AiSearchIndexClient | None = None,
+        image_enabled: bool = False,
+        image_storage: StorageProvider | None = None,
     ):
         self.client = client
         self.enabled = enabled
         self.public_base_url = public_base_url.rstrip("/")
         self.profile = ImageSemanticProfileService()
+        self.image_client = image_client
+        self.image_enabled = image_enabled
+        self.image_storage = image_storage
 
     @classmethod
     def disabled(cls) -> "VolcAiSearchIndexSync":
@@ -53,21 +61,36 @@ class VolcAiSearchIndexSync:
         )
 
     def upsert_image(self, image: Image) -> None:
-        if not self.enabled or not self.client.configured:
+        if not (
+            (self.enabled and self.client.configured)
+            or (self.image_enabled and self.image_client and self.image_client.configured)
+        ):
             return
         if image.deleted_at is not None:
             self.delete_image(image.id)
             return
         try:
-            self.client.write_documents([self.document_for_image(image)])
+            if self.enabled and self.client.configured:
+                self.client.write_documents([self.document_for_image(image)])
+            if self.image_enabled and self.image_client and self.image_client.configured:
+                if self._reverse_searchable(image):
+                    self.image_client.write_documents([self.reverse_document_for_image(image)])
+                else:
+                    self.image_client.delete_documents([image.id])
         except VolcAiSearchClientError:
             logger.warning("failed to sync image to Volc AI Search", exc_info=True)
 
     def delete_image(self, image_id: str) -> None:
-        if not self.enabled or not self.client.configured:
+        if not (
+            (self.enabled and self.client.configured)
+            or (self.image_enabled and self.image_client and self.image_client.configured)
+        ):
             return
         try:
-            self.client.delete_documents([image_id])
+            if self.enabled and self.client.configured:
+                self.client.delete_documents([image_id])
+            if self.image_enabled and self.image_client and self.image_client.configured:
+                self.image_client.delete_documents([image_id])
         except VolcAiSearchClientError:
             logger.warning("failed to delete image from Volc AI Search", exc_info=True)
 
@@ -95,6 +118,30 @@ class VolcAiSearchIndexSync:
             "status": "published" if image.deleted_at is None else "deleted",
             "search_text": self._search_text(image, channel, is_scene_image),
         }
+
+    def reverse_document_for_image(self, image: Image) -> dict[str, Any]:
+        """Minimal image-only document for Viking Image-to-Image Search."""
+        visual_image = self._absolute_url(f"/api/images/{image.id}/thumbnail")
+        if self.image_storage is not None and image.thumbnail_storage_key:
+            try:
+                path = self.image_storage.thumbnail_path_for(image.thumbnail_storage_key)
+                encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+                visual_image = f"data:image/jpeg;base64,{encoded}"
+            except (OSError, ValueError):
+                logger.warning("failed to encode image thumbnail for reverse index", exc_info=True)
+        return {
+            "_id": image.id,
+            "image_id": image.id,
+            "visual_image": visual_image,
+            "status": "published" if image.deleted_at is None else "deleted",
+        }
+
+    @staticmethod
+    def _reverse_searchable(image: Image) -> bool:
+        """Keep drafts and superseded versions out of the reverse-search gallery."""
+        if image.deleted_at is not None or not image.is_current:
+            return False
+        return image.asset_group is None or image.asset_group.publish_status == "published"
 
     def _absolute_url(self, path: str) -> str:
         if not self.public_base_url:

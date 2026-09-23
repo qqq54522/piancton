@@ -19,6 +19,27 @@ import type {
 } from '@client/src/types/api';
 import type { ManagedChannel } from '@client/src/features/images/channelFolders';
 
+export interface ReverseImageMatch {
+  imageId: string;
+  title: string;
+  thumbnailUrl: string;
+  detailUrl: string;
+  score: number;
+  matchType: 'same_or_transformed' | 'visually_similar';
+}
+
+export interface ReverseImageSearchResponse {
+  matches: ReverseImageMatch[];
+  searched: boolean;
+  message: string;
+}
+
+export async function reverseImageSearch(file: File): Promise<ReverseImageSearchResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  return (await api.post('/api/images/reverse-search', form, { timeout: 90000 })).data;
+}
+
 
 export async function fetchImages(params: ImageListParams): Promise<ImageListResponse> {
   return (await api.get('/api/images', { params })).data;

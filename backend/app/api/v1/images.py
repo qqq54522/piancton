@@ -20,6 +20,7 @@ from app.api.dependencies import (
     get_home_recommendation_service,
     get_image_lifecycle_service,
     get_image_service,
+    get_reverse_image_search_service,
     get_search_log_service,
     get_search_service,
     get_usage_analytics_service,
@@ -41,10 +42,12 @@ from app.schemas.image import (
     SearchResponse,
 )
 from app.schemas.recommendation import ForYouImageListResponse
+from app.schemas.reverse_image_search import ReverseImageSearchResponse
 from app.services.audit_service import AuditService
 from app.services.home_recommendation_service import HomeRecommendationService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
+from app.services.reverse_image_search_service import ReverseImageSearchService
 from app.services.search_log_service import SearchLogService
 from app.services.search_service import SearchService
 from app.services.usage_analytics_service import UsageAnalyticsService
@@ -149,6 +152,21 @@ async def semantic_search(
         request_id=request.state.request_id,
     )
     return response
+
+
+@router.post("/reverse-search", response_model=ReverseImageSearchResponse)
+def reverse_image_search(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(require_write_role),
+    service: ReverseImageSearchService = Depends(get_reverse_image_search_service),
+):
+    """Find gallery images by the uploaded image itself; the query is never stored."""
+    return service.search(
+        file.file,
+        owner_id=user.id,
+        filename=file.filename or "查询图片",
+    )
 
 
 @router.post("/upload", response_model=ImageRead, status_code=status.HTTP_201_CREATED)

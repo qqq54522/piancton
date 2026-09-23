@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     ai_search_home_recommend_path: str = ""
     ai_search_recommend_timeout_seconds: float = 8.0
     ai_search_dataset_id: str = ""
+    ai_search_image_dataset_id: str = ""
+    ai_search_image_search_path: str = ""
+    ai_search_image_sync_enabled: bool = False
     ai_search_timeout_seconds: float = 8.0
     ai_search_page_size: int = 10
     ai_search_public_base_url: str = ""
