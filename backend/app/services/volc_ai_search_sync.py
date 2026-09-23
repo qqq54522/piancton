@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import logging
 from datetime import timezone
 from typing import Any, Protocol
@@ -121,14 +120,7 @@ class VolcAiSearchIndexSync:
 
     def reverse_document_for_image(self, image: Image) -> dict[str, Any]:
         """Minimal image-only document for Viking Image-to-Image Search."""
-        visual_image = self._absolute_url(f"/api/images/{image.id}/thumbnail")
-        if self.image_storage is not None and image.thumbnail_storage_key:
-            try:
-                path = self.image_storage.thumbnail_path_for(image.thumbnail_storage_key)
-                encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-                visual_image = f"data:image/jpeg;base64,{encoded}"
-            except (OSError, ValueError):
-                logger.warning("failed to encode image thumbnail for reverse index", exc_info=True)
+        visual_image = self._absolute_url(f"/api/images/ai-search/{image.id}/thumbnail")
         return {
             "_id": image.id,
             "image_id": image.id,

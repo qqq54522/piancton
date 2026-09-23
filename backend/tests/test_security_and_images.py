@@ -201,6 +201,9 @@ def test_upload_preview_download_and_phase6_detail_contract(client):
     thumbnail = client.get(image["thumbnailUrl"])
     assert thumbnail.status_code == 200
     assert thumbnail.headers["content-type"].startswith("image/jpeg")
+    public_thumbnail = client.get(f"/api/images/ai-search/{image['id']}/thumbnail")
+    assert public_thumbnail.status_code == 200
+    assert public_thumbnail.headers["cache-control"] == "public, max-age=86400"
     assert client.get(image["contentUrl"]).status_code == 200
 
     detail = client.get(f"/api/images/{image['id']}").json()

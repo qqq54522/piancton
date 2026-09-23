@@ -305,6 +305,35 @@ def get_image_thumbnail(
     )
 
 
+@router.get("/ai-search/{image_id}/thumbnail")
+def get_ai_search_image_thumbnail(
+    image_id: str,
+    background_tasks: BackgroundTasks,
+    service: ImageService = Depends(get_image_service),
+):
+    """Serve a published thumbnail to Viking AI Search without a user cookie.
+
+    The normal thumbnail endpoint intentionally requires application login. The
+    upstream AI Search service cannot send that cookie while building its image
+    index, so it needs this narrow, read-only bridge URL instead.
+    """
+    path, image, media_type = service.thumbnail(image_id)
+    if (
+        image.deleted_at is not None
+        or not image.is_current
+        or (image.asset_group is not None and image.asset_group.publish_status != "published")
+    ):
+        raise HTTPException(status_code=404, detail="图片不存在")
+    return StorageFileResponse(
+        path,
+        release=service.storage.release,
+        media_type=media_type,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "public, max-age=86400"},
+        background=background_tasks,
+    )
+
+
 @router.get("/{image_id}/content")
 def get_image_content(
     image_id: str,
