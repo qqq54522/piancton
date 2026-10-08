@@ -695,6 +695,8 @@ export interface DailyUsageMetric {
 export interface UserUsageMetric {
   userId: string;
   username: string;
+  feishuDisplayName?: string | null;
+  feishuDepartmentNames?: string | null;
   role: string;
   isActive: boolean;
   loginCount: number;
@@ -708,6 +710,8 @@ export interface UsageEventRead {
   id: string;
   userId?: string | null;
   username?: string | null;
+  feishuDisplayName?: string | null;
+  feishuDepartmentNames?: string | null;
   eventType: string;
   targetType?: string | null;
   targetId?: string | null;

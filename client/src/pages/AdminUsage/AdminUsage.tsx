@@ -177,7 +177,13 @@ function UserTable({ rows }: { rows: UserUsageMetric[] }) {
           className="grid gap-2 border-b border-border/70 px-5 py-4 text-sm last:border-0 lg:grid-cols-[1.5fr_90px_repeat(4,90px)_150px]"
         >
           <div className="min-w-0">
-            <div className="truncate font-medium text-foreground">{row.username}</div>
+            <div className="truncate font-medium text-foreground">
+              {row.feishuDisplayName || row.username}
+            </div>
+            {row.feishuDepartmentNames && (
+              <div className="mt-1 truncate text-xs text-muted-foreground">{row.feishuDepartmentNames}</div>
+            )}
+            {row.feishuDisplayName && <div className="truncate text-[11px] text-muted-foreground">{row.username}</div>}
             {!row.isActive && <div className="mt-1 text-xs text-muted-foreground">已停用</div>}
           </div>
           <span className="text-muted-foreground">{roleLabels[row.role] ?? row.role}</span>
@@ -211,7 +217,8 @@ function RecentEvents({ rows }: { rows: UsageEventRead[] }) {
               {eventLabels[row.eventType] ?? row.eventType}
             </Badge>
             <span className="min-w-0 truncate text-foreground">
-              {row.username ?? '未知用户'}
+              {row.feishuDisplayName || row.username || '未知用户'}
+              {row.feishuDepartmentNames ? ` · ${row.feishuDepartmentNames}` : ''}
               {row.path ? ` · ${row.path}` : ''}
               {row.targetId ? ` · ${row.targetId}` : ''}
             </span>

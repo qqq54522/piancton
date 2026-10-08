@@ -1,10 +1,21 @@
 # 图片搜索改造项目日志
 
-更新时间：2026-09-20
-当前范围：Phase 0～Phase 6；D349～D374 AI Search 单入口、自由问答 Agent、渠道目录与账号体验
-当前状态：D374 已移除每日首次进入强制飞书反馈，本地专项与前端完整回归通过，云端未部署；D349～D366 已部署到云端，后续本地完成项的状态以总纲接力区为准。
+更新时间：2026-10-09
+当前范围：Phase 0～Phase 6；D349～D378 AI Search 单入口、自由问答 Agent、渠道目录、账号体验与飞书端内登录
+当前状态：D378 已完成本地飞书端内登录链路和身份展示，定向后端 16 项、前端类型检查/ESLint/生产构建通过；一项既有 Agent 前端测试仍有环境时序失败，云端未部署。D349～D366 已部署到云端，后续本地完成项的状态以总纲接力区为准。
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+## 2026-10-09：飞书统一登录（D378，本地完成，云端待配置）
+
+- 前端登录页新增两种统一入口：在飞书网页能力打开 Piancton 时自动调用 H5 `requestAuthCode`，拿到短期 code 后提交 `/api/auth/feishu`；普通浏览器点击“使用飞书登录”会进入飞书 OAuth 授权页，经后端 callback 校验 state 后回到 Piancton。授权失败时仍保留账号密码登录。飞书 App ID 只作为前端公开配置注入，App Secret 仅留在后端环境变量。
+- 普通用户登录页默认关闭自助注册，生产构建不显示“注册账号”；后端 `/api/auth/register` 保留但由 `SELF_REGISTRATION_ENABLED=false` 控制，管理员仍通过“用户与权限”创建账号。测试环境显式打开该开关以保留注册回归。首次飞书登录创建的业务账号不标记新人引导完成，因此会和管理员创建的新业务账号一样触发新人引导弹窗。
+- 后端新增 `/api/auth/feishu` 和 `FeishuAuthService`：用应用凭证交换用户 access token，读取 open_id/union_id/user_id/tenant_key/姓名；配置了企业 tenant key 时拒绝其它企业；首次登录自动创建普通 `business` 账号，后续用飞书身份复用同一账号，沿用现有 session cookie、CSRF 和审计/登录用量记录。通过通讯录接口尽力读取部门名称，部门权限不足不会阻断登录。
+- `users` 新增飞书身份、显示名、部门快照和最近登录时间字段，迁移为 `20261008_0044`。管理员“用户与权限”列表、使用统计、最近事件和审计日志会展示已关联账号的飞书姓名和部门，同时保留内部 `feishu_*` 用户名作为技术追踪标识，便于确认是谁在使用；不改变本地账号角色模型、素材、搜索、六大体系、人工 accepted 关系或火山数据集。
+- 新增 `/api/auth/feishu/start` 和 `/api/auth/feishu/callback`，使用短期 state cookie 防止 OAuth 回调串用；回调地址可由 `FEISHU_REDIRECT_URI` 显式指定，也可由 `PUBLIC_BASE_URL` 自动拼接。飞书网页能力当前仍可使用 HTTP IP 做企业内测；正式域名/HTTPS、安全设置和离职/调岗事件回调留待后续。事件回调不是基础登录前置。控制台中的运营监控、日志检索和应用质量看板是平台自带模块，不需要额外“开启”；新应用没有真实访问时出现空数据是正常现象。
+- 修改文件：`backend/app/api/dependencies.py`、`backend/app/api/v1/auth.py`、`backend/app/core/config.py`、`backend/app/models/user.py`、`backend/app/repositories/user_repository.py`、`backend/app/schemas/auth.py`、`backend/app/schemas/usage.py`、`backend/app/services/feishu_auth_service.py`、`backend/app/services/usage_analytics_service.py`、`backend/alembic/versions/20261008_0044_feishu_identity.py`、`backend/tests/conftest.py`、`backend/tests/test_feishu_auth.py`、`client/src/api/auth.ts`、`client/src/lib/auth.tsx`、`client/src/lib/feishu.ts`、`client/src/pages/Login/Login.tsx`、`client/src/pages/AdminUsers/AdminUsers.tsx`、`client/src/pages/AdminUsage/AdminUsage.tsx`、`client/src/pages/AdminAudit/AdminAudit.tsx`、`client/src/types/api.ts`、`client/src/types/openapi.d.ts`、`client/src/vite-env.d.ts`、`client/Dockerfile`、`docker-compose.yml`、`.env.docker.example` 及本总纲。
+- 验证：Python 编译、改动范围 Ruff、前端 TypeScript、ESLint、生产构建通过；新增飞书服务/注册登录定向回归 16 项通过。前端完整 Vitest 37 个文件 100 项中，既有 `AssetAgentWidget` 一项因测试环境时序未触发上下文更新而失败，其余 99 项通过；与本轮登录改动无直接关联，需要后续单独稳定测试。云端未部署。
+- 部署前置：服务器 `.env` 设置 `FEISHU_ENABLED=true`、`FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`FEISHU_ALLOWED_TENANT_KEY`、`FEISHU_REDIRECT_URI=http://118.196.150.130/api/auth/feishu/callback`，确认 `SESSION_COOKIE_SECURE=false` 仅用于当前 HTTP 内测；执行 `docker compose up --build -d`，入口脚本会自动执行 Alembic 迁移。正式 HTTPS 上线前必须切换 `SESSION_COOKIE_SECURE=true`，并将飞书后台回调地址改为 HTTPS 域名。
 
 ## 2026-09-20：移除业务用户每日强制飞书反馈（D374，本地完成）
 

@@ -50,6 +50,8 @@ export default function AdminAudit() {
               <span className="text-sm font-medium">{actionLabels[entry.action] ?? entry.action}</span>
               <div className="min-w-0 text-xs text-muted-foreground">
                 {targetLabels[entry.targetType] ?? entry.targetType}{entry.targetId ? ` · ${entry.targetId}` : ''}
+                {typeof entry.details.feishuDisplayName === 'string' && ` · ${entry.details.feishuDisplayName}`}
+                {typeof entry.details.feishuDepartment === 'string' && ` · ${entry.details.feishuDepartment}`}
               </div>
             </div>
             ))}

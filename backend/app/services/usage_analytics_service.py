@@ -239,6 +239,8 @@ def _user_metric(user: User, events: list[UserUsageEvent]) -> UserUsageMetric:
     return UserUsageMetric(
         user_id=user.id,
         username=user.username,
+        feishu_display_name=user.feishu_display_name,
+        feishu_department_names=user.feishu_department_names,
         role=user.role,
         is_active=user.is_active,
         login_count=_count(events, "login"),
@@ -254,6 +256,8 @@ def _event_read(event: UserUsageEvent, user: User | None) -> UsageEventRead:
         id=event.id,
         user_id=event.user_id,
         username=user.username if user else None,
+        feishu_display_name=user.feishu_display_name if user else None,
+        feishu_department_names=user.feishu_department_names if user else None,
         event_type=event.event_type,
         target_type=event.target_type,
         target_id=event.target_id,

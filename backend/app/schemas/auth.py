@@ -15,6 +15,10 @@ class LoginRequest(ApiModel):
     password: str = Field(min_length=8, max_length=200)
 
 
+class FeishuLoginRequest(ApiModel):
+    code: str = Field(min_length=1, max_length=2048)
+
+
 class RegisterRequest(ApiModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -50,6 +54,10 @@ class UserRead(ApiModel):
     avatar_preset_id: AvatarPreset | None = None
     avatar_updated_at: datetime | None = None
     has_custom_avatar: bool = False
+    feishu_linked: bool = False
+    feishu_display_name: str | None = None
+    feishu_department_names: str | None = None
+    last_feishu_login_at: datetime | None = None
     created_at: datetime
 
     @model_validator(mode="before")
@@ -67,6 +75,10 @@ class UserRead(ApiModel):
                 "avatar_preset_id": value.avatar_preset_id,
                 "avatar_updated_at": value.avatar_updated_at,
                 "has_custom_avatar": bool(value.avatar_storage_key),
+                "feishu_linked": bool(value.feishu_open_id),
+                "feishu_display_name": value.feishu_display_name,
+                "feishu_department_names": value.feishu_department_names,
+                "last_feishu_login_at": value.last_feishu_login_at,
                 "created_at": value.created_at,
             }
         return value

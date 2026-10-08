@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     csrf_cookie_name: str = "piancton_csrf"
     session_cookie_secure: bool = False
     session_ttl_hours: int = 168
+    self_registration_enabled: bool = False
+    feishu_enabled: bool = False
+    feishu_app_id: str = ""
+    feishu_app_secret: str = ""
+    feishu_allowed_tenant_key: str = ""
+    feishu_base_url: str = "https://open.feishu.cn"
+    feishu_redirect_uri: str = ""
+    feishu_auth_timeout_seconds: float = 8.0
     max_upload_bytes: int = 100 * 1024 * 1024
     max_image_pixels: int = 80_000_000
     max_long_image_pixels: int = 160_000_000

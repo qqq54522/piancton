@@ -34,6 +34,17 @@ class User(Base):
     avatar_updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    feishu_open_id: Mapped[Optional[str]] = mapped_column(
+        String(128), unique=True, nullable=True, index=True
+    )
+    feishu_union_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    feishu_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    feishu_tenant_key: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    feishu_display_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    feishu_department_names: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    last_feishu_login_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     announcements_read_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, default=utcnow
     )

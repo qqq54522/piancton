@@ -8,6 +8,10 @@ export async function login(username: string, password: string): Promise<LoginRe
   return (await api.post('/api/auth/login', { username, password })).data;
 }
 
+export async function loginWithFeishu(code: string): Promise<LoginResponse> {
+  return (await api.post('/api/auth/feishu', { code })).data;
+}
+
 export async function register(username: string, password: string, confirmPassword: string, avatarPresetId?: AvatarPresetId): Promise<User> {
   const payload: components['schemas']['RegisterRequest'] = { username, password, confirmPassword, avatarPresetId };
   return (await api.post('/api/auth/register', payload)).data;

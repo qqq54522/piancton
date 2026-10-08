@@ -24,6 +24,7 @@ from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.business_concept_service import BusinessConceptService
 from app.services.channel_folder_service import ChannelFolderService
+from app.services.feishu_auth_service import FeishuAuthService
 from app.services.home_recommendation_service import HomeRecommendationService
 from app.services.image_lifecycle_service import ImageLifecycleService
 from app.services.image_service import ImageService
@@ -54,6 +55,19 @@ def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
         settings.login_max_attempts,
         settings.login_window_minutes,
         settings.login_block_minutes,
+    )
+
+
+def get_feishu_auth_service(db: Session = Depends(get_db)) -> FeishuAuthService:
+    return FeishuAuthService(
+        db,
+        enabled=settings.feishu_enabled,
+        app_id=settings.feishu_app_id,
+        app_secret=settings.feishu_app_secret,
+        allowed_tenant_key=settings.feishu_allowed_tenant_key,
+        base_url=settings.feishu_base_url,
+        timeout_seconds=settings.feishu_auth_timeout_seconds,
+        session_ttl_hours=settings.session_ttl_hours,
     )
 
 

@@ -22,6 +22,7 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  loginWithFeishu: (code: string) => Promise<void>;
   logout: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
@@ -57,6 +58,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     isLoading,
     login: async (username, password) => {
       const result = await authApi.login(username, password);
+      setUser(result.user);
+    },
+    loginWithFeishu: async (code) => {
+      const result = await authApi.loginWithFeishu(code);
       setUser(result.user);
     },
     logout: async () => {

@@ -66,6 +66,8 @@ class DailyUsageMetric(ApiModel):
 class UserUsageMetric(ApiModel):
     user_id: str
     username: str
+    feishu_display_name: Optional[str] = None
+    feishu_department_names: Optional[str] = None
     role: str
     is_active: bool
     login_count: int
@@ -79,6 +81,8 @@ class UsageEventRead(ApiModel):
     id: str
     user_id: Optional[str] = None
     username: Optional[str] = None
+    feishu_display_name: Optional[str] = None
+    feishu_department_names: Optional[str] = None
     event_type: str
     target_type: Optional[str] = None
     target_id: Optional[str] = None

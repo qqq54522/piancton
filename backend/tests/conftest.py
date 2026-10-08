@@ -40,6 +40,7 @@ def client(db_factory, tmp_path: Path, monkeypatch):
     monkeypatch.setattr(dependencies.settings, "search_backend", "database")
     monkeypatch.setattr(dependencies.settings, "meilisearch_url", "")
     monkeypatch.setattr(dependencies.settings, "meilisearch_api_key", "")
+    monkeypatch.setattr(dependencies.settings, "self_registration_enabled", True)
 
     def override_db():
         with db_factory() as db:

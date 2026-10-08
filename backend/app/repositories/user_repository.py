@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.user import AuditLog, LoginThrottle, User, UserSession
@@ -20,6 +20,24 @@ class UserRepository:
 
     def get_by_username(self, username: str) -> User | None:
         return self.db.scalar(select(User).where(User.username == username))
+
+    def get_by_feishu_identity(
+        self,
+        *,
+        open_id: str | None = None,
+        user_id: str | None = None,
+        union_id: str | None = None,
+    ) -> User | None:
+        conditions = []
+        if open_id:
+            conditions.append(User.feishu_open_id == open_id)
+        if user_id:
+            conditions.append(User.feishu_user_id == user_id)
+        if union_id:
+            conditions.append(User.feishu_union_id == union_id)
+        if not conditions:
+            return None
+        return self.db.scalar(select(User).where(or_(*conditions)).limit(1))
 
     def add(self, user: User) -> User:
         self.db.add(user)

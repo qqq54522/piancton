@@ -129,6 +129,12 @@ export default function AdminUsers() {
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{user.username}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground">{user.isActive ? '可正常登录' : '账号已停用'}</div>
+                {user.feishuLinked && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    飞书：{user.feishuDisplayName || user.username}
+                    {user.feishuDepartmentNames ? ` · ${user.feishuDepartmentNames}` : ' · 部门未同步'}
+                  </div>
+                )}
                 <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="shrink-0">用户身份码</span>
                   <code className="truncate font-mono text-[11px] text-foreground/70" title={user.id}>{user.id}</code>

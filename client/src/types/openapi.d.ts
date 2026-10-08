@@ -3562,6 +3562,10 @@ export interface components {
             userId?: string | null;
             /** Username */
             username?: string | null;
+            /** Feishu display name */
+            feishuDisplayName?: string | null;
+            /** Feishu department names */
+            feishuDepartmentNames?: string | null;
             /** Eventtype */
             eventType: string;
             /** Targettype */
@@ -3634,6 +3638,14 @@ export interface components {
              * Format: date-time
              */
             createdAt: string;
+            /** Feishu linked */
+            feishuLinked?: boolean;
+            /** Feishu display name */
+            feishuDisplayName?: string | null;
+            /** Feishu department names */
+            feishuDepartmentNames?: string | null;
+            /** Last Feishu login */
+            lastFeishuLoginAt?: string | null;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -3648,6 +3660,10 @@ export interface components {
             userId: string;
             /** Username */
             username: string;
+            /** Feishu display name */
+            feishuDisplayName?: string | null;
+            /** Feishu department names */
+            feishuDepartmentNames?: string | null;
             /** Role */
             role: string;
             /** Isactive */
