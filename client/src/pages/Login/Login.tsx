@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Images, LockKeyhole, Sparkles, UserRound } from 'lucide-react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import { useAuth } from '@client/src/lib/auth';
 import { PRODUCT_NAME } from '@client/src/lib/branding';
-import { isFeishuWebView, requestFeishuAuthCode } from '@client/src/lib/feishu';
+import { isFeishuWebView } from '@client/src/lib/feishu';
 
 const selfRegistrationEnabled = import.meta.env.MODE === 'test'
   || import.meta.env.VITE_SELF_REGISTRATION_ENABLED === 'true';
@@ -27,43 +27,19 @@ const Login = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [pendingAvatarUsername, setPendingAvatarUsername] = useState<string | null>(null);
   const [feishuLoading, setFeishuLoading] = useState(false);
-  const feishuAttempted = useRef(false);
-  const { user, login, loginWithFeishu, uploadAvatar } = useAuth();
+  const { user, login, uploadAvatar } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const showBrowserFeishuLogin = Boolean(import.meta.env.VITE_FEISHU_APP_ID) && !isFeishuWebView();
 
-  const startFeishuLogin = useCallback(async () => {
-    if (feishuLoading || isRegistering || typeof loginWithFeishu !== 'function') return;
+  const startFeishuLogin = () => {
+    if (feishuLoading || isRegistering) return;
     setFeishuLoading(true);
     setError('');
-    try {
-      const code = await requestFeishuAuthCode();
-      if (!code) {
-        // H5 SDK can be unavailable in an older or cached Feishu client.
-        // Fall back to the browser OAuth flow, which also works inside Feishu.
-        window.location.assign('/api/auth/feishu/start');
-        return;
-      }
-      await loginWithFeishu(code);
-      const destination = (location.state as { from?: string } | null)?.from || '/';
-      navigate(destination, { replace: true });
-    } catch (requestError) {
-      setError(getApiError(requestError).message || '飞书登录暂时不可用，请使用账号密码登录');
-    } finally {
-      setFeishuLoading(false);
-    }
-  }, [feishuLoading, isRegistering, loginWithFeishu, location.state, navigate]);
-
-  useEffect(() => {
-    if (
-      feishuAttempted.current
-      || !import.meta.env.VITE_FEISHU_APP_ID
-      || !isFeishuWebView()
-      || typeof loginWithFeishu !== 'function'
-    ) return;
-    feishuAttempted.current = true;
-    void startFeishuLogin();
-  }, [loginWithFeishu, startFeishuLogin]);
+    // Browser OAuth is the only supported Feishu login flow. The button is
+    // hidden in a Feishu WebView, so this navigation only runs in a browser.
+    window.location.assign('/api/auth/feishu/start');
+  };
 
   if (user) return <Navigate to="/" replace />;
 
@@ -191,9 +167,9 @@ const Login = () => {
           {isRegistering && <AvatarChoices presetId={avatarPresetId} onPresetChange={setAvatarPresetId} file={avatarFile} onFileChange={setAvatarFile} disabled={submitting} />}
           {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          {!isRegistering && import.meta.env.VITE_FEISHU_APP_ID && (
-            <Button type="button" variant="outline" className="h-11 w-full" disabled={submitting || feishuLoading} onClick={() => void startFeishuLogin()}>
-              {feishuLoading ? '正在识别飞书身份…' : '使用飞书登录'}
+          {!isRegistering && showBrowserFeishuLogin && (
+            <Button type="button" variant="outline" className="h-11 w-full" disabled={submitting || feishuLoading} onClick={startFeishuLogin}>
+              {feishuLoading ? '正在跳转飞书登录…' : '使用飞书登录'}
             </Button>
           )}
           <Button type="submit" className="h-11 w-full" disabled={submitting}>

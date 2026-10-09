@@ -1,10 +1,18 @@
 # 图片搜索改造项目日志
 
 更新时间：2026-10-09
-当前范围：Phase 0～Phase 6；D349～D378 AI Search 单入口、自由问答 Agent、渠道目录、账号体验与飞书端内登录
-当前状态：D378 已完成本地飞书端内登录链路和身份展示，定向后端 16 项、前端类型检查/ESLint/生产构建通过；一项既有 Agent 前端测试仍有环境时序失败，云端未部署。D349～D366 已部署到云端，后续本地完成项的状态以总纲接力区为准。
+当前范围：Phase 0～Phase 6；D349～D379 AI Search 单入口、自由问答 Agent、渠道目录、账号体验与飞书登录
+当前状态：D379 已完成本地前端登录入口收敛为浏览器 OAuth；不再在飞书 WebView 自动加载 H5 SDK 或调用 `requestAuthCode`。定向 Login 测试 5 项、前端 TypeScript、ESLint、生产构建和差异检查通过；云端未部署。D349～D366 已部署到云端，后续本地完成项的状态以总纲接力区为准。
 
 > 本文档记录项目实际做过的工作、迁移、验证结果和遗留事项。架构原则、业务决策与后续阶段路线仍以 `docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md` 为唯一事实来源。后续日志按日期追加，不覆盖历史记录。
+
+## 2026-10-09：飞书登录收敛为浏览器 OAuth（D379，本地完成，云端待配置）
+
+- 根据飞书端内 WebView 网络错误和当前使用目标，登录页删除自动端内身份识别，不再加载 H5 SDK，不再调用 `tt.requestAuthCode`；飞书 WebView 隐藏“使用飞书登录”按钮，避免误触不支持的 OAuth 跳转。
+- 普通浏览器显示“使用飞书登录”并跳转 `/api/auth/feishu/start`，继续使用已有 state cookie、回调地址和 session cookie 完成浏览器登录。D378 的 `/api/auth/feishu` 后端接口及用户身份字段保留，不影响已有数据和后续重新启用端内登录的可能性。
+- 修改文件：`client/src/pages/Login/Login.tsx`、`docs/IMAGE_SEARCH_REBUILD_MASTER_PLAN.md`、`docs/IMAGE_SEARCH_REBUILD_PROJECT_LOG.md`。
+- 数据迁移：无。
+- 验收：普通浏览器点击“使用飞书登录”进入 `/api/auth/feishu/start`；页面加载时不再请求 H5 SDK、不再自动调用端内授权。Login 测试 5 项、前端 TypeScript、ESLint、生产构建和 `git diff --check` 均通过。云端仍需正式 HTTPS 域名、精确 OAuth 回调地址和服务器环境变量配置。
 
 ## 2026-10-09：飞书统一登录（D378，本地完成，云端待配置）
 
