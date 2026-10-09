@@ -39,7 +39,9 @@ const Login = () => {
     try {
       const code = await requestFeishuAuthCode();
       if (!code) {
-        if (!isFeishuWebView()) window.location.assign('/api/auth/feishu/start');
+        // H5 SDK can be unavailable in an older or cached Feishu client.
+        // Fall back to the browser OAuth flow, which also works inside Feishu.
+        window.location.assign('/api/auth/feishu/start');
         return;
       }
       await loginWithFeishu(code);
