@@ -7,8 +7,9 @@ from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.errors import ForbiddenError
+from app.core.errors import AppError, ForbiddenError
 from app.db.session import SessionLocal, get_db
+from app.models.external_api_key import ExternalApiKey
 from app.models.user import User, UserSession
 from app.services.announcement_service import AnnouncementService
 from app.services.asset_agent_service import AssetAgentService
@@ -24,6 +25,7 @@ from app.services.audit_service import AuditService
 from app.services.auth_service import AuthService
 from app.services.business_concept_service import BusinessConceptService
 from app.services.channel_folder_service import ChannelFolderService
+from app.services.external_api_key_service import ExternalApiKeyService
 from app.services.feishu_auth_service import FeishuAuthService
 from app.services.home_recommendation_service import HomeRecommendationService
 from app.services.image_lifecycle_service import ImageLifecycleService
@@ -294,6 +296,20 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
 
 def get_search_log_service(db: Session = Depends(get_db)) -> SearchLogService:
     return SearchLogService(db)
+
+
+def get_external_api_key_service(db: Session = Depends(get_db)) -> ExternalApiKeyService:
+    return ExternalApiKeyService(db)
+
+
+def require_external_api_key(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    service: ExternalApiKeyService = Depends(get_external_api_key_service),
+) -> ExternalApiKey:
+    scheme, _, raw_secret = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not raw_secret.strip():
+        raise AppError("invalid_api_key", "请提供 Bearer API Key", status_code=401)
+    return service.authenticate(raw_secret.strip())
 
 
 def get_search_ops_service(db: Session = Depends(get_db)) -> SearchOpsService:

@@ -7,6 +7,8 @@ import type {
   UsageAnalyticsSummary,
   User,
   UserRole,
+  ExternalApiKey,
+  ExternalApiKeyCreated,
 } from '@client/src/types/api';
 
 
@@ -57,4 +59,20 @@ export async function fetchIdentityCodes(params: {
   pageSize?: number;
 } = {}): Promise<ImageIdentityCodeListResponse> {
   return (await api.get('/api/admin/identity-codes', { params })).data;
+}
+
+export async function fetchExternalApiKeys(): Promise<ExternalApiKey[]> {
+  return (await api.get('/api/admin/api-keys')).data;
+}
+
+export async function createExternalApiKey(data: {
+  name: string;
+  rateLimitPerMinute?: number;
+  expiresAt?: string | null;
+}): Promise<ExternalApiKeyCreated> {
+  return (await api.post('/api/admin/api-keys', data)).data;
+}
+
+export async function revokeExternalApiKey(id: string): Promise<ExternalApiKey> {
+  return (await api.post(`/api/admin/api-keys/${id}/revoke`)).data;
 }

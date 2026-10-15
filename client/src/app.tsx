@@ -6,6 +6,7 @@ import { AdminRoute, BusinessRoute, DesignerRoute, ProtectedRoute } from './lib/
 
 
 const AdminUsers = lazy(() => import('./pages/AdminUsers/AdminUsers'));
+const AdminApiKeys = lazy(() => import('./pages/AdminApiKeys/AdminApiKeys'));
 const AdminAudit = lazy(() => import('./pages/AdminAudit/AdminAudit'));
 const AdminUsage = lazy(() => import('./pages/AdminUsage/AdminUsage'));
 const AdminIdentityCodes = lazy(() => import('./pages/AdminIdentityCodes/AdminIdentityCodes'));
@@ -53,6 +54,7 @@ const RoutesComponent = () => (
             <Route path="announcements/manage" element={<AdminAnnouncements />} />
           </Route>
           <Route element={<AdminRoute />}>
+            <Route path="admin/api-keys" element={<AdminApiKeys />} />
             <Route path="admin/users" element={<AdminUsers />} />
             <Route path="admin/audit" element={<AdminAudit />} />
             <Route path="admin/usage" element={<AdminUsage />} />

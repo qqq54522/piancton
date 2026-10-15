@@ -20,6 +20,7 @@ from app.models.business_concept import (
     ConceptSystemLink,
 )
 from app.models.channel_folder import ChannelFolder, ImageChannelPlacement, ManagedChannel
+from app.models.external_api_key import ExternalApiKey
 from app.models.image import (
     AnalysisRun,
     ContentTag,
@@ -60,6 +61,7 @@ __all__ = [
     "ImageEmbedding",
     "AnalysisRun",
     "SearchLog",
+    "ExternalApiKey",
     "SearchFeedbackEvent",
     "UserUsageEvent",
     "AiSearchBehaviorEvent",

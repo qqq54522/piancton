@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   FileClock,
   Fingerprint,
+  KeyRound,
   BarChart3,
   Images,
   LayoutGrid,
@@ -119,6 +120,7 @@ const Layout = () => {
     { to: '/admin/usage', label: '使用统计', icon: BarChart3, show: user?.role === 'admin' },
     { to: '/admin/identity-codes', label: '身份码管理', icon: Fingerprint, show: user?.role === 'admin' },
     { to: '/admin/users', label: '用户管理', icon: Users, show: user?.role === 'admin' },
+    { to: '/admin/api-keys', label: '开放 API', icon: KeyRound, show: user?.role === 'admin' },
     { to: '/trash', label: '回收站', icon: FileClock, show: canManageAssets },
     { to: '/admin/audit', label: '审计日志', icon: ScrollText, show: user?.role === 'admin' },
   ];
@@ -256,6 +258,11 @@ const Layout = () => {
               {user?.role === 'admin' && (
                 <NavLink to="/admin/users" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
                   <Users className="size-4" />用户管理
+                </NavLink>
+              )}
+              {user?.role === 'admin' && (
+                <NavLink to="/admin/api-keys" onClick={() => setMobileMenuOpen(false)} className={mobileNavClass}>
+                  <KeyRound className="size-4" />开放 API
                 </NavLink>
               )}
               {canManageAssets && (

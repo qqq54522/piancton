@@ -11,6 +11,7 @@ from app.api.v1 import (
     business_concepts,
     business_facets,
     channel_folders,
+    external_api,
     images,
     search_feedback,
     search_ops,
@@ -35,3 +36,5 @@ api_router.include_router(admin.router)
 api_router.include_router(search_ops.router)
 api_router.include_router(search_feedback.router)
 api_router.include_router(usage.router)
+api_router.include_router(external_api.admin_router)
+api_router.include_router(external_api.public_router)

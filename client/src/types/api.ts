@@ -89,6 +89,24 @@ export interface ImageChannelOptions {
   channels: string[];
 }
 
+export interface ExternalApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  secretPreview: string;
+  status: 'active' | 'revoked' | string;
+  rateLimitPerMinute: number;
+  expiresAt?: string | null;
+  createdBy?: string | null;
+  lastUsedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ExternalApiKeyCreated extends ExternalApiKey {
+  secret: string;
+}
+
 export interface SearchQueryRecommendations {
   queries: string[];
 }
