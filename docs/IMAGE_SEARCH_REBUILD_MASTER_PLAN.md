@@ -1,8 +1,8 @@
 # 图片搜索系统改造总纲
 
-版本：2.184（外部图片搜索 API 第一版）
+版本：2.185（OpenAI 兼容图片搜索接口）
 更新时间：2026-10-14
-状态：D380 已完成本地外部图片搜索 API 第一版：新增管理员管理 API Key、带 Bearer Key 的 `/api/public/image-search` 和受同一 Key 保护的公开缩略图/内容/下载地址；搜索复用现有 SearchService，外部调用默认只传自然语言 `query` 和少量结果/渠道约束。新增迁移 `20261014_0045` 尚未部署到云端；API Key 只存哈希，创建响应仅显示一次原始密钥，支持撤销、过期和进程内每分钟限流。管理员前端“开放 API”页面、接入文档和专项测试已完成；尚未完成云端迁移、HTTPS、外部项目联调和多进程限流验收。六大体系、16 个核心卖点、人工 accepted 关系及既有素材、知识和行为数据集保持不变。
+状态：D381 已在 D380 的基础上新增 OpenAI 兼容入口 `/v1/chat/completions`：使用同一 Bearer API Key，把最新用户消息交给现有图片搜索链路，并以 OpenAI `chat.completion` 响应返回候选图片 JSON；原生 `/api/public/image-search` 继续保留。尚未部署到云端，仍需执行迁移、重建 Backend/Web、HTTPS 验收和外部 AI 平台联调。D380 的 Key 管理、人工 accepted 关系、素材和图片地址边界保持不变。
 适用项目：`piancton`  
 
 > 本文档是图片搜索改造的唯一事实来源（Single Source of Truth）。后续新窗口、新开发者或新模型开始工作前，必须先完整阅读本文档。聊天中的临时想法若未写入本文档，不视为已确定方案。
@@ -12,6 +12,7 @@
 ## 0. 跨窗口接力区
 
 - 2026-10-14 D380 外部图片搜索 API 第一版（本地完成，云端未部署）：为让其他项目的 AI 通过自然语言调用 Piancton 图片库，新增 `external_api_keys` 表、管理员 API Key 管理接口 `GET/POST /api/admin/api-keys` 和 `POST /api/admin/api-keys/{id}/revoke`，以及服务端调用接口 `POST /api/public/image-search`。外部接口要求 `Authorization: Bearer <key>`，搜索请求以 `query` 为主，支持 `limit`、体系/概念兼容字段、渠道和场景二次筛选；返回现有 `SearchResponse`，并将结果图片地址改为同一 Bearer Key 保护的公开媒体路径 `/api/public/images/{id}/{thumbnail|content|download}`。不把未审核素材关系或内部密钥交给调用方。原始 Key 只在创建时返回，数据库只保存 SHA-256 哈希和预览，管理员操作写审计日志，默认每个 Key 每分钟 60 次进程内限流。新增迁移 `20261014_0045`、管理员“开放 API”页面、`docs/EXTERNAL_IMAGE_SEARCH_API.md` 和后端专项 3 项测试通过；客户端 TypeScript、ESLint、100 项前端测试通过，Docker 镜像构建通过。下一步是生产 PostgreSQL 迁移、HTTPS 云端重建、外部项目联调，并在多进程部署前把限流移到共享存储或网关。方案决策：不开放匿名搜索，不要求外部 AI 直接填写六大体系/卖点 code；由 Piancton 内部继续负责意图识别、人工 accepted 关系过滤和搜索结果组装。
+- 2026-10-15 D381 OpenAI 兼容图片搜索接口（本地实施中，云端未部署）：根据外部项目普遍只支持 OpenAI Base URL、API Key、Model 配置的接入方式，增加 `/v1/chat/completions` 兼容入口，仍使用 D380 的 Bearer Key，不替代原生图片搜索接口。请求读取最新 `user` 消息作为图片需求，搜索后返回标准 `chat.completion` 外壳，`choices[0].message.content` 为可解析 JSON，包含 query、match_summary、images（图片 ID、标题、地址、匹配原因）；媒体地址继续要求同一个 Bearer Key。第一版 `stream=false`，不接管真正的大模型生成，也不把 Piancton 伪装成通用聊天模型；外部 AI 负责自己的判断和后续使用。需要同步 Nginx `/v1/` 转发、OpenAPI 文档、专项测试和外部平台联调。
 
 - 2026-10-09 D378 飞书统一登录改造（本地完成，云端待配置）：现有飞书企业自建应用已配置网页能力并能打开 `http://118.196.150.130`，此前 Piancton 只加载网页入口，不读取飞书用户身份。现在飞书客户端内优先通过 H5 `requestAuthCode` 获取短期 code；普通浏览器的“使用飞书登录”入口跳转到飞书 OAuth 授权页，经 `/api/auth/feishu/callback` 校验 state 后回到 Piancton。两条入口最终都由后端用应用凭证换取用户身份并按企业范围校验，首次自动创建普通 `business` 账号、后续按飞书身份匹配，沿用现有 session cookie；记录飞书显示名、部门和最近登录时间。普通用户登录页默认关闭自助注册，只保留账号密码和飞书登录；管理员仍可在“用户与权限”中创建账号，后端注册接口保留但默认返回注册关闭。新创建/首次飞书登录的业务账号仍保持未完成新人引导状态。事件回调暂不作为登录前置，后续再评估离职/调岗同步。当前网页主页仍是 HTTP IP，先用于企业内测；正式域名/HTTPS、OAuth 回调地址和安全设置需在云端配置。新增用户身份字段和迁移不改变素材、搜索、六大体系、人工 accepted 关系或火山数据集。
 

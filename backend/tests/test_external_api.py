@@ -1,3 +1,5 @@
+import json
+
 from app.api import dependencies
 from app.main import app
 from app.schemas.image import SearchResponse
@@ -68,3 +70,57 @@ def test_public_search_accepts_key_and_reuses_search_service(client):
         app.dependency_overrides.pop(dependencies.get_search_service, None)
     assert response.status_code == 200
     assert response.json()["results"] == []
+
+
+def test_openai_compatible_search_returns_chat_completion(client):
+    csrf = login(client, "admin", "admin-password")
+    created = client.post(
+        "/api/admin/api-keys",
+        json={"name": "OpenAI 兼容调用方"},
+        headers={"X-CSRF-Token": csrf},
+    ).json()
+
+    class StubSearchService:
+        async def search_async(self, *args, **kwargs):
+            return SearchResponse(results=[], match_summary="没有找到匹配图片")
+
+    app.dependency_overrides[dependencies.get_search_service] = lambda: StubSearchService()
+    try:
+        response = client.post(
+            "/v1/chat/completions",
+            headers={"Authorization": f"Bearer {created['secret']}"},
+            json={
+                "model": "piancton-image-search",
+                "messages": [{"role": "user", "content": "找一张教育场景图"}],
+                "stream": False,
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(dependencies.get_search_service, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["object"] == "chat.completion"
+    assert body["choices"][0]["message"]["role"] == "assistant"
+    content = json.loads(body["choices"][0]["message"]["content"])
+    assert content["query"] == "找一张教育场景图"
+    assert content["images"] == []
+
+
+def test_openai_compatible_search_rejects_streaming(client):
+    csrf = login(client, "admin", "admin-password")
+    created = client.post(
+        "/api/admin/api-keys",
+        json={"name": "OpenAI 流式测试"},
+        headers={"X-CSRF-Token": csrf},
+    ).json()
+    response = client.post(
+        "/v1/chat/completions",
+        headers={"Authorization": f"Bearer {created['secret']}"},
+        json={
+            "model": "piancton-image-search",
+            "messages": [{"role": "user", "content": "找图"}],
+            "stream": True,
+        },
+    )
+    assert response.status_code == 400

@@ -56,3 +56,53 @@ curl -X POST "https://piancton.example.com/api/public/image-search" \
 ```
 
 默认每个 Key 每分钟允许 60 次请求。管理员创建 Key 时可以设置自己的上限；当前限流是单进程内保护，多进程部署前需要接入共享限流存储或在网关层配置限流。
+
+## OpenAI 兼容接口
+
+如果接入方已经使用 OpenAI SDK，可以直接把 `base_url` 指向 Piancton 的 `/v1`，把管理员创建的 Piancton API Key 作为 `api_key`。这个接口只是图片搜索的传输适配层，不会调用外部大模型。
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://piancton.example.com/v1",
+    api_key="pk_live_xxx",
+)
+
+completion = client.chat.completions.create(
+    model="piancton-image-search",
+    messages=[
+        {
+            "role": "user",
+            "content": "找一张适合官网横幅、体现孩子通过拍照获得分步骤学习引导的教育场景图",
+        }
+    ],
+    stream=False,
+)
+```
+
+对应的 HTTP 地址是 `POST /v1/chat/completions`。请求必须包含一个非空的 `user` 消息；可选字段 `image_limit` 默认是 8，最大 50。第一版要求 `stream=false`。
+
+返回值遵循 OpenAI 的 `chat.completion` 外层结构。候选图片放在 `choices[0].message.content` 的 JSON 字符串中，内容形如：
+
+```json
+{
+  "query": "找一张适合官网横幅的教育场景图",
+  "match_summary": "找到 3 张匹配图片",
+  "images": [
+    {
+      "id": "image-id",
+      "title": "孩子拍照学习",
+      "thumbnail_url": "https://piancton.example.com/api/public/images/image-id/thumbnail",
+      "content_url": "https://piancton.example.com/api/public/images/image-id/content",
+      "download_url": "https://piancton.example.com/api/public/images/image-id/download",
+      "match_level": "A",
+      "final_score": 0.91,
+      "match_reasons": ["符合教育场景", "适合官网横幅"],
+      "matched_business_concepts": ["个性化学习"]
+    }
+  ]
+}
+```
+
+外部 AI 可以读取这些候选、选择一张，再由自己的业务逻辑下载或展示。返回的三个图片地址仍然需要在请求头携带同一个 `Authorization: Bearer pk_live_xxx`；后端接入方可以代为下载并提供给自己的前端。

@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.router import api_router
+from app.api.v1.external_api import openai_router
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.middleware import RequestContextMiddleware
@@ -38,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(api_router, prefix=settings.api_prefix)
+app.include_router(openai_router, prefix="/v1")
 
 
 @app.exception_handler(AppError)

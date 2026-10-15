@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import time
+import uuid
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 from app.api.dependencies import (
@@ -21,6 +25,10 @@ from app.schemas.external_api import (
     ExternalApiKeyCreated,
     ExternalApiKeyRead,
     ExternalApiSearchRequest,
+    OpenAiAssistantMessage,
+    OpenAiChatChoice,
+    OpenAiChatCompletionRequest,
+    OpenAiChatCompletionResponse,
 )
 from app.schemas.image import SearchResponse
 from app.services.audit_service import AuditService
@@ -31,6 +39,7 @@ from app.services.search_service import SearchService
 
 admin_router = APIRouter(prefix="/admin/api-keys", tags=["external-api-keys"])
 public_router = APIRouter(prefix="/public", tags=["external-api"])
+openai_router = APIRouter(tags=["openai-compatible"])
 
 
 @admin_router.get("", response_model=list[ExternalApiKeyRead])
@@ -120,21 +129,66 @@ async def public_image_search(
         response=response,
         request_id=request.state.request_id,
     )
-    response.results = [
-        item.model_copy(
-            update={
-                "image": item.image.model_copy(
-                    update={
-                        "thumbnail_url": _public_media_url(request, item.image.id, "thumbnail"),
-                        "content_url": _public_media_url(request, item.image.id, "content"),
-                        "download_url": _public_media_url(request, item.image.id, "download"),
-                    }
-                )
-            }
-        )
-        for item in response.results
-    ]
-    return response
+    return _rewrite_external_result_urls(response, request)
+
+
+@openai_router.post(
+    "/chat/completions",
+    response_model=OpenAiChatCompletionResponse,
+)
+async def openai_chat_completion(
+    payload: OpenAiChatCompletionRequest,
+    request: Request,
+    _: ExternalApiKey = Depends(require_external_api_key),
+    service: SearchService = Depends(get_search_service),
+    analytics: SearchLogService = Depends(get_search_log_service),
+):
+    if payload.stream:
+        raise HTTPException(status_code=400, detail="暂不支持 stream=true，请使用 stream=false")
+
+    query = _latest_user_message_text(payload.messages)
+    if not query:
+        raise HTTPException(status_code=422, detail="messages 中必须包含非空的 user 消息")
+
+    response = await service.search_async(query, payload.image_limit, None, None, None, None, user_id="")
+    response.search_log_id = analytics.record_search(
+        actor_user_id=None,
+        keyword=query,
+        response=response,
+        request_id=request.state.request_id,
+    )
+    response = _rewrite_external_result_urls(response, request)
+    content = json.dumps(
+        {
+            "query": query,
+            "match_summary": response.match_summary,
+            "images": [
+                {
+                    "id": item.image.id,
+                    "title": item.image.title,
+                    "thumbnail_url": item.image.thumbnail_url,
+                    "content_url": item.image.content_url,
+                    "download_url": item.image.download_url,
+                    "match_level": item.match_level,
+                    "final_score": item.final_score,
+                    "match_reasons": item.match_reasons,
+                    "matched_business_concepts": item.matched_business_concepts,
+                }
+                for item in response.results
+            ],
+        },
+        ensure_ascii=False,
+    )
+    return OpenAiChatCompletionResponse(
+        id=f"chatcmpl-piancton-{uuid.uuid4().hex}",
+        created=int(time.time()),
+        model=payload.model,
+        choices=[
+            OpenAiChatChoice(
+                message=OpenAiAssistantMessage(content=content),
+            )
+        ],
+    )
 
 
 @public_router.get("/images/{image_id}/thumbnail")
@@ -207,3 +261,41 @@ def _require_published(image, *, release) -> None:
 def _public_media_url(request: Request, image_id: str, kind: str) -> str:
     api_prefix = get_settings().api_prefix.rstrip("/")
     return f"{str(request.base_url).rstrip('/')}{api_prefix}/public/images/{image_id}/{kind}"
+
+
+def _rewrite_external_result_urls(response: SearchResponse, request: Request) -> SearchResponse:
+    response.results = [
+        item.model_copy(
+            update={
+                "image": item.image.model_copy(
+                    update={
+                        "thumbnail_url": _public_media_url(request, item.image.id, "thumbnail"),
+                        "content_url": _public_media_url(request, item.image.id, "content"),
+                        "download_url": _public_media_url(request, item.image.id, "download"),
+                    }
+                )
+            }
+        )
+        for item in response.results
+    ]
+    return response
+
+
+def _latest_user_message_text(messages) -> str:
+    for message in reversed(messages):
+        if message.role != "user":
+            continue
+        content = message.content
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict) and item.get("type") in {"text", "input_text"}:
+                    text = item.get("text")
+                    if isinstance(text, str):
+                        parts.append(text)
+            return " ".join(parts).strip()
+    return ""

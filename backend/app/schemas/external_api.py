@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import Field
 
@@ -47,3 +47,41 @@ class ExternalApiSearchRequest(ApiModel):
 class ExternalApiSearchResponse(ApiModel):
     data: SearchResponse
     request_id: Optional[str] = None
+
+
+class OpenAiChatMessage(ApiModel):
+    role: str
+    content: Any
+
+
+class OpenAiChatCompletionRequest(ApiModel):
+    model: str = Field(default="piancton-image-search", min_length=1, max_length=120)
+    messages: list[OpenAiChatMessage] = Field(min_length=1)
+    stream: bool = False
+    image_limit: int = Field(default=8, ge=1, le=50)
+
+
+class OpenAiAssistantMessage(ApiModel):
+    role: str = "assistant"
+    content: str
+
+
+class OpenAiChatChoice(ApiModel):
+    index: int = 0
+    message: OpenAiAssistantMessage
+    finish_reason: str = "stop"
+
+
+class OpenAiUsage(ApiModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+
+class OpenAiChatCompletionResponse(ApiModel):
+    id: str
+    object: str = "chat.completion"
+    created: int
+    model: str
+    choices: list[OpenAiChatChoice]
+    usage: OpenAiUsage = Field(default_factory=OpenAiUsage)
