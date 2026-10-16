@@ -10,7 +10,7 @@ import { Button } from '@client/src/components/ui/button';
 import { Input } from '@client/src/components/ui/input';
 import { useAuth } from '@client/src/lib/auth';
 import { PRODUCT_NAME } from '@client/src/lib/branding';
-import { isFeishuWebView } from '@client/src/lib/feishu';
+import { isFeishuWebView, requestFeishuAuthCode } from '@client/src/lib/feishu';
 
 const selfRegistrationEnabled = import.meta.env.MODE === 'test'
   || import.meta.env.VITE_SELF_REGISTRATION_ENABLED === 'true';
@@ -27,17 +27,27 @@ const Login = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [pendingAvatarUsername, setPendingAvatarUsername] = useState<string | null>(null);
   const [feishuLoading, setFeishuLoading] = useState(false);
-  const { user, login, uploadAvatar } = useAuth();
+  const { user, login, loginWithFeishu, uploadAvatar } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const showBrowserFeishuLogin = Boolean(import.meta.env.VITE_FEISHU_APP_ID) && !isFeishuWebView();
+  const inFeishuWebView = isFeishuWebView();
+  const showFeishuLogin = Boolean(import.meta.env.VITE_FEISHU_APP_ID);
 
   const startFeishuLogin = () => {
     if (feishuLoading || isRegistering) return;
     setFeishuLoading(true);
     setError('');
-    // Browser OAuth is the only supported Feishu login flow. The button is
-    // hidden in a Feishu WebView, so this navigation only runs in a browser.
+    if (inFeishuWebView) {
+      requestFeishuAuthCode()
+        .then((code) => {
+          if (!code) throw new Error('飞书授权未返回授权码，请确认应用已配置网页应用权限');
+          return loginWithFeishu(code);
+        })
+        .then(() => navigate((location.state as { from?: string } | null)?.from || '/', { replace: true }))
+        .catch((requestError) => setError(getApiError(requestError).message))
+        .finally(() => setFeishuLoading(false));
+      return;
+    }
     window.location.assign('/api/auth/feishu/start');
   };
 
@@ -167,9 +177,9 @@ const Login = () => {
           {isRegistering && <AvatarChoices presetId={avatarPresetId} onPresetChange={setAvatarPresetId} file={avatarFile} onFileChange={setAvatarFile} disabled={submitting} />}
           {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          {!isRegistering && showBrowserFeishuLogin && (
+          {!isRegistering && showFeishuLogin && (
             <Button type="button" variant="outline" className="h-11 w-full" disabled={submitting || feishuLoading} onClick={startFeishuLogin}>
-              {feishuLoading ? '正在跳转飞书登录…' : '使用飞书登录'}
+              {feishuLoading ? '正在登录飞书…' : '使用飞书登录'}
             </Button>
           )}
           <Button type="submit" className="h-11 w-full" disabled={submitting}>
