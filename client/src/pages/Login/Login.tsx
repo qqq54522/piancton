@@ -44,7 +44,11 @@ const Login = () => {
           return loginWithFeishu(code);
         })
         .then(() => navigate((location.state as { from?: string } | null)?.from || '/', { replace: true }))
-        .catch((requestError) => setError(getApiError(requestError).message))
+        .catch(() => {
+          // Some Feishu clients block the H5 SDK bridge. Fall back to the
+          // browser OAuth flow, which uses the same verified callback URL.
+          window.location.assign('/api/auth/feishu/start');
+        })
         .finally(() => setFeishuLoading(false));
       return;
     }
